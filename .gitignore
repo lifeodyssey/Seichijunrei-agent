@@ -60,3 +60,4 @@ outputs/
 .env.production
 secrets/
 credentials/
+anitabi/
