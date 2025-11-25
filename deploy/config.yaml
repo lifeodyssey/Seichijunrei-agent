@@ -1,0 +1,39 @@
+# Seichijunrei Bot - Deployment Configuration
+# For Google Agent Engine deployment
+
+# Google Cloud Settings
+gcp:
+  project_id: "${GCP_PROJECT_ID}"  # Set via environment variable
+  location: "us-central1"
+  staging_bucket: "gs://${GCP_PROJECT_ID}-agent-staging"
+
+# Agent Configuration
+agent:
+  display_name: "Seichijunrei Bot"
+  description: "AI-powered travel assistant for anime pilgrims"
+  version: "1.0.0"
+
+# Runtime Settings
+runtime:
+  python_version: "3.11"
+  memory: "2Gi"
+  timeout: "300s"
+  max_instances: 10
+  min_instances: 0
+
+# Feature Flags
+features:
+  enable_tracing: true
+  enable_logging: true
+  enable_metrics: false
+
+# API Keys (reference secrets, not actual values)
+secrets:
+  google_maps_api_key: "projects/${GCP_PROJECT_ID}/secrets/google-maps-api-key/versions/latest"
+  weather_api_key: "projects/${GCP_PROJECT_ID}/secrets/weather-api-key/versions/latest"
+
+# Environment Variables
+environment:
+  LOG_LEVEL: "INFO"
+  CACHE_TTL_SECONDS: "3600"
+  MAX_WAYPOINTS: "25"

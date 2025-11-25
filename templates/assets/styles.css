@@ -1,0 +1,338 @@
+/**
+ * Styles for pilgrimage PDF generation
+ * Optimized for print layout with bilingual (CN/JP) support
+ */
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #2C3E50;
+    background: white;
+}
+
+/* Print-specific styles */
+@media print {
+    .page-break {
+        page-break-after: always;
+    }
+
+    @page {
+        size: A4;
+        margin: 20mm;
+    }
+}
+
+/* Cover Page */
+.cover-page {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px;
+}
+
+.cover-title {
+    font-size: 48px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.cover-subtitle {
+    font-size: 24px;
+    margin-bottom: 40px;
+    opacity: 0.9;
+}
+
+.cover-summary {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    border-radius: 12px;
+    margin: 20px 0;
+    min-width: 400px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 18px;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-weight: 600;
+}
+
+.summary-value {
+    font-weight: bold;
+    font-size: 20px;
+}
+
+/* Weather Section */
+.weather-box {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.weather-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    font-size: 16px;
+}
+
+/* Content Sections */
+.content-page {
+    padding: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #667eea;
+}
+
+/* Map Section */
+.map-container {
+    width: 100%;
+    margin: 20px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.map-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Itinerary Section */
+.itinerary-item {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #F8F9FA;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.point-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.point-number {
+    width: 40px;
+    height: 40px;
+    background: #667eea;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.point-name-cn {
+    font-size: 20px;
+    font-weight: bold;
+    color: #2C3E50;
+    margin-bottom: 4px;
+}
+
+.point-name-jp {
+    font-size: 14px;
+    color: #7F8C8D;
+}
+
+.bangumi-info {
+    background: white;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.bangumi-title {
+    font-weight: 600;
+    color: #667eea;
+}
+
+.bangumi-episode {
+    color: #7F8C8D;
+    font-size: 13px;
+}
+
+.transport-info {
+    background: #E8EAF6;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.transport-icon {
+    font-size: 24px;
+}
+
+.transport-mode {
+    font-weight: 600;
+    text-transform: capitalize;
+    color: #667eea;
+}
+
+.transport-details {
+    color: #546E7A;
+    font-size: 13px;
+}
+
+.cumulative-info {
+    margin-top: 10px;
+    padding: 8px;
+    background: white;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #7F8C8D;
+}
+
+/* Bangumi Section */
+.bangumi-section {
+    margin-bottom: 40px;
+    padding: 25px;
+    background: #F8F9FA;
+    border-radius: 12px;
+}
+
+.bangumi-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #E0E0E0;
+}
+
+.bangumi-cover {
+    width: 80px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-right: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bangumi-titles {
+    flex: 1;
+}
+
+.bangumi-title-cn {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2C3E50;
+    margin-bottom: 6px;
+}
+
+.bangumi-title-jp {
+    font-size: 16px;
+    color: #7F8C8D;
+}
+
+.bangumi-points-count {
+    background: #667eea;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.bangumi-point-list {
+    list-style: none;
+}
+
+.bangumi-point-item {
+    padding: 15px;
+    background: white;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+}
+
+.point-name-with-episode {
+    font-weight: 600;
+    color: #2C3E50;
+    margin-bottom: 4px;
+}
+
+.point-screenshot {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    border-radius: 6px;
+    margin-top: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Utility Classes */
+.bilingual {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.text-cn {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.text-jp {
+    font-size: 13px;
+    color: #7F8C8D;
+}
+
+.icon {
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #E8EAF6;
+    color: #667eea;
+}

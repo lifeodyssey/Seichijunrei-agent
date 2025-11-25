@@ -1,17 +1,18 @@
+# Seichijunrei Bot - Production Dependencies
+# For deployment to Google Agent Engine
+
+# Google Cloud & ADK
+google-cloud-aiplatform[adk,agent_engines]>=1.111
+google-adk>=1.0.0
+
 # Core dependencies
 python-dotenv>=1.0.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 
 # Async support
-asyncio>=3.4.3
 aiohttp>=3.9.0
 httpx>=0.25.0
-
-# Agent framework (Choose one)
-# langchain>=0.1.0
-# crewai>=0.1.0
-# OR use Google ADK when available
 
 # Google APIs
 googlemaps>=4.10.0

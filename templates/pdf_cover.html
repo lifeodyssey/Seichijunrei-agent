@@ -1,0 +1,52 @@
+<!-- PDF Cover Page Template -->
+<div class="cover-page">
+    <h1 class="cover-title">圣地巡礼指南</h1>
+    <p class="cover-subtitle">{{ session.station.name }} 朝圣之旅</p>
+
+    <div class="cover-summary">
+        <div class="summary-item">
+            <span class="summary-label">🚉 出发站</span>
+            <span class="summary-value">{{ session.station.name }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">📍 景点数量</span>
+            <span class="summary-value">{{ session.route.segments|length }} 个</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">🚶 总距离</span>
+            <span class="summary-value">{{ "%.1f"|format(session.route.total_distance_km) }} km</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">⏱️ 总时间</span>
+            <span class="summary-value">{{ session.route.total_duration_formatted }}</span>
+        </div>
+        {% if session.nearby_bangumi %}
+        <div class="summary-item">
+            <span class="summary-label">🎬 动漫作品</span>
+            <span class="summary-value">{{ session.nearby_bangumi|length }} 部</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if session.weather %}
+    <div class="weather-box">
+        <h3 style="margin-bottom: 12px;">天气信息</h3>
+        <div class="weather-info">
+            <span>{{ session.weather.condition }}</span>
+            <span>{{ session.weather.temperature_range }}</span>
+            <span>💧 {{ session.weather.precipitation_chance }}%</span>
+            <span>💨 {{ session.weather.wind_speed_kmh }} km/h</span>
+        </div>
+        <p style="margin-top: 12px; font-size: 14px;">
+            <strong>建议:</strong> {{ session.weather.recommendation }}
+        </p>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 40px; font-size: 14px; opacity: 0.8;">
+        <p>生成时间: {{ session.created_at.strftime('%Y年%m月%d日 %H:%M') }}</p>
+        <p>Session ID: {{ session.session_id }}</p>
+    </div>
+</div>
+
+<div class="page-break"></div>

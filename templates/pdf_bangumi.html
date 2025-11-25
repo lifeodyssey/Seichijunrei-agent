@@ -1,0 +1,59 @@
+<!-- PDF Bangumi Sections Template -->
+<div class="content-page">
+    <h2 class="section-title">动漫作品 / Anime Works</h2>
+
+    {% for bangumi in session.nearby_bangumi %}
+    {% if bangumi.id in session.selected_bangumi_ids %}
+    <div class="bangumi-section">
+        <div class="bangumi-header">
+            {% if bangumi.cover_url %}
+            <img src="{{ bangumi.cover_url }}"
+                 alt="{{ bangumi.cn_title }}"
+                 class="bangumi-cover"
+                 onerror="this.style.display='none'">
+            {% endif %}
+            <div class="bangumi-titles">
+                <h3 class="bangumi-title-cn">{{ bangumi.cn_title }}</h3>
+                <p class="bangumi-title-jp">{{ bangumi.title }}</p>
+            </div>
+            <div class="bangumi-points-count">
+                {{ bangumi.points_count }} 个景点
+            </div>
+        </div>
+
+        <!-- Points for this bangumi -->
+        <ul class="bangumi-point-list">
+            {% for segment in session.route.segments %}
+            {% if segment.point.bangumi_id == bangumi.id %}
+            <li class="bangumi-point-item">
+                <div class="point-name-with-episode">
+                    <span style="color: #667eea; font-weight: bold; margin-right: 8px;">
+                        ⬤
+                    </span>
+                    {{ segment.point.cn_name }} / {{ segment.point.name }}
+                </div>
+                <div style="color: #7F8C8D; font-size: 13px; margin-top: 4px;">
+                    📺 第{{ segment.point.episode }}集 {{ segment.point.time_formatted }}
+                    • 📍 景点 #{{ segment.order }}
+                </div>
+
+                {% if segment.point.screenshot_url %}
+                <img src="{{ segment.point.screenshot_url }}"
+                     alt="{{ segment.point.cn_name }}"
+                     class="point-screenshot"
+                     style="max-width: 300px; margin-top: 10px;"
+                     onerror="this.style.display='none'">
+                {% endif %}
+            </li>
+            {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+
+    {% if not loop.last %}
+    <div style="margin: 20px 0;"></div>
+    {% endif %}
+
+    {% endif %}
+    {% endfor %}
+</div>

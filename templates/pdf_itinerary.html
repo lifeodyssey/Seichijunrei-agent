@@ -1,0 +1,112 @@
+<!-- PDF Itinerary Template -->
+<div class="content-page">
+    <h2 class="section-title">行程安排 / Itinerary</h2>
+
+    <!-- Origin -->
+    <div class="itinerary-item">
+        <div class="point-header">
+            <div class="point-number" style="background: #E74C3C;">🚉</div>
+            <div>
+                <div class="point-name-cn">起点: {{ session.station.name }}</div>
+                {% if session.station.city %}
+                <div class="point-name-jp">{{ session.station.city }}, {{ session.station.prefecture }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <p style="color: #7F8C8D; font-size: 13px;">
+            📍 {{ session.station.coordinates.latitude }}, {{ session.station.coordinates.longitude }}
+        </p>
+    </div>
+
+    <!-- Points -->
+    {% for segment in session.route.segments %}
+    <div class="itinerary-item">
+        <div class="point-header">
+            <div class="point-number">{{ segment.order }}</div>
+            <div style="flex: 1;">
+                <div class="point-name-cn">{{ segment.point.cn_name }}</div>
+                <div class="point-name-jp">{{ segment.point.name }}</div>
+            </div>
+        </div>
+
+        <!-- Bangumi Info -->
+        <div class="bangumi-info">
+            <span style="font-size: 20px;">🎬</span>
+            <div>
+                <div class="bangumi-title">{{ segment.point.bangumi_title }}</div>
+                <div class="bangumi-episode">
+                    第{{ segment.point.episode }}集 {{ segment.point.time_formatted }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Transport Info -->
+        {% if segment.transport %}
+        <div class="transport-info">
+            <span class="transport-icon">
+                {% if segment.transport.mode == 'walking' %}
+                🚶
+                {% elif segment.transport.mode == 'transit' %}
+                🚇
+                {% else %}
+                🚗
+                {% endif %}
+            </span>
+            <div style="flex: 1;">
+                <div class="transport-mode">{{ segment.transport.mode }}</div>
+                <div class="transport-details">
+                    {{ segment.transport.distance_meters }}m •
+                    {{ segment.transport.duration_minutes }}分钟 •
+                    {{ segment.transport.instructions }}
+                </div>
+                {% if segment.transport.transit_details %}
+                <div class="transport-details" style="margin-top: 4px;">
+                    {% for line in segment.transport.transit_details.get('lines', []) %}
+                    <span class="badge">{{ line.name }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Cumulative Stats -->
+        <div class="cumulative-info">
+            <strong>累计:</strong>
+            {{ "%.1f"|format(segment.cumulative_distance_km) }} km •
+            {{ segment.cumulative_duration_minutes }} 分钟
+        </div>
+
+        <!-- Screenshot -->
+        {% if segment.point.screenshot_url %}
+        <div style="margin-top: 12px; text-align: center;">
+            <img src="{{ segment.point.screenshot_url }}"
+                 alt="{{ segment.point.cn_name }}"
+                 class="point-screenshot"
+                 onerror="this.style.display='none'">
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Summary -->
+    <div style="margin-top: 30px; padding: 20px; background: #F0F4F8; border-radius: 8px;">
+        <h3 style="margin-bottom: 12px; color: #667eea;">总结 / Summary</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <strong>总景点数:</strong> {{ session.route.segments|length }} 个
+            </div>
+            <div>
+                <strong>总距离:</strong> {{ "%.1f"|format(session.route.total_distance_km) }} km
+            </div>
+            <div>
+                <strong>总时间:</strong> {{ session.route.total_duration_formatted }}
+            </div>
+            <div>
+                <strong>动漫作品:</strong> {{ session.nearby_bangumi|length }} 部
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-break"></div>
