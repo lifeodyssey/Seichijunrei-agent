@@ -12,3 +12,8 @@ from pathlib import Path
 # This allows imports like 'from agents import ...' to work
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+# Export root_agent for ADK
+from .agent import root_agent
+
+__all__ = ['root_agent']
