@@ -16,7 +16,7 @@ from tools import MapGeneratorTool, PDFGeneratorTool
 from domain.entities import PilgrimageSession
 from utils.logger import get_logger, setup_logging
 from config import get_settings
-from adk_agents.seichijunrei_bot.workflows.pilgrimage_workflow import pilgrimage_workflow
+from adk_agents.seichijunrei_bot._workflows.pilgrimage_workflow import pilgrimage_workflow
 from adk_agents.seichijunrei_bot.tools import (
     search_bangumi_subjects,
     get_bangumi_subject,

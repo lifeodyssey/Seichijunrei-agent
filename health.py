@@ -83,7 +83,7 @@ async def _check_agents() -> bool:
     """Check if ADK agents can be imported and initialized."""
     try:
         from adk_agents.seichijunrei_bot.agent import root_agent
-        from adk_agents.seichijunrei_bot.workflows.pilgrimage_workflow import pilgrimage_workflow
+        from adk_agents.seichijunrei_bot._workflows.pilgrimage_workflow import pilgrimage_workflow
 
         # Verify root agent is configured
         assert root_agent.name == "seichijunrei_bot"

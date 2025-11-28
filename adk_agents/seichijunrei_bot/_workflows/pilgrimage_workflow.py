@@ -10,13 +10,13 @@ At this stage, the workflow is defined but not yet used by the root agent.
 
 from google.adk.agents import ParallelAgent, SequentialAgent
 
-from adk_agents.seichijunrei_bot.agents.bangumi_search_agent import bangumi_search_agent
-from adk_agents.seichijunrei_bot.agents.extraction_agent import extraction_agent
-from adk_agents.seichijunrei_bot.agents.location_search_agent import location_search_agent
-from adk_agents.seichijunrei_bot.agents.points_search_agent import points_search_agent
-from adk_agents.seichijunrei_bot.agents.route_agent import route_optimization_agent
-from adk_agents.seichijunrei_bot.agents.transport_agent import transport_agent
-from adk_agents.seichijunrei_bot.agents.weather_agent import weather_agent
+from adk_agents.seichijunrei_bot._agents.bangumi_search_agent import bangumi_search_agent
+from adk_agents.seichijunrei_bot._agents.extraction_agent import extraction_agent
+from adk_agents.seichijunrei_bot._agents.location_search_agent import location_search_agent
+from adk_agents.seichijunrei_bot._agents.points_search_agent import points_search_agent
+from adk_agents.seichijunrei_bot._agents.route_agent import route_optimization_agent
+from adk_agents.seichijunrei_bot._agents.transport_agent import transport_agent
+from adk_agents.seichijunrei_bot._agents.weather_agent import weather_agent
 
 
 # Step 2: parallel search for bangumi + location

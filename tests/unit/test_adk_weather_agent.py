@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
 
-from adk_agents.seichijunrei_bot.agents.weather_agent import WeatherAgent
+from adk_agents.seichijunrei_bot._agents.weather_agent import WeatherAgent
 from domain.entities import Coordinates, Weather, APIError
 from google.adk.events import Event, EventActions
 
