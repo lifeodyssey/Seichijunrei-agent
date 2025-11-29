@@ -173,10 +173,11 @@ root_agent = Agent(
     ## 核心能力
 
     **完整路线规划 (推荐方式):**
-    - 工具: `plan_pilgrimage_workflow(user_query)`
+    - 工具: `plan_pilgrimage_workflow(request="用户的查询内容")`
     - 用途: 当用户想规划巡礼路线时（包含番剧名或车站名）
-    - 示例: "我在新宿想去你的名字的圣地" → 自动提取→搜索→天气→路线
+    - 示例: request="我在新宿想去你的名字的圣地" → 自动提取→搜索→天气→路线
     - 输出: 包含路线、天气、交通方式的完整计划
+    - 重要: 参数名必须是 request，值为用户的原始查询文本
 
     **探索模式 (浏览用):**
     - `search_anitabi_bangumi_near_station(station_name)` - 查看车站附近的番剧

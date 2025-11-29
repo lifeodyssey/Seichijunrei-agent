@@ -22,7 +22,7 @@ extraction_agent = LlmAgent(
     - 不要编造不存在的信息。
     - 始终返回严格的 JSON，字段名必须固定为 bangumi_name 和 location。
 
-    用户查询（user_query）如下：
+    用户查询来自session state中的 user_query 字段：
     {user_query}
 
     请返回形如：

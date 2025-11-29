@@ -12,6 +12,7 @@ from google.adk.agents import ParallelAgent, SequentialAgent
 
 from adk_agents.seichijunrei_bot._agents.bangumi_search_agent import bangumi_search_agent
 from adk_agents.seichijunrei_bot._agents.extraction_agent import extraction_agent
+from adk_agents.seichijunrei_bot._agents.input_normalization_agent import input_normalization_agent
 from adk_agents.seichijunrei_bot._agents.location_search_agent import location_search_agent
 from adk_agents.seichijunrei_bot._agents.points_search_agent import points_search_agent
 from adk_agents.seichijunrei_bot._agents.route_agent import route_optimization_agent
@@ -44,12 +45,13 @@ pilgrimage_workflow = SequentialAgent(
     # This name becomes the ADK tool name via AgentTool; keep it
     # aligned with root_agent.instructions as the canonical entry point.
     name="plan_pilgrimage_workflow",
-    description="完整的圣地巡礼规划工作流（提取 → 搜索 → 点位 → 增强 → 交通优化）",
+    description="完整的圣地巡礼规划工作流（规范化 → 提取 → 搜索 → 点位 → 增强 → 交通优化）",
     sub_agents=[
-        extraction_agent,       # Step 1: extract bangumi + location
-        parallel_search,        # Step 2: resolve bangumi + location in parallel
-        points_search_agent,    # Step 3: fetch pilgrimage points
-        parallel_enrichment,    # Step 4: fetch weather + optimize route
-        transport_agent,        # Step 5: optimize transport & finalize plan
+        input_normalization_agent,  # Step 0: normalize input parameters to user_query
+        extraction_agent,           # Step 1: extract bangumi + location
+        parallel_search,            # Step 2: resolve bangumi + location in parallel
+        points_search_agent,        # Step 3: fetch pilgrimage points
+        parallel_enrichment,        # Step 4: fetch weather + optimize route
+        transport_agent,            # Step 5: optimize transport & finalize plan
     ],
 )
