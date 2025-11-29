@@ -57,38 +57,52 @@ Google Agent Development Kit (ADK).
 
 ## Architecture (High Level)
 
-The core workflow is implemented as a `SequentialAgent` with embedded
-`ParallelAgent` stages:
+The core workflow is implemented as a **2-stage conversational flow** using ADK agents:
 
+### Stage 1: Bangumi Search Workflow
 1. **ExtractionAgent (LlmAgent)**
-   - Extracts `bangumi_name` and `location` from the user query.
-2. **ParallelSearch (ParallelAgent)**
-   - **BangumiSearchAgent (LlmAgent)** – searches Bangumi for the best‑matching work.
-   - **LocationSearchAgent (LlmAgent)** – resolves the station name to coordinates.
-3. **PointsSearchAgent (BaseAgent)**
-   - Calls the Anitabi API to fetch pilgrimage points for the selected work.
-4. **PointsFilteringAgent (BaseAgent)**
-   - Reduces the list to a manageable set for routing (for example, top N).
-5. **ParallelEnrichment (ParallelAgent)**
-   - **WeatherAgent (BaseAgent)** – fetches weather summary (optional).
-   - **RouteOptimizationAgent (BaseAgent)** – builds the core route.
-6. **TransportAgent (BaseAgent)**
-   - Adds transport details and prepares the final plan.
+   - Extracts `bangumi_name` and `location` from user query
+   - Output: `extraction_result` → session state
 
-The ADK workflow is defined in
-`adk_agents/seichijunrei_bot/_workflows/pilgrimage_workflow.py` and used as the
-root agent entry point (`adk_agents/seichijunrei_bot/agent.py`).
+2. **BangumiCandidatesAgent (SequentialAgent)**
+   - Searches Bangumi API for matching anime works
+   - Selects top 3-5 candidates
+   - Output: `bangumi_candidates` → session state
 
-Supporting layers:
+3. **UserPresentationAgent (LlmAgent)**
+   - Generates natural language presentation of candidates
+   - No output_schema (conversational response)
+   - User selects their preferred anime
 
-- **Domain layer** (`domain/`) – Pydantic entities such as `Bangumi`,
-  `Point`, `Route`, `PilgrimageSession`.
-- **Infrastructure** (`clients/`, `services/`) – HTTP clients, retry, cache,
-  session management.
-- **Tools** (`tools/`) – map and PDF generator tools exposed to the agent.
-- **Templates** (`templates/`) – HTML/PDF layouts for user‑facing outputs.
+### Stage 2: Route Planning Workflow
+4. **UserSelectionAgent (LlmAgent)**
+   - Confirms and normalizes user's anime selection
+   - Output: `selected_bangumi` → session state
 
-For a deeper architectural write‑up, see `docs/architecture.md`.
+5. **PointsSearchAgent (BaseAgent)**
+   - Fetches all 聖地巡礼 points from Anitabi API
+   - Output: `all_points` → session state
+
+6. **PointsSelectionAgent (LlmAgent)**
+   - Intelligently selects 8-12 best points using LLM reasoning
+   - Considers: geography, plot importance, accessibility
+   - Output: `points_selection_result` → session state
+
+7. **RoutePlanningAgent (LlmAgent)**
+   - Calls custom `plan_route` tool for optimization
+   - Generates final route with transport suggestions
+   - Output: `route_plan` → session state
+
+**State Management:**
+- Uses `InMemorySessionService` for multi-turn conversations
+- State keys flow through workflow stages
+- Root agent (`seichijunrei_bot`) routes between stages based on state
+
+**Supporting Layers:**
+- **Domain layer** (`domain/`) – Pydantic entities: `Bangumi`, `Point`, `Route`, `PilgrimageSession`
+- **Infrastructure** (`clients/`, `services/`) – HTTP clients, retry, cache, session management
+- **Tools** (`tools/`) – Map and PDF generator tools exposed to agent
+- **Templates** (`templates/`) – HTML/PDF layouts for user-facing outputs
 
 ---
 
@@ -183,11 +197,23 @@ Seichijunrei/
 │
 ├── adk_agents/
 │   └── seichijunrei_bot/
-│       ├── agent.py         # ADK root agent entry point
-│       ├── _agents/         # LlmAgent and BaseAgent implementations
-│       ├── _schemas.py      # Pydantic schemas for ADK agents
-│       ├── _workflows/      # Sequential/Parallel ADK workflows
-│       └── tools.py         # ADK FunctionTool definitions
+│       ├── agent.py              # ADK root agent entry point
+│       ├── _agents/              # 9 agent implementations
+│       │   ├── extraction_agent.py
+│       │   ├── bangumi_candidates_agent.py
+│       │   ├── bangumi_search_agent.py
+│       │   ├── user_presentation_agent.py
+│       │   ├── user_selection_agent.py
+│       │   ├── points_search_agent.py
+│       │   ├── points_selection_agent.py
+│       │   ├── route_planning_agent.py
+│       │   └── input_normalization_agent.py
+│       ├── _schemas.py           # Pydantic schemas for ADK agents
+│       ├── _workflows/           # 2 workflow orchestrations
+│       │   ├── bangumi_search_workflow.py
+│       │   └── route_planning_workflow.py
+│       └── tools/                # Custom function tools
+│           └── route_planning.py # Route optimization tool
 │
 ├── clients/                 # HTTP API clients
 │   ├── anitabi.py           # Anitabi pilgrimage data client
@@ -202,7 +228,8 @@ Seichijunrei/
 ├── services/
 │   ├── cache.py             # In‑memory cache helpers
 │   ├── retry.py             # Retry and rate‑limiting utilities
-│   └── session.py           # Session state management
+│   ├── session.py           # Session state management
+│   └── simple_route_planner.py  # Route planning service
 │
 ├── tools/
 │   ├── base.py              # BaseTool wrapper
