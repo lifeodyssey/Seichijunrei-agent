@@ -1,11 +1,6 @@
 name: Deploy to Agent Engine
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "*.md"
-      - "docs/**"
   workflow_dispatch:
     inputs:
       environment:
