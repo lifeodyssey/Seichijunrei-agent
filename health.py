@@ -128,7 +128,7 @@ async def _check_domain() -> bool:
         # Quick validation check
         coords = Coordinates(latitude=35.6896, longitude=139.7006)
         station = Station(name="Test", coordinates=coords)
-        session = PilgrimageSession(session_id="health-check", station=station)
+        PilgrimageSession(session_id="health-check", station=station)
         return True
     except Exception as e:
         logger.error("Domain check failed", error=str(e))

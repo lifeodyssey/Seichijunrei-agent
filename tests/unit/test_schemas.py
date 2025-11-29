@@ -58,15 +58,15 @@ def test_points_selection_result_selected_points_is_array():
     assert "selected_points" in schema["properties"]
 
     selected_points_schema = schema["properties"]["selected_points"]
-    assert selected_points_schema["type"] == "array", (
-        "selected_points should be an array type"
-    )
+    assert (
+        selected_points_schema["type"] == "array"
+    ), "selected_points should be an array type"
 
     # Check that items are object references or inline objects
     items = selected_points_schema["items"]
-    assert "$ref" in items or items.get("type") == "object", (
-        "selected_points items should reference a structured object"
-    )
+    assert (
+        "$ref" in items or items.get("type") == "object"
+    ), "selected_points items should reference a structured object"
 
 
 def test_points_selection_result_required_fields():

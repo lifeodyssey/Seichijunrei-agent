@@ -9,7 +9,6 @@ session lifecycle issues in ADK's multi-event-loop execution model.
 
 from clients.anitabi import AnitabiClient
 from clients.bangumi import BangumiClient
-from clients.google_maps import GoogleMapsClient
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -219,68 +218,9 @@ async def search_anitabi_bangumi_near_station(
             }
 
 
-async def geocode_location(location_name: str) -> dict:
-    """
-    Geocode a location name to coordinates using the Google Maps Geocoding API.
-
-    This is the canonical way to resolve location names (for example,
-    "Uji", "Kyoto", "Tokyo") to GPS coordinates. The Anitabi API does not
-    provide geocoding.
-
-    Args:
-        location_name: Location name in any supported language
-
-    Returns:
-        {
-            "name": str,  # Original location name
-            "coordinates": {
-                "latitude": float,
-                "longitude": float
-            },
-            "formatted_address": str,  # Full address from Google Maps
-            "success": bool,
-            "error": str | None,
-        }
-
-    Example:
-        >>> result = await geocode_location("Uji")
-        >>> result["coordinates"]
-        {"latitude": 34.8897, "longitude": 135.7981}
-    """
-    async with GoogleMapsClient() as client:
-        try:
-            coordinates = await client.geocode_address(location_name)
-
-            return {
-                "name": location_name,
-                "coordinates": {
-                    "latitude": coordinates.latitude,
-                    "longitude": coordinates.longitude,
-                },
-                "formatted_address": f"{coordinates.latitude}, {coordinates.longitude}",
-                "success": True,
-                "error": None,
-            }
-        except Exception as e:
-            logger.error(
-                "geocode_location failed",
-                location_name=location_name,
-                error=str(e),
-                exc_info=True,
-            )
-            return {
-                "name": location_name,
-                "coordinates": None,
-                "formatted_address": None,
-                "success": False,
-                "error": str(e),
-            }
-
-
 __all__ = [
     "search_bangumi_subjects",
     "get_bangumi_subject",
     "get_anitabi_points",
     "search_anitabi_bangumi_near_station",
-    "geocode_location",
 ]

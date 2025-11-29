@@ -139,7 +139,7 @@ class BangumiClient(BaseHTTPClient):
             logger.error(
                 "Bangumi search failed", keyword=keyword, error=str(e), exc_info=True
             )
-            raise APIError(f"Bangumi search failed: {str(e)}")
+            raise APIError(f"Bangumi search failed: {str(e)}") from e
 
     async def get_subject(self, subject_id: int) -> dict:
         """
@@ -189,4 +189,4 @@ class BangumiClient(BaseHTTPClient):
                 error=str(e),
                 exc_info=True,
             )
-            raise APIError(f"Failed to fetch subject {subject_id}: {str(e)}")
+            raise APIError(f"Failed to fetch subject {subject_id}: {str(e)}") from e

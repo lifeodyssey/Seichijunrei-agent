@@ -175,7 +175,9 @@ class TestAnitabiClient:
             points = await client.get_bangumi_points("bangumi_1")
 
             # Verify API call
-            mock_get.assert_called_once_with("/bangumi/bangumi_1/points")
+            mock_get.assert_called_once_with(
+                "/bangumi_1/points/detail", params={"haveImage": "true"}
+            )
 
             # Verify results
             assert len(points) == 2

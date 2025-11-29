@@ -28,18 +28,18 @@ async def test_user_presentation_agent_basic_structure():
 
     # Verify agent has instruction
     assert user_presentation_agent.instruction is not None
-    assert len(user_presentation_agent.instruction) > 100, (
-        "Agent should have detailed instructions"
-    )
+    assert (
+        len(user_presentation_agent.instruction) > 100
+    ), "Agent should have detailed instructions"
 
     # Verify instruction mentions key concepts
     instruction = user_presentation_agent.instruction
-    assert "bangumi_candidates" in instruction, (
-        "Instruction should reference bangumi_candidates state"
-    )
-    assert "natural" in instruction.lower() or "friendly" in instruction.lower(), (
-        "Instruction should emphasize natural, friendly output"
-    )
+    assert (
+        "bangumi_candidates" in instruction
+    ), "Instruction should reference bangumi_candidates state"
+    assert (
+        "natural" in instruction.lower() or "friendly" in instruction.lower()
+    ), "Instruction should emphasize natural, friendly output"
 
 
 async def test_bangumi_search_workflow_includes_presentation_agent():
@@ -54,15 +54,15 @@ async def test_bangumi_search_workflow_includes_presentation_agent():
 
     # Verify workflow has 3 sub-agents
     assert hasattr(bangumi_search_workflow, "sub_agents")
-    assert len(bangumi_search_workflow.sub_agents) == 3, (
-        "Workflow should have 3 sub-agents: ExtractionAgent, BangumiCandidatesAgent, UserPresentationAgent"
-    )
+    assert (
+        len(bangumi_search_workflow.sub_agents) == 3
+    ), "Workflow should have 3 sub-agents: ExtractionAgent, BangumiCandidatesAgent, UserPresentationAgent"
 
     # Verify third agent is UserPresentationAgent
     third_agent = bangumi_search_workflow.sub_agents[2]
-    assert third_agent.name == "UserPresentationAgent", (
-        "Third agent should be UserPresentationAgent for presentation"
-    )
+    assert (
+        third_agent.name == "UserPresentationAgent"
+    ), "Third agent should be UserPresentationAgent for presentation"
 
 
 async def test_presentation_agent_no_output_schema():
@@ -82,26 +82,20 @@ async def test_presentation_agent_no_output_schema():
     assert (
         not hasattr(user_presentation_agent, "output_schema")
         or user_presentation_agent.output_schema is None
-    ), (
-        "UserPresentationAgent should NOT have output_schema (must generate natural language)"
-    )
+    ), "UserPresentationAgent should NOT have output_schema (must generate natural language)"
 
     # Verify it also has NO output_key (doesn't persist to state)
     assert (
         not hasattr(user_presentation_agent, "output_key")
         or user_presentation_agent.output_key is None
-    ), (
-        "UserPresentationAgent should NOT have output_key (output goes to user, not state)"
-    )
+    ), "UserPresentationAgent should NOT have output_key (output goes to user, not state)"
 
     # For contrast, verify BangumiCandidatesAgent DOES have output_schema
     # (following the ADK pattern of separating data processing from presentation)
     formatter = bangumi_candidates_agent.sub_agents[1]  # The formatter agent
     assert (
         hasattr(formatter, "output_schema") and formatter.output_schema is not None
-    ), (
-        "BangumiCandidatesFormatter should have output_schema (structured data processing)"
-    )
+    ), "BangumiCandidatesFormatter should have output_schema (structured data processing)"
 
 
 async def test_workflow_integration():

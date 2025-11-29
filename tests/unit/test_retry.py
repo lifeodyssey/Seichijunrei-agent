@@ -171,7 +171,7 @@ class TestRateLimiter:
         limiter = RateLimiter(calls_per_period=5, period_seconds=1.0)
 
         # Should allow 5 requests immediately
-        for i in range(5):
+        for _ in range(5):
             allowed = await limiter.acquire()
             assert allowed is True
 
@@ -181,7 +181,7 @@ class TestRateLimiter:
         limiter = RateLimiter(calls_per_period=3, period_seconds=1.0)
 
         # Use up all tokens
-        for i in range(3):
+        for _ in range(3):
             await limiter.acquire()
 
         # Next request should be delayed
@@ -237,7 +237,7 @@ class TestRateLimiter:
         )
 
         # Should allow burst of 10 requests
-        for i in range(10):
+        for _ in range(10):
             allowed = await limiter.acquire()
             assert allowed is True
 
@@ -260,7 +260,7 @@ class TestRateLimiter:
         await limiter1.acquire()
 
         # limiter2 should still have tokens
-        for i in range(3):
+        for _ in range(3):
             allowed = await limiter2.acquire()
             assert allowed is True
 
