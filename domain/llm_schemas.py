@@ -19,18 +19,10 @@ class BangumiNameExtraction(BaseModel):
 class BangumiSelection(BaseModel):
     """Schema for selecting the best bangumi match from search results."""
 
-    id: int = Field(
-        description="The ID of the selected bangumi"
-    )
-    name: str = Field(
-        description="Original name of the bangumi (usually Japanese)"
-    )
-    name_cn: str = Field(
-        description="Chinese name of the bangumi"
-    )
-    confidence: float = Field(
-        description="Match confidence score between 0.0 and 1.0"
-    )
+    id: int = Field(description="The ID of the selected bangumi")
+    name: str = Field(description="Original name of the bangumi (usually Japanese)")
+    name_cn: str = Field(description="Chinese name of the bangumi")
+    confidence: float = Field(description="Match confidence score between 0.0 and 1.0")
     reasoning: str = Field(
         description="1-2 sentences explaining why this bangumi was selected"
     )

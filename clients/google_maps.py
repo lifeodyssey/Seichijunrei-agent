@@ -8,13 +8,18 @@ Provides methods to:
 - Get place details including opening hours
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from config.settings import get_settings
 from clients.base import BaseHTTPClient
+from config.settings import get_settings
 from domain.entities import (
-    APIError, Coordinates, Point, Route, RouteSegment,
-    Station, TransportInfo
+    APIError,
+    Coordinates,
+    Point,
+    Route,
+    RouteSegment,
+    Station,
+    TransportInfo,
 )
 from utils.logger import get_logger
 
@@ -34,10 +39,10 @@ class GoogleMapsClient(BaseHTTPClient):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         use_cache: bool = True,
         rate_limit_calls: int = 50,
-        rate_limit_period: float = 1.0
+        rate_limit_period: float = 1.0,
     ):
         """
         Initialize Google Maps API client.
@@ -59,7 +64,7 @@ class GoogleMapsClient(BaseHTTPClient):
             rate_limit_calls=rate_limit_calls,
             rate_limit_period=rate_limit_period,
             use_cache=use_cache,
-            cache_ttl_seconds=86400  # Cache for 24 hours
+            cache_ttl_seconds=86400,  # Cache for 24 hours
         )
 
         if not self.api_key:
@@ -68,7 +73,7 @@ class GoogleMapsClient(BaseHTTPClient):
         logger.info(
             "Google Maps client initialized",
             cache_enabled=use_cache,
-            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s"
+            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s",
         )
 
     async def get_directions(
@@ -76,7 +81,7 @@ class GoogleMapsClient(BaseHTTPClient):
         origin: Coordinates,
         destination: Coordinates,
         mode: str = "walking",
-        skip_cache: bool = False
+        skip_cache: bool = False,
     ) -> TransportInfo:
         """
         Get directions between two points.
@@ -98,7 +103,7 @@ class GoogleMapsClient(BaseHTTPClient):
                 "Getting directions",
                 origin=origin.to_string(),
                 destination=destination.to_string(),
-                mode=mode
+                mode=mode,
             )
 
             # Make API request
@@ -110,9 +115,9 @@ class GoogleMapsClient(BaseHTTPClient):
                     "mode": mode,
                     "key": self.api_key,
                     "language": "en",
-                    "units": "metric"
+                    "units": "metric",
                 },
-                skip_cache=skip_cache  # Directions can change, optionally skip cache
+                skip_cache=skip_cache,  # Directions can change, optionally skip cache
             )
 
             # Check API status
@@ -149,18 +154,20 @@ class GoogleMapsClient(BaseHTTPClient):
                 mode=mode,
                 distance_meters=leg["distance"]["value"],
                 duration_minutes=leg["duration"]["value"] // 60,
-                instructions="; ".join([
-                    step.get("html_instructions", "")
-                    for step in leg.get("steps", [])[:3]  # First 3 steps
-                ]),
-                transit_details=transit_details
+                instructions="; ".join(
+                    [
+                        step.get("html_instructions", "")
+                        for step in leg.get("steps", [])[:3]  # First 3 steps
+                    ]
+                ),
+                transit_details=transit_details,
             )
 
             logger.info(
                 "Directions retrieved",
                 mode=mode,
                 distance_km=transport.distance_km,
-                duration_min=transport.duration_minutes
+                duration_min=transport.duration_minutes,
             )
 
             return transport
@@ -168,17 +175,11 @@ class GoogleMapsClient(BaseHTTPClient):
         except APIError:
             raise
         except Exception as e:
-            logger.error(
-                "Failed to get directions",
-                error=str(e),
-                exc_info=True
-            )
+            logger.error("Failed to get directions", error=str(e), exc_info=True)
             raise APIError(f"Failed to get directions: {str(e)}") from e
 
     async def get_multi_waypoint_route(
-        self,
-        origin: Station,
-        waypoints: List[Point]
+        self, origin: Station, waypoints: list[Point]
     ) -> Route:
         """
         Get optimized route through multiple waypoints.
@@ -204,7 +205,7 @@ class GoogleMapsClient(BaseHTTPClient):
             logger.info(
                 "Getting multi-waypoint route",
                 origin=origin.name,
-                waypoints_count=len(waypoints)
+                waypoints_count=len(waypoints),
             )
 
             # Build waypoints parameter
@@ -224,9 +225,9 @@ class GoogleMapsClient(BaseHTTPClient):
                     "mode": "walking",
                     "key": self.api_key,
                     "language": "en",
-                    "units": "metric"
+                    "units": "metric",
                 },
-                skip_cache=True  # Routes should always be fresh
+                skip_cache=True,  # Routes should always be fresh
             )
 
             # Check API status
@@ -241,7 +242,9 @@ class GoogleMapsClient(BaseHTTPClient):
                 raise APIError("No routes found")
 
             route_data = routes[0]
-            waypoint_order = route_data.get("waypoint_order", list(range(len(waypoints))))
+            waypoint_order = route_data.get(
+                "waypoint_order", list(range(len(waypoints)))
+            )
 
             # Reorder waypoints based on optimization
             optimized_points = [waypoints[i] for i in waypoint_order]
@@ -263,7 +266,7 @@ class GoogleMapsClient(BaseHTTPClient):
                     mode="walking",
                     distance_meters=distance_meters,
                     duration_minutes=duration_minutes,
-                    instructions=f"Walk to {point.name}"
+                    instructions=f"Walk to {point.name}",
                 )
 
                 segment = RouteSegment(
@@ -271,7 +274,7 @@ class GoogleMapsClient(BaseHTTPClient):
                     point=point,
                     transport=transport,
                     cumulative_distance_km=cumulative_distance,
-                    cumulative_duration_minutes=cumulative_duration
+                    cumulative_duration_minutes=cumulative_duration,
                 )
                 segments.append(segment)
 
@@ -281,14 +284,14 @@ class GoogleMapsClient(BaseHTTPClient):
                 segments=segments,
                 total_distance_km=cumulative_distance,
                 total_duration_minutes=cumulative_duration,
-                google_maps_url=self._build_maps_url(origin, optimized_points)
+                google_maps_url=self._build_maps_url(origin, optimized_points),
             )
 
             logger.info(
                 "Multi-waypoint route created",
                 segments=len(segments),
                 total_distance_km=route.total_distance_km,
-                total_duration_min=route.total_duration_minutes
+                total_duration_min=route.total_duration_minutes,
             )
 
             return route
@@ -297,9 +300,7 @@ class GoogleMapsClient(BaseHTTPClient):
             raise
         except Exception as e:
             logger.error(
-                "Failed to get multi-waypoint route",
-                error=str(e),
-                exc_info=True
+                "Failed to get multi-waypoint route", error=str(e), exc_info=True
             )
             raise APIError(f"Failed to get route: {str(e)}") from e
 
@@ -322,11 +323,7 @@ class GoogleMapsClient(BaseHTTPClient):
             # Make API request
             response = await self.get(
                 "/geocode/json",
-                params={
-                    "address": address,
-                    "key": self.api_key,
-                    "language": "en"
-                }
+                params={"address": address, "key": self.api_key, "language": "en"},
             )
 
             # Check status
@@ -345,15 +342,10 @@ class GoogleMapsClient(BaseHTTPClient):
                 raise APIError("No results found")
 
             location = results[0]["geometry"]["location"]
-            coords = Coordinates(
-                latitude=location["lat"],
-                longitude=location["lng"]
-            )
+            coords = Coordinates(latitude=location["lat"], longitude=location["lng"])
 
             logger.info(
-                "Address geocoded",
-                address=address,
-                coordinates=coords.to_string()
+                "Address geocoded", address=address, coordinates=coords.to_string()
             )
 
             return coords
@@ -365,11 +357,11 @@ class GoogleMapsClient(BaseHTTPClient):
                 "Failed to geocode address",
                 address=address,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise APIError(f"Failed to geocode: {str(e)}") from e
 
-    async def get_place_details(self, place_id: str) -> Dict[str, Any]:
+    async def get_place_details(self, place_id: str) -> dict[str, Any]:
         """
         Get detailed information about a place.
 
@@ -392,8 +384,8 @@ class GoogleMapsClient(BaseHTTPClient):
                     "place_id": place_id,
                     "key": self.api_key,
                     "fields": "name,formatted_address,opening_hours,website,formatted_phone_number",
-                    "language": "en"
-                }
+                    "language": "en",
+                },
             )
 
             # Check status
@@ -405,9 +397,7 @@ class GoogleMapsClient(BaseHTTPClient):
             result = response.get("result", {})
 
             logger.info(
-                "Place details retrieved",
-                place_id=place_id,
-                name=result.get("name")
+                "Place details retrieved", place_id=place_id, name=result.get("name")
             )
 
             return result
@@ -419,11 +409,11 @@ class GoogleMapsClient(BaseHTTPClient):
                 "Failed to get place details",
                 place_id=place_id,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise APIError(f"Failed to get place details: {str(e)}") from e
 
-    def _build_maps_url(self, origin: Station, waypoints: List[Point]) -> str:
+    def _build_maps_url(self, origin: Station, waypoints: list[Point]) -> str:
         """
         Build Google Maps URL for the route.
 

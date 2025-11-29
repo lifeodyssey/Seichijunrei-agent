@@ -13,11 +13,12 @@ import asyncio
 import hashlib
 import json
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import Lock
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any
 
 from utils.logger import get_logger
 
@@ -51,7 +52,7 @@ class ResponseCache:
         self,
         default_ttl_seconds: float = 3600,
         max_size: int = 1000,
-        cleanup_interval_seconds: float = 300
+        cleanup_interval_seconds: float = 300,
     ):
         """
         Initialize the response cache.
@@ -74,7 +75,7 @@ class ResponseCache:
         self._misses = 0
 
         # Start cleanup task
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task | None = None
         if cleanup_interval_seconds > 0:
             self._start_cleanup_task()
 
@@ -82,7 +83,7 @@ class ResponseCache:
             "Cache initialized",
             default_ttl=default_ttl_seconds,
             max_size=max_size,
-            cleanup_interval=cleanup_interval_seconds
+            cleanup_interval=cleanup_interval_seconds,
         )
 
     def _start_cleanup_task(self) -> None:
@@ -105,7 +106,7 @@ class ResponseCache:
             except Exception as e:
                 logger.error("Error in cache cleanup", error=str(e), exc_info=True)
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """
         Get a value from the cache.
 
@@ -137,12 +138,7 @@ class ResponseCache:
 
             return entry.value
 
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        ttl_seconds: Optional[float] = None
-    ) -> None:
+    async def set(self, key: str, value: Any, ttl_seconds: float | None = None) -> None:
         """
         Set a value in the cache.
 
@@ -166,10 +162,7 @@ class ResponseCache:
             self._cache.move_to_end(key)
 
             logger.debug(
-                "Cache set",
-                key=key,
-                ttl=ttl,
-                expires_at=expires_at.isoformat()
+                "Cache set", key=key, ttl=ttl, expires_at=expires_at.isoformat()
             )
 
     def _evict_lru(self) -> None:
@@ -214,8 +207,7 @@ class ResponseCache:
         """
         with self._lock:
             expired_keys = [
-                key for key, entry in self._cache.items()
-                if entry.is_expired()
+                key for key, entry in self._cache.items() if entry.is_expired()
             ]
 
             for key in expired_keys:
@@ -223,13 +215,12 @@ class ResponseCache:
 
             if expired_keys:
                 logger.info(
-                    "Cache cleanup completed",
-                    entries_removed=len(expired_keys)
+                    "Cache cleanup completed", entries_removed=len(expired_keys)
                 )
 
             return len(expired_keys)
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
 
@@ -246,10 +237,10 @@ class ResponseCache:
                 "size": len(self._cache),
                 "max_size": self.max_size,
                 "hit_rate": hit_rate,
-                "total_requests": total_requests
+                "total_requests": total_requests,
             }
 
-    def generate_key(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
+    def generate_key(self, endpoint: str, params: dict[str, Any] | None = None) -> str:
         """
         Generate a cache key from endpoint and parameters.
 
@@ -275,11 +266,7 @@ class ResponseCache:
 
         return f"{endpoint.split('/')[-1]}_{key_hash}"
 
-    def cached(
-        self,
-        endpoint: str,
-        ttl_seconds: Optional[float] = None
-    ) -> Callable:
+    def cached(self, endpoint: str, ttl_seconds: float | None = None) -> Callable:
         """
         Decorator to cache async function results.
 
@@ -290,6 +277,7 @@ class ResponseCache:
         Returns:
             Decorated function
         """
+
         def decorator(func: Callable) -> Callable:
             @wraps(func)
             async def wrapper(*args, **kwargs):
@@ -301,9 +289,7 @@ class ResponseCache:
                 cached_value = await self.get(cache_key)
                 if cached_value is not None:
                     logger.debug(
-                        "Cache decorator hit",
-                        function=func.__name__,
-                        endpoint=endpoint
+                        "Cache decorator hit", function=func.__name__, endpoint=endpoint
                     )
                     return cached_value
 
@@ -316,6 +302,7 @@ class ResponseCache:
                 return result
 
             return wrapper
+
         return decorator
 
     async def __aenter__(self):

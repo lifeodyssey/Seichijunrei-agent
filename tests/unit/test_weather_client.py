@@ -29,7 +29,7 @@ class TestWeatherClient:
             api_key="test_api_key",
             use_cache=True,
             rate_limit_calls=60,
-            rate_limit_period=60.0
+            rate_limit_period=60.0,
         )
 
     @pytest.fixture
@@ -38,12 +38,7 @@ class TestWeatherClient:
         return {
             "coord": {"lon": 139.69, "lat": 35.69},
             "weather": [
-                {
-                    "id": 800,
-                    "main": "Clear",
-                    "description": "clear sky",
-                    "icon": "01d"
-                }
+                {"id": 800, "main": "Clear", "description": "clear sky", "icon": "01d"}
             ],
             "main": {
                 "temp": 20.5,
@@ -51,33 +46,25 @@ class TestWeatherClient:
                 "temp_min": 18.0,
                 "temp_max": 23.0,
                 "pressure": 1013,
-                "humidity": 60
+                "humidity": 60,
             },
-            "wind": {
-                "speed": 3.5,
-                "deg": 180
-            },
+            "wind": {"speed": 3.5, "deg": 180},
             "clouds": {"all": 0},
             "dt": 1700000000,
-            "sys": {
-                "country": "JP",
-                "sunrise": 1699990000,
-                "sunset": 1700030000
-            },
-            "name": "Tokyo"
+            "sys": {"country": "JP", "sunrise": 1699990000, "sunset": 1700030000},
+            "name": "Tokyo",
         }
 
     @pytest.fixture
     def mock_forecast_response(self):
         """Mock response for weather forecast API."""
-        from datetime import datetime, timedelta
         today = datetime.now().date()
 
         return {
             "city": {
                 "name": "Tokyo",
                 "coord": {"lat": 35.69, "lon": 139.69},
-                "country": "JP"
+                "country": "JP",
             },
             "list": [
                 {
@@ -86,15 +73,12 @@ class TestWeatherClient:
                         "temp": 20.0,
                         "temp_min": 18.0,
                         "temp_max": 22.0,
-                        "humidity": 65
+                        "humidity": 65,
                     },
-                    "weather": [{
-                        "main": "Clear",
-                        "description": "clear sky"
-                    }],
+                    "weather": [{"main": "Clear", "description": "clear sky"}],
                     "wind": {"speed": 3.0},
                     "pop": 0.1,
-                    "dt_txt": f"{today} 12:00:00"
+                    "dt_txt": f"{today} 12:00:00",
                 },
                 {
                     "dt": 1700086400,
@@ -102,15 +86,12 @@ class TestWeatherClient:
                         "temp": 18.0,
                         "temp_min": 16.0,
                         "temp_max": 20.0,
-                        "humidity": 70
+                        "humidity": 70,
                     },
-                    "weather": [{
-                        "main": "Clouds",
-                        "description": "few clouds"
-                    }],
+                    "weather": [{"main": "Clouds", "description": "few clouds"}],
                     "wind": {"speed": 2.5},
                     "pop": 0.2,
-                    "dt_txt": f"{today + timedelta(days=1)} 12:00:00"
+                    "dt_txt": f"{today + timedelta(days=1)} 12:00:00",
                 },
                 {
                     "dt": 1700172800,
@@ -118,17 +99,14 @@ class TestWeatherClient:
                         "temp": 17.0,
                         "temp_min": 15.0,
                         "temp_max": 19.0,
-                        "humidity": 75
+                        "humidity": 75,
                     },
-                    "weather": [{
-                        "main": "Rain",
-                        "description": "light rain"
-                    }],
+                    "weather": [{"main": "Rain", "description": "light rain"}],
                     "wind": {"speed": 4.0},
                     "pop": 0.8,
-                    "dt_txt": f"{today + timedelta(days=2)} 12:00:00"
-                }
-            ]
+                    "dt_txt": f"{today + timedelta(days=2)} 12:00:00",
+                },
+            ],
         }
 
     @pytest.mark.asyncio
@@ -136,7 +114,7 @@ class TestWeatherClient:
         """Test retrieving current weather."""
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_current_weather_response
 
             weather = await client.get_current_weather(coords)
@@ -144,9 +122,9 @@ class TestWeatherClient:
             # Verify API call
             mock_get.assert_called_once()
             call_args = mock_get.call_args
-            assert call_args[1]['params']['lat'] == 35.69
-            assert call_args[1]['params']['lon'] == 139.69
-            assert call_args[1]['params']['units'] == 'metric'
+            assert call_args[1]["params"]["lat"] == 35.69
+            assert call_args[1]["params"]["lon"] == 139.69
+            assert call_args[1]["params"]["units"] == "metric"
 
             # Verify result
             assert isinstance(weather, Weather)
@@ -161,7 +139,7 @@ class TestWeatherClient:
         """Test retrieving weather forecast."""
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_forecast_response
 
             forecast = await client.get_forecast(coords, days=3)
@@ -170,7 +148,7 @@ class TestWeatherClient:
             mock_get.assert_called_once()
             call_args = mock_get.call_args
             assert "/forecast" in call_args[0][0]
-            assert call_args[1]['params']['cnt'] == 24  # 3 days * 8 (3-hour intervals)
+            assert call_args[1]["params"]["cnt"] == 24  # 3 days * 8 (3-hour intervals)
 
             # Verify results
             assert len(forecast) == 3
@@ -186,14 +164,13 @@ class TestWeatherClient:
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
         # Use a date 2 days from now
-        from datetime import datetime, timedelta
         future_date = datetime.now().date() + timedelta(days=2)
         target_date = future_date.strftime("%Y-%m-%d")
 
         # Update mock response to use future dates
         mock_forecast_response["list"][2]["dt_txt"] = f"{target_date} 12:00:00"
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_forecast_response
 
             weather = await client.get_weather_for_date(coords, target_date)
@@ -210,11 +187,10 @@ class TestWeatherClient:
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
         # Use a date 10 days from now (beyond 5 day forecast)
-        from datetime import datetime, timedelta
         far_future = datetime.now().date() + timedelta(days=10)
         future_date = far_future.strftime("%Y-%m-%d")
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_forecast_response
 
             with pytest.raises(APIError, match="not available"):
@@ -225,12 +201,9 @@ class TestWeatherClient:
         """Test handling of API errors."""
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        error_response = {
-            "cod": "401",
-            "message": "Invalid API key"
-        }
+        error_response = {"cod": "401", "message": "Invalid API key"}
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = error_response
 
             with pytest.raises(APIError, match="401"):
@@ -242,7 +215,7 @@ class TestWeatherClient:
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
         # Test imperial units
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             # Modify response to use Fahrenheit
             imperial_response = mock_current_weather_response.copy()
             imperial_response["main"]["temp"] = 68.9  # 20.5°C in Fahrenheit
@@ -254,7 +227,7 @@ class TestWeatherClient:
             weather = await client.get_current_weather(coords, units="imperial")
 
             call_args = mock_get.call_args
-            assert call_args[1]['params']['units'] == "imperial"
+            assert call_args[1]["params"]["units"] == "imperial"
 
             # Should convert back to Celsius for consistency
             assert weather.temperature_high == 23  # Converted from Fahrenheit
@@ -265,7 +238,9 @@ class TestWeatherClient:
         """Test that current weather is cached."""
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_current_weather_response
 
             # First request
@@ -284,48 +259,44 @@ class TestWeatherClient:
         """Test weather recommendations for hot weather."""
         hot_response = {
             "weather": [{"main": "Clear", "description": "clear sky"}],
-            "main": {
-                "temp": 35,
-                "temp_min": 30,
-                "temp_max": 38,
-                "humidity": 80
-            },
+            "main": {"temp": 35, "temp_min": 30, "temp_max": 38, "humidity": 80},
             "wind": {"speed": 2},
-            "name": "Tokyo"
+            "name": "Tokyo",
         }
 
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = hot_response
 
             weather = await client.get_current_weather(coords)
 
-            assert "hot" in weather.recommendation.lower() or "hydrated" in weather.recommendation.lower()
+            assert (
+                "hot" in weather.recommendation.lower()
+                or "hydrated" in weather.recommendation.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_weather_recommendation_rain(self, client):
         """Test weather recommendations for rainy weather."""
         rain_response = {
             "weather": [{"main": "Rain", "description": "moderate rain"}],
-            "main": {
-                "temp": 18,
-                "temp_min": 16,
-                "temp_max": 20,
-                "humidity": 90
-            },
+            "main": {"temp": 18, "temp_min": 16, "temp_max": 20, "humidity": 90},
             "wind": {"speed": 5},
-            "name": "Tokyo"
+            "name": "Tokyo",
         }
 
         coords = Coordinates(latitude=35.69, longitude=139.69)
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = rain_response
 
             weather = await client.get_current_weather(coords)
 
-            assert "rain" in weather.recommendation.lower() or "umbrella" in weather.recommendation.lower()
+            assert (
+                "rain" in weather.recommendation.lower()
+                or "umbrella" in weather.recommendation.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_invalid_coordinates(self, client):

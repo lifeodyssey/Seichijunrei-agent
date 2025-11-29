@@ -1,0 +1,139 @@
+# Code Smell Analysis - Analyzed Files List
+
+## Analysis Scope
+- Analysis Date: November 29, 2025
+- Branch: feature/capstone-simplified
+- Total Files: 45+
+- Total Lines Analyzed: ~10,259
+
+## Core Agent Files (12 files)
+- adk_agents/seichijunrei_bot/__init__.py
+- adk_agents/seichijunrei_bot/agent.py
+- adk_agents/seichijunrei_bot/_schemas.py
+- adk_agents/seichijunrei_bot/_agents/extraction_agent.py
+- adk_agents/seichijunrei_bot/_agents/bangumi_search_agent.py
+- adk_agents/seichijunrei_bot/_agents/bangumi_candidates_agent.py
+- adk_agents/seichijunrei_bot/_agents/user_selection_agent.py
+- adk_agents/seichijunrei_bot/_agents/points_search_agent.py
+- adk_agents/seichijunrei_bot/_agents/points_selection_agent.py
+- adk_agents/seichijunrei_bot/_agents/route_planning_agent.py
+- adk_agents/seichijunrei_bot/_agents/user_presentation_agent.py
+- adk_agents/seichijunrei_bot/_agents/input_normalization_agent.py
+
+## Workflow Files (2 files)
+- adk_agents/seichijunrei_bot/_workflows/bangumi_search_workflow.py
+- adk_agents/seichijunrei_bot/_workflows/route_planning_workflow.py
+
+## Tool Files (2 files)
+- adk_agents/seichijunrei_bot/tools/__init__.py
+- adk_agents/seichijunrei_bot/tools/route_planning.py
+
+## Client Files (5 files)
+- clients/__init__.py
+- clients/base.py (390 LOC) **CRITICAL ISSUES**
+- clients/bangumi.py
+- clients/anitabi.py (406 LOC) **HIGH ISSUES**
+- clients/google_maps.py (448 LOC)
+- clients/weather.py (409 LOC)
+
+## Service Files (3 files)
+- services/__init__.py
+- services/cache.py (332 LOC)
+- services/retry.py (286 LOC)
+- services/session.py (336 LOC)
+- services/simple_route_planner.py (119 LOC)
+
+## Domain/Entity Files (2 files)
+- domain/entities.py (261 LOC)
+- domain/llm_schemas.py
+
+## Tool/Output Files (2 files)
+- tools/__init__.py
+- tools/base.py
+- tools/pdf_generator.py (194 LOC)
+- tools/map_generator.py (264 LOC)
+
+## Configuration & Utilities (4 files)
+- config/__init__.py
+- config/settings.py
+- utils/__init__.py
+- utils/logger.py
+- utils/llm.py
+
+## Health & Deployment (2 files)
+- health.py (171 LOC)
+- deploy/deploy.py
+
+## Test Files (12+ files)
+- tests/conftest.py
+- tests/unit/test_*.py (multiple)
+- tests/integration/test_presentation_agent.py
+
+## Most Affected Files by Issue Count
+
+1. clients/base.py (390 LOC) - 6 CRITICAL/HIGH issues
+   - Single Responsibility Violation (CRITICAL)
+   - Long function (127 lines, cyclomatic complexity 10)
+   - Multiple concerns: caching, rate limiting, retries, error handling
+   
+2. adk_agents/seichijunrei_bot/tools/__init__.py (288 LOC) - 5 CRITICAL/HIGH issues
+   - Repeated error handling boilerplate (CRITICAL)
+   - Bare exception catches (CRITICAL)
+   - Tight client coupling
+   
+3. clients/anitabi.py (406 LOC) - 4 HIGH issues
+   - Long function with high complexity (172 lines)
+   - Multiple response shape handling
+   - Input validation missing
+   
+4. adk_agents/seichijunrei_bot/agent.py (212 LOC) - 3 MEDIUM issues
+   - Bare exception handling
+   - Hard-coded magic strings
+   - Complex instructions
+
+5. domain/entities.py (261 LOC) - 3 MEDIUM issues
+   - Interface Segregation Violation (PilgrimageSession too large)
+   - Unused fields
+   - Poor field organization
+
+## Analysis Methodology
+
+### Files Thoroughly Reviewed
+- Read full content of 15+ key files
+- Analyzed import patterns and dependencies
+- Checked error handling paths
+- Reviewed function signatures and types
+- Examined code organization and structure
+
+### Pattern Analysis
+- Grep-based search for exception handling patterns
+- Duplicate code detection across files
+- Magic number/string identification
+- Naming convention analysis
+- SOLID principle violation assessment
+
+### Metrics Collected
+- Line counts (wc -l)
+- Cyclomatic complexity estimates
+- Function lengths
+- Exception handling patterns
+- Import dependency patterns
+
+## Not Covered (Out of Scope)
+
+These were analyzed but are lower priority:
+- Template files (HTML/Jinja2)
+- Configuration files (JSON/YAML)
+- Package distribution files
+- GitHub workflows
+- Database migrations (if any)
+
+## Recommendations for Next Analysis
+
+1. Add cyclomatic complexity measurements (using radon or similar)
+2. Run mypy/pylance for type checking
+3. Use pylint or flake8 for additional issues
+4. Add static security scanning
+5. Measure test coverage by file
+6. Profile performance on sample datasets
+

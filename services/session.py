@@ -3,35 +3,38 @@ Session management service for Seichijunrei Bot.
 Handles user session state and lifecycle.
 """
 
-import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
 from threading import Lock
+from typing import Any
 
 from domain.entities import PilgrimageSession
 from utils.logger import get_logger
 
-
 # === Session Exceptions ===
+
 
 class SessionNotFoundError(Exception):
     """Raised when a session is not found."""
+
     pass
 
 
 class SessionExpiredError(Exception):
     """Raised when a session has expired."""
+
     pass
 
 
 class SessionLimitExceededError(Exception):
     """Raised when maximum session limit is exceeded."""
+
     pass
 
 
 # === Abstract Session Service ===
+
 
 class SessionService(ABC):
     """Abstract interface for session management."""
@@ -115,6 +118,7 @@ class SessionService(ABC):
 
 # === In-Memory Session Service Implementation ===
 
+
 class InMemorySessionService(SessionService):
     """
     In-memory session management service.
@@ -140,7 +144,7 @@ class InMemorySessionService(SessionService):
         """
         self.max_sessions = max_sessions
         self.session_ttl_seconds = session_ttl_seconds
-        self._sessions: Dict[str, tuple[PilgrimageSession, datetime]] = {}
+        self._sessions: dict[str, tuple[PilgrimageSession, datetime]] = {}
         self._lock = Lock()  # Thread safety
         self._logger = get_logger("services.session")
 
@@ -204,9 +208,7 @@ class InMemorySessionService(SessionService):
         """Update an existing session."""
         with self._lock:
             if session.session_id not in self._sessions:
-                raise SessionNotFoundError(
-                    f"Session {session.session_id} not found"
-                )
+                raise SessionNotFoundError(f"Session {session.session_id} not found")
 
             # Update timestamp
             session.update()
@@ -236,8 +238,7 @@ class InMemorySessionService(SessionService):
 
         with self._lock:
             expired_ids = [
-                sid for sid, (_, expiry) in self._sessions.items()
-                if now > expiry
+                sid for sid, (_, expiry) in self._sessions.items() if now > expiry
             ]
 
             for session_id in expired_ids:
@@ -260,8 +261,7 @@ class InMemorySessionService(SessionService):
             # First cleanup expired
             now = datetime.now()
             expired_ids = [
-                sid for sid, (_, expiry) in self._sessions.items()
-                if now > expiry
+                sid for sid, (_, expiry) in self._sessions.items() if now > expiry
             ]
             for session_id in expired_ids:
                 del self._sessions[session_id]
@@ -269,7 +269,7 @@ class InMemorySessionService(SessionService):
 
             return len(self._sessions)
 
-    async def get_all_sessions(self) -> List[PilgrimageSession]:
+    async def get_all_sessions(self) -> list[PilgrimageSession]:
         """
         Get all active sessions.
 
@@ -284,7 +284,7 @@ class InMemorySessionService(SessionService):
                     sessions.append(session)
         return sessions
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """
         Get session service statistics.
 

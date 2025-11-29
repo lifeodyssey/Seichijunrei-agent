@@ -3,15 +3,14 @@
 These tools are used by both LlmAgents (as FunctionTools) and the root agent.
 Extracted to avoid circular imports between agent.py and sub-agents.
 
-Note: Each tool function creates its own client instance to avoid aiohttp session
-lifecycle issues in ADK's multi-event-loop execution model.
+Note: Each tool function creates its own client instance to avoid aiohttp
+session lifecycle issues in ADK's multi-event-loop execution model.
 """
 
-from clients.bangumi import BangumiClient
 from clients.anitabi import AnitabiClient
+from clients.bangumi import BangumiClient
 from clients.google_maps import GoogleMapsClient
 from utils.logger import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -276,3 +275,12 @@ async def geocode_location(location_name: str) -> dict:
                 "success": False,
                 "error": str(e),
             }
+
+
+__all__ = [
+    "search_bangumi_subjects",
+    "get_bangumi_subject",
+    "get_anitabi_points",
+    "search_anitabi_bangumi_near_station",
+    "geocode_location",
+]

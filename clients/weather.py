@@ -8,11 +8,10 @@ Provides methods to:
 - Generate weather recommendations
 """
 
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import datetime
 
-from config.settings import get_settings
 from clients.base import BaseHTTPClient
+from config.settings import get_settings
 from domain.entities import APIError, Coordinates, Weather
 from utils.logger import get_logger
 
@@ -29,10 +28,10 @@ class WeatherClient(BaseHTTPClient):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         use_cache: bool = True,
         rate_limit_calls: int = 60,
-        rate_limit_period: float = 60.0
+        rate_limit_period: float = 60.0,
     ):
         """
         Initialize Weather API client.
@@ -51,7 +50,7 @@ class WeatherClient(BaseHTTPClient):
             rate_limit_calls=rate_limit_calls,
             rate_limit_period=rate_limit_period,
             use_cache=use_cache,
-            cache_ttl_seconds=600  # Cache for 10 minutes
+            cache_ttl_seconds=600,  # Cache for 10 minutes
         )
 
         if not self.api_key:
@@ -61,13 +60,11 @@ class WeatherClient(BaseHTTPClient):
             "Weather client initialized",
             base_url=self.base_url,
             cache_enabled=use_cache,
-            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s"
+            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s",
         )
 
     async def get_current_weather(
-        self,
-        coordinates: Coordinates,
-        units: str = "metric"
+        self, coordinates: Coordinates, units: str = "metric"
     ) -> Weather:
         """
         Get current weather for coordinates.
@@ -83,10 +80,7 @@ class WeatherClient(BaseHTTPClient):
             APIError: On API failure
         """
         try:
-            logger.info(
-                "Getting current weather",
-                coordinates=coordinates.to_string()
-            )
+            logger.info("Getting current weather", coordinates=coordinates.to_string())
 
             # Make API request
             response = await self.get(
@@ -95,8 +89,8 @@ class WeatherClient(BaseHTTPClient):
                     "lat": coordinates.latitude,
                     "lon": coordinates.longitude,
                     "appid": self.api_key,
-                    "units": units
-                }
+                    "units": units,
+                },
             )
 
             # Check for error response
@@ -111,7 +105,7 @@ class WeatherClient(BaseHTTPClient):
                 "Current weather retrieved",
                 location=weather.location,
                 condition=weather.condition,
-                temp_range=weather.temperature_range
+                temp_range=weather.temperature_range,
             )
 
             return weather
@@ -119,18 +113,12 @@ class WeatherClient(BaseHTTPClient):
         except APIError:
             raise
         except Exception as e:
-            logger.error(
-                "Failed to get current weather",
-                error=str(e),
-                exc_info=True
-            )
+            logger.error("Failed to get current weather", error=str(e), exc_info=True)
             raise APIError(f"Failed to get weather: {str(e)}") from e
 
     async def get_forecast(
-        self,
-        coordinates: Coordinates,
-        days: int = 5
-    ) -> List[Weather]:
+        self, coordinates: Coordinates, days: int = 5
+    ) -> list[Weather]:
         """
         Get weather forecast for the next few days.
 
@@ -148,7 +136,7 @@ class WeatherClient(BaseHTTPClient):
             logger.info(
                 "Getting weather forecast",
                 coordinates=coordinates.to_string(),
-                days=days
+                days=days,
             )
 
             # Calculate number of data points (8 per day for 3-hour intervals)
@@ -162,8 +150,8 @@ class WeatherClient(BaseHTTPClient):
                     "lon": coordinates.longitude,
                     "appid": self.api_key,
                     "units": "metric",
-                    "cnt": count
-                }
+                    "cnt": count,
+                },
             )
 
             # Check for errors
@@ -177,7 +165,7 @@ class WeatherClient(BaseHTTPClient):
             logger.info(
                 "Forecast retrieved",
                 location=response.get("city", {}).get("name"),
-                days=len(forecasts)
+                days=len(forecasts),
             )
 
             return forecasts
@@ -185,17 +173,11 @@ class WeatherClient(BaseHTTPClient):
         except APIError:
             raise
         except Exception as e:
-            logger.error(
-                "Failed to get forecast",
-                error=str(e),
-                exc_info=True
-            )
+            logger.error("Failed to get forecast", error=str(e), exc_info=True)
             raise APIError(f"Failed to get forecast: {str(e)}") from e
 
     async def get_weather_for_date(
-        self,
-        coordinates: Coordinates,
-        date: str
+        self, coordinates: Coordinates, date: str
     ) -> Weather:
         """
         Get weather for a specific date.
@@ -214,7 +196,7 @@ class WeatherClient(BaseHTTPClient):
             logger.info(
                 "Getting weather for date",
                 coordinates=coordinates.to_string(),
-                date=date
+                date=date,
             )
 
             # Parse target date
@@ -242,10 +224,7 @@ class WeatherClient(BaseHTTPClient):
             raise
         except Exception as e:
             logger.error(
-                "Failed to get weather for date",
-                date=date,
-                error=str(e),
-                exc_info=True
+                "Failed to get weather for date", date=date, error=str(e), exc_info=True
             )
             raise APIError(f"Failed to get weather: {str(e)}") from e
 
@@ -266,15 +245,15 @@ class WeatherClient(BaseHTTPClient):
 
         if units == "imperial":
             # Convert Fahrenheit to Celsius
-            temp_high = (temp_high - 32) * 5/9
-            temp_low = (temp_low - 32) * 5/9
+            temp_high = (temp_high - 32) * 5 / 9
+            temp_low = (temp_low - 32) * 5 / 9
 
         # Generate recommendation
         recommendation = self._generate_recommendation(
             condition=data["weather"][0]["main"],
             temp_high=temp_high,
             temp_low=temp_low,
-            humidity=data["main"].get("humidity", 50)
+            humidity=data["main"].get("humidity", 50),
         )
 
         return Weather(
@@ -285,10 +264,10 @@ class WeatherClient(BaseHTTPClient):
             temperature_low=round(temp_low),
             precipitation_chance=0,  # Not available in current weather
             wind_speed_kmh=round(data["wind"]["speed"] * 3.6),  # m/s to km/h
-            recommendation=recommendation
+            recommendation=recommendation,
         )
 
-    def _parse_forecast(self, data: dict, days: int) -> List[Weather]:
+    def _parse_forecast(self, data: dict, days: int) -> list[Weather]:
         """
         Parse forecast response into daily summaries.
 
@@ -312,7 +291,7 @@ class WeatherClient(BaseHTTPClient):
                     "conditions": [],
                     "precipitation": [],
                     "wind_speeds": [],
-                    "humidity": []
+                    "humidity": [],
                 }
 
             daily_data[date]["temps"].append(item["main"]["temp"])
@@ -330,7 +309,9 @@ class WeatherClient(BaseHTTPClient):
             temp_high = round(max(data["temps"]))
             temp_low = round(min(data["temps"]))
             precipitation = round(max(data["precipitation"]))
-            wind_speed = round(sum(data["wind_speeds"]) / len(data["wind_speeds"]) * 3.6)
+            wind_speed = round(
+                sum(data["wind_speeds"]) / len(data["wind_speeds"]) * 3.6
+            )
             humidity = round(sum(data["humidity"]) / len(data["humidity"]))
 
             # Most common condition
@@ -342,7 +323,7 @@ class WeatherClient(BaseHTTPClient):
                 condition=condition,
                 temp_high=temp_high,
                 temp_low=temp_low,
-                humidity=humidity
+                humidity=humidity,
             )
 
             weather = Weather(
@@ -353,7 +334,7 @@ class WeatherClient(BaseHTTPClient):
                 temperature_low=temp_low,
                 precipitation_chance=precipitation,
                 wind_speed_kmh=wind_speed,
-                recommendation=recommendation
+                recommendation=recommendation,
             )
 
             forecasts.append(weather)
@@ -361,11 +342,7 @@ class WeatherClient(BaseHTTPClient):
         return forecasts
 
     def _generate_recommendation(
-        self,
-        condition: str,
-        temp_high: float,
-        temp_low: float,
-        humidity: int
+        self, condition: str, temp_high: float, temp_low: float, humidity: int
     ) -> str:
         """
         Generate weather-based recommendations.

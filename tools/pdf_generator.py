@@ -10,9 +10,10 @@ Creates comprehensive PDF guides with:
 """
 
 from pathlib import Path
-from typing import Optional
+
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from playwright.async_api import async_playwright
+
 from domain.entities import PilgrimageSession
 from tools.base import BaseTool
 
@@ -24,7 +25,7 @@ class PDFGeneratorTool(BaseTool):
     Uses Jinja2 for HTML templating and Playwright for PDF conversion.
     """
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         """
         Initialize the PDFGeneratorTool.
 
@@ -37,12 +38,14 @@ class PDFGeneratorTool(BaseTool):
         template_dir = Path(__file__).parent.parent / "templates"
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(template_dir)),
-            autoescape=select_autoescape(['html', 'xml'])
+            autoescape=select_autoescape(["html", "xml"]),
         )
 
         self.logger.info("PDFGeneratorTool initialized", template_dir=str(template_dir))
 
-    async def generate(self, session: PilgrimageSession, map_image_path: Optional[str] = None) -> str:
+    async def generate(
+        self, session: PilgrimageSession, map_image_path: str | None = None
+    ) -> str:
         """
         Generate a PDF guide from a PilgrimageSession.
 
@@ -63,7 +66,7 @@ class PDFGeneratorTool(BaseTool):
         self.logger.info(
             "Generating PDF for session",
             session_id=session.session_id,
-            points_count=len(session.route.segments)
+            points_count=len(session.route.segments),
         )
 
         # Render HTML
@@ -75,15 +78,13 @@ class PDFGeneratorTool(BaseTool):
         self.logger.info(
             "PDF generated successfully",
             session_id=session.session_id,
-            output_path=str(output_path)
+            output_path=str(output_path),
         )
 
         return str(output_path)
 
     async def _render_html(
-        self,
-        session: PilgrimageSession,
-        map_image_path: Optional[str] = None
+        self, session: PilgrimageSession, map_image_path: str | None = None
     ) -> str:
         """
         Render complete HTML document from templates.
@@ -100,8 +101,12 @@ class PDFGeneratorTool(BaseTool):
 
         # Render individual sections
         cover_html = await self._render_template("pdf_cover.html", {"session": session})
-        itinerary_html = await self._render_template("pdf_itinerary.html", {"session": session})
-        bangumi_html = await self._render_template("pdf_bangumi.html", {"session": session})
+        itinerary_html = await self._render_template(
+            "pdf_itinerary.html", {"session": session}
+        )
+        bangumi_html = await self._render_template(
+            "pdf_bangumi.html", {"session": session}
+        )
 
         # Render main template
         main_html = await self._render_template(
@@ -112,8 +117,8 @@ class PDFGeneratorTool(BaseTool):
                 "cover_html": cover_html,
                 "itinerary_html": itinerary_html,
                 "bangumi_html": bangumi_html,
-                "map_image_path": map_image_path
-            }
+                "map_image_path": map_image_path,
+            },
         )
 
         return main_html
@@ -176,13 +181,12 @@ class PDFGeneratorTool(BaseTool):
                         "top": "10mm",
                         "right": "10mm",
                         "bottom": "10mm",
-                        "left": "10mm"
-                    }
+                        "left": "10mm",
+                    },
                 )
 
                 self.logger.info(
-                    "PDF conversion successful",
-                    output_path=str(output_path)
+                    "PDF conversion successful", output_path=str(output_path)
                 )
 
             finally:

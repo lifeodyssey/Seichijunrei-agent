@@ -1,64 +1,72 @@
-"""ADK BaseAgent for fetching and preparing pilgrimage points from Anitabi.
+"""ADK BaseAgent for fetching ALL pilgrimage points from Anitabi.
 
-Reads `bangumi_id` and `user_coordinates` from `ctx.session.state`,
-queries Anitabi for points, applies simple distance filtering/sorting,
-then writes `points` and `points_meta` back to state.
+In the simplified Capstone architecture this agent:
+
+- Reads the selected bangumi ID from session state
+- Fetches all pilgrimage points for that bangumi from Anitabi
+- Writes them to state under the `all_points` key (no filtering)
+
+Downstream, PointsSelectionAgent (LlmAgent) is responsible for selecting
+the best 8–12 points for route planning. This keeps deterministic I/O
+separate from LLM decision-making, following ADK best practices.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from google.adk.agents import BaseAgent
 from google.adk.events import Event, EventActions
 from pydantic import ConfigDict
 
 from clients.anitabi import AnitabiClient
-from domain.entities import Coordinates, Point, APIError
+from domain.entities import APIError
 from utils.logger import get_logger
 
 
 class PointsSearchAgent(BaseAgent):
-    """Get bangumi pilgrimage points around the user's coordinates."""
+    """Fetch all pilgrimage points for the selected bangumi from Anitabi."""
 
-    model_config = ConfigDict(extra='allow', arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
-    def __init__(self, anitabi_client: Optional[AnitabiClient] = None) -> None:
+    def __init__(self, anitabi_client: AnitabiClient | None = None) -> None:
         super().__init__(name="PointsSearchAgent")
         self.anitabi_client = anitabi_client or AnitabiClient()
         self.logger = get_logger(__name__)
 
     async def _run_async_impl(self, ctx):  # type: ignore[override]
-        state: Dict[str, Any] = ctx.session.state
+        state: dict[str, Any] = ctx.session.state
 
-        # With Pydantic output_schema, state values are now properly typed dicts
-        bangumi_result = state.get("bangumi_result", {})
-        location_result = state.get("location_result", {})
+        # Verify session state for debugging and ensuring state propagation
+        extraction = state.get("extraction_result") or {}
+        selected = state.get("selected_bangumi") or {}
 
-        bangumi_id = bangumi_result.get("bangumi_id")
-        user_coordinates_data = location_result.get("user_coordinates")
-        max_radius_km = state.get("max_radius_km", 50.0)
+        self.logger.info(
+            "[PointsSearchAgent] Session state check",
+            has_extraction_result=bool(extraction),
+            has_location=bool(extraction.get("location")),
+            location_value=extraction.get("location"),
+            has_selected_bangumi=bool(selected),
+            has_bangumi_id=bool(selected.get("bangumi_id")),
+            bangumi_id_value=selected.get("bangumi_id"),
+        )
 
-        if not bangumi_id or not isinstance(bangumi_id, int):
+        # Prefer the new Capstone state shape first: selected_bangumi.bangumi_id
+        selected_bangumi = state.get("selected_bangumi") or {}
+        bangumi_id = selected_bangumi.get("bangumi_id")
+
+        # Backward-compatible fallback: older workflow uses bangumi_result.bangumi_id
+        if bangumi_id is None:
+            bangumi_result = state.get("bangumi_result") or {}
+            bangumi_id = bangumi_result.get("bangumi_id")
+
+        if not isinstance(bangumi_id, int):
             raise ValueError(
                 f"PointsSearchAgent requires valid bangumi_id. "
                 f"Got: {bangumi_id} (type: {type(bangumi_id).__name__})"
             )
 
-        if not isinstance(user_coordinates_data, dict):
-            raise ValueError(
-                f"PointsSearchAgent requires user_coordinates dict. "
-                f"Got: {type(user_coordinates_data).__name__}"
-            )
-
-        try:
-            user_coords = Coordinates(**user_coordinates_data)
-        except Exception as exc:  # pragma: no cover - defensive
-            raise ValueError(f"Invalid user_coordinates in session.state: {exc}") from exc
-
         self.logger.info(
-            "[PointsSearchAgent] Fetching bangumi points",
+            "[PointsSearchAgent] Fetching all bangumi points",
             bangumi_id=bangumi_id,
-            user_coordinates=user_coords.to_string(),
-            max_radius_km=max_radius_km,
         )
 
         try:
@@ -78,48 +86,30 @@ class PointsSearchAgent(BaseAgent):
             total_points=len(points),
         )
 
-        nearby_points: List[Point] = []
-
-        for point in points:
-            distance_km = user_coords.distance_to(point.coordinates)
-            # Keep only points within radius
-            if distance_km <= max_radius_km:
-                nearby_points.append(point)
-
-        self.logger.info(
-            "[PointsSearchAgent] Distance filtering applied",
-            total_points=len(points),
-            nearby_points=len(nearby_points),
-            max_radius_km=max_radius_km,
-        )
-
-        # Sort by distance (approximate via distance to user)
-        nearby_points.sort(key=lambda p: user_coords.distance_to(p.coordinates))
-
-        points_data = [p.model_dump() for p in nearby_points]
+        # No distance filtering: expose ALL points to the LLM selector
+        all_points_data = [p.model_dump() for p in points]
         points_meta = {
-            "total": len(points_data),
+            "total": len(all_points_data),
             "source": "anitabi",
-            "max_radius_km": max_radius_km,
+            "bangumi_id": bangumi_id,
         }
 
-        # Write into session state
-        state["points"] = points_data
+        # Write into session state using the new all_points key
+        state["all_points"] = all_points_data
         state["points_meta"] = points_meta
 
         self.logger.info(
-            "[PointsSearchAgent] Points prepared",
-            points_count=len(points_data),
-            max_radius_km=max_radius_km,
+            "[PointsSearchAgent] All points prepared",
+            points_count=len(all_points_data),
         )
 
         # BaseAgent Event content must be None or specific ADK types, not arbitrary dict
         yield Event(
+            invocation_id=ctx.invocation_id,  # Required: correlate events in same invocation
             author=self.name,
             content=None,
-            actions=EventActions(escalate=True),
+            actions=EventActions(escalate=False),
         )
 
 
 points_search_agent = PointsSearchAgent()
-

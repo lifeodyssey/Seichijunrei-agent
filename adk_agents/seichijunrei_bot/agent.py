@@ -11,23 +11,23 @@ multi-agent workflows for:
 """
 
 import os
-from typing import Optional, Dict, Any
 
-from google.adk.tools import FunctionTool
 from google.adk.agents import LlmAgent
 from google.adk.sessions import InMemorySessionService
+from google.adk.tools import FunctionTool
 
-from tools import MapGeneratorTool, PDFGeneratorTool
-from domain.entities import PilgrimageSession
-from utils.logger import get_logger, setup_logging
 from config import get_settings
+from domain.entities import PilgrimageSession
+from tools import MapGeneratorTool, PDFGeneratorTool
+from utils.logger import get_logger, setup_logging
+
 from ._workflows.bangumi_search_workflow import bangumi_search_workflow
 from ._workflows.route_planning_workflow import route_planning_workflow
 from .tools import (
-    search_bangumi_subjects,
-    get_bangumi_subject,
     get_anitabi_points,
+    get_bangumi_subject,
     search_anitabi_bangumi_near_station,
+    search_bangumi_subjects,
 )
 
 # Initialize logging when module is loaded
@@ -56,6 +56,7 @@ _pdf_generator = PDFGeneratorTool()
 # These are used for map/PDF generation from a PilgrimageSession and for
 # low-level Bangumi / Anitabi queries when needed outside the chat flow.
 
+
 async def generate_map(session_data: dict) -> dict:
     """
     Generate an interactive HTML map for a pilgrimage session.
@@ -76,28 +77,17 @@ async def generate_map(session_data: dict) -> dict:
         logger.info(
             "Map generated successfully",
             session_id=session.session_id,
-            map_path=map_path
+            map_path=map_path,
         )
 
-        return {
-            "map_path": map_path,
-            "success": True,
-            "error": None
-        }
+        return {"map_path": map_path, "success": True, "error": None}
 
     except Exception as e:
-        logger.error(
-            "Map generation failed",
-            error=str(e)
-        )
-        return {
-            "map_path": None,
-            "success": False,
-            "error": str(e)
-        }
+        logger.error("Map generation failed", error=str(e))
+        return {"map_path": None, "success": False, "error": str(e)}
 
 
-async def generate_pdf(session_data: dict, map_image_path: Optional[str] = None) -> dict:
+async def generate_pdf(session_data: dict, map_image_path: str | None = None) -> dict:
     """
     Generate a PDF pilgrimage guide for a session.
 
@@ -118,25 +108,14 @@ async def generate_pdf(session_data: dict, map_image_path: Optional[str] = None)
         logger.info(
             "PDF generated successfully",
             session_id=session.session_id,
-            pdf_path=pdf_path
+            pdf_path=pdf_path,
         )
 
-        return {
-            "pdf_path": pdf_path,
-            "success": True,
-            "error": None
-        }
+        return {"pdf_path": pdf_path, "success": True, "error": None}
 
     except Exception as e:
-        logger.error(
-            "PDF generation failed",
-            error=str(e)
-        )
-        return {
-            "pdf_path": None,
-            "success": False,
-            "error": str(e)
-        }
+        logger.error("PDF generation failed", error=str(e))
+        return {"pdf_path": None, "success": False, "error": str(e)}
 
 
 # === ADK Tools Definition ===

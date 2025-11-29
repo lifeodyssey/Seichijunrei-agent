@@ -16,8 +16,12 @@ import pytest
 
 from clients.google_maps import GoogleMapsClient
 from domain.entities import (
-    APIError, Coordinates, Point, Route, RouteSegment,
-    Station, TransportInfo
+    APIError,
+    Coordinates,
+    Point,
+    Route,
+    Station,
+    TransportInfo,
 )
 
 
@@ -31,7 +35,7 @@ class TestGoogleMapsClient:
             api_key="test_api_key",
             use_cache=True,
             rate_limit_calls=50,
-            rate_limit_period=1.0
+            rate_limit_period=1.0,
         )
 
     @pytest.fixture
@@ -48,15 +52,15 @@ class TestGoogleMapsClient:
                                 {
                                     "html_instructions": "Walk to Kyoto Station",
                                     "distance": {"value": 500},
-                                    "duration": {"value": 300}
+                                    "duration": {"value": 300},
                                 }
-                            ]
+                            ],
                         }
                     ],
-                    "overview_polyline": {"points": "encoded_polyline_here"}
+                    "overview_polyline": {"points": "encoded_polyline_here"},
                 }
             ],
-            "status": "OK"
+            "status": "OK",
         }
 
     @pytest.fixture
@@ -70,20 +74,20 @@ class TestGoogleMapsClient:
                             "distance": {"value": 2000, "text": "2.0 km"},
                             "duration": {"value": 600, "text": "10 mins"},
                             "start_location": {"lat": 35.0, "lng": 135.0},
-                            "end_location": {"lat": 35.01, "lng": 135.01}
+                            "end_location": {"lat": 35.01, "lng": 135.01},
                         },
                         {
                             "distance": {"value": 3000, "text": "3.0 km"},
                             "duration": {"value": 900, "text": "15 mins"},
                             "start_location": {"lat": 35.01, "lng": 135.01},
-                            "end_location": {"lat": 35.02, "lng": 135.02}
-                        }
+                            "end_location": {"lat": 35.02, "lng": 135.02},
+                        },
                     ],
                     "waypoint_order": [0, 1],
-                    "overview_polyline": {"points": "encoded_polyline"}
+                    "overview_polyline": {"points": "encoded_polyline"},
                 }
             ],
-            "status": "OK"
+            "status": "OK",
         }
 
     @pytest.fixture
@@ -93,16 +97,11 @@ class TestGoogleMapsClient:
             "results": [
                 {
                     "formatted_address": "Kyoto Station, Kyoto, Japan",
-                    "geometry": {
-                        "location": {
-                            "lat": 34.985849,
-                            "lng": 135.758767
-                        }
-                    },
-                    "place_id": "ChIJCfBrxAbGAWARkj1JynIJw5k"
+                    "geometry": {"location": {"lat": 34.985849, "lng": 135.758767}},
+                    "place_id": "ChIJCfBrxAbGAWARkj1JynIJw5k",
                 }
             ],
-            "status": "OK"
+            "status": "OK",
         }
 
     @pytest.fixture
@@ -121,13 +120,13 @@ class TestGoogleMapsClient:
                         "Thursday: 9:00 AM – 5:00 PM",
                         "Friday: 9:00 AM – 5:00 PM",
                         "Saturday: 9:00 AM – 5:00 PM",
-                        "Sunday: 9:00 AM – 5:00 PM"
-                    ]
+                        "Sunday: 9:00 AM – 5:00 PM",
+                    ],
                 },
                 "website": "http://example.com",
-                "formatted_phone_number": "+81-123-456-7890"
+                "formatted_phone_number": "+81-123-456-7890",
             },
-            "status": "OK"
+            "status": "OK",
         }
 
     @pytest.mark.asyncio
@@ -136,21 +135,19 @@ class TestGoogleMapsClient:
         origin = Coordinates(latitude=35.0, longitude=135.0)
         destination = Coordinates(latitude=35.01, longitude=135.01)
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_directions_response
 
             transport = await client.get_directions(
-                origin=origin,
-                destination=destination,
-                mode="walking"
+                origin=origin, destination=destination, mode="walking"
             )
 
             # Verify API call
             mock_get.assert_called_once()
             call_args = mock_get.call_args
-            assert call_args[1]['params']['origin'] == "35.0,135.0"
-            assert call_args[1]['params']['destination'] == "35.01,135.01"
-            assert call_args[1]['params']['mode'] == "walking"
+            assert call_args[1]["params"]["origin"] == "35.0,135.0"
+            assert call_args[1]["params"]["destination"] == "35.01,135.01"
+            assert call_args[1]["params"]["mode"] == "walking"
 
             # Verify result
             assert isinstance(transport, TransportInfo)
@@ -170,23 +167,18 @@ class TestGoogleMapsClient:
             {
                 "travel_mode": "TRANSIT",
                 "transit_details": {
-                    "line": {
-                        "name": "JR Tokaido Line",
-                        "short_name": "JR"
-                    },
+                    "line": {"name": "JR Tokaido Line", "short_name": "JR"},
                     "departure_stop": {"name": "Kyoto Station"},
-                    "arrival_stop": {"name": "Osaka Station"}
-                }
+                    "arrival_stop": {"name": "Osaka Station"},
+                },
             }
         ]
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = transit_response
 
             transport = await client.get_directions(
-                origin=origin,
-                destination=destination,
-                mode="transit"
+                origin=origin, destination=destination, mode="transit"
             )
 
             assert transport.mode == "transit"
@@ -197,7 +189,7 @@ class TestGoogleMapsClient:
         """Test getting optimized route through multiple waypoints."""
         station = Station(
             name="Kyoto Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            coordinates=Coordinates(latitude=35.0, longitude=135.0),
         )
 
         points = [
@@ -210,7 +202,7 @@ class TestGoogleMapsClient:
                 bangumi_title="Anime 1",
                 episode=1,
                 time_seconds=100,
-                screenshot_url="https://example.com/shot1.jpg"
+                screenshot_url="https://example.com/shot1.jpg",
             ),
             Point(
                 id="p2",
@@ -221,19 +213,19 @@ class TestGoogleMapsClient:
                 bangumi_title="Anime 1",
                 episode=2,
                 time_seconds=200,
-                screenshot_url="https://example.com/shot2.jpg"
-            )
+                screenshot_url="https://example.com/shot2.jpg",
+            ),
         ]
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_multi_waypoint_response
 
             route = await client.get_multi_waypoint_route(station, points)
 
             # Verify API call included waypoints
             call_args = mock_get.call_args
-            assert "waypoints" in call_args[1]['params']
-            assert "optimize:true" in call_args[1]['params']['waypoints']
+            assert "waypoints" in call_args[1]["params"]
+            assert "optimize:true" in call_args[1]["params"]["waypoints"]
 
             # Verify route structure
             assert isinstance(route, Route)
@@ -245,7 +237,7 @@ class TestGoogleMapsClient:
     @pytest.mark.asyncio
     async def test_geocode_address(self, client, mock_geocode_response):
         """Test geocoding an address to coordinates."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_geocode_response
 
             coords = await client.geocode_address("Kyoto Station, Japan")
@@ -253,7 +245,7 @@ class TestGoogleMapsClient:
             # Verify API call
             mock_get.assert_called_once()
             call_args = mock_get.call_args
-            assert call_args[1]['params']['address'] == "Kyoto Station, Japan"
+            assert call_args[1]["params"]["address"] == "Kyoto Station, Japan"
 
             # Verify result
             assert isinstance(coords, Coordinates)
@@ -265,7 +257,7 @@ class TestGoogleMapsClient:
         """Test geocoding with no results."""
         empty_response = {"results": [], "status": "ZERO_RESULTS"}
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = empty_response
 
             with pytest.raises(APIError, match="No results found"):
@@ -274,7 +266,7 @@ class TestGoogleMapsClient:
     @pytest.mark.asyncio
     async def test_get_place_details(self, client, mock_place_details_response):
         """Test retrieving place details."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_place_details_response
 
             details = await client.get_place_details("ChIJCfBrxAbGAWARkj1JynIJw5k")
@@ -282,7 +274,7 @@ class TestGoogleMapsClient:
             # Verify API call
             mock_get.assert_called_once()
             call_args = mock_get.call_args
-            assert call_args[1]['params']['place_id'] == "ChIJCfBrxAbGAWARkj1JynIJw5k"
+            assert call_args[1]["params"]["place_id"] == "ChIJCfBrxAbGAWARkj1JynIJw5k"
 
             # Verify result
             assert details["name"] == "Toyosato Elementary School"
@@ -294,10 +286,10 @@ class TestGoogleMapsClient:
         """Test handling of API quota exceeded errors."""
         quota_response = {
             "error_message": "You have exceeded your daily request quota",
-            "status": "OVER_QUERY_LIMIT"
+            "status": "OVER_QUERY_LIMIT",
         }
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = quota_response
 
             origin = Coordinates(latitude=35.0, longitude=135.0)
@@ -311,10 +303,10 @@ class TestGoogleMapsClient:
         """Test handling of invalid API key errors."""
         auth_response = {
             "error_message": "The provided API key is invalid",
-            "status": "REQUEST_DENIED"
+            "status": "REQUEST_DENIED",
         }
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = auth_response
 
             with pytest.raises(APIError, match="API key"):
@@ -323,7 +315,9 @@ class TestGoogleMapsClient:
     @pytest.mark.asyncio
     async def test_caching_geocode_requests(self, client, mock_geocode_response):
         """Test that geocode requests are cached."""
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_geocode_response
 
             # First request
@@ -342,7 +336,9 @@ class TestGoogleMapsClient:
         origin = Coordinates(latitude=35.0, longitude=135.0)
         destination = Coordinates(latitude=35.01, longitude=135.01)
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_directions_response
 
             # Make two identical requests
@@ -356,8 +352,7 @@ class TestGoogleMapsClient:
     async def test_empty_waypoints_handling(self, client):
         """Test handling of empty waypoints list."""
         station = Station(
-            name="Test Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
         )
 
         with pytest.raises(ValueError, match="At least one waypoint required"):
@@ -367,8 +362,7 @@ class TestGoogleMapsClient:
     async def test_too_many_waypoints(self, client):
         """Test handling of too many waypoints (Google Maps limit is 25)."""
         station = Station(
-            name="Test Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
         )
 
         # Create 30 points (exceeds Google's limit of 25 waypoints)
@@ -377,12 +371,14 @@ class TestGoogleMapsClient:
                 id=f"p{i}",
                 name=f"Point {i}",
                 cn_name=f"地点{i}",
-                coordinates=Coordinates(latitude=35.0 + i*0.001, longitude=135.0 + i*0.001),
+                coordinates=Coordinates(
+                    latitude=35.0 + i * 0.001, longitude=135.0 + i * 0.001
+                ),
                 bangumi_id="b1",
                 bangumi_title="Anime",
                 episode=i,
-                time_seconds=i*100,
-                screenshot_url=f"https://example.com/shot{i}.jpg"
+                time_seconds=i * 100,
+                screenshot_url=f"https://example.com/shot{i}.jpg",
             )
             for i in range(30)
         ]

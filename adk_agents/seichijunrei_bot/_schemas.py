@@ -5,7 +5,6 @@ when used with LlmAgent's output_schema parameter. This ensures downstream
 BaseAgents can safely access nested fields from session state.
 """
 
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -30,7 +29,7 @@ class BangumiResult(BaseModel):
 
     bangumi_id: int = Field(description="Selected work's Bangumi subject ID.")
     bangumi_title: str = Field(description="Original Japanese title of the work.")
-    bangumi_title_cn: Optional[str] = Field(
+    bangumi_title_cn: str | None = Field(
         default=None,
         description="Chinese title of the work, if available.",
     )
@@ -53,14 +52,14 @@ class StationInfo(BaseModel):
 
     name: str = Field(description="Station name.")
     coordinates: CoordinatesData = Field(description="Station coordinates.")
-    city: Optional[str] = Field(default=None, description="City name.")
-    prefecture: Optional[str] = Field(default=None, description="Prefecture name.")
+    city: str | None = Field(default=None, description="City name.")
+    prefecture: str | None = Field(default=None, description="Prefecture name.")
 
 
 class LocationResult(BaseModel):
     """Resolved location with station info and user coordinates."""
 
-    station: Optional[StationInfo] = Field(
+    station: StationInfo | None = Field(
         default=None,
         description="Resolved station information, or null if lookup failed.",
     )
@@ -78,11 +77,11 @@ class BangumiCandidate(BaseModel):
 
     bangumi_id: int = Field(description="Bangumi subject ID for this work.")
     title: str = Field(description="Original Japanese title.")
-    title_cn: Optional[str] = Field(
+    title_cn: str | None = Field(
         default=None,
         description="Chinese title, if available.",
     )
-    air_date: Optional[str] = Field(
+    air_date: str | None = Field(
         default=None,
         description='First air date in "YYYY-MM" format, if available.',
     )
@@ -111,7 +110,7 @@ class UserSelectionResult(BaseModel):
 
     bangumi_id: int = Field(description="Selected Bangumi subject ID.")
     bangumi_title: str = Field(description="Selected work's Japanese title.")
-    bangumi_title_cn: Optional[str] = Field(
+    bangumi_title_cn: str | None = Field(
         default=None,
         description="Selected work's Chinese title, if available.",
     )
@@ -134,39 +133,39 @@ class SelectedPoint(BaseModel):
     original all_points data.
     """
 
-    id: Optional[str] = Field(
+    id: str | None = Field(
         default=None,
         description="Point ID from Anitabi API.",
     )
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         description="Point name (usually in Japanese).",
     )
-    cn_name: Optional[str] = Field(
+    cn_name: str | None = Field(
         default=None,
         description="Chinese name if available.",
     )
-    lat: Optional[float] = Field(
+    lat: float | None = Field(
         default=None,
         description="Latitude in decimal degrees.",
     )
-    lng: Optional[float] = Field(
+    lng: float | None = Field(
         default=None,
         description="Longitude in decimal degrees.",
     )
-    episode: Optional[int] = Field(
+    episode: int | None = Field(
         default=None,
         description="Episode number where this location appears.",
     )
-    time_seconds: Optional[int] = Field(
+    time_seconds: int | None = Field(
         default=None,
         description="Timestamp in seconds within the episode.",
     )
-    screenshot_url: Optional[str] = Field(
+    screenshot_url: str | None = Field(
         default=None,
         description="URL to screenshot from the anime.",
     )
-    address: Optional[str] = Field(
+    address: str | None = Field(
         default=None,
         description="Street address or location description.",
     )

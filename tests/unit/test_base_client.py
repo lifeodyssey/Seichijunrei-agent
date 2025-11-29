@@ -12,12 +12,10 @@ Tests cover:
 """
 
 import asyncio
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
-from aiohttp import ClientError, ClientResponseError
 
 from clients.base import BaseHTTPClient, HTTPMethod
 from domain.entities import APIError
@@ -54,10 +52,7 @@ class TestBaseHTTPClient:
     @pytest.mark.asyncio
     async def test_client_initialization(self):
         """Test client initialization with default settings."""
-        client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            api_key="test_key"
-        )
+        client = BaseHTTPClient(base_url="https://api.example.com", api_key="test_key")
 
         assert client.base_url == "https://api.example.com"
         assert client.api_key == "test_key"
@@ -68,14 +63,11 @@ class TestBaseHTTPClient:
     async def test_get_request(self, mock_session):
         """Test GET request."""
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            session=mock_session
+            base_url="https://api.example.com", session=mock_session
         )
 
         result = await client.request(
-            method=HTTPMethod.GET,
-            endpoint="/test",
-            params={"key": "value"}
+            method=HTTPMethod.GET, endpoint="/test", params={"key": "value"}
         )
 
         assert result == {"data": "test"}
@@ -87,15 +79,12 @@ class TestBaseHTTPClient:
     async def test_post_request(self, mock_session):
         """Test POST request with JSON body."""
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            session=mock_session
+            base_url="https://api.example.com", session=mock_session
         )
 
         body = {"field": "value"}
         result = await client.request(
-            method=HTTPMethod.POST,
-            endpoint="/test",
-            json_data=body
+            method=HTTPMethod.POST, endpoint="/test", json_data=body
         )
 
         assert result == {"data": "test"}
@@ -105,16 +94,12 @@ class TestBaseHTTPClient:
     async def test_request_with_headers(self, mock_session):
         """Test request with custom headers."""
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            api_key="test_key",
-            session=mock_session
+            base_url="https://api.example.com", api_key="test_key", session=mock_session
         )
 
         custom_headers = {"X-Custom": "value"}
         await client.request(
-            method=HTTPMethod.GET,
-            endpoint="/test",
-            headers=custom_headers
+            method=HTTPMethod.GET, endpoint="/test", headers=custom_headers
         )
 
         mock_session.get.assert_called_once()
@@ -143,6 +128,7 @@ class TestBaseHTTPClient:
 
         # Make get return different responses on successive calls
         call_count = 0
+
         def get_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -153,16 +139,11 @@ class TestBaseHTTPClient:
         mock_session.get.side_effect = get_side_effect
 
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            session=mock_session,
-            max_retries=3
+            base_url="https://api.example.com", session=mock_session, max_retries=3
         )
 
         # Should retry and eventually succeed
-        result = await client.request(
-            method=HTTPMethod.GET,
-            endpoint="/test"
-        )
+        result = await client.request(method=HTTPMethod.GET, endpoint="/test")
 
         assert result == {"data": "success"}
         assert mock_session.get.call_count == 3
@@ -180,17 +161,12 @@ class TestBaseHTTPClient:
         mock_session.get.return_value = error_response
 
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            session=mock_session,
-            max_retries=3
+            base_url="https://api.example.com", session=mock_session, max_retries=3
         )
 
         # Should not retry on 404
         with pytest.raises(APIError, match="404"):
-            await client.request(
-                method=HTTPMethod.GET,
-                endpoint="/test"
-            )
+            await client.request(method=HTTPMethod.GET, endpoint="/test")
 
         # Should only be called once (no retry)
         assert mock_session.get.call_count == 1
@@ -202,10 +178,12 @@ class TestBaseHTTPClient:
             base_url="https://api.example.com",
             rate_limit_calls=2,
             rate_limit_period=0.5,  # 2 calls per 0.5 seconds
-            use_cache=False  # Disable cache for this test
+            use_cache=False,  # Disable cache for this test
         )
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = {"data": "test"}
 
             # Make 3 rapid requests
@@ -213,7 +191,7 @@ class TestBaseHTTPClient:
             results = await asyncio.gather(
                 client.request(HTTPMethod.GET, "/test1"),  # Different endpoints
                 client.request(HTTPMethod.GET, "/test2"),  # to avoid cache
-                client.request(HTTPMethod.GET, "/test3")
+                client.request(HTTPMethod.GET, "/test3"),
             )
             elapsed = asyncio.get_event_loop().time() - start_time
 
@@ -225,19 +203,23 @@ class TestBaseHTTPClient:
     async def test_caching_get_requests(self):
         """Test that GET requests are cached."""
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            use_cache=True,
-            cache_ttl_seconds=60
+            base_url="https://api.example.com", use_cache=True, cache_ttl_seconds=60
         )
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = {"data": "test"}
 
             # First request
-            result1 = await client.request(HTTPMethod.GET, "/test", params={"q": "search"})
+            result1 = await client.request(
+                HTTPMethod.GET, "/test", params={"q": "search"}
+            )
 
             # Second identical request (should be cached)
-            result2 = await client.request(HTTPMethod.GET, "/test", params={"q": "search"})
+            result2 = await client.request(
+                HTTPMethod.GET, "/test", params={"q": "search"}
+            )
 
             # Only one actual request should be made
             assert mock_request.call_count == 1
@@ -246,12 +228,11 @@ class TestBaseHTTPClient:
     @pytest.mark.asyncio
     async def test_no_caching_post_requests(self):
         """Test that POST requests are not cached."""
-        client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            use_cache=True
-        )
+        client = BaseHTTPClient(base_url="https://api.example.com", use_cache=True)
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = {"data": "test"}
 
             # Make two identical POST requests
@@ -269,7 +250,7 @@ class TestBaseHTTPClient:
         # Session should be created on first use
         assert client._session is None
 
-        with patch('aiohttp.ClientSession') as MockSession:
+        with patch("aiohttp.ClientSession") as MockSession:
             mock_instance = AsyncMock()
             mock_instance.close = AsyncMock()
 
@@ -297,13 +278,13 @@ class TestBaseHTTPClient:
     @pytest.mark.asyncio
     async def test_timeout_handling(self, mock_session):
         """Test request timeout handling."""
-        mock_session.get.side_effect = asyncio.TimeoutError()
+        mock_session.get.side_effect = TimeoutError()
 
         client = BaseHTTPClient(
             base_url="https://api.example.com",
             session=mock_session,
             timeout=1,
-            max_retries=2
+            max_retries=2,
         )
 
         with pytest.raises(APIError, match="timeout"):
@@ -335,10 +316,12 @@ class TestBaseHTTPClient:
         """Test parsing error messages from API responses."""
         error_response = MagicMock()
         error_response.status = 400
-        error_response.json = AsyncMock(return_value={
-            "error": "Invalid request",
-            "message": "Missing required field"
-        })
+        error_response.json = AsyncMock(
+            return_value={
+                "error": "Invalid request",
+                "message": "Missing required field",
+            }
+        )
         error_response.text = AsyncMock(return_value='{"error": "Invalid request"}')
         error_response.raise_for_status = MagicMock()
         error_response.__aenter__ = AsyncMock(return_value=error_response)
@@ -347,8 +330,7 @@ class TestBaseHTTPClient:
         mock_session.get.return_value = error_response
 
         client = BaseHTTPClient(
-            base_url="https://api.example.com",
-            session=mock_session
+            base_url="https://api.example.com", session=mock_session
         )
 
         with pytest.raises(APIError) as exc_info:

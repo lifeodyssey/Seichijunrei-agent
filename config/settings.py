@@ -1,9 +1,7 @@
 """Application settings and configuration management."""
 
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,36 +11,32 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
 
     # API Keys
     google_maps_api_key: str = Field(default="", description="Google Maps API key")
     # Kept for backwards compatibility but no longer required by Python code.
-    gemini_api_key: str = Field(default="", description="Gemini API key (legacy, optional)")
+    gemini_api_key: str = Field(
+        default="", description="Gemini API key (legacy, optional)"
+    )
     weather_api_key: str = Field(default="", description="Weather API key")
 
     # API Endpoints
     anitabi_api_url: str = Field(
-        default="https://api.anitabi.cn/bangumi",
-        description="Anitabi API base URL"
+        default="https://api.anitabi.cn/bangumi", description="Anitabi API base URL"
     )
     weather_api_url: str = Field(
         default="https://api.openweathermap.org/data/2.5",
-        description="Weather API base URL"
+        description="Weather API base URL",
     )
 
     # Google Cloud Configuration
-    google_application_credentials: Optional[str] = Field(
-        default=None,
-        description="Path to Google Cloud service account key"
+    google_application_credentials: str | None = Field(
+        default=None, description="Path to Google Cloud service account key"
     )
-    google_cloud_project: Optional[str] = Field(
-        default=None,
-        description="Google Cloud project ID"
+    google_cloud_project: str | None = Field(
+        default=None, description="Google Cloud project ID"
     )
 
     # Application Settings
@@ -58,7 +52,9 @@ class Settings(BaseSettings):
 
     # Output Paths
     output_dir: Path = Field(default=Path("outputs"), description="Output directory")
-    template_dir: Path = Field(default=Path("templates"), description="Template directory")
+    template_dir: Path = Field(
+        default=Path("templates"), description="Template directory"
+    )
 
     # Rate Limiting
     rate_limit_calls: int = Field(default=100, description="Rate limit calls")
@@ -101,7 +97,7 @@ class Settings(BaseSettings):
         return missing
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()

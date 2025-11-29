@@ -1,22 +1,26 @@
 """Unit tests for session management service following TDD principles."""
 
-import pytest
 import asyncio
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from unittest.mock import Mock, patch, AsyncMock
-import time
+
+import pytest
+
+from domain.entities import (
+    Bangumi,
+    Coordinates,
+    PilgrimageSession,
+    Station,
+    Weather,
+)
 
 # Import statements that will exist after implementation
 # These will fail initially (RED phase of TDD)
 from services.session import (
     InMemorySessionService,
-    SessionService,
-    SessionNotFoundError,
     SessionExpiredError,
     SessionLimitExceededError,
+    SessionNotFoundError,
+    SessionService,
 )
-from domain.entities import PilgrimageSession, Station, Bangumi, Point, Route, Weather, Coordinates
 
 
 class TestSessionService:
@@ -25,12 +29,12 @@ class TestSessionService:
     def test_session_service_interface(self):
         """Test that SessionService defines required methods."""
         # SessionService should be an abstract base class
-        assert hasattr(SessionService, 'create_session')
-        assert hasattr(SessionService, 'get_session')
-        assert hasattr(SessionService, 'update_session')
-        assert hasattr(SessionService, 'delete_session')
-        assert hasattr(SessionService, 'cleanup_expired')
-        assert hasattr(SessionService, 'get_active_count')
+        assert hasattr(SessionService, "create_session")
+        assert hasattr(SessionService, "get_session")
+        assert hasattr(SessionService, "update_session")
+        assert hasattr(SessionService, "delete_session")
+        assert hasattr(SessionService, "cleanup_expired")
+        assert hasattr(SessionService, "get_active_count")
 
 
 class TestInMemorySessionService:
@@ -305,7 +309,9 @@ class TestInMemorySessionService:
         assert final_session_2.search_radius_km == 5.0
 
     @pytest.mark.asyncio
-    async def test_session_with_complex_data(self, session_service, sample_session_data):
+    async def test_session_with_complex_data(
+        self, session_service, sample_session_data
+    ):
         """Test session with complex nested data."""
         session_id = await session_service.create_session()
         session = await session_service.get_session(session_id)

@@ -3,15 +3,21 @@ Unit tests for MapGeneratorTool following TDD principles.
 Tests written before implementation (RED phase).
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
 
-from tools.map_generator import MapGeneratorTool
+import pytest
+
 from domain.entities import (
-    Station, Point, Route, RouteSegment, TransportInfo, Bangumi,
-    Coordinates, PilgrimageSession
+    Bangumi,
+    Coordinates,
+    PilgrimageSession,
+    Point,
+    Route,
+    RouteSegment,
+    Station,
+    TransportInfo,
 )
+from tools.map_generator import MapGeneratorTool
 
 
 @pytest.fixture
@@ -21,7 +27,7 @@ def sample_session():
         name="Shinjuku Station",
         coordinates=Coordinates(latitude=35.6896, longitude=139.7006),
         city="Tokyo",
-        prefecture="Tokyo"
+        prefecture="Tokyo",
     )
 
     bangumi1 = Bangumi(
@@ -30,7 +36,7 @@ def sample_session():
         cn_title="你的名字",
         cover_url="https://example.com/cover1.jpg",
         points_count=3,
-        primary_color="#FF6B6B"
+        primary_color="#FF6B6B",
     )
 
     bangumi2 = Bangumi(
@@ -39,7 +45,7 @@ def sample_session():
         cn_title="天气之子",
         cover_url="https://example.com/cover2.jpg",
         points_count=2,
-        primary_color="#4ECDC4"
+        primary_color="#4ECDC4",
     )
 
     point1 = Point(
@@ -51,7 +57,7 @@ def sample_session():
         bangumi_title="Kimi no Na wa",
         episode=12,
         time_seconds=345,
-        screenshot_url="https://example.com/screenshot1.jpg"
+        screenshot_url="https://example.com/screenshot1.jpg",
     )
 
     point2 = Point(
@@ -63,7 +69,7 @@ def sample_session():
         bangumi_title="Tenki no Ko",
         episode=5,
         time_seconds=180,
-        screenshot_url="https://example.com/screenshot2.jpg"
+        screenshot_url="https://example.com/screenshot2.jpg",
     )
 
     point3 = Point(
@@ -75,14 +81,14 @@ def sample_session():
         bangumi_title="Kimi no Na wa",
         episode=8,
         time_seconds=520,
-        screenshot_url="https://example.com/screenshot3.jpg"
+        screenshot_url="https://example.com/screenshot3.jpg",
     )
 
     transport1 = TransportInfo(
         mode="walking",
         distance_meters=1200,
         duration_minutes=15,
-        instructions="Walk south"
+        instructions="Walk south",
     )
 
     transport2 = TransportInfo(
@@ -90,14 +96,14 @@ def sample_session():
         distance_meters=2500,
         duration_minutes=12,
         instructions="Take subway",
-        transit_details={"lines": [{"name": "Yamanote Line"}]}
+        transit_details={"lines": [{"name": "Yamanote Line"}]},
     )
 
     transport3 = TransportInfo(
         mode="walking",
         distance_meters=800,
         duration_minutes=10,
-        instructions="Walk west"
+        instructions="Walk west",
     )
 
     segments = [
@@ -106,22 +112,22 @@ def sample_session():
             point=point1,
             transport=transport1,
             cumulative_distance_km=1.2,
-            cumulative_duration_minutes=15
+            cumulative_duration_minutes=15,
         ),
         RouteSegment(
             order=2,
             point=point2,
             transport=transport2,
             cumulative_distance_km=3.7,
-            cumulative_duration_minutes=27
+            cumulative_duration_minutes=27,
         ),
         RouteSegment(
             order=3,
             point=point3,
             transport=transport3,
             cumulative_distance_km=4.5,
-            cumulative_duration_minutes=37
-        )
+            cumulative_duration_minutes=37,
+        ),
     ]
 
     route = Route(
@@ -129,7 +135,7 @@ def sample_session():
         segments=segments,
         total_distance_km=4.5,
         total_duration_minutes=37,
-        google_maps_url="https://www.google.com/maps/dir/..."
+        google_maps_url="https://www.google.com/maps/dir/...",
     )
 
     session = PilgrimageSession(
@@ -138,7 +144,7 @@ def sample_session():
         selected_bangumi_ids=["115908", "126461"],
         nearby_bangumi=[bangumi1, bangumi2],
         points=[point1, point2, point3],
-        route=route
+        route=route,
     )
 
     return session
@@ -196,7 +202,7 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             assert "folium" in content.lower()
             assert "leaflet" in content.lower()
@@ -211,7 +217,7 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             # Should have 1 origin marker + 3 point markers = 4 total
             # Folium markers appear as L.marker in the HTML
@@ -227,7 +233,7 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             # Check for Chinese names
             assert "新宿御苑" in content  # point1 cn_name
@@ -243,7 +249,7 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             # Folium polylines appear as L.polyline
             assert "L.polyline" in content or "PolyLine" in content
@@ -255,16 +261,14 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             # Map should contain coordinates near Tokyo area (35.x, 139.x)
             assert "35." in content
             assert "139." in content
 
     @pytest.mark.asyncio
-    async def test_output_filename_uses_session_id(
-        self, map_generator, sample_session
-    ):
+    async def test_output_filename_uses_session_id(self, map_generator, sample_session):
         """Test output file is named using session_id."""
         # Act
         output_path = await map_generator.generate(sample_session)
@@ -280,8 +284,8 @@ class TestMapGeneratorTool:
             session_id="test-no-route",
             station=Station(
                 name="Test Station",
-                coordinates=Coordinates(latitude=35.0, longitude=139.0)
-            )
+                coordinates=Coordinates(latitude=35.0, longitude=139.0),
+            ),
             # No route
         )
 
@@ -294,19 +298,16 @@ class TestMapGeneratorTool:
         """Test tool raises error when route has no segments."""
         # Arrange
         station = Station(
-            name="Test Station",
-            coordinates=Coordinates(latitude=35.0, longitude=139.0)
+            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=139.0)
         )
         route = Route(
             origin=station,
             segments=[],  # Empty
             total_distance_km=0,
-            total_duration_minutes=0
+            total_duration_minutes=0,
         )
         session = PilgrimageSession(
-            session_id="test-empty-segments",
-            station=station,
-            route=route
+            session_id="test-empty-segments", station=station, route=route
         )
 
         # Act & Assert
@@ -322,10 +323,12 @@ class TestMapGeneratorTool:
         output_path = await map_generator.generate(sample_session)
 
         # Assert
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
             # Should contain colors from bangumi primary_color
             # Note: Folium may encode colors differently
-            assert ("FF6B6B" in content.upper() or
-                    "ff6b6b" in content or
-                    "#FF6B6B" in content)
+            assert (
+                "FF6B6B" in content.upper()
+                or "ff6b6b" in content
+                or "#FF6B6B" in content
+            )

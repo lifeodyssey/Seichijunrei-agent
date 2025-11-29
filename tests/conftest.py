@@ -1,13 +1,10 @@
 """Pytest configuration and shared fixtures."""
 
 import asyncio
-import os
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from dotenv import load_dotenv
 
 # Load test environment variables
@@ -145,6 +142,7 @@ def cleanup_test_files():
                 filepath.unlink()
             elif filepath.is_dir():
                 import shutil
+
                 shutil.rmtree(filepath)
 
 

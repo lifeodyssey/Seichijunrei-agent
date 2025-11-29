@@ -16,7 +16,6 @@ from google.adk.agents import LlmAgent
 
 from .._schemas import UserSelectionResult
 
-
 user_selection_agent = LlmAgent(
     name="UserSelectionAgent",
     model="gemini-2.0-flash",

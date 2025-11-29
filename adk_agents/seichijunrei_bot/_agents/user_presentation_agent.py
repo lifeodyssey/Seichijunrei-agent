@@ -10,7 +10,6 @@ Following ADK best practices, this agent is responsible for UI/UX concerns
 
 from google.adk.agents import LlmAgent
 
-
 user_presentation_agent = LlmAgent(
     name="UserPresentationAgent",
     model="gemini-2.0-flash",

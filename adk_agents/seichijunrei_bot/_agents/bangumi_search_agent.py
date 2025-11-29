@@ -7,9 +7,8 @@ See docs/adk_output_schema_tools_fix.md for details.
 from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.tools import FunctionTool
 
-from adk_agents.seichijunrei_bot.tools import search_bangumi_subjects
-from adk_agents.seichijunrei_bot._schemas import BangumiResult
-
+from .._schemas import BangumiResult
+from ..tools import search_bangumi_subjects
 
 # Step 1: Search for bangumi candidates using the tool
 _bangumi_search_tool_agent = LlmAgent(

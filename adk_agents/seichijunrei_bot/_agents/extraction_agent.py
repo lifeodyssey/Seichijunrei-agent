@@ -5,8 +5,8 @@ can be reliably accessed by downstream agents in the SequentialAgent workflow.
 """
 
 from google.adk.agents import LlmAgent
-from adk_agents.seichijunrei_bot._schemas import ExtractionResult
 
+from .._schemas import ExtractionResult
 
 extraction_agent = LlmAgent(
     name="ExtractionAgent",

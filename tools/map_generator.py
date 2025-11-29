@@ -9,10 +9,11 @@ Creates interactive HTML maps with:
 - Bilingual (CN/JP) popups
 """
 
-import folium
 from pathlib import Path
-from typing import Optional, Dict
-from domain.entities import PilgrimageSession, Point, Coordinates
+
+import folium
+
+from domain.entities import PilgrimageSession, Point
 from tools.base import BaseTool
 
 
@@ -23,7 +24,7 @@ class MapGeneratorTool(BaseTool):
     Uses Folium library to create maps with markers, popups, and route lines.
     """
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         """
         Initialize the MapGeneratorTool.
 
@@ -51,7 +52,7 @@ class MapGeneratorTool(BaseTool):
         self.logger.info(
             "Generating map for session",
             session_id=session.session_id,
-            points_count=len(session.route.segments)
+            points_count=len(session.route.segments),
         )
 
         # Create base map
@@ -72,7 +73,7 @@ class MapGeneratorTool(BaseTool):
         self.logger.info(
             "Map generated successfully",
             session_id=session.session_id,
-            output_path=str(output_path)
+            output_path=str(output_path),
         )
 
         return str(output_path)
@@ -100,14 +101,14 @@ class MapGeneratorTool(BaseTool):
 
         # Create map
         map_obj = folium.Map(
-            location=[center_lat, center_lon],
-            zoom_start=13,
-            tiles="OpenStreetMap"
+            location=[center_lat, center_lon], zoom_start=13, tiles="OpenStreetMap"
         )
 
         return map_obj
 
-    def _calculate_route_center(self, session: PilgrimageSession) -> tuple[float, float]:
+    def _calculate_route_center(
+        self, session: PilgrimageSession
+    ) -> tuple[float, float]:
         """Calculate the geographic center of the route."""
         # Include origin station
         all_coords = [session.station.coordinates]
@@ -130,7 +131,7 @@ class MapGeneratorTool(BaseTool):
             <p style="margin: 4px 0;">
                 <strong>🚉 {station.name}</strong>
             </p>
-            {f'<p style="margin: 4px 0; color: #7F8C8D;">{station.city}, {station.prefecture}</p>' if station.city else ''}
+            {f'<p style="margin: 4px 0; color: #7F8C8D;">{station.city}, {station.prefecture}</p>' if station.city else ""}
         </div>
         """
 
@@ -138,7 +139,7 @@ class MapGeneratorTool(BaseTool):
             location=[station.coordinates.latitude, station.coordinates.longitude],
             popup=folium.Popup(popup_html, max_width=300),
             icon=folium.Icon(color="red", icon="home", prefix="fa"),
-            tooltip="Origin"
+            tooltip="Origin",
         ).add_to(map_obj)
 
     def _add_point_markers(self, map_obj: folium.Map, session: PilgrimageSession):
@@ -163,10 +164,10 @@ class MapGeneratorTool(BaseTool):
                 location=[point.coordinates.latitude, point.coordinates.longitude],
                 popup=folium.Popup(popup_html, max_width=350),
                 icon=folium.DivIcon(html=icon_html),
-                tooltip=f"{order}. {point.cn_name}"
+                tooltip=f"{order}. {point.cn_name}",
             ).add_to(map_obj)
 
-    def _build_bangumi_color_map(self, session: PilgrimageSession) -> Dict[str, str]:
+    def _build_bangumi_color_map(self, session: PilgrimageSession) -> dict[str, str]:
         """Build a map of bangumi_id to color."""
         color_map = {}
 
@@ -234,16 +235,20 @@ class MapGeneratorTool(BaseTool):
         """Draw polylines connecting points in visit order."""
         # Start from origin
         route_coords = [
-            [session.station.coordinates.latitude,
-             session.station.coordinates.longitude]
+            [
+                session.station.coordinates.latitude,
+                session.station.coordinates.longitude,
+            ]
         ]
 
         # Add all point coordinates in order
         for segment in session.route.segments:
-            route_coords.append([
-                segment.point.coordinates.latitude,
-                segment.point.coordinates.longitude
-            ])
+            route_coords.append(
+                [
+                    segment.point.coordinates.latitude,
+                    segment.point.coordinates.longitude,
+                ]
+            )
 
         # Draw polyline
         folium.PolyLine(
@@ -251,7 +256,7 @@ class MapGeneratorTool(BaseTool):
             color="#3498DB",
             weight=4,
             opacity=0.7,
-            popup="Pilgrimage Route"
+            popup="Pilgrimage Route",
         ).add_to(map_obj)
 
     def _save_map(self, map_obj: folium.Map, session_id: str) -> Path:

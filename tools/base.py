@@ -6,7 +6,7 @@ Provides common interface and utilities for map and PDF generation.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Optional
+
 from domain.entities import PilgrimageSession
 from utils.logger import get_logger
 
@@ -18,7 +18,7 @@ class BaseTool(ABC):
     All tools should inherit from this class and implement the generate() method.
     """
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         """
         Initialize the tool.
 

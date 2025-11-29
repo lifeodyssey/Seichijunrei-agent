@@ -12,10 +12,10 @@ Usage:
     python deploy/deploy.py --project=my-project --env=production
 """
 
-import os
-import sys
 import argparse
 import asyncio
+import os
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -24,35 +24,32 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Deploy Seichijunrei Bot to Agent Engine")
+    parser = argparse.ArgumentParser(
+        description="Deploy Seichijunrei Bot to Agent Engine"
+    )
     parser.add_argument(
-        "--project",
-        type=str,
-        required=True,
-        help="Google Cloud project ID"
+        "--project", type=str, required=True, help="Google Cloud project ID"
     )
     parser.add_argument(
         "--region",
         type=str,
         default="us-central1",
-        help="Google Cloud region (default: us-central1)"
+        help="Google Cloud region (default: us-central1)",
     )
     parser.add_argument(
         "--env",
         type=str,
         choices=["staging", "production"],
         default="staging",
-        help="Deployment environment (default: staging)"
+        help="Deployment environment (default: staging)",
     )
     parser.add_argument(
         "--bucket",
         type=str,
-        help="GCS bucket for staging (default: gs://{project}-agent-staging)"
+        help="GCS bucket for staging (default: gs://{project}-agent-staging)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print deployment plan without executing"
+        "--dry-run", action="store_true", help="Print deployment plan without executing"
     )
     return parser.parse_args()
 
@@ -64,7 +61,9 @@ def deploy(args):
         from vertexai import agent_engines
     except ImportError:
         print("Error: google-cloud-aiplatform[adk,agent_engines] is required")
-        print("Install with: pip install 'google-cloud-aiplatform[adk,agent_engines]>=1.111'")
+        print(
+            "Install with: pip install 'google-cloud-aiplatform[adk,agent_engines]>=1.111'"
+        )
         sys.exit(1)
 
     # Import root agent
@@ -91,17 +90,12 @@ def deploy(args):
     # Initialize Vertex AI
     print("Initializing Vertex AI...")
     vertexai.init(
-        project=args.project,
-        location=args.region,
-        staging_bucket=staging_bucket
+        project=args.project, location=args.region, staging_bucket=staging_bucket
     )
 
     # Create ADK application wrapper
     print("Creating ADK application...")
-    app = agent_engines.AdkApp(
-        agent=root_agent,
-        enable_tracing=True
-    )
+    app = agent_engines.AdkApp(agent=root_agent, enable_tracing=True)
 
     # Define requirements
     requirements = [
@@ -127,12 +121,12 @@ def deploy(args):
     print("DEPLOYMENT SUCCESSFUL!")
     print(f"{'=' * 60}")
     print(f"Resource Name: {remote_app.resource_name}")
-    print(f"\nTo test the deployed agent:")
-    print(f"  from vertexai import agent_engines")
+    print("\nTo test the deployed agent:")
+    print("  from vertexai import agent_engines")
     print(f"  app = agent_engines.get('{remote_app.resource_name}')")
-    print(f"  session = await app.async_create_session(user_id='test-user')")
-    print(f"\nTo delete when no longer needed:")
-    print(f"  remote_app.delete(force=True)")
+    print("  session = await app.async_create_session(user_id='test-user')")
+    print("\nTo delete when no longer needed:")
+    print("  remote_app.delete(force=True)")
     print(f"{'=' * 60}\n")
 
     return remote_app
@@ -152,7 +146,7 @@ async def verify_deployment(remote_app):
         async for event in remote_app.async_stream_query(
             user_id="deploy-test",
             session_id=session["id"],
-            message="Hello, can you help me plan a pilgrimage?"
+            message="Hello, can you help me plan a pilgrimage?",
         ):
             response.append(event)
 
@@ -172,7 +166,9 @@ def main():
     # Validate environment
     if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         print("Warning: GOOGLE_APPLICATION_CREDENTIALS not set")
-        print("Make sure you've authenticated with: gcloud auth application-default login")
+        print(
+            "Make sure you've authenticated with: gcloud auth application-default login"
+        )
 
     try:
         remote_app = deploy(args)

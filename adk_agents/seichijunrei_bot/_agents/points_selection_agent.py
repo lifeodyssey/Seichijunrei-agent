@@ -21,7 +21,6 @@ from google.adk.agents import LlmAgent
 
 from .._schemas import PointsSelectionResult
 
-
 points_selection_agent = LlmAgent(
     name="PointsSelectionAgent",
     model="gemini-2.0-flash",

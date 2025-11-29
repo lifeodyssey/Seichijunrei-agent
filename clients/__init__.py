@@ -9,9 +9,9 @@ Provides:
 - Weather API client for weather information
 """
 
-from clients.base import BaseHTTPClient, HTTPMethod
 from clients.anitabi import AnitabiClient
 from clients.bangumi import BangumiClient
+from clients.base import BaseHTTPClient, HTTPMethod
 from clients.google_maps import GoogleMapsClient
 from clients.weather import WeatherClient
 

@@ -3,7 +3,6 @@ from google.adk.tools import FunctionTool
 from services.simple_route_planner import SimpleRoutePlanner
 from utils.logger import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -56,7 +55,9 @@ def plan_route(
             "estimated_duration": "approximately half a day",
             "estimated_distance": "varies by point distribution",
             "transport_tips": "Recommend combining walking with public transportation.",
-            "special_notes": ["Please confirm opening hours and accessibility of each point in advance."],
+            "special_notes": [
+                "Please confirm opening hours and accessibility of each point in advance."
+            ],
         }
 
 

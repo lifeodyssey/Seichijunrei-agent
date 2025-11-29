@@ -11,8 +11,8 @@ Tests cover:
 
 import asyncio
 import time
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -44,11 +44,13 @@ class TestRetryDecorator:
     @pytest.mark.asyncio
     async def test_retry_on_exception(self):
         """Test that function retries on exceptions."""
-        mock_func = AsyncMock(side_effect=[
-            Exception("First failure"),
-            Exception("Second failure"),
-            "success"
-        ])
+        mock_func = AsyncMock(
+            side_effect=[
+                Exception("First failure"),
+                Exception("Second failure"),
+                "success",
+            ]
+        )
 
         @retry_async(max_attempts=3)
         async def test_func():
@@ -85,10 +87,7 @@ class TestRetryDecorator:
 
         mock_func = AsyncMock(side_effect=NonRetryableError("Should not retry"))
 
-        @retry_async(
-            max_attempts=3,
-            retry_on=(RetryableError,)
-        )
+        @retry_async(max_attempts=3, retry_on=(RetryableError,))
         async def test_func():
             return await mock_func()
 
@@ -101,17 +100,11 @@ class TestRetryDecorator:
     @pytest.mark.asyncio
     async def test_exponential_backoff_timing(self):
         """Test that exponential backoff delays are applied."""
-        mock_func = AsyncMock(side_effect=[
-            Exception("First"),
-            Exception("Second"),
-            "success"
-        ])
-
-        @retry_async(
-            max_attempts=3,
-            base_delay=0.1,
-            max_delay=1.0
+        mock_func = AsyncMock(
+            side_effect=[Exception("First"), Exception("Second"), "success"]
         )
+
+        @retry_async(max_attempts=3, base_delay=0.1, max_delay=1.0)
         async def test_func():
             return await mock_func()
 
@@ -131,10 +124,7 @@ class TestRetryDecorator:
     async def test_custom_retry_config(self):
         """Test using custom RetryConfig."""
         config = RetryConfig(
-            max_attempts=2,
-            base_delay=0.05,
-            max_delay=0.5,
-            exponential_base=3
+            max_attempts=2, base_delay=0.05, max_delay=0.5, exponential_base=3
         )
 
         mock_func = AsyncMock(side_effect=[Exception("Fail"), "success"])
@@ -152,30 +142,21 @@ class TestRetryDecorator:
         """Test exponential backoff calculation with jitter."""
         # Test base case
         delay = exponential_backoff_with_jitter(
-            attempt=0,
-            base_delay=1.0,
-            max_delay=10.0,
-            exponential_base=2
+            attempt=0, base_delay=1.0, max_delay=10.0, exponential_base=2
         )
         # With jitter factor 0.5: delay = 1.0 ± 50%, so range is [0.5, 1.5]
         assert 0.5 <= delay <= 1.5
 
         # Test exponential growth
         delay = exponential_backoff_with_jitter(
-            attempt=2,
-            base_delay=1.0,
-            max_delay=10.0,
-            exponential_base=2
+            attempt=2, base_delay=1.0, max_delay=10.0, exponential_base=2
         )
         # 2^2 * 1.0 = 4.0, with jitter ± 50%: [2.0, 6.0]
         assert 2.0 <= delay <= 6.0
 
         # Test max delay cap
         delay = exponential_backoff_with_jitter(
-            attempt=10,
-            base_delay=1.0,
-            max_delay=5.0,
-            exponential_base=2
+            attempt=10, base_delay=1.0, max_delay=5.0, exponential_base=2
         )
         # Should be capped at max_delay (strictly enforced)
         assert delay <= 5.0
@@ -187,10 +168,7 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_rate_limiter_allows_requests_within_limit(self):
         """Test that rate limiter allows requests within the limit."""
-        limiter = RateLimiter(
-            calls_per_period=5,
-            period_seconds=1.0
-        )
+        limiter = RateLimiter(calls_per_period=5, period_seconds=1.0)
 
         # Should allow 5 requests immediately
         for i in range(5):
@@ -200,10 +178,7 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_rate_limiter_blocks_excess_requests(self):
         """Test that rate limiter blocks requests exceeding the limit."""
-        limiter = RateLimiter(
-            calls_per_period=3,
-            period_seconds=1.0
-        )
+        limiter = RateLimiter(calls_per_period=3, period_seconds=1.0)
 
         # Use up all tokens
         for i in range(3):
@@ -222,7 +197,7 @@ class TestRateLimiter:
         """Test that tokens are refilled over time."""
         limiter = RateLimiter(
             calls_per_period=2,
-            period_seconds=0.2  # 200ms period
+            period_seconds=0.2,  # 200ms period
         )
 
         # Use all tokens
@@ -239,10 +214,7 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_rate_limiter_concurrent_access(self):
         """Test thread safety with concurrent requests."""
-        limiter = RateLimiter(
-            calls_per_period=10,
-            period_seconds=1.0
-        )
+        limiter = RateLimiter(calls_per_period=10, period_seconds=1.0)
 
         async def make_request():
             return await limiter.acquire()
@@ -261,7 +233,7 @@ class TestRateLimiter:
         limiter = RateLimiter(
             calls_per_period=5,
             period_seconds=1.0,
-            burst_multiplier=2.0  # Allow burst of 10
+            burst_multiplier=2.0,  # Allow burst of 10
         )
 
         # Should allow burst of 10 requests
@@ -294,10 +266,7 @@ class TestRateLimiter:
 
     def test_rate_limiter_get_wait_time(self):
         """Test calculating wait time until next token."""
-        limiter = RateLimiter(
-            calls_per_period=2,
-            period_seconds=1.0
-        )
+        limiter = RateLimiter(calls_per_period=2, period_seconds=1.0)
 
         # Initially should have no wait
         wait_time = limiter.get_wait_time()

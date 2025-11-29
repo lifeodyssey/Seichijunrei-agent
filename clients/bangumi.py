@@ -7,7 +7,6 @@ Provides methods to:
 - Retrieve subject details by ID
 """
 
-from typing import List, Dict, Optional
 import urllib.parse
 
 from clients.base import BaseHTTPClient
@@ -42,10 +41,10 @@ class BangumiClient(BaseHTTPClient):
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         use_cache: bool = True,
         rate_limit_calls: int = 30,
-        rate_limit_period: float = 60.0
+        rate_limit_period: float = 60.0,
     ):
         """
         Initialize Bangumi API client.
@@ -64,22 +63,19 @@ class BangumiClient(BaseHTTPClient):
             rate_limit_calls=rate_limit_calls,
             rate_limit_period=rate_limit_period,
             use_cache=use_cache,
-            cache_ttl_seconds=86400  # Cache for 24 hours
+            cache_ttl_seconds=86400,  # Cache for 24 hours
         )
 
         logger.info(
             "Bangumi client initialized",
             base_url=self.base_url,
             cache_enabled=use_cache,
-            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s"
+            rate_limit=f"{rate_limit_calls}/{rate_limit_period}s",
         )
 
     async def search_subject(
-        self,
-        keyword: str,
-        subject_type: int = TYPE_ANIME,
-        max_results: int = 10
-    ) -> List[Dict]:
+        self, keyword: str, subject_type: int = TYPE_ANIME, max_results: int = 10
+    ) -> list[dict]:
         """
         Search for subjects by keyword.
 
@@ -113,7 +109,7 @@ class BangumiClient(BaseHTTPClient):
                 "Searching bangumi subjects",
                 keyword=keyword,
                 subject_type=subject_type,
-                max_results=max_results
+                max_results=max_results,
             )
 
             # URL encode the keyword
@@ -122,22 +118,15 @@ class BangumiClient(BaseHTTPClient):
             # Make API request
             response = await self.get(
                 f"/search/subject/{encoded_keyword}",
-                params={
-                    "type": subject_type,
-                    "max_results": max_results
-                },
-                headers={
-                    "User-Agent": self.USER_AGENT
-                }
+                params={"type": subject_type, "max_results": max_results},
+                headers={"User-Agent": self.USER_AGENT},
             )
 
             # Extract results
             results = response.get("list", [])
 
             logger.info(
-                "Bangumi search completed",
-                keyword=keyword,
-                results_count=len(results)
+                "Bangumi search completed", keyword=keyword, results_count=len(results)
             )
 
             return results
@@ -148,14 +137,11 @@ class BangumiClient(BaseHTTPClient):
 
         except Exception as e:
             logger.error(
-                "Bangumi search failed",
-                keyword=keyword,
-                error=str(e),
-                exc_info=True
+                "Bangumi search failed", keyword=keyword, error=str(e), exc_info=True
             )
             raise APIError(f"Bangumi search failed: {str(e)}")
 
-    async def get_subject(self, subject_id: int) -> Dict:
+    async def get_subject(self, subject_id: int) -> dict:
         """
         Get detailed information about a subject by ID.
 
@@ -179,22 +165,16 @@ class BangumiClient(BaseHTTPClient):
             raise ValueError("subject_id must be positive")
 
         try:
-            logger.info(
-                "Fetching bangumi subject details",
-                subject_id=subject_id
-            )
+            logger.info("Fetching bangumi subject details", subject_id=subject_id)
 
             response = await self.get(
-                f"/subject/{subject_id}",
-                headers={
-                    "User-Agent": self.USER_AGENT
-                }
+                f"/subject/{subject_id}", headers={"User-Agent": self.USER_AGENT}
             )
 
             logger.info(
                 "Bangumi subject fetched",
                 subject_id=subject_id,
-                name=response.get("name")
+                name=response.get("name"),
             )
 
             return response
@@ -207,6 +187,6 @@ class BangumiClient(BaseHTTPClient):
                 "Failed to fetch bangumi subject",
                 subject_id=subject_id,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise APIError(f"Failed to fetch subject {subject_id}: {str(e)}")

@@ -12,7 +12,6 @@ from google.adk.agents import LlmAgent
 from .._schemas import RoutePlan
 from ..tools.route_planning import plan_route_tool
 
-
 route_planning_agent = LlmAgent(
     name="RoutePlanningAgent",
     model="gemini-2.0-flash",

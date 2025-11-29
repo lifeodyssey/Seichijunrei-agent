@@ -3,12 +3,12 @@ Domain entities for Seichijunrei Bot.
 These are the core business objects used throughout the application.
 """
 
-from typing import Optional, List
-from pydantic import BaseModel, HttpUrl, field_validator, Field, ConfigDict
 from datetime import datetime
 
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 # === Value Objects ===
+
 
 class Coordinates(BaseModel):
     """GPS coordinates (immutable value object)."""
@@ -18,12 +18,12 @@ class Coordinates(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
 
-    @field_validator('latitude')
+    @field_validator("latitude")
     @classmethod
     def round_latitude(cls, v: float) -> float:
         return round(v, 6)  # Round to 6 decimal places
 
-    @field_validator('longitude')
+    @field_validator("longitude")
     @classmethod
     def round_longitude(cls, v: float) -> float:
         return round(v, 6)  # Round to 6 decimal places
@@ -36,12 +36,12 @@ class Coordinates(BaseModel):
         """Convert to comma-separated string format."""
         return f"{self.latitude},{self.longitude}"
 
-    def distance_to(self, other: 'Coordinates') -> float:
+    def distance_to(self, other: "Coordinates") -> float:
         """
         Calculate distance to another coordinate in kilometers.
         Uses Haversine formula for great circle distance.
         """
-        from math import radians, sin, cos, sqrt, atan2
+        from math import atan2, cos, radians, sin, sqrt
 
         R = 6371  # Earth's radius in kilometers
 
@@ -51,23 +51,24 @@ class Coordinates(BaseModel):
         dlat = lat2 - lat1
         dlon = lon2 - lon1
 
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
         return R * c
 
 
 # === Entities ===
 
+
 class Station(BaseModel):
     """Railway station entity."""
 
     name: str = Field(..., min_length=1)
     coordinates: Coordinates
-    city: Optional[str] = None
-    prefecture: Optional[str] = None
+    city: str | None = None
+    prefecture: str | None = None
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
         return v.strip()
@@ -81,10 +82,10 @@ class Bangumi(BaseModel):
     cn_title: str  # Chinese title
     cover_url: HttpUrl  # Cover image URL
     points_count: int = Field(..., ge=0)
-    distance_km: Optional[float] = Field(None, ge=0)
-    primary_color: Optional[str] = None  # For map markers
+    distance_km: float | None = Field(None, ge=0)
+    primary_color: str | None = None  # For map markers
 
-    @field_validator('id')
+    @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
         return v.strip()
@@ -105,9 +106,9 @@ class Point(BaseModel):
     episode: int = Field(..., ge=0)
     time_seconds: int = Field(..., ge=0)
     screenshot_url: HttpUrl
-    address: Optional[str] = None
-    opening_hours: Optional[str] = None
-    admission_fee: Optional[str] = None
+    address: str | None = None
+    opening_hours: str | None = None
+    admission_fee: str | None = None
 
     @property
     def time_formatted(self) -> str:
@@ -126,8 +127,8 @@ class TransportInfo(BaseModel):
     mode: str  # "walk", "transit", "driving"
     distance_meters: int = Field(..., ge=0)
     duration_minutes: int = Field(..., ge=0)
-    instructions: Optional[str] = None
-    transit_details: Optional[dict] = None  # For transit mode
+    instructions: str | None = None
+    transit_details: dict | None = None  # For transit mode
 
     @property
     def distance_km(self) -> float:
@@ -149,7 +150,7 @@ class RouteSegment(BaseModel):
 
     order: int = Field(..., ge=1)
     point: Point
-    transport: Optional[TransportInfo] = None
+    transport: TransportInfo | None = None
     cumulative_distance_km: float = Field(0, ge=0)
     cumulative_duration_minutes: int = Field(0, ge=0)
 
@@ -158,10 +159,10 @@ class Route(BaseModel):
     """Complete pilgrimage route."""
 
     origin: Station
-    segments: List[RouteSegment]
+    segments: list[RouteSegment]
     total_distance_km: float = Field(..., ge=0)
     total_duration_minutes: int = Field(..., ge=0)
-    google_maps_url: Optional[HttpUrl] = None
+    google_maps_url: HttpUrl | None = None
     created_at: datetime = Field(default_factory=datetime.now)
 
     @property
@@ -178,7 +179,7 @@ class Route(BaseModel):
         """Get total number of pilgrimage points."""
         return len(self.segments)
 
-    def get_bangumi_groups(self) -> dict[str, List[Point]]:
+    def get_bangumi_groups(self) -> dict[str, list[Point]]:
         """Group points by bangumi."""
         groups = {}
         for segment in self.segments:
@@ -211,20 +212,20 @@ class PilgrimageSession(BaseModel):
     """User session state."""
 
     session_id: str
-    station: Optional[Station] = None
-    selected_bangumi_ids: List[str] = Field(default_factory=list)
+    station: Station | None = None
+    selected_bangumi_ids: list[str] = Field(default_factory=list)
     search_radius_km: float = Field(5.0, ge=1, le=20)
-    nearby_bangumi: List[Bangumi] = Field(default_factory=list)
-    points: List[Point] = Field(default_factory=list)
-    route: Optional[Route] = None
-    weather: Optional[Weather] = None
+    nearby_bangumi: list[Bangumi] = Field(default_factory=list)
+    points: list[Point] = Field(default_factory=list)
+    route: Route | None = None
+    weather: Weather | None = None
 
     # NEW: Bangumi-specific fields for direct bangumi search
-    bangumi_id: Optional[int] = None
-    bangumi_name: Optional[str] = None
-    bangumi_confidence: Optional[float] = None
-    user_location: Optional[str] = None
-    user_coordinates: Optional[Coordinates] = None
+    bangumi_id: int | None = None
+    bangumi_name: str | None = None
+    bangumi_confidence: float | None = None
+    user_location: str | None = None
+    user_coordinates: Coordinates | None = None
 
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -236,26 +237,32 @@ class PilgrimageSession(BaseModel):
 
 # === Exceptions ===
 
+
 class DomainException(Exception):
     """Base exception for domain errors."""
+
     pass
 
 
 class InvalidStationError(DomainException):
     """Raised when station name cannot be resolved."""
+
     pass
 
 
 class NoBangumiFoundError(DomainException):
     """Raised when no bangumi found in the area."""
+
     pass
 
 
 class TooManyPointsError(DomainException):
     """Raised when too many points for route optimization."""
+
     pass
 
 
 class APIError(DomainException):
     """Raised when external API call fails."""
+
     pass

@@ -1,9 +1,8 @@
 """Logging configuration using structlog."""
 
 import logging
-import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 from rich.console import Console
@@ -15,7 +14,7 @@ from config import get_settings
 console = Console()
 
 
-def setup_logging(log_level: Optional[str] = None) -> None:
+def setup_logging(log_level: str | None = None) -> None:
     """
     Configure structured logging for the application.
 
@@ -154,7 +153,7 @@ class LogContext:
         """Initialize with logger and context to add."""
         self.logger = logger
         self.context = kwargs
-        self.token: Optional[Any] = None
+        self.token: Any | None = None
 
     def __enter__(self) -> structlog.BoundLogger:
         """Enter context and bind values."""
@@ -171,10 +170,7 @@ class LogTimer:
     """Context manager for timing and logging operations."""
 
     def __init__(
-        self,
-        logger: structlog.BoundLogger,
-        operation: str,
-        **extra_context: Any
+        self, logger: structlog.BoundLogger, operation: str, **extra_context: Any
     ):
         """
         Initialize timer context.
@@ -187,15 +183,13 @@ class LogTimer:
         self.logger = logger
         self.operation = operation
         self.extra_context = extra_context
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
 
     def __enter__(self) -> "LogTimer":
         """Start timing."""
         self.start_time = time.time()
         self.logger.debug(
-            f"[START] {self.operation}",
-            operation=self.operation,
-            **self.extra_context
+            f"[START] {self.operation}", operation=self.operation, **self.extra_context
         )
         return self
 
@@ -210,7 +204,7 @@ class LogTimer:
                 operation=self.operation,
                 duration_seconds=round(duration, 3),
                 error=str(exc_val),
-                **self.extra_context
+                **self.extra_context,
             )
         else:
             # Operation succeeded
@@ -218,5 +212,5 @@ class LogTimer:
                 f"[COMPLETE] {self.operation}",
                 operation=self.operation,
                 duration_seconds=round(duration, 3),
-                **self.extra_context
+                **self.extra_context,
             )

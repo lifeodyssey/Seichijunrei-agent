@@ -10,11 +10,7 @@ Tests cover:
 """
 
 import asyncio
-import hashlib
-import json
-import time
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -141,17 +137,11 @@ class TestResponseCache:
             return await cache.get(key)
 
         # Concurrent writes
-        tasks = [
-            set_value(f"key_{i}", {"value": i})
-            for i in range(20)
-        ]
+        tasks = [set_value(f"key_{i}", {"value": i}) for i in range(20)]
         await asyncio.gather(*tasks)
 
         # Concurrent reads
-        tasks = [
-            get_value(f"key_{i}")
-            for i in range(20)
-        ]
+        tasks = [get_value(f"key_{i}") for i in range(20)]
         results = await asyncio.gather(*tasks)
 
         # Verify all values are correct
@@ -163,7 +153,7 @@ class TestResponseCache:
         """Test cache size limit and LRU eviction."""
         cache = ResponseCache(
             default_ttl_seconds=60,
-            max_size=3  # Small cache
+            max_size=3,  # Small cache
         )
 
         # Fill the cache
@@ -192,7 +182,9 @@ class TestResponseCache:
         # Test basic key generation
         key1 = cache.generate_key("https://api.example.com/data", {"param": "value"})
         key2 = cache.generate_key("https://api.example.com/data", {"param": "value"})
-        key3 = cache.generate_key("https://api.example.com/data", {"param": "different"})
+        key3 = cache.generate_key(
+            "https://api.example.com/data", {"param": "different"}
+        )
 
         # Same inputs should produce same key
         assert key1 == key2
@@ -204,12 +196,10 @@ class TestResponseCache:
         cache = ResponseCache(default_ttl_seconds=60)
 
         key1 = cache.generate_key(
-            "https://api.example.com/data",
-            {"param1": "value1", "param2": "value2"}
+            "https://api.example.com/data", {"param1": "value1", "param2": "value2"}
         )
         key2 = cache.generate_key(
-            "https://api.example.com/data",
-            {"param2": "value2", "param1": "value1"}
+            "https://api.example.com/data", {"param2": "value2", "param1": "value1"}
         )
 
         # Order shouldn't matter
@@ -244,10 +234,7 @@ class TestResponseCache:
     @pytest.mark.asyncio
     async def test_cache_cleanup_expired_entries(self):
         """Test automatic cleanup of expired entries."""
-        cache = ResponseCache(
-            default_ttl_seconds=0.1,
-            cleanup_interval_seconds=0.2
-        )
+        cache = ResponseCache(default_ttl_seconds=0.1, cleanup_interval_seconds=0.2)
 
         # Add entries
         await cache.set("key1", {"value": 1})
@@ -293,8 +280,7 @@ class TestResponseCache:
         """Test CacheEntry expiration check."""
         # Create entry with short TTL
         entry = CacheEntry(
-            value={"data": "test"},
-            expires_at=datetime.now() + timedelta(seconds=0.1)
+            value={"data": "test"}, expires_at=datetime.now() + timedelta(seconds=0.1)
         )
 
         # Should not be expired initially

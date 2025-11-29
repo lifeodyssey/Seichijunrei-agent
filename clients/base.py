@@ -11,8 +11,7 @@ Provides a foundation for all API clients with:
 
 import asyncio
 from enum import Enum
-from typing import Any, Dict, Optional, Union
-from urllib.parse import urljoin
+from typing import Any
 
 import aiohttp
 from aiohttp import ClientError, ClientResponseError, ClientTimeout
@@ -51,14 +50,14 @@ class BaseHTTPClient:
     def __init__(
         self,
         base_url: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: int = 30,
         max_retries: int = 3,
         rate_limit_calls: int = 100,
         rate_limit_period: float = 60.0,
         use_cache: bool = True,
         cache_ttl_seconds: int = 3600,
-        session: Optional[aiohttp.ClientSession] = None
+        session: aiohttp.ClientSession | None = None,
     ):
         """
         Initialize the base HTTP client.
@@ -86,14 +85,13 @@ class BaseHTTPClient:
 
         # Rate limiter
         self._rate_limiter = RateLimiter(
-            calls_per_period=rate_limit_calls,
-            period_seconds=rate_limit_period
+            calls_per_period=rate_limit_calls, period_seconds=rate_limit_period
         )
 
         # Response cache
-        self._cache = ResponseCache(
-            default_ttl_seconds=cache_ttl_seconds
-        ) if use_cache else None
+        self._cache = (
+            ResponseCache(default_ttl_seconds=cache_ttl_seconds) if use_cache else None
+        )
 
         logger.info(
             "HTTP client initialized",
@@ -101,7 +99,7 @@ class BaseHTTPClient:
             timeout=timeout,
             max_retries=max_retries,
             rate_limit=f"{rate_limit_calls}/{rate_limit_period}s",
-            cache_enabled=use_cache
+            cache_enabled=use_cache,
         )
 
     def _build_url(self, endpoint: str) -> str:
@@ -110,7 +108,9 @@ class BaseHTTPClient:
             endpoint = f"/{endpoint}"
         return f"{self.base_url}{endpoint}"
 
-    def _get_headers(self, custom_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    def _get_headers(
+        self, custom_headers: dict[str, str] | None = None
+    ) -> dict[str, str]:
         """
         Get request headers with authentication.
 
@@ -120,10 +120,7 @@ class BaseHTTPClient:
         Returns:
             Combined headers dictionary
         """
-        headers = {
-            "User-Agent": "Seichijunrei/1.0",
-            "Accept": "application/json"
-        }
+        headers = {"User-Agent": "Seichijunrei/1.0", "Accept": "application/json"}
 
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -144,11 +141,11 @@ class BaseHTTPClient:
         self,
         method: HTTPMethod,
         url: str,
-        headers: Dict[str, str],
-        params: Optional[Dict[str, Any]] = None,
-        json_data: Optional[Dict[str, Any]] = None,
-        data: Optional[Any] = None
-    ) -> Dict[str, Any]:
+        headers: dict[str, str],
+        params: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
+        data: Any | None = None,
+    ) -> dict[str, Any]:
         """
         Make the actual HTTP request.
 
@@ -174,11 +171,7 @@ class BaseHTTPClient:
 
             # Make the request
             async with request_method(
-                url,
-                headers=headers,
-                params=params,
-                json=json_data,
-                data=data
+                url, headers=headers, params=params, json=json_data, data=data
             ) as response:
                 # Check for errors
                 if response.status >= 400:
@@ -195,7 +188,7 @@ class BaseHTTPClient:
                     text = await response.text()
                     return {"raw_response": text}
 
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise APIError(f"Request timeout after {self.timeout} seconds") from e
         except ClientResponseError as e:
             raise APIError(f"HTTP {e.status}: {e.message}") from e
@@ -207,7 +200,7 @@ class BaseHTTPClient:
                 method=method,
                 url=url,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise APIError(f"Unexpected error: {str(e)}") from e
 
@@ -215,12 +208,12 @@ class BaseHTTPClient:
         self,
         method: HTTPMethod,
         endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        json_data: Optional[Dict[str, Any]] = None,
-        data: Optional[Any] = None,
-        headers: Optional[Dict[str, str]] = None,
-        skip_cache: bool = False
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
+        data: Any | None = None,
+        headers: dict[str, str] | None = None,
+        skip_cache: bool = False,
+    ) -> dict[str, Any]:
         """
         Make an HTTP request with retry, rate limiting, and caching.
 
@@ -244,7 +237,12 @@ class BaseHTTPClient:
         request_headers = self._get_headers(headers)
 
         # Check cache for GET requests
-        if method == HTTPMethod.GET and self.use_cache and not skip_cache and self._cache:
+        if (
+            method == HTTPMethod.GET
+            and self.use_cache
+            and not skip_cache
+            and self._cache
+        ):
             cache_key = self._cache.generate_key(url, params)
             cached = await self._cache.get(cache_key)
             if cached is not None:
@@ -264,7 +262,7 @@ class BaseHTTPClient:
                     url=url,
                     params=params,
                     has_body=json_data is not None or data is not None,
-                    attempt=attempt + 1
+                    attempt=attempt + 1,
                 )
 
                 # Make the request
@@ -274,7 +272,7 @@ class BaseHTTPClient:
                     headers=request_headers,
                     params=params,
                     json_data=json_data,
-                    data=data
+                    data=data,
                 )
 
                 # Cache successful GET responses
@@ -295,7 +293,7 @@ class BaseHTTPClient:
                         "Client error (no retry)",
                         url=url,
                         method=method.value,
-                        error=error_str
+                        error=error_str,
                     )
                     raise
 
@@ -306,12 +304,12 @@ class BaseHTTPClient:
                         url=url,
                         method=method.value,
                         error=error_str,
-                        attempts=self.max_retries
+                        attempts=self.max_retries,
                     )
                     raise
 
                 # Calculate backoff delay
-                delay = min(2 ** attempt, 30)  # Exponential backoff capped at 30s
+                delay = min(2**attempt, 30)  # Exponential backoff capped at 30s
 
                 logger.warning(
                     "Request failed (will retry)",
@@ -319,7 +317,7 @@ class BaseHTTPClient:
                     method=method.value,
                     error=error_str,
                     attempt=attempt + 1,
-                    next_delay=delay
+                    next_delay=delay,
                 )
 
                 await asyncio.sleep(delay)
@@ -331,7 +329,7 @@ class BaseHTTPClient:
                     url=url,
                     method=method.value,
                     error=str(e),
-                    exc_info=True
+                    exc_info=True,
                 )
                 raise APIError(f"Unexpected error: {str(e)}") from e
 
@@ -340,37 +338,28 @@ class BaseHTTPClient:
             raise last_exception
 
     async def get(
-        self,
-        endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+        self, endpoint: str, params: dict[str, Any] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Convenience method for GET requests."""
         return await self.request(HTTPMethod.GET, endpoint, params=params, **kwargs)
 
     async def post(
-        self,
-        endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+        self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Convenience method for POST requests."""
-        return await self.request(HTTPMethod.POST, endpoint, json_data=json_data, **kwargs)
+        return await self.request(
+            HTTPMethod.POST, endpoint, json_data=json_data, **kwargs
+        )
 
     async def put(
-        self,
-        endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> Dict[str, Any]:
+        self, endpoint: str, json_data: dict[str, Any] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Convenience method for PUT requests."""
-        return await self.request(HTTPMethod.PUT, endpoint, json_data=json_data, **kwargs)
+        return await self.request(
+            HTTPMethod.PUT, endpoint, json_data=json_data, **kwargs
+        )
 
-    async def delete(
-        self,
-        endpoint: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+    async def delete(self, endpoint: str, **kwargs) -> dict[str, Any]:
         """Convenience method for DELETE requests."""
         return await self.request(HTTPMethod.DELETE, endpoint, **kwargs)
 

@@ -8,7 +8,7 @@ This is the ADK-recommended pattern for handling LLM-generated parameter names
 that may vary despite instruction guidance.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from google.adk.agents import BaseAgent
 from google.adk.events import Event, EventActions
@@ -26,7 +26,7 @@ class InputNormalizationAgent(BaseAgent):
     standardizes them to 'user_query' for reliable downstream consumption.
     """
 
-    model_config = ConfigDict(extra='allow', arbitrary_types_allowed=True)
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     def __init__(self) -> None:
         super().__init__(name="InputNormalizationAgent")
@@ -44,7 +44,7 @@ class InputNormalizationAgent(BaseAgent):
         Yields:
             Event with confirmation message
         """
-        state: Dict[str, Any] = ctx.session.state
+        state: dict[str, Any] = ctx.session.state
 
         # First, check if user_query already exists in state (from a previous agent)
         user_query = state.get("user_query")
@@ -58,7 +58,7 @@ class InputNormalizationAgent(BaseAgent):
                 if msg.role == "user" and msg.parts:
                     # Extract text from the first text part
                     for part in msg.parts:
-                        if hasattr(part, 'text') and part.text:
+                        if hasattr(part, "text") and part.text:
                             user_query = part.text
                             break
                     if user_query:
@@ -76,25 +76,19 @@ class InputNormalizationAgent(BaseAgent):
             self.logger.error(
                 "No user query found in messages or state",
                 available_keys=available_keys,
-                message_count=msg_count
+                message_count=msg_count,
             )
-            yield Event(
-                action=EventActions.AGENT_TEXT,
-                content=error_msg
-            )
+            yield Event(action=EventActions.AGENT_TEXT, content=error_msg)
             return
 
         # Save to state for downstream agents
         state["user_query"] = user_query
 
-        self.logger.info(
-            "Captured user query from message",
-            user_query=user_query
-        )
+        self.logger.info("Captured user query from message", user_query=user_query)
 
         yield Event(
             action=EventActions.AGENT_TEXT,
-            content=f"✓ Captured user query: {user_query}"
+            content=f"✓ Captured user query: {user_query}",
         )
 
 

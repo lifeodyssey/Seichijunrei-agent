@@ -10,12 +10,11 @@ Provides:
 
 import asyncio
 import random
-import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from threading import Lock
-from typing import Callable, Optional, Tuple, Type, Union
 
 from utils.logger import get_logger
 
@@ -31,7 +30,7 @@ class RetryConfig:
     max_delay: float = 60.0  # Maximum delay in seconds
     exponential_base: float = 2.0  # Base for exponential backoff
     jitter_factor: float = 0.5  # Randomization factor (0-1)
-    retry_on: Tuple[Type[Exception], ...] = (Exception,)  # Exceptions to retry on
+    retry_on: tuple[type[Exception], ...] = (Exception,)  # Exceptions to retry on
 
 
 def exponential_backoff_with_jitter(
@@ -39,7 +38,7 @@ def exponential_backoff_with_jitter(
     base_delay: float,
     max_delay: float,
     exponential_base: float = 2.0,
-    jitter_factor: float = 0.5
+    jitter_factor: float = 0.5,
 ) -> float:
     """
     Calculate exponential backoff delay with jitter.
@@ -55,7 +54,7 @@ def exponential_backoff_with_jitter(
         Delay in seconds with jitter applied
     """
     # Calculate exponential delay
-    delay = base_delay * (exponential_base ** attempt)
+    delay = base_delay * (exponential_base**attempt)
 
     # Apply jitter to prevent thundering herd
     jitter_range = delay * jitter_factor
@@ -68,12 +67,12 @@ def exponential_backoff_with_jitter(
 
 
 def retry_async(
-    max_attempts: Optional[int] = None,
-    base_delay: Optional[float] = None,
-    max_delay: Optional[float] = None,
-    exponential_base: Optional[float] = None,
-    retry_on: Optional[Tuple[Type[Exception], ...]] = None,
-    config: Optional[RetryConfig] = None
+    max_attempts: int | None = None,
+    base_delay: float | None = None,
+    max_delay: float | None = None,
+    exponential_base: float | None = None,
+    retry_on: tuple[type[Exception], ...] | None = None,
+    config: RetryConfig | None = None,
 ) -> Callable:
     """
     Async retry decorator with exponential backoff.
@@ -118,7 +117,7 @@ def retry_async(
                             "Retry successful",
                             function=func.__name__,
                             attempt=attempt + 1,
-                            max_attempts=config.max_attempts
+                            max_attempts=config.max_attempts,
                         )
 
                     return result
@@ -133,7 +132,7 @@ def retry_async(
                             function=func.__name__,
                             attempt=attempt + 1,
                             max_attempts=config.max_attempts,
-                            error=str(e)
+                            error=str(e),
                         )
                         raise
 
@@ -143,7 +142,7 @@ def retry_async(
                         base_delay=config.base_delay,
                         max_delay=config.max_delay,
                         exponential_base=config.exponential_base,
-                        jitter_factor=config.jitter_factor
+                        jitter_factor=config.jitter_factor,
                     )
 
                     logger.warning(
@@ -152,7 +151,7 @@ def retry_async(
                         attempt=attempt + 1,
                         max_attempts=config.max_attempts,
                         delay=f"{delay:.2f}s",
-                        error=str(e)
+                        error=str(e),
                     )
 
                     # Wait before retrying
@@ -164,7 +163,7 @@ def retry_async(
                         "Non-retryable exception",
                         function=func.__name__,
                         error=str(e),
-                        exc_info=True
+                        exc_info=True,
                     )
                     raise
 
@@ -173,6 +172,7 @@ def retry_async(
                 raise last_exception
 
         return wrapper
+
     return decorator
 
 
@@ -187,7 +187,7 @@ class RateLimiter:
         self,
         calls_per_period: int,
         period_seconds: float,
-        burst_multiplier: float = 1.0
+        burst_multiplier: float = 1.0,
     ):
         """
         Initialize rate limiter.
@@ -262,7 +262,7 @@ class RateLimiter:
                         "Rate limit tokens acquired",
                         tokens_acquired=tokens,
                         tokens_remaining=self.tokens,
-                        max_tokens=self.max_tokens
+                        max_tokens=self.max_tokens,
                     )
                     return True
 
@@ -275,7 +275,7 @@ class RateLimiter:
                 "Rate limit waiting for tokens",
                 wait_time=f"{wait_time:.2f}s",
                 tokens_needed=tokens,
-                tokens_available=self.tokens
+                tokens_available=self.tokens,
             )
             await asyncio.sleep(wait_time)
 

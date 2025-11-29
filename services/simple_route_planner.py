@@ -1,4 +1,4 @@
-from typing import Any, List, Dict
+from typing import Any
 
 
 class SimpleRoutePlanner:
@@ -22,8 +22,8 @@ class SimpleRoutePlanner:
         self,
         origin: str,
         anime: str,
-        points: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        points: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         Generate a simple pilgrimage route plan.
 
@@ -115,4 +115,3 @@ class SimpleRoutePlanner:
             "- Recommend purchasing a day pass to save on transportation costs.",
         ]
         return "\n".join(tips)
-

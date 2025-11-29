@@ -10,16 +10,20 @@ Tests cover:
 - Rate limiting
 """
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiohttp import ClientError
 
 from clients.anitabi import AnitabiClient
 from domain.entities import (
-    APIError, Bangumi, Coordinates, InvalidStationError,
-    NoBangumiFoundError, Point, Station
+    APIError,
+    Bangumi,
+    Coordinates,
+    InvalidStationError,
+    NoBangumiFoundError,
+    Point,
+    Station,
 )
 
 
@@ -33,7 +37,7 @@ class TestAnitabiClient:
             api_key="test_key",
             use_cache=True,
             rate_limit_calls=10,
-            rate_limit_period=1.0
+            rate_limit_period=1.0,
         )
 
     @pytest.fixture
@@ -48,7 +52,7 @@ class TestAnitabiClient:
                     "cover": "https://example.com/cover1.jpg",
                     "points_count": 5,
                     "distance": 2.5,
-                    "color": "#FF6B6B"
+                    "color": "#FF6B6B",
                 },
                 {
                     "id": "bangumi_2",
@@ -57,10 +61,10 @@ class TestAnitabiClient:
                     "cover": "https://example.com/cover2.jpg",
                     "points_count": 3,
                     "distance": 4.8,
-                    "color": "#4ECDC4"
-                }
+                    "color": "#4ECDC4",
+                },
             ],
-            "total": 2
+            "total": 2,
         }
 
     @pytest.fixture
@@ -81,7 +85,7 @@ class TestAnitabiClient:
                     "screenshot": "https://example.com/shot1.jpg",
                     "address": "滋賀県犬上郡豊郷町",
                     "opening_hours": "9:00-17:00",
-                    "admission_fee": "無料"
+                    "admission_fee": "無料",
                 },
                 {
                     "id": "point_2",
@@ -96,10 +100,10 @@ class TestAnitabiClient:
                     "screenshot": "https://example.com/shot2.jpg",
                     "address": "京都府京都市",
                     "opening_hours": "24時間",
-                    "admission_fee": None
-                }
+                    "admission_fee": None,
+                },
             ],
-            "total": 2
+            "total": 2,
         }
 
     @pytest.fixture
@@ -111,7 +115,7 @@ class TestAnitabiClient:
                 "lat": 35.681236,
                 "lng": 139.767125,
                 "city": "東京都",
-                "prefecture": "東京都"
+                "prefecture": "東京都",
             }
         }
 
@@ -122,10 +126,10 @@ class TestAnitabiClient:
             name="東京駅",
             coordinates=Coordinates(latitude=35.681236, longitude=139.767125),
             city="東京都",
-            prefecture="東京都"
+            prefecture="東京都",
         )
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_bangumi_response
 
             results = await client.search_bangumi(station, radius_km=5.0)
@@ -136,8 +140,8 @@ class TestAnitabiClient:
                 params={
                     "lat": 35.681236,
                     "lng": 139.767125,
-                    "radius": 5000  # Convert km to meters
-                }
+                    "radius": 5000,  # Convert km to meters
+                },
             )
 
             # Verify results
@@ -153,10 +157,10 @@ class TestAnitabiClient:
         """Test bangumi search with no results."""
         station = Station(
             name="Rural Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            coordinates=Coordinates(latitude=35.0, longitude=135.0),
         )
 
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"data": [], "total": 0}
 
             with pytest.raises(NoBangumiFoundError, match="No anime locations found"):
@@ -165,15 +169,13 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_get_bangumi_points_success(self, client, mock_points_response):
         """Test successful retrieval of bangumi points."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_points_response
 
             points = await client.get_bangumi_points("bangumi_1")
 
             # Verify API call
-            mock_get.assert_called_once_with(
-                "/bangumi/bangumi_1/points"
-            )
+            mock_get.assert_called_once_with("/bangumi/bangumi_1/points")
 
             # Verify results
             assert len(points) == 2
@@ -187,7 +189,7 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_get_bangumi_points_invalid_id(self, client):
         """Test point retrieval with invalid bangumi ID."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = APIError("API request failed with status 404")
 
             with pytest.raises(APIError, match="404"):
@@ -196,16 +198,13 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_get_station_info_success(self, client, mock_station_response):
         """Test successful station information lookup."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_station_response
 
             station = await client.get_station_info("東京駅")
 
             # Verify API call
-            mock_get.assert_called_once_with(
-                "/station",
-                params={"name": "東京駅"}
-            )
+            mock_get.assert_called_once_with("/station", params={"name": "東京駅"})
 
             # Verify results
             assert isinstance(station, Station)
@@ -216,7 +215,7 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_get_station_info_not_found(self, client):
         """Test station lookup with unknown station name."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"data": None, "error": "Station not found"}
 
             with pytest.raises(InvalidStationError, match="Station not found"):
@@ -226,11 +225,12 @@ class TestAnitabiClient:
     async def test_caching_behavior(self, client, mock_bangumi_response):
         """Test that responses are properly cached."""
         station = Station(
-            name="Test Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
         )
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_bangumi_response
 
             # First call
@@ -247,11 +247,12 @@ class TestAnitabiClient:
     async def test_different_radius_not_cached(self, client, mock_bangumi_response):
         """Test that different parameters bypass cache."""
         station = Station(
-            name="Test Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
         )
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_bangumi_response
 
             # Call with radius 5km
@@ -266,15 +267,14 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_malformed_response_handling(self, client):
         """Test handling of malformed API responses."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             # Missing required fields
             mock_get.return_value = {
                 "data": [{"id": "test", "title": "Missing fields"}]
             }
 
             station = Station(
-                name="Test",
-                coordinates=Coordinates(latitude=35.0, longitude=135.0)
+                name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
             )
 
             with pytest.raises(APIError, match="Invalid response"):
@@ -283,12 +283,11 @@ class TestAnitabiClient:
     @pytest.mark.asyncio
     async def test_network_error_handling(self, client):
         """Test handling of network errors."""
-        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = ClientError("Network error")
 
             station = Station(
-                name="Test",
-                coordinates=Coordinates(latitude=35.0, longitude=135.0)
+                name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
             )
 
             with pytest.raises(APIError):
@@ -298,15 +297,17 @@ class TestAnitabiClient:
     async def test_rate_limiting(self, client, mock_bangumi_response):
         """Test that rate limiting is applied."""
         station = Station(
-            name="Test",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0)
+            name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
         )
 
-        with patch.object(client, '_make_request', new_callable=AsyncMock) as mock_request:
+        with patch.object(
+            client, "_make_request", new_callable=AsyncMock
+        ) as mock_request:
             mock_request.return_value = mock_bangumi_response
 
             # Make multiple rapid requests with different params to avoid cache
             import asyncio
+
             start_time = asyncio.get_event_loop().time()
 
             tasks = [
@@ -329,7 +330,7 @@ class TestAnitabiClient:
             assert c is client
 
         # Session should be closed after exiting
-        with patch.object(client, 'close', new_callable=AsyncMock) as mock_close:
+        with patch.object(client, "close", new_callable=AsyncMock) as mock_close:
             async with client:
                 pass
             mock_close.assert_called_once()

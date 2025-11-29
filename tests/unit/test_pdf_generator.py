@@ -3,15 +3,23 @@ Unit tests for PDFGeneratorTool following TDD principles.
 Tests written before implementation (RED phase).
 """
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
-from tools.pdf_generator import PDFGeneratorTool
+import pytest
+
 from domain.entities import (
-    Station, Point, Route, RouteSegment, TransportInfo, Bangumi,
-    Coordinates, PilgrimageSession, Weather
+    Bangumi,
+    Coordinates,
+    PilgrimageSession,
+    Point,
+    Route,
+    RouteSegment,
+    Station,
+    TransportInfo,
+    Weather,
 )
+from tools.pdf_generator import PDFGeneratorTool
 
 
 @pytest.fixture
@@ -21,7 +29,7 @@ def sample_session_with_weather():
         name="Shinjuku Station",
         coordinates=Coordinates(latitude=35.6896, longitude=139.7006),
         city="Tokyo",
-        prefecture="Tokyo"
+        prefecture="Tokyo",
     )
 
     bangumi1 = Bangumi(
@@ -30,7 +38,7 @@ def sample_session_with_weather():
         cn_title="你的名字",
         cover_url="https://example.com/cover1.jpg",
         points_count=2,
-        primary_color="#FF6B6B"
+        primary_color="#FF6B6B",
     )
 
     bangumi2 = Bangumi(
@@ -39,7 +47,7 @@ def sample_session_with_weather():
         cn_title="天气之子",
         cover_url="https://example.com/cover2.jpg",
         points_count=1,
-        primary_color="#4ECDC4"
+        primary_color="#4ECDC4",
     )
 
     point1 = Point(
@@ -51,7 +59,7 @@ def sample_session_with_weather():
         bangumi_title="Kimi no Na wa",
         episode=12,
         time_seconds=345,
-        screenshot_url="https://example.com/screenshot1.jpg"
+        screenshot_url="https://example.com/screenshot1.jpg",
     )
 
     point2 = Point(
@@ -63,7 +71,7 @@ def sample_session_with_weather():
         bangumi_title="Tenki no Ko",
         episode=5,
         time_seconds=180,
-        screenshot_url="https://example.com/screenshot2.jpg"
+        screenshot_url="https://example.com/screenshot2.jpg",
     )
 
     point3 = Point(
@@ -75,14 +83,14 @@ def sample_session_with_weather():
         bangumi_title="Kimi no Na wa",
         episode=8,
         time_seconds=520,
-        screenshot_url="https://example.com/screenshot3.jpg"
+        screenshot_url="https://example.com/screenshot3.jpg",
     )
 
     transport1 = TransportInfo(
         mode="walking",
         distance_meters=1200,
         duration_minutes=15,
-        instructions="Walk south"
+        instructions="Walk south",
     )
 
     transport2 = TransportInfo(
@@ -90,14 +98,14 @@ def sample_session_with_weather():
         distance_meters=2500,
         duration_minutes=12,
         instructions="Take subway",
-        transit_details={"lines": [{"name": "Yamanote Line"}]}
+        transit_details={"lines": [{"name": "Yamanote Line"}]},
     )
 
     transport3 = TransportInfo(
         mode="walking",
         distance_meters=800,
         duration_minutes=10,
-        instructions="Walk west"
+        instructions="Walk west",
     )
 
     segments = [
@@ -106,22 +114,22 @@ def sample_session_with_weather():
             point=point1,
             transport=transport1,
             cumulative_distance_km=1.2,
-            cumulative_duration_minutes=15
+            cumulative_duration_minutes=15,
         ),
         RouteSegment(
             order=2,
             point=point2,
             transport=transport2,
             cumulative_distance_km=3.7,
-            cumulative_duration_minutes=27
+            cumulative_duration_minutes=27,
         ),
         RouteSegment(
             order=3,
             point=point3,
             transport=transport3,
             cumulative_distance_km=4.5,
-            cumulative_duration_minutes=37
-        )
+            cumulative_duration_minutes=37,
+        ),
     ]
 
     route = Route(
@@ -129,7 +137,7 @@ def sample_session_with_weather():
         segments=segments,
         total_distance_km=4.5,
         total_duration_minutes=37,
-        google_maps_url="https://www.google.com/maps/dir/..."
+        google_maps_url="https://www.google.com/maps/dir/...",
     )
 
     weather = Weather(
@@ -140,7 +148,7 @@ def sample_session_with_weather():
         temperature_low=8,
         precipitation_chance=10,
         wind_speed_kmh=12,
-        recommendation="适合出行"
+        recommendation="适合出行",
     )
 
     session = PilgrimageSession(
@@ -150,7 +158,7 @@ def sample_session_with_weather():
         nearby_bangumi=[bangumi1, bangumi2],
         points=[point1, point2, point3],
         route=route,
-        weather=weather
+        weather=weather,
     )
 
     return session
@@ -194,13 +202,15 @@ class TestPDFGeneratorTool:
     ):
         """Test PDF generation from complete PilgrimageSession."""
         # Act
-        with patch('tools.pdf_generator.async_playwright') as mock_playwright:
+        with patch("tools.pdf_generator.async_playwright") as mock_playwright:
             # Mock Playwright browser
             mock_browser = AsyncMock()
             mock_page = AsyncMock()
             mock_context = AsyncMock()
 
-            mock_playwright.return_value.__aenter__.return_value.chromium.launch = AsyncMock(return_value=mock_browser)
+            mock_playwright.return_value.__aenter__.return_value.chromium.launch = (
+                AsyncMock(return_value=mock_browser)
+            )
             mock_browser.new_context = AsyncMock(return_value=mock_context)
             mock_context.new_page = AsyncMock(return_value=mock_page)
             mock_page.set_content = AsyncMock()
@@ -217,20 +227,22 @@ class TestPDFGeneratorTool:
     async def test_pdf_file_created(self, pdf_generator, sample_session_with_weather):
         """Test that PDF file is actually created."""
         # Act
-        with patch('tools.pdf_generator.async_playwright') as mock_playwright:
+        with patch("tools.pdf_generator.async_playwright") as mock_playwright:
             mock_browser = AsyncMock()
             mock_page = AsyncMock()
             mock_context = AsyncMock()
 
-            mock_playwright.return_value.__aenter__.return_value.chromium.launch = AsyncMock(return_value=mock_browser)
+            mock_playwright.return_value.__aenter__.return_value.chromium.launch = (
+                AsyncMock(return_value=mock_browser)
+            )
             mock_browser.new_context = AsyncMock(return_value=mock_context)
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
             # Create a mock PDF file
             async def create_pdf_file(*args, **kwargs):
-                pdf_path = kwargs.get('path')
+                pdf_path = kwargs.get("path")
                 if pdf_path:
-                    Path(pdf_path).write_bytes(b'%PDF-1.4 mock')
+                    Path(pdf_path).write_bytes(b"%PDF-1.4 mock")
 
             mock_page.pdf = AsyncMock(side_effect=create_pdf_file)
 
@@ -329,12 +341,14 @@ class TestPDFGeneratorTool:
     ):
         """Test that output file uses session_id in filename."""
         # Act
-        with patch('tools.pdf_generator.async_playwright') as mock_playwright:
+        with patch("tools.pdf_generator.async_playwright") as mock_playwright:
             mock_browser = AsyncMock()
             mock_page = AsyncMock()
             mock_context = AsyncMock()
 
-            mock_playwright.return_value.__aenter__.return_value.chromium.launch = AsyncMock(return_value=mock_browser)
+            mock_playwright.return_value.__aenter__.return_value.chromium.launch = (
+                AsyncMock(return_value=mock_browser)
+            )
             mock_browser.new_context = AsyncMock(return_value=mock_context)
             mock_context.new_page = AsyncMock(return_value=mock_page)
 
@@ -351,8 +365,8 @@ class TestPDFGeneratorTool:
             session_id="test-no-route",
             station=Station(
                 name="Test Station",
-                coordinates=Coordinates(latitude=35.0, longitude=139.0)
-            )
+                coordinates=Coordinates(latitude=35.0, longitude=139.0),
+            ),
         )
 
         # Act & Assert
@@ -365,12 +379,14 @@ class TestPDFGeneratorTool:
     ):
         """Test that Playwright browser is properly closed."""
         # Act
-        with patch('tools.pdf_generator.async_playwright') as mock_playwright:
+        with patch("tools.pdf_generator.async_playwright") as mock_playwright:
             mock_browser = AsyncMock()
             mock_page = AsyncMock()
             mock_context = AsyncMock()
 
-            mock_playwright.return_value.__aenter__.return_value.chromium.launch = AsyncMock(return_value=mock_browser)
+            mock_playwright.return_value.__aenter__.return_value.chromium.launch = (
+                AsyncMock(return_value=mock_browser)
+            )
             mock_browser.new_context = AsyncMock(return_value=mock_context)
             mock_context.new_page = AsyncMock(return_value=mock_page)
             mock_browser.close = AsyncMock()
