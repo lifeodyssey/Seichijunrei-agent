@@ -53,13 +53,22 @@ jobs:
 
       - name: Deploy to Agent Engine
         run: |
+          # Debug: show current directory and structure
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+          echo ""
+          echo "ADK agents directory:"
+          ls -la adk_agents/
+
+          # Deploy the adk_agents directory (same as local: adk web adk_agents)
           adk deploy agent_engine \
             --project=${{ env.GCP_PROJECT_ID }} \
             --region=${{ env.GCP_REGION }} \
             --staging_bucket=gs://${{ env.GCP_PROJECT_ID }}-agent-staging \
             --display_name="${{ env.AGENT_NAME }}-${{ github.event.inputs.environment || 'staging' }}" \
-            .
-        continue-on-error: true
+            adk_agents
+        continue-on-error: false
 
       - name: Get deployment info
         if: success()

@@ -242,6 +242,20 @@ gcloud ai agents delete AGENT_ID --region=us-central1
 
 ## Troubleshooting
 
+### Error: "Please deploy from the project dir"
+
+**Cause:** ADK expects to deploy from a specific directory structure
+
+**Solution:**
+Make sure you're deploying the `adk_agents` directory:
+```bash
+# Correct
+adk deploy agent_engine ... adk_agents
+
+# Incorrect
+adk deploy agent_engine ... .
+```
+
 ### Error: "Permission denied"
 
 **Cause:** Service account lacks required permissions
