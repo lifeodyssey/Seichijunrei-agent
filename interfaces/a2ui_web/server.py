@@ -17,6 +17,7 @@ from config import get_settings
 
 from .backends import create_backend
 from .presenter import build_a2ui_error_response, build_a2ui_response
+from .state_mutations import remove_selected_point_by_index, select_candidate_by_index
 
 _HERE = Path(__file__).resolve().parent
 _STATIC_DIR = _HERE / "static"
@@ -94,6 +95,54 @@ async def api_action(request: web.Request) -> web.Response:
     action_name = payload.get("action_name")
     if not isinstance(action_name, str) or not action_name.strip():
         raise web.HTTPBadRequest(text="Missing 'action_name' (string).")
+
+    # UI-only action: select a candidate by displayed index (1-based).
+    if action_name.startswith("select_candidate_"):
+        idx_str = action_name.removeprefix("select_candidate_")
+        if idx_str.isdigit():
+            ok, state = await _BACKEND.select_candidate(
+                session_id=session_id, index_1=int(idx_str)
+            )
+
+            extraction = state.get("extraction_result") or {}
+            lang = (
+                extraction.get("user_language")
+                if isinstance(extraction, dict)
+                else None
+            )
+            lang = lang if isinstance(lang, str) else "zh-CN"
+
+            if ok:
+                selected = state.get("selected_bangumi") or {}
+                selected_title = selected.get("bangumi_title", "")
+                assistant_text = (
+                    f"Selected: {selected_title}. Fetching locations..."
+                    if lang == "en"
+                    else (
+                        f"「{selected_title}」を選択しました。聖地情報を取得中..."
+                        if lang == "ja"
+                        else f"已选择「{selected_title}」。正在获取圣地信息..."
+                    )
+                )
+            else:
+                assistant_text = (
+                    "Selection failed: invalid index."
+                    if lang == "en"
+                    else (
+                        "選択に失敗しました（インデックスが不正）。"
+                        if lang == "ja"
+                        else "选择失败：候选索引无效。"
+                    )
+                )
+
+            presenter_text, a2ui_messages = build_a2ui_response(state)
+            return web.json_response(
+                {
+                    "session_id": session_id,
+                    "assistant_text": assistant_text or presenter_text,
+                    "a2ui_messages": a2ui_messages,
+                }
+            )
 
     # UI-only action: remove a selected point by displayed index (1-based).
     if action_name.startswith("remove_point_"):
