@@ -163,6 +163,39 @@ class Settings(BaseSettings):
         """Check if running in development environment."""
         return self.app_env.lower() == "development"
 
+    def get_runtime_config(self) -> dict[str, str | int | bool]:
+        """Get non-secret runtime configuration (safe to log).
+
+        Returns:
+            Dictionary of runtime config values that can be safely logged.
+        """
+        return {
+            "app_env": self.app_env,
+            "log_level": self.log_level,
+            "debug": self.debug,
+            "max_retries": self.max_retries,
+            "timeout_seconds": self.timeout_seconds,
+            "cache_ttl_seconds": self.cache_ttl_seconds,
+            "use_cache": self.use_cache,
+            "enable_mcp_tools": self.enable_mcp_tools,
+            "enable_state_contract_validation": self.enable_state_contract_validation,
+            "a2ui_backend": self.a2ui_backend,
+            "a2ui_port": self.a2ui_port,
+        }
+
+    def get_feature_flags(self) -> dict[str, bool]:
+        """Get all feature flags.
+
+        Returns:
+            Dictionary of feature flag names to their boolean values.
+        """
+        return {
+            "use_cache": self.use_cache,
+            "debug": self.debug,
+            "enable_mcp_tools": self.enable_mcp_tools,
+            "enable_state_contract_validation": self.enable_state_contract_validation,
+        }
+
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
         missing = []
