@@ -2,11 +2,17 @@
 A2A Session Store - Abstract interface and implementations.
 
 Manages the mapping between A2A context_id and ADK sessions.
+Provides adapter pattern for future Redis/Firestore implementations.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -27,6 +33,24 @@ class SessionInfo:
 
     state: dict[str, Any] = field(default_factory=dict)
     """Current session state."""
+
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    """When the session was created."""
+
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    """When the session was last updated."""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    """Additional session metadata (e.g., client info, preferences)."""
+
+    def is_expired(self, ttl_seconds: float) -> bool:
+        """Check if session has expired based on TTL."""
+        expiry = self.updated_at + timedelta(seconds=ttl_seconds)
+        return datetime.now(UTC) > expiry
+
+    def touch(self) -> None:
+        """Update the last access time."""
+        self.updated_at = datetime.now(UTC)
 
 
 class SessionStore(ABC):
@@ -94,6 +118,36 @@ class SessionStore(ABC):
         """
         ...
 
+    @abstractmethod
+    async def list_sessions(
+        self,
+        *,
+        user_id: str | None = None,
+        limit: int = 100,
+    ) -> list[SessionInfo]:
+        """List sessions, optionally filtered by user.
+
+        Args:
+            user_id: Optional filter by user
+            limit: Maximum number of sessions to return
+
+        Returns:
+            List of SessionInfo objects
+        """
+        ...
+
+    @abstractmethod
+    async def cleanup_expired(self, ttl_seconds: float) -> int:
+        """Remove expired sessions.
+
+        Args:
+            ttl_seconds: Sessions older than this are considered expired
+
+        Returns:
+            Number of sessions removed
+        """
+        ...
+
 
 class InMemorySessionStore(SessionStore):
     """In-memory session store for local development.
@@ -115,6 +169,7 @@ class InMemorySessionStore(SessionStore):
         """Get existing session or create new one."""
         existing = self._sessions.get(context_id)
         if existing is not None:
+            existing.touch()
             return existing
 
         session_info = SessionInfo(
@@ -125,11 +180,19 @@ class InMemorySessionStore(SessionStore):
             state={},
         )
         self._sessions[context_id] = session_info
+        logger.debug(
+            "Session created",
+            context_id=context_id,
+            user_id=session_info.user_id,
+        )
         return session_info
 
     async def get(self, context_id: str) -> SessionInfo | None:
         """Get session by context_id if it exists."""
-        return self._sessions.get(context_id)
+        session = self._sessions.get(context_id)
+        if session:
+            session.touch()
+        return session
 
     async def update_state(
         self,
@@ -140,13 +203,51 @@ class InMemorySessionStore(SessionStore):
         session = self._sessions.get(context_id)
         if session is not None:
             session.state = state
+            session.touch()
+            logger.debug(
+                "Session state updated",
+                context_id=context_id,
+                state_keys=list(state.keys()),
+            )
 
     async def delete(self, context_id: str) -> bool:
         """Delete a session."""
         if context_id in self._sessions:
             del self._sessions[context_id]
+            logger.debug("Session deleted", context_id=context_id)
             return True
         return False
+
+    async def list_sessions(
+        self,
+        *,
+        user_id: str | None = None,
+        limit: int = 100,
+    ) -> list[SessionInfo]:
+        """List sessions, optionally filtered by user."""
+        sessions = list(self._sessions.values())
+        if user_id:
+            sessions = [s for s in sessions if s.user_id == user_id]
+        # Sort by updated_at descending (most recent first)
+        sessions.sort(key=lambda s: s.updated_at, reverse=True)
+        return sessions[:limit]
+
+    async def cleanup_expired(self, ttl_seconds: float) -> int:
+        """Remove expired sessions."""
+        expired_ids = [
+            ctx_id
+            for ctx_id, session in self._sessions.items()
+            if session.is_expired(ttl_seconds)
+        ]
+        for ctx_id in expired_ids:
+            del self._sessions[ctx_id]
+        if expired_ids:
+            logger.info(
+                "Expired sessions cleaned up",
+                count=len(expired_ids),
+                ttl_seconds=ttl_seconds,
+            )
+        return len(expired_ids)
 
     def clear_all(self) -> None:
         """Clear all sessions (for testing)."""
