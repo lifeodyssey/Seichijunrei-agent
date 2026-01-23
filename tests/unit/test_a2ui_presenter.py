@@ -212,7 +212,9 @@ def test_route_view_point_without_coordinates():
                 {"name": "No Coords Point"},  # No lat/lng
             ]
         },
-        "route_plan": {"recommended_order": ["No Coords Point"]},  # Must have route_plan to trigger route view
+        "route_plan": {
+            "recommended_order": ["No Coords Point"]
+        },  # Must have route_plan to trigger route view
     }
     assistant_text, messages = build_a2ui_response(state)
     comps = _components_from_messages(messages)
@@ -246,9 +248,7 @@ def test_message_structure_is_valid():
     """Test that all messages have valid A2UI structure."""
     state = {
         "extraction_result": {"user_language": "zh-CN"},
-        "bangumi_candidates": {
-            "candidates": [{"id": 1, "title": "Test"}]
-        },
+        "bangumi_candidates": {"candidates": [{"id": 1, "title": "Test"}]},
     }
     _, messages = build_a2ui_response(state)
 
