@@ -16,15 +16,9 @@ import pytest
 from aiohttp import ClientError
 
 from clients.anitabi import AnitabiClient
-from domain.entities import (
-    APIError,
-    Bangumi,
-    Coordinates,
-    InvalidStationError,
-    NoBangumiFoundError,
-    Point,
-    Station,
-)
+from clients.errors import APIError
+from domain.entities import Bangumi, Coordinates, Point, Station
+from domain.errors import InvalidStationError, NoBangumiFoundError
 
 
 class TestAnitabiClient:

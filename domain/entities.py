@@ -214,36 +214,3 @@ class SeichijunreiSession(BaseModel):
     def update(self):
         """Update the timestamp."""
         self.updated_at = datetime.now()
-
-
-# === Exceptions ===
-
-
-class DomainException(Exception):
-    """Base exception for domain errors."""
-
-    pass
-
-
-class InvalidStationError(DomainException):
-    """Raised when station name cannot be resolved."""
-
-    pass
-
-
-class NoBangumiFoundError(DomainException):
-    """Raised when no bangumi found in the area."""
-
-    pass
-
-
-class TooManyPointsError(DomainException):
-    """Raised when too many points for route optimization."""
-
-    pass
-
-
-class APIError(DomainException):
-    """Raised when external API call fails."""
-
-    pass

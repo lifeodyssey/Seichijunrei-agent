@@ -10,7 +10,7 @@ Provides methods to:
 import urllib.parse
 
 from clients.base import BaseHTTPClient
-from domain.entities import APIError
+from clients.errors import APIError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -8,20 +8,18 @@ Provides methods to:
 """
 
 from clients.base import BaseHTTPClient
+from clients.errors import APIError
 from config.settings import get_settings
 from domain.entities import (
-    APIError,
     Bangumi,
     Coordinates,
-    InvalidStationError,
-    NoBangumiFoundError,
     Point,
     Station,
 )
+from domain.errors import InvalidStationError, NoBangumiFoundError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 
 class AnitabiClient(BaseHTTPClient):
@@ -52,8 +50,11 @@ class AnitabiClient(BaseHTTPClient):
             rate_limit_calls: Number of calls allowed per period
             rate_limit_period: Rate limit period in seconds
         """
+        if base_url is None:
+            base_url = get_settings().anitabi_api_url
+
         super().__init__(
-            base_url=base_url or settings.anitabi_api_url,
+            base_url=base_url,
             api_key=api_key,
             timeout=30,
             max_retries=3,

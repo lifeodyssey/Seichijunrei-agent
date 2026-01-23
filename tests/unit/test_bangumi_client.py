@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from clients.bangumi import BangumiClient
-from domain.entities import APIError
+from clients.errors import APIError
 
 
 class TestBangumiClient:

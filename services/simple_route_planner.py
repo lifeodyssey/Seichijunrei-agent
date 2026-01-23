@@ -63,7 +63,7 @@ class SimpleRoutePlanner:
         # 2. Take the first N points to keep the route concise
         selected = sorted_points[: self.max_points]
 
-        # 3. Build recommended order (prefer cn_name, fallback to name)
+        # 3. Build recommended order (prefer name, fallback to cn_name)
         recommended_order = [
             p.get("name") or p.get("cn_name") or "unknown point" for p in selected
         ]

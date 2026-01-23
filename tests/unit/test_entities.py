@@ -6,20 +6,18 @@ from math import isclose
 import pytest
 from pydantic import ValidationError
 
+from clients.errors import APIError
 from domain.entities import (
-    APIError,
     Bangumi,
     Coordinates,
-    InvalidStationError,
-    NoBangumiFoundError,
     Point,
     Route,
     RouteSegment,
     SeichijunreiSession,
     Station,
-    TooManyPointsError,
     TransportInfo,
 )
+from domain.errors import InvalidStationError, NoBangumiFoundError, TooManyPointsError
 
 
 class TestCoordinates:

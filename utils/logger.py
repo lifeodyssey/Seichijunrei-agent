@@ -1,5 +1,6 @@
 """Logging configuration using structlog."""
 
+import contextvars
 import logging
 import time
 from typing import Any
@@ -49,6 +50,7 @@ def setup_logging(log_level: str | None = None) -> None:
     # Configure structlog
     processors = [
         structlog.stdlib.filter_by_level,
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
@@ -153,17 +155,18 @@ class LogContext:
         """Initialize with logger and context to add."""
         self.logger = logger
         self.context = kwargs
-        self.token: Any | None = None
+        self.tokens: dict[str, contextvars.Token[Any]] = {}
 
     def __enter__(self) -> structlog.BoundLogger:
         """Enter context and bind values."""
-        self.token = structlog.contextvars.bind_contextvars(**self.context)
+        self.tokens = dict(structlog.contextvars.bind_contextvars(**self.context))
         return self.logger
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit context and unbind values."""
-        if self.token:
-            structlog.contextvars.unbind_contextvars(self.token)
+        """Exit context and restore previous values."""
+        for token in self.tokens.values():
+            token.var.reset(token)
+        self.tokens.clear()
 
 
 class LogTimer:

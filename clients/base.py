@@ -16,14 +16,12 @@ from typing import Any
 import aiohttp
 from aiohttp import ClientError, ClientResponseError, ClientTimeout
 
-from config.settings import get_settings
-from domain.entities import APIError
+from clients.errors import APIError
 from services.cache import ResponseCache
 from services.retry import RateLimiter
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 
 class HTTPMethod(str, Enum):

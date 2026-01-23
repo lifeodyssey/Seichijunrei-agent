@@ -1,6 +1,7 @@
 from google.adk.tools import FunctionTool
 
-from services.simple_route_planner import SimpleRoutePlanner
+from application.use_cases import PlanRoute
+from services.route_planner_gateway import SimpleRoutePlannerGateway
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -25,10 +26,10 @@ def plan_route(
         points_count=len(points),
     )
 
-    planner = SimpleRoutePlanner()
+    use_case = PlanRoute(planner=SimpleRoutePlannerGateway())
 
     try:
-        plan = planner.generate_plan(
+        plan = use_case(
             origin=location,
             anime=bangumi_title,
             points=points,

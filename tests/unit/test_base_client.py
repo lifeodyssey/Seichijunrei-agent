@@ -18,7 +18,7 @@ import aiohttp
 import pytest
 
 from clients.base import BaseHTTPClient, HTTPMethod
-from domain.entities import APIError
+from clients.errors import APIError
 
 
 class TestBaseHTTPClient:
