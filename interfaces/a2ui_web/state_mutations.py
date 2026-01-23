@@ -9,7 +9,11 @@ from __future__ import annotations
 from typing import Any
 
 from adk_agents.seichijunrei_bot._state import (
+    ALL_POINTS,
     BANGUMI_CANDIDATES,
+    EXTRACTION_RESULT,
+    POINTS_SELECTION_RESULT,
+    ROUTE_PLAN,
     SELECTED_BANGUMI,
     STAGE2_STATE_KEYS,
 )
@@ -30,7 +34,7 @@ def remove_selected_point_by_index(state: dict[str, Any], *, index_0: int) -> bo
     Returns:
         True if the point was removed and `route_plan` updated, otherwise False.
     """
-    points_selection = state.get("points_selection_result")
+    points_selection = state.get(POINTS_SELECTION_RESULT)
     if not isinstance(points_selection, dict):
         return False
 
@@ -46,7 +50,7 @@ def remove_selected_point_by_index(state: dict[str, Any], *, index_0: int) -> bo
 
     total_available = points_selection.get("total_available")
     if not isinstance(total_available, int):
-        all_points = state.get("all_points")
+        all_points = state.get(ALL_POINTS)
         total_available = len(all_points) if isinstance(all_points, list) else 0
         points_selection["total_available"] = total_available
     points_selection["rejected_count"] = max(0, total_available - len(selected_points))
@@ -58,16 +62,16 @@ def remove_selected_point_by_index(state: dict[str, Any], *, index_0: int) -> bo
             rationale + "\n\n(User manually adjusted the selection in the UI.)"
         )
 
-    state["points_selection_result"] = points_selection
+    state[POINTS_SELECTION_RESULT] = points_selection
 
-    extraction = state.get("extraction_result") or {}
-    selected = state.get("selected_bangumi") or {}
+    extraction = state.get(EXTRACTION_RESULT) or {}
+    selected = state.get(SELECTED_BANGUMI) or {}
     origin = extraction.get("location") if isinstance(extraction, dict) else ""
     origin = origin if isinstance(origin, str) else ""
     anime = selected.get("bangumi_title") if isinstance(selected, dict) else ""
     anime = anime if isinstance(anime, str) else ""
 
-    state["route_plan"] = _replan_route(
+    state[ROUTE_PLAN] = _replan_route(
         origin=origin, anime=anime, points=selected_points
     )
     return True
@@ -102,6 +106,11 @@ def select_candidate_by_index(state: dict[str, Any], *, index_1: int) -> bool:
 
     selected = candidates[index_0]
 
+    # Clear Stage 2 state keys FIRST so they're recomputed with new selection
+    # (This must happen before setting SELECTED_BANGUMI since it's in STAGE2_STATE_KEYS)
+    for key in STAGE2_STATE_KEYS:
+        state.pop(key, None)
+
     # Build SELECTED_BANGUMI from candidate data
     # The candidate structure varies, so we normalize it
     bangumi_id = selected.get("id") or selected.get("bangumi_id")
@@ -116,11 +125,6 @@ def select_candidate_by_index(state: dict[str, Any], *, index_1: int) -> bool:
         "summary": selected.get("summary"),
         "selection_index": index_1,
     }
-
-    # Clear Stage 2 state keys so they're recomputed with new selection
-    # (route_planning_agent will fill these in)
-    for key in ["all_points", "points_meta", "points_selection_result", "route_plan"]:
-        state.pop(key, None)
 
     return True
 

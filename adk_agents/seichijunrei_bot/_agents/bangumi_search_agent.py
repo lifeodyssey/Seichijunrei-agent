@@ -8,6 +8,7 @@ from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.tools import FunctionTool
 
 from .._schemas import BangumiResult
+from .._state import BANGUMI_RESULT
 from ..tools import search_bangumi_subjects
 
 # Step 1: Search for bangumi candidates using the tool
@@ -72,7 +73,7 @@ _bangumi_selector_agent = LlmAgent(
     - bangumi_confidence: Match confidence score
     """,
     output_schema=BangumiResult,
-    output_key="bangumi_result",
+    output_key=BANGUMI_RESULT,
     # No tools - pure selection and formatting
 )
 

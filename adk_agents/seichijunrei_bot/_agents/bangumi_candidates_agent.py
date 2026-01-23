@@ -14,6 +14,7 @@ split into two separate LlmAgents to avoid combining tools + output_schema.
 from google.adk.agents import LlmAgent, SequentialAgent
 
 from .._schemas import BangumiCandidatesResult
+from .._state import BANGUMI_CANDIDATES
 from ..mcp_toolsets import bangumi_search_tool
 
 _bangumi_searcher = LlmAgent(
@@ -76,7 +77,7 @@ _candidates_formatter = LlmAgent(
     - If the API returned no results, set candidates to [] and total to 0.
     """,
     output_schema=BangumiCandidatesResult,
-    output_key="bangumi_candidates",
+    output_key=BANGUMI_CANDIDATES,
 )
 
 

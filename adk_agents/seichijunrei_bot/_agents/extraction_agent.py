@@ -7,6 +7,7 @@ can be reliably accessed by downstream agents in the SequentialAgent workflow.
 from google.adk.agents import LlmAgent
 
 from .._schemas import ExtractionResult
+from .._state import EXTRACTION_RESULT
 
 extraction_agent = LlmAgent(
     name="ExtractionAgent",
@@ -43,5 +44,5 @@ extraction_agent = LlmAgent(
       Extract fields only from that content.
     """,
     output_schema=ExtractionResult,
-    output_key="extraction_result",
+    output_key=EXTRACTION_RESULT,
 )

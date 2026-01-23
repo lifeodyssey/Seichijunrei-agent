@@ -20,6 +20,7 @@ JSON, and does not call tools directly.
 from google.adk.agents import LlmAgent
 
 from .._schemas import PointsSelectionResult
+from .._state import POINTS_SELECTION_RESULT
 
 points_selection_agent = LlmAgent(
     name="PointsSelectionAgent",
@@ -74,5 +75,5 @@ points_selection_agent = LlmAgent(
     - If all_points is empty, selected_points should also be empty, and explain the reason.
     """,
     output_schema=PointsSelectionResult,
-    output_key="points_selection_result",
+    output_key=POINTS_SELECTION_RESULT,
 )
