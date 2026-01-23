@@ -68,10 +68,10 @@ class TestRoutePlanningAgentDeterminism:
 
         # Run twice with same input
         ctx1 = _make_ctx(agent, state=state.copy())
-        events1 = [e async for e in agent.run_async(ctx1)]
+        _ = [e async for e in agent.run_async(ctx1)]
 
         ctx2 = _make_ctx(agent, state=state.copy())
-        events2 = [e async for e in agent.run_async(ctx2)]
+        _ = [e async for e in agent.run_async(ctx2)]
 
         # Both should produce route_plan in state
         assert ROUTE_PLAN in ctx1.session.state
@@ -98,7 +98,7 @@ class TestRoutePlanningAgentDeterminism:
         agent = RoutePlanningAgent()
         ctx = _make_ctx(agent, state=state)
 
-        events = [e async for e in agent.run_async(ctx)]
+        _ = [e async for e in agent.run_async(ctx)]
 
         assert ROUTE_PLAN in ctx.session.state
         plan = ctx.session.state[ROUTE_PLAN]
@@ -118,7 +118,7 @@ class TestRoutePlanningAgentDeterminism:
         agent = RoutePlanningAgent()
         ctx = _make_ctx(agent, state=state)
 
-        events = [e async for e in agent.run_async(ctx)]
+        _ = [e async for e in agent.run_async(ctx)]
 
         assert ROUTE_PLAN in ctx.session.state
         plan = ctx.session.state[ROUTE_PLAN]
@@ -132,7 +132,7 @@ class TestRoutePlanningAgentDeterminism:
         agent = RoutePlanningAgent()
         ctx = _make_ctx(agent, state=state)
 
-        events = [e async for e in agent.run_async(ctx)]
+        _ = [e async for e in agent.run_async(ctx)]
 
         # Should still produce a plan (with empty values)
         assert ROUTE_PLAN in ctx.session.state
