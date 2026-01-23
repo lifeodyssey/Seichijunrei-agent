@@ -56,6 +56,28 @@ Gemini 2.0 Flash for intelligent decision-making.
 
 ---
 
+## Example Conversation
+
+```text
+User: 我想去镰仓圣地巡礼
+Bot: 找到 3 部可能相关的作品，请选择：
+     1. 灌篮高手（スラムダンク，1993-10）
+     2. 青春猪头少年不会梦到兔女郎学姐（青春ブタ野郎はバニーガール先輩の夢を見ない，2018-10）
+     3. TARI TARI（2012-07）
+
+User: 1
+Bot: 好的。我将从 Anitabi 获取点位并为你规划 8–12 个适合的一日巡礼路线。
+```
+
+### Useful Commands
+
+- `reset`: Clear state and start over
+- `back`: Re-pick from the candidate list
+- `/help`: Show usage hints
+- `/status`: Show current session state keys (debug)
+
+---
+
 ## Architecture (High Level)
 
 The core workflow is implemented as a **2-stage conversational flow** using ADK agents:
@@ -131,6 +153,12 @@ The core workflow is implemented as a **2-stage conversational flow** using ADK 
 uv sync
 ```
 
+If you run into uv cache permission issues (e.g. in sandboxes/CI), set:
+
+```bash
+export UV_CACHE_DIR="$(pwd)/.uv_cache"
+```
+
 ### 2. Configure environment
 
 Create a `.env` file in the project root:
@@ -143,7 +171,7 @@ Required configuration:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
-ANITABI_API_URL=https://api.anitabi.cn
+ANITABI_API_URL=https://api.anitabi.cn/bangumi
 APP_ENV=development
 LOG_LEVEL=INFO
 DEBUG=false
@@ -173,6 +201,42 @@ make run
 uv run adk run adk_agents/seichijunrei_bot
 ```
 
+### 5. Run a minimal offline smoke test
+
+This verifies the repo is importable and the ADK agent wiring is valid.
+It does **not** call external APIs or LLMs.
+
+```bash
+make smoke
+```
+
+### 6. Run the experimental A2UI Web UI
+
+This is a local, end-user oriented UI that renders A2UI messages derived from
+the ADK session state (candidate picker + route view).
+
+```bash
+make a2ui-web
+```
+
+Then open `http://127.0.0.1:8081`.
+
+#### Optional: Use a deployed Vertex AI Agent Engine backend
+
+If you have deployed `adk_agents/` to Agent Engine, you can run the same A2UI UI
+locally but drive it via remote queries (session state is fetched from Agent Engine):
+
+```bash
+export A2UI_BACKEND=agent_engine
+export A2UI_VERTEXAI_PROJECT="YOUR_PROJECT_ID"
+export A2UI_VERTEXAI_LOCATION="us-central1"
+export A2UI_AGENT_ENGINE_NAME="projects/YOUR_PROJECT_ID/locations/us-central1/reasoningEngines/YOUR_RESOURCE_ID"
+
+make a2ui-web
+```
+
+You must have Application Default Credentials configured (e.g. `gcloud auth application-default login`).
+
 ---
 
 ## Project Structure
@@ -197,31 +261,28 @@ Seichijunrei/
 │       │   ├── points_selection_agent.py
 │       │   ├── route_planning_agent.py
 │       │   └── route_presentation_agent.py
+│       ├── _state.py             # Shared session state keys
 │       ├── _schemas.py           # Pydantic schemas for ADK agents
 │       ├── _workflows/           # 2 workflow orchestrations
 │       │   ├── bangumi_search_workflow.py
 │       │   └── route_planning_workflow.py
+│       ├── skills.py             # Workflow contracts (required/provided state)
 │       └── tools/                # Custom function tools
 │           ├── __init__.py       # ADK FunctionTools export
 │           ├── route_planning.py # Route optimization tool (SimpleRoutePlanner)
 │           └── translation.py    # Gemini-based title translation tool
 │
-├── clients/                 # HTTP API clients
-│   ├── anitabi.py           # Anitabi 聖地巡礼 data client
-│   ├── bangumi.py           # Bangumi subject search client
-│   └── base.py              # Base HTTP client
+├── application/             # Use cases + ports (clean boundary)
+├── infrastructure/          # Gateways/adapters + optional MCP servers
+├── clients/                 # Legacy HTTP clients (being migrated to infrastructure)
+├── services/                # Legacy services (cache/retry/planner; being migrated)
+├── interfaces/              # Experimental UIs (e.g. A2UI web)
 │
 ├── config/                  # Configuration management
 │   └── settings.py          # Pydantic settings
 │
 ├── domain/                  # Domain models
 │   └── entities.py          # Core Pydantic entities
-│
-├── services/
-│   ├── cache.py             # In‑memory cache helpers
-│   ├── retry.py             # Retry and rate‑limiting utilities
-│   ├── session.py           # Session state management
-│   └── simple_route_planner.py  # Route planning service
 │
 ├── tools/                   # (reserved for future non-ADK utilities)
 │   └── __init__.py
