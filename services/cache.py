@@ -24,6 +24,9 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Sentinel object to distinguish cache miss from cached None value
+_CACHE_MISS = object()
+
 
 @dataclass
 class CacheEntry:
@@ -106,7 +109,7 @@ class ResponseCache:
             except Exception as e:
                 logger.error("Error in cache cleanup", error=str(e), exc_info=True)
 
-    async def get(self, key: str) -> Any | None:
+    async def get(self, key: str) -> Any:
         """
         Get a value from the cache.
 
@@ -114,13 +117,14 @@ class ResponseCache:
             key: Cache key
 
         Returns:
-            Cached value or None if not found/expired
+            Cached value, or _CACHE_MISS sentinel if not found/expired.
+            Use `is _CACHE_MISS` to check for cache miss (not `is None`).
         """
         with self._lock:
             if key not in self._cache:
                 self._misses += 1
                 logger.debug("Cache miss", key=key)
-                return None
+                return _CACHE_MISS
 
             entry = self._cache[key]
 
@@ -129,7 +133,7 @@ class ResponseCache:
                 del self._cache[key]
                 self._misses += 1
                 logger.debug("Cache expired", key=key)
-                return None
+                return _CACHE_MISS
 
             # Move to end for LRU (most recently used)
             self._cache.move_to_end(key)
@@ -285,9 +289,9 @@ class ResponseCache:
                 params = {"args": args, "kwargs": kwargs}
                 cache_key = self.generate_key(endpoint, params)
 
-                # Try to get from cache
+                # Try to get from cache (check against sentinel, not None)
                 cached_value = await self.get(cache_key)
-                if cached_value is not None:
+                if cached_value is not _CACHE_MISS:
                     logger.debug(
                         "Cache decorator hit", function=func.__name__, endpoint=endpoint
                     )
@@ -296,7 +300,7 @@ class ResponseCache:
                 # Call the function
                 result = await func(*args, **kwargs)
 
-                # Cache the result
+                # Cache the result (including None values)
                 await self.set(cache_key, result, ttl_seconds)
 
                 return result

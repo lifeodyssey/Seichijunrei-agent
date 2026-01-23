@@ -3,7 +3,7 @@ Domain entities for Seichijunrei Bot.
 These are the core business objects used throughout the application.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
@@ -163,7 +163,7 @@ class Route(BaseModel):
     total_distance_km: float = Field(..., ge=0)
     total_duration_minutes: int = Field(..., ge=0)
     google_maps_url: HttpUrl | None = None
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def total_duration_formatted(self) -> str:
@@ -202,15 +202,15 @@ class SeichijunreiSession(BaseModel):
     route: Route | None = None
 
     # NEW: Bangumi-specific fields for direct bangumi search
-    bangumi_id: int | None = None
+    bangumi_id: str | None = None
     bangumi_name: str | None = None
     bangumi_confidence: float | None = None
     user_location: str | None = None
     user_coordinates: Coordinates | None = None
 
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def update(self):
         """Update the timestamp."""
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(UTC)

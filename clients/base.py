@@ -12,16 +12,20 @@ Provides a foundation for all API clients with:
 import asyncio
 from enum import Enum
 from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 from aiohttp import ClientError, ClientResponseError, ClientTimeout
 
 from clients.errors import APIError
-from services.cache import ResponseCache
+from services.cache import _CACHE_MISS, ResponseCache
 from services.retry import RateLimiter
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Allowed URL schemes for SSRF prevention
+_ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 
 class HTTPMethod(str, Enum):
@@ -70,7 +74,19 @@ class BaseHTTPClient:
             use_cache: Whether to cache GET responses
             cache_ttl_seconds: Cache TTL in seconds
             session: Optional aiohttp session to use
+
+        Raises:
+            ValueError: If base_url has invalid scheme or missing netloc
         """
+        # Validate URL to prevent SSRF attacks
+        parsed = urlparse(base_url)
+        if parsed.scheme not in _ALLOWED_SCHEMES:
+            raise ValueError(
+                f"Invalid URL scheme '{parsed.scheme}'. Only http/https allowed."
+            )
+        if not parsed.netloc:
+            raise ValueError(f"Invalid URL: missing network location in '{base_url}'")
+
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
@@ -80,6 +96,7 @@ class BaseHTTPClient:
         # Session management
         self._session = session
         self._owns_session = session is None
+        self._session_lock = asyncio.Lock()  # Protect lazy session creation
 
         # Rate limiter
         self._rate_limiter = RateLimiter(
@@ -129,10 +146,17 @@ class BaseHTTPClient:
         return headers
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None:
-            timeout = ClientTimeout(total=self.timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+        """Get or create aiohttp session with thread-safe lazy initialization."""
+        # Fast path: if session exists, return it immediately (no lock needed)
+        if self._session is not None:
+            return self._session
+
+        # Slow path: acquire lock and use double-checked locking
+        async with self._session_lock:
+            # Check again after acquiring lock (another coroutine may have created it)
+            if self._session is None:
+                timeout = ClientTimeout(total=self.timeout)
+                self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
     async def _make_request(
@@ -243,7 +267,7 @@ class BaseHTTPClient:
         ):
             cache_key = self._cache.generate_key(url, params)
             cached = await self._cache.get(cache_key)
-            if cached is not None:
+            if cached is not _CACHE_MISS:
                 logger.debug("Cache hit", url=url, params=params)
                 return cached
 
