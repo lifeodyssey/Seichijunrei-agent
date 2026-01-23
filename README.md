@@ -263,7 +263,7 @@ Seichijunrei/
 │       │   └── route_presentation_agent.py
 │       ├── _state.py             # Shared session state keys
 │       ├── _schemas.py           # Pydantic schemas for ADK agents
-│       ├── _workflows/           # 2 workflow orchestrations
+│       ├── _workflows/           # Stage 1/Stage 2 workflow orchestrations
 │       │   ├── bangumi_search_workflow.py
 │       │   └── route_planning_workflow.py
 │       ├── skills.py             # Workflow contracts (required/provided state)
