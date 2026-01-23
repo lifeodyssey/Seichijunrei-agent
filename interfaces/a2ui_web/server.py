@@ -13,6 +13,8 @@ from typing import Any
 
 from aiohttp import web
 
+from config import get_settings
+
 from .backends import create_backend
 from .presenter import build_a2ui_error_response, build_a2ui_response
 
@@ -174,9 +176,10 @@ def create_app() -> web.Application:
 
 
 def main() -> None:  # pragma: no cover
-    # Cloud Run provides PORT; local dev uses A2UI_PORT (default 8081).
-    port = int(os.getenv("PORT", os.getenv("A2UI_PORT", "8081")))
-    host = os.getenv("A2UI_HOST", "0.0.0.0")
+    # Cloud Run provides PORT; local dev uses settings (A2UI_PORT default 8081).
+    settings = get_settings()
+    port = int(os.getenv("PORT") or settings.a2ui_port)
+    host = settings.a2ui_host
     web.run_app(create_app(), host=host, port=port, print=None)
 
 

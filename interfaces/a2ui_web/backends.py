@@ -16,6 +16,8 @@ from typing import Any, Protocol
 
 from google.genai import types
 
+from config import get_settings
+
 
 class A2UIBackend(Protocol):
     async def chat(
@@ -28,9 +30,9 @@ class A2UIBackend(Protocol):
 
 
 def create_backend() -> A2UIBackend:
-    mode = (os.getenv("A2UI_BACKEND", "local") or "local").strip().lower()
-    if mode in {"agent_engine", "agentengine", "vertex", "remote"}:
-        return AgentEngineBackend.from_env()
+    settings = get_settings()
+    if settings.a2ui_backend == "agent_engine":
+        return AgentEngineBackend.from_settings(settings)
     return LocalInProcessBackend()
 
 
@@ -99,18 +101,19 @@ class AgentEngineConfig:
     user_id: str
 
     @staticmethod
-    def from_env() -> AgentEngineConfig:
-        project = (os.getenv("A2UI_VERTEXAI_PROJECT") or "").strip()
-        location = (os.getenv("A2UI_VERTEXAI_LOCATION") or "").strip()
-        name = (os.getenv("A2UI_AGENT_ENGINE_NAME") or "").strip()
-        user_id = (os.getenv("A2UI_AGENT_ENGINE_USER_ID") or "a2ui-web").strip()
+    def from_settings(settings: Any) -> AgentEngineConfig:
+        """Create config from centralized settings."""
+        project = settings.a2ui_vertexai_project or ""
+        location = settings.a2ui_vertexai_location or ""
+        name = settings.a2ui_agent_engine_name or ""
+        user_id = settings.a2ui_agent_engine_user_id
 
         if not project:
-            raise RuntimeError("Missing env: A2UI_VERTEXAI_PROJECT")
+            raise RuntimeError("Missing config: A2UI_VERTEXAI_PROJECT")
         if not location:
-            raise RuntimeError("Missing env: A2UI_VERTEXAI_LOCATION")
+            raise RuntimeError("Missing config: A2UI_VERTEXAI_LOCATION")
         if not name:
-            raise RuntimeError("Missing env: A2UI_AGENT_ENGINE_NAME")
+            raise RuntimeError("Missing config: A2UI_AGENT_ENGINE_NAME")
 
         # Accept RESOURCE_ID shorthand if project/location are provided.
         if not name.startswith("projects/"):
@@ -132,8 +135,8 @@ class AgentEngineBackend:
         self._locks: dict[str, asyncio.Lock] = {}
 
     @classmethod
-    def from_env(cls) -> AgentEngineBackend:
-        return cls(AgentEngineConfig.from_env())
+    def from_settings(cls, settings: Any) -> AgentEngineBackend:
+        return cls(AgentEngineConfig.from_settings(settings))
 
     def _lock_for(self, session_id: str) -> asyncio.Lock:
         lock = self._locks.get(session_id)
