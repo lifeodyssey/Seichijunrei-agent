@@ -378,6 +378,19 @@ instead of being documented as completed features:
 
 ---
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture deep-dive |
+| [docs/a2ui/](docs/a2ui/) | A2UI protocol contracts |
+| [docs/DOCS_POLICY.md](docs/DOCS_POLICY.md) | Documentation guidelines |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Agent Engine deployment |
+
+For documentation guidelines and writing rules, see [docs/DOCS_POLICY.md](docs/DOCS_POLICY.md).
+
+---
+
 ## License
 
 This project is released under the MIT License (see `LICENSE`).
