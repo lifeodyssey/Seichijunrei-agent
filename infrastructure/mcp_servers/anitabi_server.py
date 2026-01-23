@@ -9,11 +9,10 @@ Run:
 
 from __future__ import annotations
 
-import os
-
 from mcp.server.fastmcp import FastMCP
 
 from application.use_cases import FetchBangumiPoints, SearchAnitabiBangumiNearStation
+from config import get_settings
 from infrastructure.gateways.anitabi import AnitabiClientGateway
 from utils.logger import get_logger
 
@@ -123,7 +122,7 @@ async def search_anitabi_bangumi_near_station(
 
 
 def main() -> None:
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    transport = get_settings().mcp_transport
     _mcp.run(transport=transport)  # type: ignore[arg-type]
 
 
