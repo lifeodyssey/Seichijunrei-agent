@@ -50,7 +50,9 @@ A2UIMessage = SurfaceUpdateMessage | BeginRenderingMessage
 # --- Builder Functions ---
 
 
-def surface_update(surface_id: str, components: list[Component]) -> SurfaceUpdateMessage:
+def surface_update(
+    surface_id: str, components: list[Component]
+) -> SurfaceUpdateMessage:
     """Build a surfaceUpdate message.
 
     Args:

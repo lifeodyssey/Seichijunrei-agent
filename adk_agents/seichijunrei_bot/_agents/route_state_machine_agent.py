@@ -131,7 +131,10 @@ def _looks_like_selection(user_text: str, state: dict[str, Any]) -> bool:
             normalized_title = _normalize_text(title)
             if len(normalized_title) < 2:
                 continue
-            if normalized_user in normalized_title or normalized_title in normalized_user:
+            if (
+                normalized_user in normalized_title
+                or normalized_title in normalized_user
+            ):
                 return True
 
     return False

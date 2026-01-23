@@ -100,11 +100,7 @@ async def api_action(request: web.Request) -> web.Response:
         ok, state = await _BACKEND.go_back(session_id=session_id)
 
         extraction = state.get("extraction_result") or {}
-        lang = (
-            extraction.get("user_language")
-            if isinstance(extraction, dict)
-            else None
-        )
+        lang = extraction.get("user_language") if isinstance(extraction, dict) else None
         lang = lang if isinstance(lang, str) else "zh-CN"
 
         if ok:

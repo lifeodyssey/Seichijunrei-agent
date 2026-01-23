@@ -32,9 +32,7 @@ class A2UIBackend(Protocol):
         self, *, session_id: str, index_1: int
     ) -> tuple[bool, dict[str, Any]]: ...
 
-    async def go_back(
-        self, *, session_id: str
-    ) -> tuple[bool, dict[str, Any]]: ...
+    async def go_back(self, *, session_id: str) -> tuple[bool, dict[str, Any]]: ...
 
 
 def create_backend() -> A2UIBackend:
@@ -109,9 +107,7 @@ class LocalInProcessBackend:
         ok = select_candidate_by_index(state, index_1=index_1)
         return ok, state
 
-    async def go_back(
-        self, *, session_id: str
-    ) -> tuple[bool, dict[str, Any]]:
+    async def go_back(self, *, session_id: str) -> tuple[bool, dict[str, Any]]:
         from .state_mutations import go_back_to_candidates
 
         state = self._states.setdefault(session_id, {})
@@ -333,9 +329,7 @@ class AgentEngineBackend:
         self._state_cache[session_id] = state
         return True, state
 
-    async def go_back(
-        self, *, session_id: str
-    ) -> tuple[bool, dict[str, Any]]:
+    async def go_back(self, *, session_id: str) -> tuple[bool, dict[str, Any]]:
         from vertexai._genai.types.common import UpdateAgentEngineSessionConfig
 
         remote_session_name = await self._ensure_remote_session_name(session_id)
