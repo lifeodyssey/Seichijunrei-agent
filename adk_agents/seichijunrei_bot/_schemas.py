@@ -35,7 +35,7 @@ class ExtractionResult(BaseModel):
 class BangumiResult(BaseModel):
     """Matched bangumi from Bangumi API search results."""
 
-    bangumi_id: int = Field(description="Selected work's Bangumi subject ID.")
+    bangumi_id: str = Field(description="Selected work's Bangumi subject ID.")
     bangumi_title: str = Field(description="Original Japanese title of the work.")
     bangumi_title_cn: str | None = Field(
         default=None,
@@ -83,7 +83,7 @@ class LocationResult(BaseModel):
 class BangumiCandidate(BaseModel):
     """Single Bangumi candidate work returned from search."""
 
-    bangumi_id: int = Field(description="Bangumi subject ID for this work.")
+    bangumi_id: str = Field(description="Bangumi subject ID for this work.")
     title: str = Field(description="Original Japanese title.")
     title_cn: str | None = Field(
         default=None,
@@ -116,7 +116,7 @@ class BangumiCandidatesResult(BaseModel):
 class UserSelectionResult(BaseModel):
     """User's final Bangumi selection from the candidates list."""
 
-    bangumi_id: int = Field(description="Selected Bangumi subject ID.")
+    bangumi_id: str = Field(description="Selected Bangumi subject ID.")
     bangumi_title: str = Field(description="Selected work's Japanese title.")
     bangumi_title_cn: str | None = Field(
         default=None,
@@ -136,30 +136,28 @@ class SelectedPoint(BaseModel):
     Using an explicit Pydantic model instead of dict avoids the Gemini API's
     additionalProperties limitation.
 
-    All fields are Optional because different data sources may have incomplete
-    point information. The LLM should preserve all available fields from the
-    original all_points data.
+    Required fields: id, name, lat, lng (essential for route planning).
+    Optional fields: metadata that may not be available for all points.
     """
 
-    id: str | None = Field(
-        default=None,
+    # Required fields for a valid point
+    id: str = Field(
         description="Point ID from Anitabi API.",
     )
-    name: str | None = Field(
-        default=None,
+    name: str = Field(
         description="Point name (usually in Japanese).",
     )
+    lat: float = Field(
+        description="Latitude in decimal degrees.",
+    )
+    lng: float = Field(
+        description="Longitude in decimal degrees.",
+    )
+
+    # Optional metadata fields
     cn_name: str | None = Field(
         default=None,
         description="Chinese name if available.",
-    )
-    lat: float | None = Field(
-        default=None,
-        description="Latitude in decimal degrees.",
-    )
-    lng: float | None = Field(
-        default=None,
-        description="Longitude in decimal degrees.",
     )
     episode: int | None = Field(
         default=None,

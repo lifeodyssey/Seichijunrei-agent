@@ -18,6 +18,20 @@ class BangumiClientGateway(BangumiGateway):
     def __init__(self, *, client: BangumiClient | None = None) -> None:
         self._client = client
 
+    async def close(self) -> None:
+        """Close the injected client if present."""
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
+
+    async def __aenter__(self) -> BangumiClientGateway:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit with cleanup."""
+        await self.close()
+
     async def search_subject(
         self, *, keyword: str, subject_type: int, max_results: int
     ) -> list[dict]:

@@ -1,10 +1,20 @@
 """Application settings and configuration management."""
 
+import warnings
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _mask_secret(value: str | None, visible_chars: int = 4) -> str:
+    """Mask a secret value, showing only the first few characters."""
+    if not value:
+        return "(empty)"
+    if len(value) <= visible_chars:
+        return "***"
+    return f"{value[:visible_chars]}...***"
 
 
 class Settings(BaseSettings):
@@ -60,6 +70,26 @@ class Settings(BaseSettings):
     rate_limit_calls: int = Field(default=100, description="Rate limit calls")
     rate_limit_period_seconds: int = Field(default=60, description="Rate limit period")
 
+    # A2UI (Agent-to-User Interface) Settings
+    a2ui_backend: str = Field(
+        default="local",
+        description='A2UI backend mode: "local" or "agent_engine"',
+    )
+    a2ui_port: int = Field(default=8081, description="A2UI web server port")
+    a2ui_host: str = Field(default="0.0.0.0", description="A2UI web server host")
+    a2ui_vertexai_project: str | None = Field(
+        default=None, description="Vertex AI project for Agent Engine backend"
+    )
+    a2ui_vertexai_location: str | None = Field(
+        default=None, description="Vertex AI location for Agent Engine backend"
+    )
+    a2ui_agent_engine_name: str | None = Field(
+        default=None, description="Agent Engine resource name"
+    )
+    a2ui_agent_engine_user_id: str = Field(
+        default="a2ui-web", description="User ID for Agent Engine sessions"
+    )
+
     # MCP (Model Context Protocol) - optional
     enable_mcp_tools: bool = Field(
         default=False,
@@ -86,6 +116,17 @@ class Settings(BaseSettings):
         v = v.upper()
         if v not in valid_levels:
             raise ValueError(f"Invalid log level: {v}. Must be one of {valid_levels}")
+        return v
+
+    @field_validator("a2ui_backend")
+    @classmethod
+    def validate_a2ui_backend(cls, v: str) -> str:
+        v = v.strip().lower()
+        valid = {"local", "agent_engine"}
+        if v not in valid:
+            raise ValueError(
+                f"Invalid A2UI_BACKEND: {v}. Must be one of {sorted(valid)}"
+            )
         return v
 
     @field_validator("mcp_transport")
@@ -119,6 +160,35 @@ class Settings(BaseSettings):
         if self.is_production and not self.weather_api_key:
             missing.append("WEATHER_API_KEY")
         return missing
+
+    @model_validator(mode="after")
+    def _warn_missing_api_keys(self) -> "Settings":
+        """Warn about missing API keys at startup (non-blocking)."""
+        missing = self.validate_api_keys()
+        if missing:
+            warnings.warn(
+                f"Missing API keys: {', '.join(missing)}. Some features may not work.",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
+
+    def __repr__(self) -> str:
+        """Return string representation with masked secrets."""
+        return (
+            f"Settings("
+            f"app_env={self.app_env!r}, "
+            f"debug={self.debug}, "
+            f"log_level={self.log_level!r}, "
+            f"google_maps_api_key={_mask_secret(self.google_maps_api_key)}, "
+            f"gemini_api_key={_mask_secret(self.gemini_api_key)}, "
+            f"weather_api_key={_mask_secret(self.weather_api_key)}"
+            f")"
+        )
+
+    def __str__(self) -> str:
+        """Return string representation with masked secrets."""
+        return self.__repr__()
 
 
 @lru_cache
