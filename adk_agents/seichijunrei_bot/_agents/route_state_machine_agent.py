@@ -23,10 +23,16 @@ from google.adk.events import Event, EventActions
 from google.genai import types
 from pydantic import ConfigDict
 
+from config import get_settings
 from utils.logger import LogContext, get_logger
 
 from .._state import BANGUMI_CANDIDATES, EXTRACTION_RESULT
-from ..skills import STAGE1_BANGUMI_SEARCH, STAGE2_ROUTE_PLANNING
+from ..skills import (
+    STAGE1_BANGUMI_SEARCH,
+    STAGE2_ROUTE_PLANNING,
+    Skill,
+    StateContractError,
+)
 
 logger = get_logger(__name__)
 
@@ -211,7 +217,9 @@ class RouteStateMachineAgent(BaseAgent):
 
             # Stage decision
             if not has_candidates:
-                async for event in self._stage1().run_async(ctx):
+                async for event in self._run_skill_with_validation(
+                    STAGE1_BANGUMI_SEARCH, ctx
+                ):
                     yield event
                 return
 
@@ -219,11 +227,15 @@ class RouteStateMachineAgent(BaseAgent):
             # treat it as a brand new query and restart Stage 1.
             if not _looks_like_selection(user_text, state):
                 self._reset_all(state)
-                async for event in self._stage1().run_async(ctx):
+                async for event in self._run_skill_with_validation(
+                    STAGE1_BANGUMI_SEARCH, ctx
+                ):
                     yield event
                 return
 
-            async for event in self._stage2().run_async(ctx):
+            async for event in self._run_skill_with_validation(
+                STAGE2_ROUTE_PLANNING, ctx
+            ):
                 yield event
 
     def _mcp_probe(self) -> BaseAgent:
@@ -248,6 +260,56 @@ class RouteStateMachineAgent(BaseAgent):
                 f"Stage 2 workflow ({STAGE2_ROUTE_PLANNING.name}) not found"
             )
         return stage2
+
+    async def _run_skill_with_validation(
+        self, skill: Skill, ctx: InvocationContext
+    ) -> AsyncGenerator[Event, None]:
+        """Run a skill's agent with contract validation (if enabled).
+
+        Validates preconditions before execution and postconditions after.
+        Validation is controlled by config.enable_state_contract_validation.
+        Uses find_sub_agent to locate the actual sub-agent instance (important
+        for tests with mock sub-agents).
+
+        Args:
+            skill: The Skill to execute
+            ctx: ADK invocation context
+
+        Yields:
+            Events from the skill's agent execution
+
+        Raises:
+            StateContractError: If preconditions fail and validation is enabled
+            RuntimeError: If the skill's agent is not found in sub_agents
+        """
+        settings = get_settings()
+        state: dict[str, Any] = ctx.session.state
+
+        # Pre-execution validation
+        if settings.enable_state_contract_validation:
+            try:
+                skill.validate_preconditions(state)
+            except StateContractError as e:
+                logger.error(
+                    "Skill precondition failed",
+                    skill_id=skill.skill_id,
+                    error=str(e),
+                )
+                raise
+
+        # Use find_sub_agent to get the actual registered sub-agent
+        # (important for tests that may use mock agents)
+        agent = self.find_sub_agent(skill.name)
+        if agent is None:
+            raise RuntimeError(f"Skill agent ({skill.name}) not found in sub_agents")
+
+        # Execute the skill's agent
+        async for event in agent.run_async(ctx):
+            yield event
+
+        # Post-execution validation (warnings only, doesn't raise)
+        if settings.enable_state_contract_validation:
+            skill.validate_postconditions(state)
 
     @staticmethod
     def _reset_all(state: dict[str, Any]) -> None:

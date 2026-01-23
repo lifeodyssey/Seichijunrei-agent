@@ -13,6 +13,8 @@ from typing import Any
 
 from aiohttp import web
 
+from config import get_settings
+
 from .backends import create_backend
 from .presenter import build_a2ui_error_response, build_a2ui_response
 
@@ -92,6 +94,96 @@ async def api_action(request: web.Request) -> web.Response:
     action_name = payload.get("action_name")
     if not isinstance(action_name, str) or not action_name.strip():
         raise web.HTTPBadRequest(text="Missing 'action_name' (string).")
+
+    # UI-only action: go back to candidates view
+    if action_name == "back":
+        ok, state = await _BACKEND.go_back(session_id=session_id)
+
+        extraction = state.get("extraction_result") or {}
+        lang = (
+            extraction.get("user_language")
+            if isinstance(extraction, dict)
+            else None
+        )
+        lang = lang if isinstance(lang, str) else "zh-CN"
+
+        if ok:
+            assistant_text = (
+                "Returned to candidates. Please select again."
+                if lang == "en"
+                else (
+                    "候補画面に戻りました。再度選択してください。"
+                    if lang == "ja"
+                    else "已返回候选列表，请重新选择。"
+                )
+            )
+        else:
+            assistant_text = (
+                "Unable to go back (no candidates available)."
+                if lang == "en"
+                else (
+                    "戻れませんでした（候補がありません）。"
+                    if lang == "ja"
+                    else "无法返回（没有可用候选）。"
+                )
+            )
+
+        presenter_text, a2ui_messages = build_a2ui_response(state)
+        return web.json_response(
+            {
+                "session_id": session_id,
+                "assistant_text": assistant_text or presenter_text,
+                "a2ui_messages": a2ui_messages,
+            }
+        )
+
+    # UI-only action: select a candidate by displayed index (1-based).
+    if action_name.startswith("select_candidate_"):
+        idx_str = action_name.removeprefix("select_candidate_")
+        if idx_str.isdigit():
+            ok, state = await _BACKEND.select_candidate(
+                session_id=session_id, index_1=int(idx_str)
+            )
+
+            extraction = state.get("extraction_result") or {}
+            lang = (
+                extraction.get("user_language")
+                if isinstance(extraction, dict)
+                else None
+            )
+            lang = lang if isinstance(lang, str) else "zh-CN"
+
+            if ok:
+                selected = state.get("selected_bangumi") or {}
+                selected_title = selected.get("bangumi_title", "")
+                assistant_text = (
+                    f"Selected: {selected_title}. Fetching locations..."
+                    if lang == "en"
+                    else (
+                        f"「{selected_title}」を選択しました。聖地情報を取得中..."
+                        if lang == "ja"
+                        else f"已选择「{selected_title}」。正在获取圣地信息..."
+                    )
+                )
+            else:
+                assistant_text = (
+                    "Selection failed: invalid index."
+                    if lang == "en"
+                    else (
+                        "選択に失敗しました（インデックスが不正）。"
+                        if lang == "ja"
+                        else "选择失败：候选索引无效。"
+                    )
+                )
+
+            presenter_text, a2ui_messages = build_a2ui_response(state)
+            return web.json_response(
+                {
+                    "session_id": session_id,
+                    "assistant_text": assistant_text or presenter_text,
+                    "a2ui_messages": a2ui_messages,
+                }
+            )
 
     # UI-only action: remove a selected point by displayed index (1-based).
     if action_name.startswith("remove_point_"):
@@ -174,9 +266,10 @@ def create_app() -> web.Application:
 
 
 def main() -> None:  # pragma: no cover
-    # Cloud Run provides PORT; local dev uses A2UI_PORT (default 8081).
-    port = int(os.getenv("PORT", os.getenv("A2UI_PORT", "8081")))
-    host = os.getenv("A2UI_HOST", "0.0.0.0")
+    # Cloud Run provides PORT; local dev uses settings (A2UI_PORT default 8081).
+    settings = get_settings()
+    port = int(os.getenv("PORT") or settings.a2ui_port)
+    host = settings.a2ui_host
     web.run_app(create_app(), host=host, port=port, print=None)
 
 
