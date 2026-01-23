@@ -108,6 +108,17 @@ class Settings(BaseSettings):
         description="Anitabi MCP server URL for sse/streamable-http transports",
     )
 
+    # State Contract Validation (ADK-001)
+    enable_state_contract_validation: bool = Field(
+        default=True,
+        description=(
+            "Enable runtime validation of ADK skill state contracts. "
+            "When enabled, preconditions are validated before skill execution "
+            "and postconditions are validated after. Set to False in production "
+            "for performance if contracts are well-tested."
+        ),
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
