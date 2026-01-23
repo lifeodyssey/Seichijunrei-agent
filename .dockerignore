@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+.uv_cache
+.uv-cache
+.uv_python
+__pycache__
+*.pyc
+htmlcov
+coverage.xml
+dist
+outputs
+output
+.DS_Store
