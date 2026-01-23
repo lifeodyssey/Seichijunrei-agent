@@ -16,8 +16,6 @@ from google.adk.agents import BaseAgent
 
 from utils.logger import get_logger
 
-logger = get_logger(__name__)
-
 from ._state import (
     ALL_STATE_KEYS,
     BANGUMI_CANDIDATES,
@@ -26,6 +24,8 @@ from ._state import (
 )
 from ._workflows.bangumi_search_workflow import bangumi_search_workflow
 from ._workflows.route_planning_workflow import route_planning_workflow
+
+logger = get_logger(__name__)
 
 
 class StateContractError(Exception):

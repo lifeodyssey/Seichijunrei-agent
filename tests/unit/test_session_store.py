@@ -1,6 +1,5 @@
 """Unit tests for A2A session store."""
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest

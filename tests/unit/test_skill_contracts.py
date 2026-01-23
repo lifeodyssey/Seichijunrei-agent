@@ -6,8 +6,6 @@ from adk_agents.seichijunrei_bot._state import (
     ALL_POINTS,
     BANGUMI_CANDIDATES,
     EXTRACTION_RESULT,
-    POINTS_META,
-    POINTS_SELECTION_RESULT,
     ROUTE_PLAN,
     SELECTED_BANGUMI,
 )

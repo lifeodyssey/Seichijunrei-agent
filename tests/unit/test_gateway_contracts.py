@@ -4,8 +4,9 @@ These tests verify that infrastructure adapters correctly implement
 application port interfaces and map errors appropriately.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from application.errors import ExternalServiceError, InvalidInputError
 from application.ports import AnitabiGateway, BangumiGateway, RoutePlanner
@@ -15,7 +16,6 @@ from domain.errors import InvalidStationError, NoBangumiFoundError
 from infrastructure.gateways.anitabi import AnitabiClientGateway
 from infrastructure.gateways.bangumi import BangumiClientGateway
 from infrastructure.gateways.route_planner import SimpleRoutePlannerGateway
-
 
 # --- Test Fixtures ---
 

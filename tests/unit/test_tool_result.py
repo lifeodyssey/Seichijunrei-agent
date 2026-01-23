@@ -1,6 +1,5 @@
 """Unit tests for tool result types."""
 
-import pytest
 
 from adk_agents.seichijunrei_bot.tools.result import (
     ErrorCodes,
