@@ -57,6 +57,9 @@ outputs/
 # Test outputs
 test_results.json
 
+# Git worktrees
+.worktrees/
+
 # Secrets
 .env
 .env.local
