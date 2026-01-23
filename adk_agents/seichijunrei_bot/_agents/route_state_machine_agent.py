@@ -132,7 +132,18 @@ def _looks_like_selection(user_text: str, state: dict[str, Any]) -> bool:
 
 
 class RouteStateMachineAgent(BaseAgent):
-    """Deterministic router + basic backtrack/reset handling."""
+    """Deterministic router + basic backtrack/reset handling.
+
+    Thread Safety:
+        ADK's session service handles session state atomicity for single-turn
+        operations. State mutations within a single `_run_async_impl` invocation
+        are safe. However, if concurrent invocations on the same session are
+        possible (e.g., multiple WebSocket connections), external synchronization
+        or optimistic locking would be needed at the application layer.
+
+        Current design assumes single-invocation-at-a-time per session, which
+        is the standard ADK deployment pattern.
+    """
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
