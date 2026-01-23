@@ -15,6 +15,7 @@ structured output via output_schema.
 from google.adk.agents import LlmAgent
 
 from .._schemas import UserSelectionResult
+from .._state import SELECTED_BANGUMI
 
 user_selection_agent = LlmAgent(
     name="UserSelectionAgent",
@@ -55,5 +56,5 @@ user_selection_agent = LlmAgent(
     - Do not create new works that don't exist in the candidate list.
     """,
     output_schema=UserSelectionResult,
-    output_key="selected_bangumi",
+    output_key=SELECTED_BANGUMI,
 )
