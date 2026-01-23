@@ -170,7 +170,10 @@ class TestSkillContractConsistency:
     def test_provided_keys_are_superset_of_reset_keys_for_stage2(self):
         """Stage 2 provided keys should match reset keys."""
         # When a skill provides keys, its reset should clear the same keys
-        assert STAGE2_ROUTE_PLANNING.provided_state_keys == STAGE2_ROUTE_PLANNING.reset_state_keys
+        assert (
+            STAGE2_ROUTE_PLANNING.provided_state_keys
+            == STAGE2_ROUTE_PLANNING.reset_state_keys
+        )
 
     def test_stage2_dependency_chain(self):
         """Stage 2 requires keys that Stage 1 provides."""
@@ -186,12 +189,7 @@ class TestSkillStateMachineEdgeCases:
 
     def test_with_candidates_dict_structure_returns_stage2(self):
         """State with dict candidates structure should return stage 2."""
-        state = {
-            BANGUMI_CANDIDATES: {
-                "query": "test",
-                "candidates": [{"id": 1}]
-            }
-        }
+        state = {BANGUMI_CANDIDATES: {"query": "test", "candidates": [{"id": 1}]}}
         # The get_skill_for_state checks for truthy value
         skill = get_skill_for_state(state)
         assert skill == STAGE2_ROUTE_PLANNING

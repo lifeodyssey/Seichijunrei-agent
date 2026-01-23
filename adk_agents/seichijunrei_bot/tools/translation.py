@@ -24,9 +24,21 @@ _MAX_CONTEXT_LENGTH = 100
 _MAX_LANGUAGE_LENGTH = 10
 
 # Allowed language codes (whitelist)
-_ALLOWED_LANGUAGES = frozenset({
-    "zh-CN", "zh-TW", "en", "ja", "ko", "es", "fr", "de", "it", "pt", "ru",
-})
+_ALLOWED_LANGUAGES = frozenset(
+    {
+        "zh-CN",
+        "zh-TW",
+        "en",
+        "ja",
+        "ko",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "ru",
+    }
+)
 
 
 def _sanitize_input(text: str, max_length: int) -> str:
@@ -39,9 +51,9 @@ def _sanitize_input(text: str, max_length: int) -> str:
     if not text:
         return ""
     # Remove control characters (except newlines/tabs for readability)
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
     # Escape XML-like delimiters that could interfere with structured prompting
-    text = text.replace('<', '&lt;').replace('>', '&gt;')
+    text = text.replace("<", "&lt;").replace(">", "&gt;")
     # Truncate to max length
     return text[:max_length].strip()
 
@@ -108,10 +120,9 @@ async def translate_text(
 
         # Use settings first, then env var fallback for ADK compatibility.
         settings = get_settings()
-        api_key = (
-            settings.gemini_api_key
-            or os.getenv("GOOGLE_API_KEY")  # ADK runner may set this
-        )
+        api_key = settings.gemini_api_key or os.getenv(
+            "GOOGLE_API_KEY"
+        )  # ADK runner may set this
         if not api_key:
             raise RuntimeError(
                 "Missing Gemini API key. Set GEMINI_API_KEY or GOOGLE_API_KEY."

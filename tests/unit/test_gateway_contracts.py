@@ -386,6 +386,7 @@ class TestProtocolCompliance:
 
     def test_anitabi_gateway_is_protocol_compliant(self):
         """AnitabiClientGateway must be usable where AnitabiGateway is expected."""
+
         # This test verifies structural subtyping
         def use_anitabi_gateway(gw: AnitabiGateway) -> bool:
             return hasattr(gw, "get_bangumi_points") and hasattr(gw, "get_station_info")

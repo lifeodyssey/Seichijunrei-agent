@@ -1,6 +1,5 @@
 """Unit tests for tool result types."""
 
-
 from adk_agents.seichijunrei_bot.tools.result import (
     ErrorCodes,
     ToolResult,
@@ -48,9 +47,7 @@ class TestToolResult:
 
     def test_to_dict_includes_error_code(self):
         """Test to_dict includes error_code when present."""
-        result = ToolResult(
-            success=False, error="Error", error_code=ErrorCodes.TIMEOUT
-        )
+        result = ToolResult(success=False, error="Error", error_code=ErrorCodes.TIMEOUT)
         d = result.to_dict()
         assert d["error_code"] == ErrorCodes.TIMEOUT
 
