@@ -8,7 +8,7 @@ Provides methods to:
 """
 
 from clients.base import BaseHTTPClient
-from clients.errors import APIError
+from clients.errors import APIError, NotFoundError
 from config.settings import get_settings
 from domain.entities import (
     Bangumi,
@@ -16,7 +16,6 @@ from domain.entities import (
     Point,
     Station,
 )
-from domain.errors import InvalidStationError, NoBangumiFoundError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -110,8 +109,9 @@ class AnitabiClient(BaseHTTPClient):
 
             # Parse response
             if not response.get("data"):
-                raise NoBangumiFoundError(
-                    f"No anime locations found within {radius_km}km of {station.name}"
+                raise NotFoundError(
+                    f"No anime locations found within {radius_km}km of {station.name}",
+                    resource_type="bangumi",
                 )
 
             # Convert to domain entities
@@ -147,7 +147,7 @@ class AnitabiClient(BaseHTTPClient):
 
             return bangumi_list
 
-        except NoBangumiFoundError:
+        except NotFoundError:
             raise
         except APIError:
             raise
@@ -331,7 +331,7 @@ class AnitabiClient(BaseHTTPClient):
             Station entity with coordinates
 
         Raises:
-            InvalidStationError: If station not found
+            NotFoundError: If station not found
             APIError: On API communication failure
         """
         try:
@@ -347,7 +347,9 @@ class AnitabiClient(BaseHTTPClient):
             # Check if station found
             data = response.get("data")
             if not data:
-                raise InvalidStationError(f"Station not found: {station_name}")
+                raise NotFoundError(
+                    f"Station not found: {station_name}", resource_type="station"
+                )
 
             # Convert to domain entity
             station = Station(
@@ -365,7 +367,7 @@ class AnitabiClient(BaseHTTPClient):
 
             return station
 
-        except InvalidStationError:
+        except NotFoundError:
             raise
         except APIError:
             raise

@@ -467,7 +467,7 @@ adk eval --evalset *.evalset.json
 
 ### Version 1.0.0 (Current)
 - Initial architecture documentation
-- Complete agent system with 10 agents
+- Complete agent system (see `adk_agents/seichijunrei_bot/_agents/`)
 - Two-stage conversation flow
 - Multilingual support (CN, EN, JP)
 - Intelligent point selection with LLM reasoning

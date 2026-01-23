@@ -7,6 +7,23 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
+# === Constants ===
+
+
+class BangumiSubjectType:
+    """Bangumi subject type constants.
+
+    These match the Bangumi API subject_type values.
+    See: https://bangumi.github.io/api/
+    """
+
+    BOOK = 1
+    ANIME = 2
+    MUSIC = 3
+    GAME = 4
+    REAL = 6  # Live-action (drama, etc.)
+
+
 # === Value Objects ===
 
 

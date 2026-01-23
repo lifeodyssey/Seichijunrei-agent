@@ -14,13 +14,28 @@ from application.use_cases import (
     SearchBangumiSubjects,
 )
 from clients.anitabi_gateway import AnitabiClientGateway
-from clients.bangumi import BangumiClient
 from clients.bangumi_gateway import BangumiClientGateway
+from domain.entities import BangumiSubjectType
 from utils.logger import get_logger
 
+from .result import ErrorCodes, ToolResult, error_result, success_result
 from .translation import translate_tool
 
 logger = get_logger(__name__)
+
+__all__ = [
+    # Result types
+    "ToolResult",
+    "ErrorCodes",
+    "success_result",
+    "error_result",
+    # Tools
+    "search_bangumi_subjects",
+    "get_bangumi_subject",
+    "get_anitabi_points",
+    "search_bangumi_near_station",
+    "translate_tool",
+]
 
 
 async def search_bangumi_subjects(keyword: str) -> dict:
@@ -42,7 +57,7 @@ async def search_bangumi_subjects(keyword: str) -> dict:
         use_case = SearchBangumiSubjects(bangumi=BangumiClientGateway())
         results = await use_case(
             keyword=keyword,
-            subject_type=BangumiClient.TYPE_ANIME,
+            subject_type=BangumiSubjectType.ANIME,
             max_results=10,
         )
         return {

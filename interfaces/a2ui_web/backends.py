@@ -16,6 +16,8 @@ from typing import Any, Protocol
 
 from google.genai import types
 
+from config import get_settings
+
 
 class A2UIBackend(Protocol):
     async def chat(
@@ -26,11 +28,19 @@ class A2UIBackend(Protocol):
         self, *, session_id: str, index_0: int
     ) -> tuple[bool, dict[str, Any]]: ...
 
+    async def select_candidate(
+        self, *, session_id: str, index_1: int
+    ) -> tuple[bool, dict[str, Any]]: ...
+
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]: ...
+
 
 def create_backend() -> A2UIBackend:
-    mode = (os.getenv("A2UI_BACKEND", "local") or "local").strip().lower()
-    if mode in {"agent_engine", "agentengine", "vertex", "remote"}:
-        return AgentEngineBackend.from_env()
+    settings = get_settings()
+    if settings.a2ui_backend == "agent_engine":
+        return AgentEngineBackend.from_settings(settings)
     return LocalInProcessBackend()
 
 
@@ -90,6 +100,24 @@ class LocalInProcessBackend:
         ok = remove_selected_point_by_index(state, index_0=index_0)
         return ok, state
 
+    async def select_candidate(
+        self, *, session_id: str, index_1: int
+    ) -> tuple[bool, dict[str, Any]]:
+        from .state_mutations import select_candidate_by_index
+
+        state = self._states.setdefault(session_id, {})
+        ok = select_candidate_by_index(state, index_1=index_1)
+        return ok, state
+
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]:
+        from .state_mutations import go_back_to_candidates
+
+        state = self._states.setdefault(session_id, {})
+        ok = go_back_to_candidates(state)
+        return ok, state
+
 
 @dataclass(frozen=True)
 class AgentEngineConfig:
@@ -99,18 +127,19 @@ class AgentEngineConfig:
     user_id: str
 
     @staticmethod
-    def from_env() -> AgentEngineConfig:
-        project = (os.getenv("A2UI_VERTEXAI_PROJECT") or "").strip()
-        location = (os.getenv("A2UI_VERTEXAI_LOCATION") or "").strip()
-        name = (os.getenv("A2UI_AGENT_ENGINE_NAME") or "").strip()
-        user_id = (os.getenv("A2UI_AGENT_ENGINE_USER_ID") or "a2ui-web").strip()
+    def from_settings(settings: Any) -> AgentEngineConfig:
+        """Create config from centralized settings."""
+        project = settings.a2ui_vertexai_project or ""
+        location = settings.a2ui_vertexai_location or ""
+        name = settings.a2ui_agent_engine_name or ""
+        user_id = settings.a2ui_agent_engine_user_id
 
         if not project:
-            raise RuntimeError("Missing env: A2UI_VERTEXAI_PROJECT")
+            raise RuntimeError("Missing config: A2UI_VERTEXAI_PROJECT")
         if not location:
-            raise RuntimeError("Missing env: A2UI_VERTEXAI_LOCATION")
+            raise RuntimeError("Missing config: A2UI_VERTEXAI_LOCATION")
         if not name:
-            raise RuntimeError("Missing env: A2UI_AGENT_ENGINE_NAME")
+            raise RuntimeError("Missing config: A2UI_AGENT_ENGINE_NAME")
 
         # Accept RESOURCE_ID shorthand if project/location are provided.
         if not name.startswith("projects/"):
@@ -132,8 +161,8 @@ class AgentEngineBackend:
         self._locks: dict[str, asyncio.Lock] = {}
 
     @classmethod
-    def from_env(cls) -> AgentEngineBackend:
-        return cls(AgentEngineConfig.from_env())
+    def from_settings(cls, settings: Any) -> AgentEngineBackend:
+        return cls(AgentEngineConfig.from_settings(settings))
 
     def _lock_for(self, session_id: str) -> asyncio.Lock:
         lock = self._locks.get(session_id)
@@ -248,6 +277,74 @@ class AgentEngineBackend:
         from .state_mutations import remove_selected_point_by_index
 
         ok = remove_selected_point_by_index(state, index_0=index_0)
+        if not ok:
+            self._state_cache[session_id] = state
+            return False, state
+
+        def _update() -> Any:
+            return self._client.agent_engines.sessions._update(
+                name=remote_session_name,
+                config=UpdateAgentEngineSessionConfig(
+                    sessionState=state,
+                    updateMask="sessionState",
+                ),
+            )
+
+        op = await asyncio.to_thread(_update)
+        updated_session = getattr(op, "response", None)
+        updated_state = getattr(updated_session, "session_state", None)
+        if isinstance(updated_state, dict):
+            state = updated_state
+
+        self._state_cache[session_id] = state
+        return True, state
+
+    async def select_candidate(
+        self, *, session_id: str, index_1: int
+    ) -> tuple[bool, dict[str, Any]]:
+        from vertexai._genai.types.common import UpdateAgentEngineSessionConfig
+
+        remote_session_name = await self._ensure_remote_session_name(session_id)
+
+        state = await self._fetch_state(remote_session_name=remote_session_name)
+
+        from .state_mutations import select_candidate_by_index
+
+        ok = select_candidate_by_index(state, index_1=index_1)
+        if not ok:
+            self._state_cache[session_id] = state
+            return False, state
+
+        def _update() -> Any:
+            return self._client.agent_engines.sessions._update(
+                name=remote_session_name,
+                config=UpdateAgentEngineSessionConfig(
+                    sessionState=state,
+                    updateMask="sessionState",
+                ),
+            )
+
+        op = await asyncio.to_thread(_update)
+        updated_session = getattr(op, "response", None)
+        updated_state = getattr(updated_session, "session_state", None)
+        if isinstance(updated_state, dict):
+            state = updated_state
+
+        self._state_cache[session_id] = state
+        return True, state
+
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]:
+        from vertexai._genai.types.common import UpdateAgentEngineSessionConfig
+
+        remote_session_name = await self._ensure_remote_session_name(session_id)
+
+        state = await self._fetch_state(remote_session_name=remote_session_name)
+
+        from .state_mutations import go_back_to_candidates
+
+        ok = go_back_to_candidates(state)
         if not ok:
             self._state_cache[session_id] = state
             return False, state

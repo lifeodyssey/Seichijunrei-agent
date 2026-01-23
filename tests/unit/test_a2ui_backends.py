@@ -7,13 +7,18 @@ from google.genai import types
 from interfaces.a2ui_web.backends import AgentEngineBackend, AgentEngineConfig
 
 
-def test_agent_engine_config_from_env_builds_full_resource_name(monkeypatch):
-    monkeypatch.setenv("A2UI_VERTEXAI_PROJECT", "p")
-    monkeypatch.setenv("A2UI_VERTEXAI_LOCATION", "us-central1")
-    monkeypatch.setenv("A2UI_AGENT_ENGINE_NAME", "123")
-    monkeypatch.setenv("A2UI_AGENT_ENGINE_USER_ID", "u")
+def test_agent_engine_config_from_settings_builds_full_resource_name():
+    """Test that from_settings correctly builds the full resource name."""
+    from dataclasses import dataclass as dc
 
-    cfg = AgentEngineConfig.from_env()
+    @dc
+    class MockSettings:
+        a2ui_vertexai_project: str = "p"
+        a2ui_vertexai_location: str = "us-central1"
+        a2ui_agent_engine_name: str = "123"
+        a2ui_agent_engine_user_id: str = "u"
+
+    cfg = AgentEngineConfig.from_settings(MockSettings())
     assert cfg.project == "p"
     assert cfg.location == "us-central1"
     assert cfg.user_id == "u"

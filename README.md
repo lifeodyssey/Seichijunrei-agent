@@ -263,7 +263,7 @@ Seichijunrei/
 │       │   └── route_presentation_agent.py
 │       ├── _state.py             # Shared session state keys
 │       ├── _schemas.py           # Pydantic schemas for ADK agents
-│       ├── _workflows/           # 2 workflow orchestrations
+│       ├── _workflows/           # Stage 1/Stage 2 workflow orchestrations
 │       │   ├── bangumi_search_workflow.py
 │       │   └── route_planning_workflow.py
 │       ├── skills.py             # Workflow contracts (required/provided state)
@@ -375,6 +375,19 @@ instead of being documented as completed features:
 - **Persistent session storage**
   - Add an optional Redis/Cloud-backed `SessionService` for long-lived user
     sessions beyond the current in-memory implementation.
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture deep-dive |
+| [docs/a2ui/](docs/a2ui/) | A2UI protocol contracts |
+| [docs/DOCS_POLICY.md](docs/DOCS_POLICY.md) | Documentation guidelines |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Agent Engine deployment |
+
+For documentation guidelines and writing rules, see [docs/DOCS_POLICY.md](docs/DOCS_POLICY.md).
 
 ---
 
