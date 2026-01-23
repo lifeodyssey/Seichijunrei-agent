@@ -14,8 +14,8 @@ from application.use_cases import (
     SearchBangumiSubjects,
 )
 from clients.anitabi_gateway import AnitabiClientGateway
-from clients.bangumi import BangumiClient
 from clients.bangumi_gateway import BangumiClientGateway
+from domain.entities import BangumiSubjectType
 from utils.logger import get_logger
 
 from .result import ErrorCodes, ToolResult, error_result, success_result
@@ -57,7 +57,7 @@ async def search_bangumi_subjects(keyword: str) -> dict:
         use_case = SearchBangumiSubjects(bangumi=BangumiClientGateway())
         results = await use_case(
             keyword=keyword,
-            subject_type=BangumiClient.TYPE_ANIME,
+            subject_type=BangumiSubjectType.ANIME,
             max_results=10,
         )
         return {
