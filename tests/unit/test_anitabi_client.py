@@ -16,9 +16,8 @@ import pytest
 from aiohttp import ClientError
 
 from clients.anitabi import AnitabiClient
-from clients.errors import APIError
+from clients.errors import APIError, NotFoundError
 from domain.entities import Bangumi, Coordinates, Point, Station
-from domain.errors import InvalidStationError, NoBangumiFoundError
 
 
 class TestAnitabiClient:
@@ -157,7 +156,7 @@ class TestAnitabiClient:
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"data": [], "total": 0}
 
-            with pytest.raises(NoBangumiFoundError, match="No anime locations found"):
+            with pytest.raises(NotFoundError, match="No anime locations found"):
                 await client.search_bangumi(station, radius_km=1.0)
 
     @pytest.mark.asyncio
@@ -214,30 +213,38 @@ class TestAnitabiClient:
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"data": None, "error": "Station not found"}
 
-            with pytest.raises(InvalidStationError, match="Station not found"):
+            with pytest.raises(NotFoundError, match="Station not found"):
                 await client.get_station_info("Unknown Station")
 
     @pytest.mark.asyncio
-    async def test_caching_behavior(self, client, mock_bangumi_response):
+    async def test_caching_behavior(self, mock_bangumi_response):
         """Test that responses are properly cached."""
-        station = Station(
-            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
-        )
+        # Create a fresh client to avoid cache pollution
+        async with AnitabiClient(
+            api_key="test_key",
+            use_cache=True,
+            rate_limit_calls=10,
+            rate_limit_period=1.0,
+        ) as client:
+            station = Station(
+                name="Cache Test Station",
+                coordinates=Coordinates(latitude=36.0, longitude=136.0),
+            )
 
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request:
-            mock_request.return_value = mock_bangumi_response
+            with patch.object(
+                client, "_make_request", new_callable=AsyncMock
+            ) as mock_request:
+                mock_request.return_value = mock_bangumi_response
 
-            # First call
-            results1 = await client.search_bangumi(station, radius_km=5.0)
+                # First call - should hit _make_request
+                results1 = await client.search_bangumi(station, radius_km=5.0)
 
-            # Second call (should be cached)
-            results2 = await client.search_bangumi(station, radius_km=5.0)
+                # Second call - should be cached (same params)
+                results2 = await client.search_bangumi(station, radius_km=5.0)
 
-            # API should only be called once due to caching
-            assert mock_request.call_count == 1
-            assert results1 == results2
+                # API should only be called once due to caching
+                assert mock_request.call_count == 1
+                assert results1 == results2
 
     @pytest.mark.asyncio
     async def test_different_radius_not_cached(self, client, mock_bangumi_response):
