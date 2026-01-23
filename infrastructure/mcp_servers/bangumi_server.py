@@ -9,11 +9,10 @@ Run:
 
 from __future__ import annotations
 
-import os
-
 from mcp.server.fastmcp import FastMCP
 
 from application.use_cases import GetBangumiSubject, SearchBangumiSubjects
+from config import get_settings
 from infrastructure.gateways.bangumi import BangumiClientGateway
 from utils.logger import get_logger
 
@@ -81,7 +80,7 @@ async def get_bangumi_subject(subject_id: int) -> dict:
 
 
 def main() -> None:
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    transport = get_settings().mcp_transport
     _mcp.run(transport=transport)  # type: ignore[arg-type]
 
 
