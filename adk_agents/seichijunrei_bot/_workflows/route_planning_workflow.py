@@ -5,14 +5,12 @@ architecture. It assumes that:
     - Stage 1 has already populated `bangumi_candidates` in session state.
     - The current user input expresses a choice among those candidates.
 
-Planned sub-agents (final design):
+Sub-agents (current design):
     1. UserSelectionAgent      – interpret user choice into selected_bangumi
     2. PointsSearchAgent       – fetch ALL Anitabi points for that bangumi
     3. PointsSelectionAgent    – LLM selection of the best 8–12 points
     4. RoutePlanningAgent      – call a custom tool to generate final route
-
-In this step we wire the first three; RoutePlanningAgent will be added once
-the route planning tool is implemented in a later phase.
+    5. RoutePresentationAgent  – present the final route in the user's language
 """
 
 from google.adk.agents import SequentialAgent

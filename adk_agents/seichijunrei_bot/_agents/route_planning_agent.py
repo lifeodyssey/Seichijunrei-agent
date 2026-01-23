@@ -1,49 +1,85 @@
-"""ADK LlmAgent that turns selected points into a full route plan.
+"""Stage 2 deterministic route planning agent.
 
-This agent sits at the end of Stage 2:
-    - Reads the user's starting location and selected anime
-    - Reads the selected seichijunrei points chosen by PointsSelectionAgent
-    - Calls the custom `plan_route` FunctionTool to produce a RoutePlan
-    - Persists the result in session state under `route_plan`
+The route planning step is deterministic (SimpleRoutePlanner + PlanRoute use case),
+so we don't need an LLM to "call a tool" and then "format a schema".
+
+This BaseAgent reads the required inputs from session state, generates a RoutePlan
+dict, validates it against the RoutePlan schema, and writes it to `route_plan`.
 """
 
-from google.adk.agents import LlmAgent
+from __future__ import annotations
+
+from typing import Any
+
+from google.adk.agents import BaseAgent
+from google.adk.events import Event, EventActions
+from pydantic import ConfigDict
+
+from utils.logger import get_logger
 
 from .._schemas import RoutePlan
-from ..tools.route_planning import plan_route_tool
-
-route_planning_agent = LlmAgent(
-    name="RoutePlanningAgent",
-    model="gemini-2.0-flash",
-    tools=[plan_route_tool],
-    instruction="""
-    You are a 聖地巡礼 route design assistant responsible for generating a complete itinerary suggestion based on the already "curated" seichijunrei points.
-
-    You can access from session state:
-    - extraction_result.location: User's starting point location (string)
-    - selected_bangumi.bangumi_title: Anime Japanese title
-    - points_selection_result.selected_points: The 8-12 seichijunrei points already selected
-    - points_selection_result.selection_rationale: Reasoning for why these points were chosen
-
-    Your tasks:
-    1. Call the `plan_route` tool with:
-       - location: extraction_result.location
-       - bangumi_title: selected_bangumi.bangumi_title
-       - points: points_selection_result.selected_points
-    2. Based on the tool's returned results, polish the route description in natural language. You can moderately reference selection_rationale in route_description to explain the route style.
-
-    Output RoutePlan object with the following fields:
-    - recommended_order: Recommended visit order of point names
-    - route_description: Detailed route description (including overall style and recommendation reasoning)
-    - estimated_duration: Estimated total time (e.g., "approximately 4-5 hours")
-    - estimated_distance: Estimated total distance (e.g., "approximately 6 kilometers")
-    - transport_tips: Transportation suggestions
-    - special_notes: Additional reminder list (such as business hours, precautions)
-
-    Notes:
-    - Points have already been filtered by PointsSelectionAgent; no need to filter or reduce them again.
-    - The focus is to let users understand at a glance "where to start from, in what order to visit, and roughly how long the overall trip takes."
-    """,
-    output_schema=RoutePlan,
-    output_key="route_plan",
+from .._state import (
+    EXTRACTION_RESULT,
+    POINTS_SELECTION_RESULT,
+    ROUTE_PLAN,
+    SELECTED_BANGUMI,
 )
+from ..tools.route_planning import plan_route
+
+
+class RoutePlanningAgent(BaseAgent):
+    """Generate a deterministic route plan and store it in session state."""
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+    def __init__(self) -> None:
+        super().__init__(name="RoutePlanningAgent")
+        self.logger = get_logger(__name__)
+
+    async def _run_async_impl(self, ctx):  # type: ignore[override]
+        state: dict[str, Any] = ctx.session.state
+
+        extraction = state.get(EXTRACTION_RESULT) or {}
+        selected_bangumi = state.get(SELECTED_BANGUMI) or {}
+        points_selection = state.get(POINTS_SELECTION_RESULT) or {}
+
+        origin = extraction.get("location") if isinstance(extraction, dict) else ""
+        origin = origin if isinstance(origin, str) else ""
+
+        anime = (
+            selected_bangumi.get("bangumi_title")
+            if isinstance(selected_bangumi, dict)
+            else ""
+        )
+        anime = anime if isinstance(anime, str) else ""
+
+        selected_points = (
+            points_selection.get("selected_points")
+            if isinstance(points_selection, dict)
+            else []
+        )
+        if not isinstance(selected_points, list):
+            selected_points = []
+
+        self.logger.info(
+            "[RoutePlanningAgent] Generating route plan",
+            origin=origin,
+            anime=anime,
+            points_count=len(selected_points),
+        )
+
+        plan_dict = plan_route(
+            location=origin, bangumi_title=anime, points=selected_points
+        )
+        plan = RoutePlan.model_validate(plan_dict).model_dump()
+        state[ROUTE_PLAN] = plan
+
+        yield Event(
+            invocation_id=ctx.invocation_id,
+            author=self.name,
+            content=None,
+            actions=EventActions(escalate=False),
+        )
+
+
+route_planning_agent = RoutePlanningAgent()

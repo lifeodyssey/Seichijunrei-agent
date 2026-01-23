@@ -31,7 +31,13 @@ extraction_agent = LlmAgent(
        - If uncertain, default to "zh-CN"
 
     Requirements:
-    - If you cannot confidently determine a field, set that field to null.
+    - Output MUST be valid JSON matching the schema (strings only; no nulls).
+    - bangumi_name MUST be a non-empty string:
+      - If you cannot confidently isolate a title, pick the most likely title-like phrase.
+      - If still uncertain:
+        - If a location/station name is present, use that as the fallback keyword.
+        - Otherwise, use the full user query (trimmed) as a fallback keyword.
+    - location SHOULD be a string; if missing/unknown, set it to an empty string "".
     - Do not invent information that is not present in the user query.
     - The user's query will be provided to you as the message content.
       Extract fields only from that content.

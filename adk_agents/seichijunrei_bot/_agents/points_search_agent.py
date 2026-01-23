@@ -17,9 +17,19 @@ from google.adk.agents import BaseAgent
 from google.adk.events import Event, EventActions
 from pydantic import ConfigDict
 
+from application.errors import ExternalServiceError
+from application.use_cases import FetchBangumiPoints
 from clients.anitabi import AnitabiClient
-from domain.entities import APIError
+from clients.anitabi_gateway import AnitabiClientGateway
 from utils.logger import get_logger
+
+from .._state import (
+    ALL_POINTS,
+    BANGUMI_RESULT,
+    EXTRACTION_RESULT,
+    POINTS_META,
+    SELECTED_BANGUMI,
+)
 
 
 class PointsSearchAgent(BaseAgent):
@@ -27,17 +37,28 @@ class PointsSearchAgent(BaseAgent):
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
-    def __init__(self, anitabi_client: AnitabiClient | None = None) -> None:
+    def __init__(
+        self,
+        anitabi_client: AnitabiClient | None = None,
+        fetch_bangumi_points: FetchBangumiPoints | None = None,
+    ) -> None:
         super().__init__(name="PointsSearchAgent")
-        self.anitabi_client = anitabi_client or AnitabiClient()
+        self._anitabi_client = anitabi_client
+        self._fetch_bangumi_points = fetch_bangumi_points
         self.logger = get_logger(__name__)
+
+    def _get_fetch_bangumi_points(self) -> FetchBangumiPoints:
+        if self._fetch_bangumi_points is None:
+            gateway = AnitabiClientGateway(client=self._anitabi_client)
+            self._fetch_bangumi_points = FetchBangumiPoints(anitabi=gateway)
+        return self._fetch_bangumi_points
 
     async def _run_async_impl(self, ctx):  # type: ignore[override]
         state: dict[str, Any] = ctx.session.state
 
         # Verify session state for debugging and ensuring state propagation
-        extraction = state.get("extraction_result") or {}
-        selected = state.get("selected_bangumi") or {}
+        extraction = state.get(EXTRACTION_RESULT) or {}
+        selected = state.get(SELECTED_BANGUMI) or {}
 
         self.logger.info(
             "[PointsSearchAgent] Session state check",
@@ -50,12 +71,12 @@ class PointsSearchAgent(BaseAgent):
         )
 
         # Prefer the new Capstone state shape first: selected_bangumi.bangumi_id
-        selected_bangumi = state.get("selected_bangumi") or {}
+        selected_bangumi = state.get(SELECTED_BANGUMI) or {}
         bangumi_id = selected_bangumi.get("bangumi_id")
 
         # Backward-compatible fallback: older workflow uses bangumi_result.bangumi_id
         if bangumi_id is None:
-            bangumi_result = state.get("bangumi_result") or {}
+            bangumi_result = state.get(BANGUMI_RESULT) or {}
             bangumi_id = bangumi_result.get("bangumi_id")
 
         if not isinstance(bangumi_id, int):
@@ -70,8 +91,8 @@ class PointsSearchAgent(BaseAgent):
         )
 
         try:
-            points = await self.anitabi_client.get_bangumi_points(str(bangumi_id))
-        except APIError as exc:
+            points = await self._get_fetch_bangumi_points()(str(bangumi_id))
+        except ExternalServiceError as exc:
             self.logger.error(
                 "[PointsSearchAgent] Failed to get bangumi points",
                 bangumi_id=bangumi_id,
@@ -86,8 +107,26 @@ class PointsSearchAgent(BaseAgent):
             total_points=len(points),
         )
 
-        # No distance filtering: expose ALL points to the LLM selector
-        all_points_data = [p.model_dump() for p in points]
+        # No distance filtering: expose ALL points to the LLM selector.
+        #
+        # IMPORTANT:
+        # `PointsSelectionResult.SelectedPoint` expects flattened `lat/lng` fields
+        # (not nested `coordinates`). Keep `all_points` consistent with that schema
+        # to reduce LLM confusion and avoid schema incompatibilities.
+        all_points_data = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "cn_name": p.cn_name,
+                "lat": p.coordinates.latitude,
+                "lng": p.coordinates.longitude,
+                "episode": p.episode,
+                "time_seconds": p.time_seconds,
+                "screenshot_url": str(p.screenshot_url),
+                "address": p.address,
+            }
+            for p in points
+        ]
         points_meta = {
             "total": len(all_points_data),
             "source": "anitabi",
@@ -95,8 +134,8 @@ class PointsSearchAgent(BaseAgent):
         }
 
         # Write into session state using the new all_points key
-        state["all_points"] = all_points_data
-        state["points_meta"] = points_meta
+        state[ALL_POINTS] = all_points_data
+        state[POINTS_META] = points_meta
 
         self.logger.info(
             "[PointsSearchAgent] All points prepared",

@@ -12,15 +12,15 @@ multi-agent workflows for:
 
 import os
 
-from google.adk.agents import LlmAgent
 from google.adk.sessions import InMemorySessionService
 from google.adk.tools import FunctionTool
 
 from config import get_settings
 from utils.logger import get_logger, setup_logging
 
-from ._workflows.bangumi_search_workflow import bangumi_search_workflow
-from ._workflows.route_planning_workflow import route_planning_workflow
+from ._agents.mcp_probe_agent import mcp_probe_agent
+from ._agents.route_state_machine_agent import RouteStateMachineAgent
+from .skills import ROOT_SUB_AGENTS
 from .tools import (
     get_anitabi_points,
     get_bangumi_subject,
@@ -59,49 +59,15 @@ get_bangumi_tool = FunctionTool(get_bangumi_subject)
 get_anitabi_points_tool = FunctionTool(get_anitabi_points)
 search_anitabi_bangumi_tool = FunctionTool(search_anitabi_bangumi_near_station)
 
-# Root LlmAgent with conditional routing between Stage 1 and Stage 2 workflows.
+# Root deterministic router between Stage 1 and Stage 2 workflows.
 # Name is kept as 'seichijunrei_bot' to match ADK Web app_name configuration.
-root_agent = LlmAgent(
+root_agent = RouteStateMachineAgent(
     name="seichijunrei_bot",
-    model="gemini-2.0-flash",
-    instruction="""
-    You are a ROUTER for the Seichijunrei Bot, a 聖地巡礼 (anime location pilgrimage) planning assistant.
-
-    Your ONLY job is to examine session state and call the appropriate workflow IMMEDIATELY without any explanation.
-
-    CRITICAL RULES (NEVER VIOLATE):
-    1. NEVER announce what you're about to do
-    2. NEVER wait for user confirmation
-    3. NEVER generate your own explanatory text
-    4. ALWAYS execute workflows immediately and silently
-    5. ONLY return the final workflow output to the user
-
-    Decision logic based on session state:
-
-    - If there is no 'bangumi_candidates' in the state:
-        → IMMEDIATELY call BangumiSearchWorkflow (bangumi_search_workflow)
-        → This workflow will:
-          * Extract the bangumi name and user location
-          * Search for 3-5 matching anime candidates
-          * Present the candidates to the user in their language
-          * The presentation agent will handle all user communication
-
-    - If 'bangumi_candidates' exists in the state:
-        → IMMEDIATELY call RoutePlanningWorkflow (route_planning_workflow)
-        → This workflow will:
-          * UserSelectionAgent parses the user's selection (e.g., "1", "first season")
-          * PointsSearchAgent fetches all 聖地巡礼 points from Anitabi
-          * PointsSelectionAgent selects 8-12 optimal points using LLM reasoning
-          * RoutePlanningAgent generates a structured route plan
-          * RoutePresentationAgent presents the route in the user's language
-
-    Your role is PURE ROUTING - check state, call workflow, return output.
-    All user interaction is handled by the workflows' presentation agents.
-    """,
-    sub_agents=[
-        bangumi_search_workflow,
-        route_planning_workflow,
-    ],
+    description=(
+        "Deterministic router for Seichijunrei Bot. Chooses Stage 1 (Bangumi search) "
+        "or Stage 2 (Route planning) based on session state and simple user-intent rules."
+    ),
+    sub_agents=[*ROOT_SUB_AGENTS, mcp_probe_agent],
 )
 
 
