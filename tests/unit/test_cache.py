@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from services.cache import CacheEntry, ResponseCache
+from services.cache import _CACHE_MISS, CacheEntry, ResponseCache
 
 
 class TestResponseCache:
@@ -26,7 +26,7 @@ class TestResponseCache:
         cache = ResponseCache(default_ttl_seconds=60)
 
         result = await cache.get("nonexistent_key")
-        assert result is None
+        assert result is _CACHE_MISS
 
     @pytest.mark.asyncio
     async def test_cache_set_and_get(self):
@@ -57,7 +57,7 @@ class TestResponseCache:
 
         # Should be expired
         result = await cache.get("expiring_key")
-        assert result is None
+        assert result is _CACHE_MISS
 
     @pytest.mark.asyncio
     async def test_cache_custom_ttl_override(self):
@@ -76,7 +76,7 @@ class TestResponseCache:
 
         # Should be expired even though default is 10s
         result = await cache.get("custom_ttl")
-        assert result is None
+        assert result is _CACHE_MISS
 
     @pytest.mark.asyncio
     async def test_cache_delete(self):
@@ -96,7 +96,7 @@ class TestResponseCache:
 
         # Should be gone
         result = await cache.get("delete_me")
-        assert result is None
+        assert result is _CACHE_MISS
 
         # Deleting non-existent key returns False
         deleted = await cache.delete("nonexistent")
@@ -121,9 +121,9 @@ class TestResponseCache:
         await cache.clear()
 
         # All should be gone
-        assert await cache.get("key1") is None
-        assert await cache.get("key2") is None
-        assert await cache.get("key3") is None
+        assert await cache.get("key1") is _CACHE_MISS
+        assert await cache.get("key2") is _CACHE_MISS
+        assert await cache.get("key3") is _CACHE_MISS
 
     @pytest.mark.asyncio
     async def test_cache_concurrent_access(self):
@@ -170,7 +170,7 @@ class TestResponseCache:
         # key1 should still exist (recently accessed)
         assert await cache.get("key1") == {"value": 1}
         # key2 should be evicted (least recently used)
-        assert await cache.get("key2") is None
+        assert await cache.get("key2") is _CACHE_MISS
         # key3 and key4 should exist
         assert await cache.get("key3") == {"value": 3}
         assert await cache.get("key4") == {"value": 4}
@@ -300,7 +300,7 @@ class TestResponseCache:
         # Set None value
         await cache.set("null_key", None)
 
-        # Should return None (but from cache, not miss)
+        # Should return None (the cached value, not a miss)
         result = await cache.get("null_key")
         assert result is None
 
