@@ -27,7 +27,9 @@ from adk_agents.seichijunrei_bot._state import (
 
 def _make_ctx(agent: BaseAgent, *, state: dict) -> InvocationContext:
     session_service = InMemorySessionService()
-    session = Session(id="test-session", app_name="test", user_id="test-user", state=state)
+    session = Session(
+        id="test-session", app_name="test", user_id="test-user", state=state
+    )
     return InvocationContext(
         session_service=session_service,
         invocation_id="inv-test",
@@ -48,7 +50,10 @@ class TestRoutePlanningAgentDeterminism:
     def test_has_no_model_attribute(self) -> None:
         """RoutePlanningAgent should not have a model attribute."""
         # LlmAgent has a 'model' attribute for the LLM
-        assert not hasattr(route_planning_agent, "model") or route_planning_agent.model is None
+        assert (
+            not hasattr(route_planning_agent, "model")
+            or route_planning_agent.model is None
+        )
 
     @pytest.mark.asyncio
     async def test_produces_deterministic_output(self) -> None:

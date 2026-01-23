@@ -1,6 +1,5 @@
 """Unit tests for A2UI state mutations."""
 
-
 from adk_agents.seichijunrei_bot._state import (
     BANGUMI_CANDIDATES,
     SELECTED_BANGUMI,
@@ -21,8 +20,18 @@ class TestSelectCandidateByIndex:
             BANGUMI_CANDIDATES: {
                 "query": "fate",
                 "candidates": [
-                    {"id": 1, "title": "Fate/Zero", "title_cn": "命运之夜", "air_date": "2011"},
-                    {"id": 2, "title": "Fate/Stay Night", "title_cn": "命运之夜", "air_date": "2006"},
+                    {
+                        "id": 1,
+                        "title": "Fate/Zero",
+                        "title_cn": "命运之夜",
+                        "air_date": "2011",
+                    },
+                    {
+                        "id": 2,
+                        "title": "Fate/Stay Night",
+                        "title_cn": "命运之夜",
+                        "air_date": "2006",
+                    },
                 ],
             }
         }

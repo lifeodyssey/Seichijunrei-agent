@@ -108,4 +108,3 @@ class ConfigurationError(ApplicationError):
     def __init__(self, message: str, *, missing_keys: list[str] | None = None) -> None:
         details = {"missing_keys": missing_keys} if missing_keys else {}
         super().__init__(message, details=details)
-

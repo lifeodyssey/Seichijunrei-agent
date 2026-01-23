@@ -140,7 +140,9 @@ class A2AResponse:
         return response
 
     @classmethod
-    def success(cls, result: dict[str, Any], request_id: str | int | None) -> A2AResponse:
+    def success(
+        cls, result: dict[str, Any], request_id: str | int | None
+    ) -> A2AResponse:
         return cls(result=result, id=request_id)
 
     @classmethod
