@@ -6,8 +6,11 @@ kept stateless and side-effect free (other than logging), following
 ADK best practices for tools.
 """
 
+import asyncio
+import os
+
+from google import genai
 from google.adk.tools import FunctionTool
-from google.generativeai import GenerativeModel
 
 from utils.logger import get_logger
 
@@ -46,9 +49,14 @@ async def translate_text(
                 "error": None,
             }
 
-        # Use Gemini to perform translation. Keep model name aligned with the
-        # rest of the project (non-experimental variant).
-        model = GenerativeModel("gemini-2.0-flash")
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "Missing Gemini API key. Set GEMINI_API_KEY (preferred) or GOOGLE_API_KEY."
+            )
+
+        # Use the latest supported Gemini SDK (`google-genai`).
+        client = genai.Client(api_key=api_key)
 
         prompt = f"""Translate the following {context} to {target_language}:
 
@@ -62,8 +70,12 @@ Requirements:
 
 Translation:"""
 
-        response = model.generate_content(prompt)
-        translated = (response.text or "").strip()
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        translated = (getattr(response, "text", "") or "").strip()
 
         logger.info(
             "Translation completed",

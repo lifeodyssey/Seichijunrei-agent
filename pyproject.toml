@@ -35,9 +35,9 @@ dependencies = [
     "rich>=13.0.0",
 
     # Google Cloud & ADK
-    "google-generativeai>=0.8.0",
+    "google-genai>=1.0.0",
     "google-cloud-aiplatform[adk,agent_engines]>=1.111",
-    "google-adk>=1.0.0",
+    "google-adk>=1.23.0",
 ]
 
 [project.optional-dependencies]
@@ -60,7 +60,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["clients", "config", "domain", "services", "utils"]
+packages = ["application", "clients", "config", "domain", "infrastructure", "services", "utils"]
 
 [tool.ruff]
 line-length = 88
@@ -87,24 +87,6 @@ line-length = 88
 target-version = ['py311']
 include = '\.pyi?$'
 
-[tool.pytest.ini_options]
-minversion = "7.0"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-asyncio_mode = "auto"
-addopts = [
-    "-v",
-    "--strict-markers",
-    "--tb=short",
-    "--cov=.",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
-    "--cov-config=pyproject.toml",
-]
-
 [tool.coverage.run]
 source = ["."]
 omit = [
@@ -113,6 +95,12 @@ omit = [
     "*/__pycache__/*",
     "*/venv/*",
     "*/.venv/*",
+    ".uv_python/*",
+    "*/.uv_python/*",
+    ".uv_cache/*",
+    "*/.uv_cache/*",
+    ".uv-cache/*",
+    "*/.uv-cache/*",
     "*/site-packages/*",
 ]
 
