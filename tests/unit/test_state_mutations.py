@@ -7,6 +7,7 @@ from adk_agents.seichijunrei_bot._state import (
     SELECTED_BANGUMI,
 )
 from interfaces.a2ui_web.state_mutations import (
+    go_back_to_candidates,
     remove_selected_point_by_index,
     select_candidate_by_index,
 )
@@ -197,3 +198,71 @@ class TestRemoveSelectedPointByIndex:
         result = remove_selected_point_by_index(state, index_0=0)
 
         assert result is False
+
+
+class TestGoBackToCandidates:
+    """Tests for go_back_to_candidates function."""
+
+    def test_go_back_clears_selection(self):
+        """Test that go_back clears selected_bangumi and Stage 2 state."""
+        state = {
+            BANGUMI_CANDIDATES: {
+                "candidates": [{"id": 1, "title": "Test"}],
+            },
+            SELECTED_BANGUMI: {"bangumi_id": 1, "bangumi_title": "Test"},
+            "all_points": [{"name": "Point A"}],
+            "points_meta": {"count": 1},
+            "points_selection_result": {"selected_points": []},
+            "route_plan": {"stops": []},
+        }
+
+        result = go_back_to_candidates(state)
+
+        assert result is True
+        assert SELECTED_BANGUMI not in state
+        assert "all_points" not in state
+        assert "points_meta" not in state
+        assert "points_selection_result" not in state
+        assert "route_plan" not in state
+        # Candidates should remain
+        assert BANGUMI_CANDIDATES in state
+
+    def test_go_back_fails_without_candidates(self):
+        """Test that go_back fails when no candidates exist."""
+        state = {
+            SELECTED_BANGUMI: {"bangumi_id": 1},
+        }
+
+        result = go_back_to_candidates(state)
+
+        assert result is False
+        # Selection should not be cleared if back failed
+        assert SELECTED_BANGUMI in state
+
+    def test_go_back_fails_with_empty_candidates(self):
+        """Test that go_back fails with empty candidates list."""
+        state = {
+            BANGUMI_CANDIDATES: {"candidates": []},
+            SELECTED_BANGUMI: {"bangumi_id": 1},
+        }
+
+        result = go_back_to_candidates(state)
+
+        assert result is False
+
+    def test_go_back_preserves_extraction_result(self):
+        """Test that go_back preserves Stage 1 state like extraction_result."""
+        state = {
+            "extraction_result": {"location": "Tokyo", "anime": "Test"},
+            BANGUMI_CANDIDATES: {
+                "candidates": [{"id": 1, "title": "Test"}],
+            },
+            SELECTED_BANGUMI: {"bangumi_id": 1},
+            "route_plan": {"stops": []},
+        }
+
+        result = go_back_to_candidates(state)
+
+        assert result is True
+        # Extraction should remain
+        assert state["extraction_result"]["location"] == "Tokyo"

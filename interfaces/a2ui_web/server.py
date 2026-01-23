@@ -96,6 +96,48 @@ async def api_action(request: web.Request) -> web.Response:
     if not isinstance(action_name, str) or not action_name.strip():
         raise web.HTTPBadRequest(text="Missing 'action_name' (string).")
 
+    # UI-only action: go back to candidates view
+    if action_name == "back":
+        ok, state = await _BACKEND.go_back(session_id=session_id)
+
+        extraction = state.get("extraction_result") or {}
+        lang = (
+            extraction.get("user_language")
+            if isinstance(extraction, dict)
+            else None
+        )
+        lang = lang if isinstance(lang, str) else "zh-CN"
+
+        if ok:
+            assistant_text = (
+                "Returned to candidates. Please select again."
+                if lang == "en"
+                else (
+                    "候補画面に戻りました。再度選択してください。"
+                    if lang == "ja"
+                    else "已返回候选列表，请重新选择。"
+                )
+            )
+        else:
+            assistant_text = (
+                "Unable to go back (no candidates available)."
+                if lang == "en"
+                else (
+                    "戻れませんでした（候補がありません）。"
+                    if lang == "ja"
+                    else "无法返回（没有可用候选）。"
+                )
+            )
+
+        presenter_text, a2ui_messages = build_a2ui_response(state)
+        return web.json_response(
+            {
+                "session_id": session_id,
+                "assistant_text": assistant_text or presenter_text,
+                "a2ui_messages": a2ui_messages,
+            }
+        )
+
     # UI-only action: select a candidate by displayed index (1-based).
     if action_name.startswith("select_candidate_"):
         idx_str = action_name.removeprefix("select_candidate_")

@@ -32,6 +32,10 @@ class A2UIBackend(Protocol):
         self, *, session_id: str, index_1: int
     ) -> tuple[bool, dict[str, Any]]: ...
 
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]: ...
+
 
 def create_backend() -> A2UIBackend:
     settings = get_settings()
@@ -103,6 +107,15 @@ class LocalInProcessBackend:
 
         state = self._states.setdefault(session_id, {})
         ok = select_candidate_by_index(state, index_1=index_1)
+        return ok, state
+
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]:
+        from .state_mutations import go_back_to_candidates
+
+        state = self._states.setdefault(session_id, {})
+        ok = go_back_to_candidates(state)
         return ok, state
 
 
@@ -298,6 +311,40 @@ class AgentEngineBackend:
         from .state_mutations import select_candidate_by_index
 
         ok = select_candidate_by_index(state, index_1=index_1)
+        if not ok:
+            self._state_cache[session_id] = state
+            return False, state
+
+        def _update() -> Any:
+            return self._client.agent_engines.sessions._update(
+                name=remote_session_name,
+                config=UpdateAgentEngineSessionConfig(
+                    sessionState=state,
+                    updateMask="sessionState",
+                ),
+            )
+
+        op = await asyncio.to_thread(_update)
+        updated_session = getattr(op, "response", None)
+        updated_state = getattr(updated_session, "session_state", None)
+        if isinstance(updated_state, dict):
+            state = updated_state
+
+        self._state_cache[session_id] = state
+        return True, state
+
+    async def go_back(
+        self, *, session_id: str
+    ) -> tuple[bool, dict[str, Any]]:
+        from vertexai._genai.types.common import UpdateAgentEngineSessionConfig
+
+        remote_session_name = await self._ensure_remote_session_name(session_id)
+
+        state = await self._fetch_state(remote_session_name=remote_session_name)
+
+        from .state_mutations import go_back_to_candidates
+
+        ok = go_back_to_candidates(state)
         if not ok:
             self._state_cache[session_id] = state
             return False, state

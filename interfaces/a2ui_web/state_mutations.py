@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from adk_agents.seichijunrei_bot._state import BANGUMI_CANDIDATES, SELECTED_BANGUMI
+from adk_agents.seichijunrei_bot._state import (
+    BANGUMI_CANDIDATES,
+    SELECTED_BANGUMI,
+    STAGE2_STATE_KEYS,
+)
 from application.use_cases import PlanRoute
 from services.route_planner_gateway import SimpleRoutePlannerGateway
 
@@ -116,6 +120,36 @@ def select_candidate_by_index(state: dict[str, Any], *, index_1: int) -> bool:
     # Clear Stage 2 state keys so they're recomputed with new selection
     # (route_planning_agent will fill these in)
     for key in ["all_points", "points_meta", "points_selection_result", "route_plan"]:
+        state.pop(key, None)
+
+    return True
+
+
+def go_back_to_candidates(state: dict[str, Any]) -> bool:
+    """Clear selection and return to candidates view.
+
+    This clears SELECTED_BANGUMI and all Stage 2 state keys,
+    returning the user to the candidates selection view.
+
+    Args:
+        state: Session state dict to modify in-place
+
+    Returns:
+        True if back operation was valid (candidates exist), False otherwise
+    """
+    candidates_data = state.get(BANGUMI_CANDIDATES)
+    if not isinstance(candidates_data, dict):
+        return False
+
+    candidates = candidates_data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return False
+
+    # Clear selected bangumi
+    state.pop(SELECTED_BANGUMI, None)
+
+    # Clear all Stage 2 state keys
+    for key in STAGE2_STATE_KEYS:
         state.pop(key, None)
 
     return True
