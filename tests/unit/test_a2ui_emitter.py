@@ -2,7 +2,7 @@
 
 import pytest
 
-from contracts.a2ui import Component, SurfaceId, ViewName
+from contracts.a2ui import SurfaceId
 from contracts.a2ui.components import button, text
 from interfaces.a2ui_web.emitter import (
     A2UIEventEmitter,

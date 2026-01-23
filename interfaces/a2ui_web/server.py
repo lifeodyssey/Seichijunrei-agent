@@ -17,7 +17,6 @@ from config import get_settings
 
 from .backends import create_backend
 from .presenter import build_a2ui_error_response, build_a2ui_response
-from .state_mutations import remove_selected_point_by_index, select_candidate_by_index
 
 _HERE = Path(__file__).resolve().parent
 _STATIC_DIR = _HERE / "static"

@@ -1,6 +1,5 @@
 """Unit tests for A2UI state mutations."""
 
-import pytest
 
 from adk_agents.seichijunrei_bot._state import (
     BANGUMI_CANDIDATES,
