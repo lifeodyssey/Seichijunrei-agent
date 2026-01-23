@@ -60,6 +60,24 @@ class Settings(BaseSettings):
     rate_limit_calls: int = Field(default=100, description="Rate limit calls")
     rate_limit_period_seconds: int = Field(default=60, description="Rate limit period")
 
+    # MCP (Model Context Protocol) - optional
+    enable_mcp_tools: bool = Field(
+        default=False,
+        description="Enable MCP toolsets (stdio/SSE/streamable HTTP) for service tools",
+    )
+    mcp_transport: str = Field(
+        default="stdio",
+        description='MCP transport: "stdio", "sse", or "streamable-http"',
+    )
+    mcp_bangumi_url: str | None = Field(
+        default=None,
+        description="Bangumi MCP server URL for sse/streamable-http transports",
+    )
+    mcp_anitabi_url: str | None = Field(
+        default=None,
+        description="Anitabi MCP server URL for sse/streamable-http transports",
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -70,11 +88,17 @@ class Settings(BaseSettings):
             raise ValueError(f"Invalid log level: {v}. Must be one of {valid_levels}")
         return v
 
-    @field_validator("output_dir", "template_dir")
+    @field_validator("mcp_transport")
     @classmethod
-    def ensure_directory_exists(cls, v: Path) -> Path:
-        """Ensure directory exists, create if not."""
-        v.mkdir(parents=True, exist_ok=True)
+    def validate_mcp_transport(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v in {"streamable_http", "streamablehttp"}:
+            v = "streamable-http"
+        valid = {"stdio", "sse", "streamable-http"}
+        if v not in valid:
+            raise ValueError(
+                f"Invalid MCP_TRANSPORT: {v}. Must be one of {sorted(valid)}"
+            )
         return v
 
     @property

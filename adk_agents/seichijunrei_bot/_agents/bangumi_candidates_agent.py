@@ -12,10 +12,9 @@ split into two separate LlmAgents to avoid combining tools + output_schema.
 """
 
 from google.adk.agents import LlmAgent, SequentialAgent
-from google.adk.tools import FunctionTool
 
 from .._schemas import BangumiCandidatesResult
-from ..tools import search_bangumi_subjects
+from ..mcp_toolsets import bangumi_search_tool
 
 _bangumi_searcher = LlmAgent(
     name="BangumiSearcher",
@@ -38,7 +37,7 @@ _bangumi_searcher = LlmAgent(
     - Preserve as much information from the tool result as possible so the
       next agent can build a high-quality candidate list.
     """,
-    tools=[FunctionTool(search_bangumi_subjects)],
+    tools=[bangumi_search_tool()],
     # No output_schema / output_key: this agent is purely tool + reasoning.
 )
 
