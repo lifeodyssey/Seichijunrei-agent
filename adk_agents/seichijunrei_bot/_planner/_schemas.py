@@ -9,6 +9,27 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class PlannerParameters(BaseModel):
+    """Parameters extracted by the planner for skill execution.
+
+    Uses explicit fields instead of dict to avoid additionalProperties
+    in JSON schema, which Gemini's structured output doesn't support.
+    """
+
+    query: str | None = Field(
+        default=None,
+        description="Anime title or search query for bangumi_search skill.",
+    )
+    location: str | None = Field(
+        default=None,
+        description="Optional location filter for bangumi_search skill.",
+    )
+    selection: str | None = Field(
+        default=None,
+        description="User's selection text for route_planning skill.",
+    )
+
+
 class PlannerDecision(BaseModel):
     """Structured decision output from the PlannerAgent.
 
@@ -30,13 +51,13 @@ class PlannerDecision(BaseModel):
         )
     )
 
-    parameters: dict[str, str] = Field(
-        default_factory=dict,
+    parameters: PlannerParameters = Field(
+        default_factory=PlannerParameters,
         description=(
             "Extracted parameters for the skill. "
-            "For bangumi_search: {'query': 'anime title', 'location': 'optional location'}. "
-            "For route_planning: {'selection': 'user selection text'}. "
-            "Empty dict for reset/back/help/unknown."
+            "For bangumi_search: set query and optionally location. "
+            "For route_planning: set selection. "
+            "Leave all None for reset/back/help/unknown."
         ),
     )
 

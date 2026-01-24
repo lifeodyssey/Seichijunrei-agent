@@ -9,7 +9,7 @@ Tests verify:
 import pytest
 from pydantic import ValidationError
 
-from adk_agents.seichijunrei_bot._planner import PlannerDecision
+from adk_agents.seichijunrei_bot._planner import PlannerDecision, PlannerParameters
 
 
 class TestPlannerDecisionSchema:
@@ -19,12 +19,12 @@ class TestPlannerDecisionSchema:
         """Valid bangumi_search decision should be accepted."""
         decision = PlannerDecision(
             skill_id="bangumi_search",
-            parameters={"query": "Your Name", "location": "Tokyo"},
+            parameters=PlannerParameters(query="Your Name", location="Tokyo"),
             reasoning="User is asking about an anime title",
             confidence=0.95,
         )
         assert decision.skill_id == "bangumi_search"
-        assert decision.parameters["query"] == "Your Name"
+        assert decision.parameters.query == "Your Name"
         assert decision.confidence == 0.95
         assert decision.requires_clarification is False
         assert decision.clarification_prompt is None
@@ -33,29 +33,27 @@ class TestPlannerDecisionSchema:
         """Valid route_planning decision should be accepted."""
         decision = PlannerDecision(
             skill_id="route_planning",
-            parameters={"selection": "1"},
+            parameters=PlannerParameters(selection="1"),
             reasoning="User selected option 1 from candidates",
             confidence=0.9,
         )
         assert decision.skill_id == "route_planning"
-        assert decision.parameters["selection"] == "1"
+        assert decision.parameters.selection == "1"
 
     def test_valid_reset_decision(self):
         """Valid reset decision should be accepted."""
         decision = PlannerDecision(
             skill_id="reset",
-            parameters={},
             reasoning="User wants to start over",
             confidence=1.0,
         )
         assert decision.skill_id == "reset"
-        assert decision.parameters == {}
+        assert decision.parameters.query is None
 
     def test_valid_unknown_with_clarification(self):
         """Unknown decision with clarification should be accepted."""
         decision = PlannerDecision(
             skill_id="unknown",
-            parameters={},
             reasoning="Cannot determine user intent",
             confidence=0.3,
             requires_clarification=True,
@@ -70,7 +68,6 @@ class TestPlannerDecisionSchema:
         with pytest.raises(ValidationError) as exc_info:
             PlannerDecision(
                 skill_id="invalid_skill",
-                parameters={},
                 reasoning="Test",
                 confidence=0.5,
             )
@@ -81,7 +78,6 @@ class TestPlannerDecisionSchema:
         with pytest.raises(ValidationError) as exc_info:
             PlannerDecision(
                 skill_id="bangumi_search",
-                parameters={},
                 reasoning="Test",
                 confidence=-0.1,
             )
@@ -92,20 +88,21 @@ class TestPlannerDecisionSchema:
         with pytest.raises(ValidationError) as exc_info:
             PlannerDecision(
                 skill_id="bangumi_search",
-                parameters={},
                 reasoning="Test",
                 confidence=1.5,
             )
         assert "confidence" in str(exc_info.value)
 
-    def test_default_parameters_is_empty_dict(self):
-        """Parameters should default to empty dict."""
+    def test_default_parameters_is_empty(self):
+        """Parameters should default to empty PlannerParameters."""
         decision = PlannerDecision(
             skill_id="help",
             reasoning="User asked for help",
             confidence=1.0,
         )
-        assert decision.parameters == {}
+        assert decision.parameters.query is None
+        assert decision.parameters.location is None
+        assert decision.parameters.selection is None
 
     def test_all_valid_skill_ids(self):
         """All valid skill_ids should be accepted."""
@@ -168,7 +165,7 @@ class TestPlannerDecisionGeminiCompatibility:
         """Model should serialize to valid JSON."""
         decision = PlannerDecision(
             skill_id="bangumi_search",
-            parameters={"query": "Test"},
+            parameters=PlannerParameters(query="Test"),
             reasoning="Test reasoning",
             confidence=0.9,
         )
