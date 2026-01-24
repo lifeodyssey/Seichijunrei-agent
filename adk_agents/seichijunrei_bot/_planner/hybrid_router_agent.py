@@ -23,12 +23,11 @@ from pydantic import ConfigDict
 from config import get_settings
 from utils.logger import LogContext, get_logger
 
-from .._state import BANGUMI_CANDIDATES, EXTRACTION_RESULT, PLANNER_DECISION
+from .._state import BANGUMI_CANDIDATES, EXTRACTION_RESULT
 from ..skills import (
     STAGE1_BANGUMI_SEARCH,
     STAGE2_ROUTE_PLANNING,
     Skill,
-    StateContractError,
 )
 
 logger = get_logger(__name__)
