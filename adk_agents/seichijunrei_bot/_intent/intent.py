@@ -14,12 +14,12 @@ class Intent(str, Enum):
     Using str as base class allows direct JSON serialization.
     """
 
-    WELCOME = "welcome"        # New session welcome
-    HELP = "help"              # Help request
-    RESET = "reset"            # Reset session
-    BACK = "back"              # Return to previous step
-    ANIME_SEARCH = "search"    # Search for anime
-    SELECTION = "select"       # Select from candidates
-    GREETING = "greeting"      # Greeting (hi, hello, etc.)
-    CHITCHAT = "chitchat"      # Casual conversation
-    UNKNOWN = "unknown"        # Cannot determine intent
+    WELCOME = "welcome"  # New session welcome
+    HELP = "help"  # Help request
+    RESET = "reset"  # Reset session
+    BACK = "back"  # Return to previous step
+    ANIME_SEARCH = "search"  # Search for anime
+    SELECTION = "select"  # Select from candidates
+    GREETING = "greeting"  # Greeting (hi, hello, etc.)
+    CHITCHAT = "chitchat"  # Casual conversation
+    UNKNOWN = "unknown"  # Cannot determine intent
