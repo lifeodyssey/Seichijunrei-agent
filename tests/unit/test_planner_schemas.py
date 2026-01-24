@@ -7,9 +7,8 @@ Tests verify:
 """
 
 import pytest
-from pydantic import ValidationError
-
 from adk_agents.seichijunrei_bot._planner import PlannerDecision, PlannerParameters
+from pydantic import ValidationError
 
 
 class TestPlannerDecisionSchema:
