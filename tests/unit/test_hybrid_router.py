@@ -8,8 +8,6 @@ Tests verify:
 - State reset functions
 """
 
-from google.genai import types
-
 from adk_agents.seichijunrei_bot._planner.hybrid_router_agent import (
     _BACK_PATTERNS,
     _HELP_PATTERNS,
@@ -23,6 +21,8 @@ from adk_agents.seichijunrei_bot._planner.hybrid_router_agent import (
     _normalize_text,
     _state_get_user_language,
 )
+from google.genai import types
+
 from adk_agents.seichijunrei_bot._state import BANGUMI_CANDIDATES, EXTRACTION_RESULT
 
 

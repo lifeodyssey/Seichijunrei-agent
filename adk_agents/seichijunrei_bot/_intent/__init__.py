@@ -8,10 +8,14 @@ This module provides:
 - IntentRouter: Fast/slow path routing based on input clarity
 """
 
+from .classifier import (
+    create_intent_classifier,
+    format_classifier_prompt,
+    intent_classifier,
+)
 from .intent import Intent
 from .router import IntentRouter
 from .schemas import ClassifierDecision, ClassifierParameters
-from .classifier import create_intent_classifier, format_classifier_prompt, intent_classifier
 
 __all__ = [
     "Intent",
