@@ -119,6 +119,32 @@ class Settings(BaseSettings):
         ),
     )
 
+    # LLM Planner Settings (PLAN-002)
+    enable_llm_planner: bool = Field(
+        default=True,
+        description=(
+            "Enable LLM planner for ambiguous inputs. "
+            "When enabled, ambiguous user inputs are routed to an LLM for intent "
+            "classification. When disabled, only deterministic fast paths are used."
+        ),
+    )
+    planner_model: str = Field(
+        default="gemini-2.0-flash",
+        description=(
+            "Model to use for the planner agent. "
+            "Should be a fast, cost-effective model for intent classification."
+        ),
+    )
+    planner_confidence_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum confidence score to execute planner decision. "
+            "Below this threshold, clarification is requested from the user."
+        ),
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -179,6 +205,9 @@ class Settings(BaseSettings):
             "use_cache": self.use_cache,
             "enable_mcp_tools": self.enable_mcp_tools,
             "enable_state_contract_validation": self.enable_state_contract_validation,
+            "enable_llm_planner": self.enable_llm_planner,
+            "planner_model": self.planner_model,
+            "planner_confidence_threshold": self.planner_confidence_threshold,
             "a2ui_backend": self.a2ui_backend,
             "a2ui_port": self.a2ui_port,
         }
@@ -194,6 +223,7 @@ class Settings(BaseSettings):
             "debug": self.debug,
             "enable_mcp_tools": self.enable_mcp_tools,
             "enable_state_contract_validation": self.enable_state_contract_validation,
+            "enable_llm_planner": self.enable_llm_planner,
         }
 
     def validate_api_keys(self) -> list[str]:

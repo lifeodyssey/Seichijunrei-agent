@@ -13,6 +13,9 @@ POINTS_META = "points_meta"
 POINTS_SELECTION_RESULT = "points_selection_result"
 ROUTE_PLAN = "route_plan"
 
+# Planner state keys (PLAN-002)
+PLANNER_DECISION = "planner_decision"
+
 # Backward-compatibility (older workflow shapes)
 BANGUMI_RESULT = "bangumi_result"
 
