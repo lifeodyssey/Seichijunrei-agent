@@ -19,6 +19,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from contracts.a2ui import InMemorySessionStore, SessionStore
+from interfaces.a2ui_web.presenter import build_a2ui_response
 from utils.logger import get_logger
 
 from .types import (
@@ -46,6 +47,19 @@ AGENT_CARD = {
     "capabilities": {
         "streaming": False,
         "pushNotifications": False,
+        "a2ui": {
+            "version": "v0.8",
+            "surfaces": ["main"],
+            "components": [
+                "Text",
+                "Button",
+                "Card",
+                "Row",
+                "Column",
+                "Image",
+                "Divider",
+            ],
+        },
     },
     "skills": [
         {
@@ -165,16 +179,21 @@ class A2AServer:
         )
 
         # Run the ADK agent
-        agent_response = await self._run_agent(user_text, session.context_id)
+        await self._run_agent(user_text, session.context_id)
 
-        # Update task with response
-        agent_message = Message.agent_text(agent_response)
+        # Generate A2UI response from session state (deterministic UI generation)
+        state = self._states.get(session.context_id, {})
+        assistant_text, a2ui_messages = build_a2ui_response(state)
+
+        # Update task with A2UI-generated response
+        agent_message = Message.agent_text(assistant_text)
         task.history.append(agent_message)
         task.status = TaskStatus(
             state=TaskState.COMPLETED,
             message=agent_message,
             timestamp=datetime.now(UTC).isoformat(),
         )
+        task.a2ui_messages = a2ui_messages
 
         return A2AResponse.success(task.to_dict(), request.id)
 
