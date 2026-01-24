@@ -3,7 +3,7 @@
 These tools are used by both LlmAgents (as FunctionTools) and the root agent.
 Extracted to avoid circular imports between agent.py and sub-agents.
 
-Note: Each tool function creates its own client instance to avoid aiohttp
+Note: Each tool function creates its own gateway instance to avoid aiohttp
 session lifecycle issues in ADK's multi-event-loop execution model.
 """
 
@@ -13,9 +13,8 @@ from application.use_cases import (
     SearchAnitabiBangumiNearStation,
     SearchBangumiSubjects,
 )
-from clients.anitabi_gateway import AnitabiClientGateway
-from clients.bangumi_gateway import BangumiClientGateway
 from domain.entities import BangumiSubjectType
+from infrastructure.gateways import AnitabiClientGateway, BangumiClientGateway
 from utils.logger import get_logger
 
 from .result import ErrorCodes, ToolResult, error_result, success_result
