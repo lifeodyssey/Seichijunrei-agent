@@ -13,7 +13,6 @@ from adk_agents.seichijunrei_bot._planner import (
     create_planner_agent,
     format_planner_prompt,
 )
-
 from adk_agents.seichijunrei_bot._state import BANGUMI_CANDIDATES
 
 
