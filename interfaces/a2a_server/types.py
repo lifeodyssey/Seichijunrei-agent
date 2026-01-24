@@ -90,15 +90,19 @@ class Task:
     status: TaskStatus
     history: list[Message] = field(default_factory=list)
     artifacts: list[dict[str, Any]] = field(default_factory=list)
+    a2ui_messages: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "id": self.id,
             "sessionId": self.session_id,
             "status": self.status.to_dict(),
             "history": [m.to_dict() for m in self.history],
             "artifacts": self.artifacts,
         }
+        if self.a2ui_messages is not None:
+            result["a2ui"] = self.a2ui_messages
+        return result
 
 
 @dataclass
