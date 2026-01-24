@@ -289,7 +289,7 @@ class IntentRouter(BaseAgent):
                 "Welcome to Seichijunrei Bot! 🎌\n\n"
                 "I can help you plan anime pilgrimage routes.\n\n"
                 "**How to use:**\n"
-                "- Tell me an anime title (e.g., \"Your Name\")\n"
+                '- Tell me an anime title (e.g., "Your Name")\n'
                 "- I'll find pilgrimage locations for you\n"
                 "- Select one and I'll plan a route\n\n"
                 "What anime would you like to explore?"
@@ -336,28 +336,34 @@ class IntentRouter(BaseAgent):
     def _help_prompt(user_language: str) -> str:
         """Get help prompt."""
         if user_language == "en":
-            return "\n".join([
-                "How to use Seichijunrei Bot:",
-                "- Send an anime title (optionally with a starting area/station).",
-                "- When candidates are shown, reply with a number (e.g. '1').",
-                "- Commands: `back` (re-pick), `reset` (start over).",
-                "- Diagnostics: `/status`, `/mcp_probe` (dev).",
-            ])
+            return "\n".join(
+                [
+                    "How to use Seichijunrei Bot:",
+                    "- Send an anime title (optionally with a starting area/station).",
+                    "- When candidates are shown, reply with a number (e.g. '1').",
+                    "- Commands: `back` (re-pick), `reset` (start over).",
+                    "- Diagnostics: `/status`, `/mcp_probe` (dev).",
+                ]
+            )
         if user_language == "ja":
-            return "\n".join([
-                "使い方:",
-                "- 作品名（必要なら出発地/駅）を送ってください。",
-                "- 候補が出たら数字（例：'1'）で選択します。",
-                "- コマンド：`back`（選び直し）、`reset`（最初から）。",
-                "- 診断：`/status`、`/mcp_probe`（開発用）。",
-            ])
-        return "\n".join([
-            "使用方法：",
-            "- 发送动画作品名（也可以加上出发地/车站）。",
-            "- 出现候选后，回复数字（如'1'）进行选择。",
-            "- 命令：`back`（重新选）、`reset`（从头开始）。",
-            "- 诊断：`/status`、`/mcp_probe`（开发用）。",
-        ])
+            return "\n".join(
+                [
+                    "使い方:",
+                    "- 作品名（必要なら出発地/駅）を送ってください。",
+                    "- 候補が出たら数字（例：'1'）で選択します。",
+                    "- コマンド：`back`（選び直し）、`reset`（最初から）。",
+                    "- 診断：`/status`、`/mcp_probe`（開発用）。",
+                ]
+            )
+        return "\n".join(
+            [
+                "使用方法：",
+                "- 发送动画作品名（也可以加上出发地/车站）。",
+                "- 出现候选后，回复数字（如'1'）进行选择。",
+                "- 命令：`back`（重新选）、`reset`（从头开始）。",
+                "- 诊断：`/status`、`/mcp_probe`（开发用）。",
+            ]
+        )
 
     @staticmethod
     def _status_prompt(state: dict[str, Any], user_language: str) -> str:

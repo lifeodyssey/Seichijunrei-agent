@@ -38,8 +38,14 @@ class ClassifierDecision(BaseModel):
     """
 
     skill_id: Literal[
-        "bangumi_search", "route_planning", "reset", "back", "help",
-        "greeting", "chitchat", "unknown"
+        "bangumi_search",
+        "route_planning",
+        "reset",
+        "back",
+        "help",
+        "greeting",
+        "chitchat",
+        "unknown",
     ] = Field(
         description=(
             "The skill to execute based on user intent. "
