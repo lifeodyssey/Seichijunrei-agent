@@ -239,6 +239,7 @@ class A2AServer:
         state = self._states.setdefault(session_id, {})
 
         from google.adk.agents.invocation_context import InvocationContext
+        from google.adk.agents.run_config import RunConfig
         from google.adk.sessions.session import Session
 
         session = Session(
@@ -247,12 +248,14 @@ class A2AServer:
             user_id="a2a-client",
             state=state,
         )
+        run_config = RunConfig(response_modalities=["TEXT"])
         ctx = InvocationContext(
             session_service=session_service,
             invocation_id=f"a2a-{os.urandom(8).hex()}",
             agent=agent,
             user_content=types.Content(role="user", parts=[types.Part(text=user_text)]),
             session=session,
+            run_config=run_config,
         )
 
         last_model_text: str | None = None
