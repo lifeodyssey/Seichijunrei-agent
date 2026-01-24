@@ -96,7 +96,7 @@ class TestReadinessCheck:
     async def test_services_have_status(self):
         """Each service should have a status."""
         result = await readiness_check()
-        for service_name, service_info in result["services"].items():
+        for _service_name, service_info in result["services"].items():
             assert "status" in service_info
             assert "checked_at" in service_info
 
