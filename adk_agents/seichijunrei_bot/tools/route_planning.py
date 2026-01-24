@@ -1,7 +1,7 @@
 from google.adk.tools import FunctionTool
 
 from application.use_cases import PlanRoute
-from services.route_planner_gateway import SimpleRoutePlannerGateway
+from infrastructure.gateways import SimpleRoutePlannerGateway
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
