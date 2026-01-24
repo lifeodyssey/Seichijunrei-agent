@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from starlette.testclient import TestClient
 
-from interfaces.a2a_server.server import A2AServer, AGENT_CARD, create_app
+from interfaces.a2a_server.server import AGENT_CARD, A2AServer, create_app
 
 
 @pytest.fixture
