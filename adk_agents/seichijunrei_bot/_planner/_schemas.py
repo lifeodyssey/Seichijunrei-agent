@@ -1,0 +1,75 @@
+"""Pydantic schemas for the Planner module.
+
+These schemas define structured outputs for the LLM-based planner,
+enabling type-safe intent classification and parameter extraction.
+"""
+
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class PlannerDecision(BaseModel):
+    """Structured decision output from the PlannerAgent.
+
+    This schema is used as the output_schema for the LlmAgent,
+    ensuring consistent JSON structure for downstream processing.
+    """
+
+    skill_id: Literal[
+        "bangumi_search", "route_planning", "reset", "back", "help", "unknown"
+    ] = Field(
+        description=(
+            "The skill to execute based on user intent. "
+            "'bangumi_search' for anime title queries, "
+            "'route_planning' for selection/route requests, "
+            "'reset' to clear session, "
+            "'back' to return to previous step, "
+            "'help' for usage instructions, "
+            "'unknown' when intent is unclear."
+        )
+    )
+
+    parameters: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Extracted parameters for the skill. "
+            "For bangumi_search: {'query': 'anime title', 'location': 'optional location'}. "
+            "For route_planning: {'selection': 'user selection text'}. "
+            "Empty dict for reset/back/help/unknown."
+        ),
+    )
+
+    reasoning: str = Field(
+        description=(
+            "Brief explanation of why this skill was chosen. "
+            "Helps with debugging and transparency."
+        )
+    )
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Confidence score between 0 and 1. "
+            "Higher values indicate clearer user intent. "
+            "Below threshold triggers clarification."
+        ),
+    )
+
+    requires_clarification: bool = Field(
+        default=False,
+        description=(
+            "Whether the planner needs more information from the user. "
+            "Set to True when confidence is low or intent is ambiguous."
+        ),
+    )
+
+    clarification_prompt: str | None = Field(
+        default=None,
+        description=(
+            "Prompt to ask the user for clarification. "
+            "Only set when requires_clarification is True. "
+            "Should be in the user's detected language."
+        ),
+    )
