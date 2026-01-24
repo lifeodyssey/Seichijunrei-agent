@@ -1,7 +1,7 @@
-"""PlannerAgent for LLM-based intent classification.
+"""IntentClassifier for LLM-based intent classification.
 
 This agent analyzes ambiguous user inputs and produces structured
-PlannerDecision outputs for downstream routing.
+ClassifierDecision outputs for downstream routing.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from google.adk.agents import LlmAgent
 
 from config import get_settings
 
-from ._schemas import PlannerDecision
+from .schemas import ClassifierDecision
 
-_PLANNER_SYSTEM_PROMPT = """\
+_CLASSIFIER_SYSTEM_PROMPT = """\
 You are an intent classification agent for the Seichijunrei Bot, an anime pilgrimage \
 (seichijunrei) route planning assistant.
 
@@ -42,8 +42,16 @@ Your task is to analyze user messages and determine which skill should handle th
    - Use when: User asks for help, instructions, or how to use the bot
    - Parameters: none
 
-6. **unknown**: Cannot determine intent
-   - Use when: Message is unclear, off-topic, or needs clarification
+6. **greeting**: Respond to greetings
+   - Use when: User says hi, hello, hey, 你好, こんにちは, etc.
+   - Parameters: none
+
+7. **chitchat**: Handle casual conversation
+   - Use when: User asks who you are, tells jokes, or engages in off-topic chat
+   - Parameters: none
+
+8. **unknown**: Cannot determine intent
+   - Use when: Message is unclear or needs clarification
    - Set requires_clarification=True and provide clarification_prompt
 
 ## Session Context
@@ -63,11 +71,12 @@ Current session state:
    - Below 0.5: Unclear, request clarification
 4. Extract relevant parameters when possible
 5. Provide brief reasoning for your decision
+6. Short greetings like "hi", "hello" should be classified as greeting, NOT bangumi_search
 """
 
 
-def create_planner_agent() -> LlmAgent:
-    """Create a PlannerAgent instance with current settings.
+def create_intent_classifier() -> LlmAgent:
+    """Create an IntentClassifier instance with current settings.
 
     Returns:
         LlmAgent configured for intent classification with structured output.
@@ -75,23 +84,23 @@ def create_planner_agent() -> LlmAgent:
     settings = get_settings()
 
     return LlmAgent(
-        name="PlannerAgent",
+        name="IntentClassifier",
         description=(
             "LLM-based intent classifier for ambiguous user inputs. "
-            "Produces structured PlannerDecision for downstream routing."
+            "Produces structured ClassifierDecision for downstream routing."
         ),
         model=settings.planner_model,
-        instruction=_PLANNER_SYSTEM_PROMPT,
-        output_schema=PlannerDecision,
+        instruction=_CLASSIFIER_SYSTEM_PROMPT,
+        output_schema=ClassifierDecision,
     )
 
 
-def format_planner_prompt(
+def format_classifier_prompt(
     user_text: str,
     state: dict[str, Any],
     user_language: str = "zh-CN",
 ) -> str:
-    """Format the planner prompt with session context.
+    """Format the classifier prompt with session context.
 
     Args:
         user_text: The user's message to classify
@@ -99,13 +108,13 @@ def format_planner_prompt(
         user_language: Detected user language
 
     Returns:
-        Formatted prompt string for the planner agent
+        Formatted prompt string for the intent classifier
     """
     from .._state import BANGUMI_CANDIDATES
 
     has_candidates = bool(state.get(BANGUMI_CANDIDATES))
 
-    context = _PLANNER_SYSTEM_PROMPT.format(
+    context = _CLASSIFIER_SYSTEM_PROMPT.format(
         has_candidates=has_candidates,
         user_language=user_language,
     )
@@ -114,4 +123,4 @@ def format_planner_prompt(
 
 
 # Singleton instance for import convenience
-planner_agent = create_planner_agent()
+intent_classifier = create_intent_classifier()
