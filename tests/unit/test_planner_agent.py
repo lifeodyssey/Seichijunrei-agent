@@ -8,8 +8,6 @@ Tests verify:
 
 from unittest.mock import patch
 
-import pytest
-
 from adk_agents.seichijunrei_bot._planner import (
     PlannerDecision,
     create_planner_agent,
