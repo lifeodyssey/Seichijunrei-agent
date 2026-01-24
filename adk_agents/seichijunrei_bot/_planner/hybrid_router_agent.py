@@ -93,7 +93,7 @@ def _text_response(text: str) -> types.Content:
     return types.Content(role="model", parts=[types.Part(text=text)])
 
 
-_NORMALIZE_RE = re.compile(r"[\s《》「」『』（）()\[\]【】<>\"'""''`]+")
+_NORMALIZE_RE = re.compile(r"[\s《》「」『』（）()\[\]【】<>\"'" "''`]+")
 
 
 def _normalize_text(text: str) -> str:
@@ -167,26 +167,20 @@ class HybridRouterAgent(BaseAgent):
             # Fast path: Help command
             if _matches_any(user_text, _HELP_PATTERNS):
                 logger.debug("Fast path: help command")
-                yield self._create_event(
-                    ctx, self._help_prompt(user_language)
-                )
+                yield self._create_event(ctx, self._help_prompt(user_language))
                 return
 
             # Fast path: Status command
             if _matches_any(user_text, _STATUS_PATTERNS):
                 logger.debug("Fast path: status command")
-                yield self._create_event(
-                    ctx, self._status_prompt(state, user_language)
-                )
+                yield self._create_event(ctx, self._status_prompt(state, user_language))
                 return
 
             # Fast path: Reset command
             if _matches_any(user_text, _RESET_PATTERNS):
                 logger.debug("Fast path: reset command")
                 self._reset_all(state)
-                yield self._create_event(
-                    ctx, self._reset_prompt(user_language)
-                )
+                yield self._create_event(ctx, self._reset_prompt(user_language))
                 return
 
             # Fast path: Back command (only when candidates exist)

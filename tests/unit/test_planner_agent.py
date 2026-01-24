@@ -34,7 +34,9 @@ class TestCreatePlannerAgent:
 
     def test_agent_uses_configured_model(self):
         """Agent should use model from settings."""
-        with patch("adk_agents.seichijunrei_bot._planner.planner_agent.get_settings") as mock:
+        with patch(
+            "adk_agents.seichijunrei_bot._planner.planner_agent.get_settings"
+        ) as mock:
             mock.return_value.planner_model = "gemini-1.5-flash"
             agent = create_planner_agent()
             assert agent.model == "gemini-1.5-flash"
