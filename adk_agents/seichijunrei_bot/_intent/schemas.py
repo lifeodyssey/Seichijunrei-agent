@@ -1,6 +1,6 @@
-"""Pydantic schemas for the Planner module.
+"""Pydantic schemas for the Intent classification module.
 
-These schemas define structured outputs for the LLM-based planner,
+These schemas define structured outputs for the LLM-based intent classifier,
 enabling type-safe intent classification and parameter extraction.
 """
 
@@ -9,8 +9,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-class PlannerParameters(BaseModel):
-    """Parameters extracted by the planner for skill execution.
+class ClassifierParameters(BaseModel):
+    """Parameters extracted by the classifier for skill execution.
 
     Uses explicit fields instead of dict to avoid additionalProperties
     in JSON schema, which Gemini's structured output doesn't support.
@@ -30,15 +30,16 @@ class PlannerParameters(BaseModel):
     )
 
 
-class PlannerDecision(BaseModel):
-    """Structured decision output from the PlannerAgent.
+class ClassifierDecision(BaseModel):
+    """Structured decision output from the IntentClassifier.
 
     This schema is used as the output_schema for the LlmAgent,
     ensuring consistent JSON structure for downstream processing.
     """
 
     skill_id: Literal[
-        "bangumi_search", "route_planning", "reset", "back", "help", "unknown"
+        "bangumi_search", "route_planning", "reset", "back", "help",
+        "greeting", "chitchat", "unknown"
     ] = Field(
         description=(
             "The skill to execute based on user intent. "
@@ -47,12 +48,14 @@ class PlannerDecision(BaseModel):
             "'reset' to clear session, "
             "'back' to return to previous step, "
             "'help' for usage instructions, "
+            "'greeting' for greetings like hi/hello, "
+            "'chitchat' for casual conversation, "
             "'unknown' when intent is unclear."
         )
     )
 
-    parameters: PlannerParameters = Field(
-        default_factory=PlannerParameters,
+    parameters: ClassifierParameters = Field(
+        default_factory=ClassifierParameters,
         description=(
             "Extracted parameters for the skill. "
             "For bangumi_search: set query and optionally location. "
