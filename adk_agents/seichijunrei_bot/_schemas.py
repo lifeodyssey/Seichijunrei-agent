@@ -5,7 +5,12 @@ when used with LlmAgent's output_schema parameter. This ensures downstream
 BaseAgents can safely access nested fields from session state.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+# Intent types for ExtractionResult
+UserIntent = Literal["SEARCH_ANIME", "PROVIDE_LOCATION", "SEARCH_WITH_LOCATION"]
 
 
 class ExtractionResult(BaseModel):
@@ -28,6 +33,15 @@ class ExtractionResult(BaseModel):
             "Detected user language from the query. "
             "Use ISO-like codes: 'zh-CN' for Chinese, 'en' for English, 'ja' for Japanese. "
             "Default to 'zh-CN' if uncertain."
+        ),
+    )
+    intent: UserIntent = Field(
+        default="SEARCH_ANIME",
+        description=(
+            "Classified user intent based on the query content. "
+            "SEARCH_ANIME: User provides anime title only (no location). "
+            "PROVIDE_LOCATION: User provides location only (responding to location prompt). "
+            "SEARCH_WITH_LOCATION: User provides both anime title and location together."
         ),
     )
 
@@ -174,6 +188,10 @@ class SelectedPoint(BaseModel):
     address: str | None = Field(
         default=None,
         description="Street address or location description.",
+    )
+    distance_km: float | None = Field(
+        default=None,
+        description="Distance from user location in kilometers, if available.",
     )
 
 
