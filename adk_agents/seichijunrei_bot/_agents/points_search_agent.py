@@ -5,12 +5,14 @@ In the simplified Capstone architecture this agent:
 - Reads the selected bangumi ID from session state
 - Fetches all seichijunrei points for that bangumi from Anitabi
 - Writes them to state under the `all_points` key (no filtering)
+- Calculates distance from user location to each point (if available)
 
 Downstream, PointsSelectionAgent (LlmAgent) is responsible for selecting
 the best 8–12 points for route planning. This keeps deterministic I/O
 separate from LLM decision-making, following ADK best practices.
 """
 
+import math
 from typing import Any
 
 from google.adk.agents import BaseAgent
@@ -29,7 +31,39 @@ from .._state import (
     EXTRACTION_RESULT,
     POINTS_META,
     SELECTED_BANGUMI,
+    USER_COORDINATES,
 )
+
+# Earth radius in kilometers
+_EARTH_RADIUS_KM = 6371.0
+
+
+def _haversine_distance(
+    lat1: float, lng1: float, lat2: float, lng2: float
+) -> float:
+    """Calculate distance between two points using Haversine formula.
+
+    Args:
+        lat1: Latitude of first point in degrees.
+        lng1: Longitude of first point in degrees.
+        lat2: Latitude of second point in degrees.
+        lng2: Longitude of second point in degrees.
+
+    Returns:
+        Distance in kilometers.
+    """
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lng = math.radians(lng2 - lng1)
+
+    a = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return _EARTH_RADIUS_KM * c
 
 
 class PointsSearchAgent(BaseAgent):
@@ -107,14 +141,28 @@ class PointsSearchAgent(BaseAgent):
             total_points=len(points),
         )
 
-        # No distance filtering: expose ALL points to the LLM selector.
-        #
+        # Get user coordinates if available for distance calculation
+        user_coords = state.get(USER_COORDINATES)
+        user_lat: float | None = None
+        user_lng: float | None = None
+
+        if user_coords and isinstance(user_coords, dict):
+            user_lat = user_coords.get("latitude")
+            user_lng = user_coords.get("longitude")
+            self.logger.info(
+                "[PointsSearchAgent] User coordinates available",
+                user_lat=user_lat,
+                user_lng=user_lng,
+            )
+
+        # Build points data with optional distance calculation
         # IMPORTANT:
         # `PointsSelectionResult.SelectedPoint` expects flattened `lat/lng` fields
         # (not nested `coordinates`). Keep `all_points` consistent with that schema
         # to reduce LLM confusion and avoid schema incompatibilities.
-        all_points_data = [
-            {
+        all_points_data = []
+        for p in points:
+            point_data = {
                 "id": p.id,
                 "name": p.name,
                 "cn_name": p.cn_name,
@@ -125,13 +173,30 @@ class PointsSearchAgent(BaseAgent):
                 "screenshot_url": str(p.screenshot_url),
                 "address": p.address,
             }
-            for p in points
-        ]
-        points_meta = {
+
+            # Add distance from user if coordinates are available
+            if user_lat is not None and user_lng is not None:
+                distance_km = _haversine_distance(
+                    user_lat, user_lng,
+                    p.coordinates.latitude, p.coordinates.longitude
+                )
+                point_data["distance_km"] = round(distance_km, 2)
+
+            all_points_data.append(point_data)
+
+        # Build metadata with optional user coordinates info
+        points_meta: dict[str, Any] = {
             "total": len(all_points_data),
             "source": "anitabi",
             "bangumi_id": bangumi_id,
+            "has_distance": user_lat is not None and user_lng is not None,
         }
+
+        if user_lat is not None and user_lng is not None:
+            points_meta["user_coordinates"] = {
+                "latitude": user_lat,
+                "longitude": user_lng,
+            }
 
         # Write into session state using the new all_points key
         state[ALL_POINTS] = all_points_data

@@ -23,9 +23,16 @@ from pydantic import ConfigDict
 from config import get_settings
 from utils.logger import LogContext, get_logger
 
-from .._state import BANGUMI_CANDIDATES, EXTRACTION_RESULT
+from .._state import (
+    BANGUMI_CANDIDATES,
+    EXTRACTION_RESULT,
+    LOCATION_PROMPT_SHOWN,
+    SELECTED_BANGUMI,
+    USER_COORDINATES,
+)
 from ..skills import (
     STAGE1_BANGUMI_SEARCH,
+    STAGE1_5_LOCATION_COLLECTION,
     STAGE2_ROUTE_PLANNING,
     Skill,
 )
@@ -140,6 +147,37 @@ def _looks_like_selection(user_text: str, state: dict[str, Any]) -> bool:
     return False
 
 
+def _needs_location_collection(state: dict[str, Any]) -> bool:
+    """Check if we need to collect location from user (Stage 1.5).
+
+    Returns True when:
+    - User has made a selection (selected_bangumi exists)
+    - No location was provided in the original query
+    - Location prompt has not been shown yet
+    - User coordinates have not been collected yet
+    """
+    # Check if user has made a selection
+    selected_bangumi = state.get(SELECTED_BANGUMI)
+    if not selected_bangumi:
+        return False
+
+    # Check if location was already provided
+    extraction = state.get(EXTRACTION_RESULT) or {}
+    location = extraction.get("location", "")
+    if location and location.strip():
+        return False
+
+    # Check if we already have user coordinates
+    if state.get(USER_COORDINATES):
+        return False
+
+    # Check if location prompt was already shown
+    if state.get(LOCATION_PROMPT_SHOWN):
+        return False
+
+    return True
+
+
 class IntentRouter(BaseAgent):
     """Intent router with fast/slow path routing.
 
@@ -222,6 +260,13 @@ class IntentRouter(BaseAgent):
             if _looks_like_selection(user_text, state):
                 logger.debug("Fast path: selection detected, running Stage 2")
                 async for event in self._run_skill(STAGE2_ROUTE_PLANNING, ctx):
+                    yield event
+                return
+
+            # Fast path: Check if we need location collection (Stage 1.5)
+            if _needs_location_collection(state):
+                logger.debug("Fast path: needs location, running Stage 1.5")
+                async for event in self._run_skill(STAGE1_5_LOCATION_COLLECTION, ctx):
                     yield event
                 return
 

@@ -19,6 +19,7 @@ from utils.logger import get_logger
 
 from .result import ErrorCodes, ToolResult, error_result, success_result
 from .translation import translate_tool
+from .geocoding_tool import GeocodingResult, geocode_location, geocode_location_dict
 
 logger = get_logger(__name__)
 
@@ -247,4 +248,8 @@ __all__ = [
     "get_anitabi_points",
     "search_anitabi_bangumi_near_station",
     "translate_tool",
+    # Geocoding tools
+    "geocode_location",
+    "geocode_location_dict",
+    "GeocodingResult",
 ]
