@@ -113,6 +113,9 @@ class PointsSearchAgent(BaseAgent):
             bangumi_result = state.get(BANGUMI_RESULT) or {}
             bangumi_id = bangumi_result.get("bangumi_id")
 
+        # Coerce string IDs to int (JSON serialization converts int to str)
+        if isinstance(bangumi_id, str) and bangumi_id.isdigit():
+            bangumi_id = int(bangumi_id)
         if not isinstance(bangumi_id, int):
             raise ValueError(
                 f"PointsSearchAgent requires valid bangumi_id. "

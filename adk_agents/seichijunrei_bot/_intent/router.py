@@ -212,7 +212,11 @@ class IntentRouter(BaseAgent):
             # Fast path: New session welcome
             if not state:
                 logger.debug("Fast path: new session, sending welcome")
-                yield self._create_event(ctx, self._welcome_prompt(user_language))
+                yield self._create_event(
+                    ctx,
+                    self._welcome_prompt(user_language),
+                    state_delta={"_session_initialized": True},
+                )
                 return
 
             # Fast path: Greeting
@@ -286,13 +290,15 @@ class IntentRouter(BaseAgent):
             async for event in self._run_skill(STAGE1_BANGUMI_SEARCH, ctx):
                 yield event
 
-    def _create_event(self, ctx: InvocationContext, text: str) -> Event:
-        """Create a text response event."""
+    def _create_event(
+        self, ctx: InvocationContext, text: str, state_delta: dict[str, Any] | None = None
+    ) -> Event:
+        """Create a text response event with optional state update."""
         return Event(
             invocation_id=ctx.invocation_id,
             author=self.name,
             content=_text_response(text),
-            actions=EventActions(),
+            actions=EventActions(state_delta=state_delta or {}),
         )
 
     async def _run_skill(
