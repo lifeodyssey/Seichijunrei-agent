@@ -1,6 +1,5 @@
 """Unit tests for application settings and configuration."""
 
-
 from config.settings import Settings
 
 
