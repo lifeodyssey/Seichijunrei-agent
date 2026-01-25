@@ -16,12 +16,22 @@ ROUTE_PLAN = "route_plan"
 # Planner state keys (PLAN-002)
 PLANNER_DECISION = "planner_decision"
 
+# Location collection state keys (Stage 1.5)
+LOCATION_PROMPT_SHOWN = "location_prompt_shown"
+USER_COORDINATES = "user_coordinates"
+
 # Backward-compatibility (older workflow shapes)
 BANGUMI_RESULT = "bangumi_result"
 
 STAGE1_STATE_KEYS = {
     EXTRACTION_RESULT,
     BANGUMI_CANDIDATES,
+}
+
+# Stage 1.5 state keys (location collection)
+STAGE1_5_STATE_KEYS = {
+    LOCATION_PROMPT_SHOWN,
+    USER_COORDINATES,
 }
 
 STAGE2_STATE_KEYS = {
@@ -32,4 +42,6 @@ STAGE2_STATE_KEYS = {
     ROUTE_PLAN,
 }
 
-ALL_STATE_KEYS = STAGE1_STATE_KEYS | STAGE2_STATE_KEYS | {BANGUMI_RESULT}
+ALL_STATE_KEYS = (
+    STAGE1_STATE_KEYS | STAGE1_5_STATE_KEYS | STAGE2_STATE_KEYS | {BANGUMI_RESULT}
+)
