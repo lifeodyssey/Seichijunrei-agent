@@ -1,4 +1,9 @@
-from interfaces.a2ui_web.presenter import build_a2ui_error_response, build_a2ui_response
+from interfaces.a2ui_web.presenter import (
+    build_a2ui_error_response,
+    build_a2ui_loading_response,
+    build_a2ui_response,
+    _build_anitabi_image_url,
+)
 
 
 def _components_from_messages(messages: list[dict]) -> dict[str, dict]:
@@ -268,3 +273,59 @@ def test_message_structure_is_valid():
     for br in begin_msgs:
         assert "surfaceId" in br["beginRendering"]
         assert "root" in br["beginRendering"]
+
+
+# --- Loading View Tests ---
+
+
+def test_loading_view_renders_correctly():
+    """Test loading view renders with message."""
+    state = {"extraction_result": {"user_language": "zh-CN"}}
+    text, messages = build_a2ui_loading_response(state, stage="processing")
+    assert "处理中" in text
+
+    comps = _components_from_messages(messages)
+    assert "loading-card" in comps
+    assert "loading-message" in comps
+
+
+def test_loading_view_different_stages():
+    """Test loading view shows different messages for different stages."""
+    state = {"extraction_result": {"user_language": "en"}}
+
+    text_search, _ = build_a2ui_loading_response(state, stage="searching")
+    assert "Searching" in text_search
+
+    text_fetch, _ = build_a2ui_loading_response(state, stage="fetching_points")
+    assert "Fetching" in text_fetch
+
+    text_plan, _ = build_a2ui_loading_response(state, stage="planning_route")
+    assert "Planning" in text_plan
+
+
+# --- Image URL Tests ---
+
+
+def test_anitabi_image_url_builder_with_path():
+    """Test building Anitabi image URL from path."""
+    url = _build_anitabi_image_url("points/test.jpg")
+    assert url == "https://image.anitabi.cn/points/test.jpg"
+
+
+def test_anitabi_image_url_builder_with_leading_slash():
+    """Test building Anitabi image URL strips leading slash."""
+    url = _build_anitabi_image_url("/points/test.jpg")
+    assert url == "https://image.anitabi.cn/points/test.jpg"
+
+
+def test_anitabi_image_url_builder_with_full_url():
+    """Test building Anitabi image URL returns full URLs as-is."""
+    full_url = "https://example.com/image.jpg"
+    url = _build_anitabi_image_url(full_url)
+    assert url == full_url
+
+
+def test_anitabi_image_url_builder_with_empty():
+    """Test building Anitabi image URL handles empty input."""
+    assert _build_anitabi_image_url("") == ""
+    assert _build_anitabi_image_url(None) == ""

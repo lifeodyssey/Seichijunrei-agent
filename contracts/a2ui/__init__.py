@@ -17,7 +17,16 @@ from .actions import (
 )
 from .components import Component, ComponentType
 from .messages import A2UIMessage, BeginRenderingMessage, SurfaceUpdateMessage
-from .session import InMemorySessionStore, SessionInfo, SessionStore
+from .session import (
+    InMemorySessionStore,
+    SessionError,
+    SessionExpiredError,
+    SessionInfo,
+    SessionNotFoundError,
+    SessionState,
+    SessionStateError,
+    SessionStore,
+)
 from .types import SurfaceId, ViewName
 
 __all__ = [
@@ -43,4 +52,9 @@ __all__ = [
     "SessionStore",
     "SessionInfo",
     "InMemorySessionStore",
+    "SessionState",
+    "SessionError",
+    "SessionNotFoundError",
+    "SessionExpiredError",
+    "SessionStateError",
 ]
