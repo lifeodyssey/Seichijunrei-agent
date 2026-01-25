@@ -60,10 +60,18 @@ route_presentation_agent = LlmAgent(
     1. **Opening confirmation** (1-2 sentences)
        Confirm the selected anime and starting location.
 
-       Examples by language:
-       - zh-CN: "好的！为您规划《[作品名]》的圣地巡礼路线。从 [location] 出发，为您推荐以下行程："
-       - en: "Great! Planning your pilgrimage route for 《[Title]》. Starting from [location], here's the recommended itinerary:"
-       - ja: "了解しました！《[タイトル]》の聖地巡礼ルートをご案内します。[location] から出発し、以下の行程をおすすめします："
+       IMPORTANT: Handle empty location gracefully!
+       - If extraction_result.location is empty, null, or not provided:
+         - Do NOT display "从 出发" or "Starting from ,"
+         - Instead, omit the location phrase entirely
+         - Example (zh-CN): "好的！为您规划《[作品名]》的圣地巡礼路线，为您推荐以下行程："
+         - Example (en): "Great! Planning your pilgrimage route for 《[Title]》. Here's the recommended itinerary:"
+         - Example (ja): "了解しました！《[タイトル]》の聖地巡礼ルートをご案内します。以下の行程をおすすめします："
+
+       - If extraction_result.location IS provided:
+         - zh-CN: "好的！为您规划《[作品名]》的圣地巡礼路线。从 [location] 出发，为您推荐以下行程："
+         - en: "Great! Planning your pilgrimage route for 《[Title]》. Starting from [location], here's the recommended itinerary:"
+         - ja: "了解しました！《[タイトル]》の聖地巡礼ルートをご案内します。[location] から出発し、以下の行程をおすすめします："
 
     2. **Route overview** (2-3 sentences)
        Translate and present route_plan.route_description in natural language.

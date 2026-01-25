@@ -36,7 +36,11 @@ points_selection_agent = LlmAgent(
     When selecting points, consider the following priorities:
 
     1. **Geographic feasibility** (highest priority)
-       - Choose points that are close to the user's starting point **{extraction_result.location}** and are also clustered together
+       - If extraction_result.location is provided and not empty:
+         - Choose points that are close to the user's starting point and are also clustered together
+       - If extraction_result.location is empty or not provided:
+         - Focus on selecting points that are clustered together geographically
+         - Prioritize the main pilgrimage area where most points are concentrated
        - Avoid overly dispersed routes that would be difficult to complete in one day
        - A compact, feasible one-day route is more important than covering all points
 
