@@ -19,10 +19,13 @@ from utils.logger import get_logger
 from ._state import (
     ALL_STATE_KEYS,
     BANGUMI_CANDIDATES,
+    SELECTED_BANGUMI,
+    STAGE1_5_STATE_KEYS,
     STAGE1_STATE_KEYS,
     STAGE2_STATE_KEYS,
 )
 from ._workflows.bangumi_search_workflow import bangumi_search_workflow
+from ._workflows.location_collection_workflow import location_collection_workflow
 from ._workflows.route_planning_workflow import route_planning_workflow
 
 logger = get_logger(__name__)
@@ -126,6 +129,14 @@ STAGE1_BANGUMI_SEARCH: Final[Skill] = Skill(
     reset_state_keys=frozenset(ALL_STATE_KEYS),
 )
 
+STAGE1_5_LOCATION_COLLECTION: Final[Skill] = Skill(
+    skill_id="location_collection",
+    agent=location_collection_workflow,
+    required_state_keys=frozenset({SELECTED_BANGUMI}),
+    provided_state_keys=frozenset(STAGE1_5_STATE_KEYS),
+    reset_state_keys=frozenset(STAGE1_5_STATE_KEYS),
+)
+
 STAGE2_ROUTE_PLANNING: Final[Skill] = Skill(
     skill_id="route_planning",
     agent=route_planning_workflow,
@@ -136,6 +147,7 @@ STAGE2_ROUTE_PLANNING: Final[Skill] = Skill(
 
 SKILLS: Final[tuple[Skill, ...]] = (
     STAGE1_BANGUMI_SEARCH,
+    STAGE1_5_LOCATION_COLLECTION,
     STAGE2_ROUTE_PLANNING,
 )
 
