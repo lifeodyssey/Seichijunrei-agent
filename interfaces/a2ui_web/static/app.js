@@ -1,4 +1,6 @@
 const SESSION_KEY = "seichijunrei:a2ui_session_id";
+const CONVERSATION_KEY = "seichijunrei:conversation_history";
+const MAX_HISTORY_LENGTH = 50;
 
 function getSessionId() {
   const existing = localStorage.getItem(SESSION_KEY);
@@ -13,12 +15,22 @@ function setSessionPill(sessionId) {
   el.textContent = `session: ${sessionId}`;
 }
 
-function setBusy(isBusy) {
+function setBusy(isBusy, stage = "processing") {
   const pill = document.getElementById("busy-pill");
   const input = document.getElementById("chat-input");
   const send = document.getElementById("chat-send");
 
-  if (pill) pill.hidden = !isBusy;
+  if (pill) {
+    pill.hidden = !isBusy;
+    // Update busy pill text based on stage
+    const stageMessages = {
+      searching: "Searching...",
+      fetching_points: "Fetching locations...",
+      planning_route: "Planning route...",
+      processing: "Processing...",
+    };
+    pill.textContent = stageMessages[stage] || stageMessages.processing;
+  }
   if (input) input.disabled = isBusy;
   if (send) send.disabled = isBusy;
 
@@ -32,10 +44,51 @@ function appendChat(role, text) {
   msg.innerHTML = `
     <div class="chat-msg__role">${role}</div>
     <div class="chat-msg__text"></div>
+    <div class="chat-msg__time">${new Date().toLocaleTimeString()}</div>
   `;
   msg.querySelector(".chat-msg__text").textContent = text;
   log.appendChild(msg);
   log.scrollTop = log.scrollHeight;
+
+  // Save to conversation history
+  saveToHistory(role, text);
+}
+
+function saveToHistory(role, text) {
+  try {
+    const history = JSON.parse(localStorage.getItem(CONVERSATION_KEY) || "[]");
+    history.push({
+      role,
+      text,
+      timestamp: Date.now(),
+      sessionId: getSessionId(),
+    });
+    // Keep only recent messages
+    while (history.length > MAX_HISTORY_LENGTH) {
+      history.shift();
+    }
+    localStorage.setItem(CONVERSATION_KEY, JSON.stringify(history));
+  } catch (e) {
+    console.warn("Failed to save conversation history:", e);
+  }
+}
+
+function loadConversationHistory() {
+  try {
+    const history = JSON.parse(localStorage.getItem(CONVERSATION_KEY) || "[]");
+    const currentSession = getSessionId();
+    // Only load history from current session
+    return history.filter((msg) => msg.sessionId === currentSession);
+  } catch (e) {
+    console.warn("Failed to load conversation history:", e);
+    return [];
+  }
+}
+
+function clearConversationHistory() {
+  localStorage.removeItem(CONVERSATION_KEY);
+  const log = document.getElementById("chat-log");
+  log.innerHTML = "";
 }
 
 async function postJson(url, body) {
@@ -232,8 +285,17 @@ const renderer = new A2UIRenderer(document.getElementById("a2ui-surface"), {
       window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
+
+    // Determine processing stage from action
+    let stage = "processing";
+    if (action.name && action.name.startsWith("select_candidate_")) {
+      stage = "fetching_points";
+    } else if (action.name === "reset") {
+      stage = "processing";
+    }
+
     try {
-      setBusy(true);
+      setBusy(true, stage);
       const result = await postJson("/api/action", {
         session_id: sessionId,
         action_name: action.name,
@@ -250,7 +312,26 @@ const renderer = new A2UIRenderer(document.getElementById("a2ui-surface"), {
 
 async function bootstrap() {
   try {
-    setBusy(true);
+    setBusy(true, "processing");
+
+    // Restore conversation history from localStorage
+    const history = loadConversationHistory();
+    const log = document.getElementById("chat-log");
+    for (const msg of history) {
+      const msgEl = document.createElement("div");
+      msgEl.className = `chat-msg chat-msg--${msg.role}`;
+      msgEl.innerHTML = `
+        <div class="chat-msg__role">${msg.role}</div>
+        <div class="chat-msg__text"></div>
+        <div class="chat-msg__time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+      `;
+      msgEl.querySelector(".chat-msg__text").textContent = msg.text;
+      log.appendChild(msgEl);
+    }
+    if (history.length > 0) {
+      log.scrollTop = log.scrollHeight;
+    }
+
     const result = await postJson("/api/chat", {
       session_id: sessionId,
       message: "/status",
@@ -275,8 +356,14 @@ document.getElementById("chat-form").addEventListener("submit", async (e) => {
   appendChat("user", text);
   input.value = "";
 
+  // Determine processing stage from message content
+  let stage = "processing";
+  if (text.toLowerCase().includes("search") || text.match(/^[a-zA-Z\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/)) {
+    stage = "searching";
+  }
+
   try {
-    setBusy(true);
+    setBusy(true, stage);
     const result = await postJson("/api/chat", { session_id: sessionId, message: text });
     if (result.assistant_text) appendChat("assistant", result.assistant_text);
     renderer.applyMessages(result.a2ui_messages || []);
