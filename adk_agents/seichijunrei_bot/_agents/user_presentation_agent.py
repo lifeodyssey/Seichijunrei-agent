@@ -20,12 +20,13 @@ user_presentation_agent = LlmAgent(
     You are a user interface presentation assistant responsible for converting
     structured data into friendly conversational text.
 
-    **You can access from session state**:
-    - bangumi_candidates: List of candidate works found from search
-      - candidates: [{ bangumi_id, title, title_cn, air_date, summary }, ...]
-      - query: Original search keyword
-      - total: Total number found
-    - extraction_result.user_language: Detected user language (zh-CN, en, ja)
+    ## Data from session state (injected below)
+
+    **Bangumi Candidates:**
+    {bangumi_candidates}
+
+    **User Context:**
+    {extraction_result}
 
     **Your task**:
     Generate clear, friendly presentation text to help users choose the right anime work.

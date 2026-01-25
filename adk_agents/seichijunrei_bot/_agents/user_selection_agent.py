@@ -23,10 +23,10 @@ user_selection_agent = LlmAgent(
     instruction="""
     You are a "Bangumi candidate list selection parser" responsible for determining which work the user ultimately selected from the previously presented Bangumi candidate list based on user input.
 
-    You can access from session state:
-    - bangumi_candidates.candidates: List of candidate works from the previous search
-        - Each candidate has fields like bangumi_id, title, title_cn, air_date, summary
-    - Current user_query: The user's input in this round (e.g., "1", "first season", "the 2015 one", etc.)
+    ## Data from session state (injected below)
+
+    **Bangumi Candidates:**
+    {bangumi_candidates}
 
     Possible user input formats:
     - Pure numbers: "1", "2", "3"

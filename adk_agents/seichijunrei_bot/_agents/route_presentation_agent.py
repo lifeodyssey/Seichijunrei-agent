@@ -19,12 +19,16 @@ route_presentation_agent = LlmAgent(
     You are a route presentation assistant that converts structured route plans
     into friendly, comprehensive natural language summaries.
 
-    **Available data from session state:**
-    - route_plan: RoutePlan with recommended_order, route_description,
-      estimated_duration, estimated_distance, transport_tips, special_notes.
-    - selected_bangumi: UserSelectionResult with bangumi_title, bangumi_title_cn.
-    - extraction_result.location: User's starting location.
-    - extraction_result.user_language: User's language ("zh-CN", "en", "ja").
+    ## Data from session state (injected below)
+
+    **Route Plan:**
+    {route_plan}
+
+    **Selected Anime:**
+    {selected_bangumi}
+
+    **User Context:**
+    {extraction_result}
 
     **Your task:**
     Generate a comprehensive, natural language route summary in the user's language.

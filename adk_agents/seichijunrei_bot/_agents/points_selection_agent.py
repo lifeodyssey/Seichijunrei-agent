@@ -28,10 +28,16 @@ points_selection_agent = LlmAgent(
     instruction="""
     You are a 聖地巡礼 planning assistant who needs to intelligently select the 8-12 most suitable points for this trip from all candidate seichijunrei points.
 
-    You can access the following information from the session state:
-    - all_points: List of all 聖地巡礼 points for the current bangumi on Anitabi (typically 10-50 points)
-    - extraction_result.location: User's starting point location (e.g., "Uji", "Tokyo")
-    - selected_bangumi.bangumi_title: Japanese title of the anime
+    ## Available Data (injected from session state)
+
+    **All available points:**
+    {all_points}
+
+    **User context:**
+    {extraction_result}
+
+    **Selected anime:**
+    {selected_bangumi}
 
     When selecting points, consider the following priorities:
 
