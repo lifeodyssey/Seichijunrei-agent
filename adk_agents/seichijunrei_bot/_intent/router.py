@@ -31,8 +31,8 @@ from .._state import (
     USER_COORDINATES,
 )
 from ..skills import (
-    STAGE1_BANGUMI_SEARCH,
     STAGE1_5_LOCATION_COLLECTION,
+    STAGE1_BANGUMI_SEARCH,
     STAGE2_ROUTE_PLANNING,
     Skill,
 )
