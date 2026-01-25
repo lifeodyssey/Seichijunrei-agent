@@ -291,7 +291,10 @@ class IntentRouter(BaseAgent):
                 yield event
 
     def _create_event(
-        self, ctx: InvocationContext, text: str, state_delta: dict[str, Any] | None = None
+        self,
+        ctx: InvocationContext,
+        text: str,
+        state_delta: dict[str, Any] | None = None,
     ) -> Event:
         """Create a text response event with optional state update."""
         return Event(
