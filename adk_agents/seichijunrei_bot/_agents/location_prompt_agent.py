@@ -7,7 +7,7 @@ detected language from the extraction result.
 
 from google.adk.agents import LlmAgent
 
-from .._state import EXTRACTION_RESULT, LOCATION_PROMPT_SHOWN
+from .._state import LOCATION_PROMPT_SHOWN
 
 location_prompt_agent = LlmAgent(
     name="LocationPromptAgent",

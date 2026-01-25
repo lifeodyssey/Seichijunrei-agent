@@ -1,8 +1,8 @@
 from interfaces.a2ui_web.presenter import (
+    _build_anitabi_image_url,
     build_a2ui_error_response,
     build_a2ui_loading_response,
     build_a2ui_response,
-    _build_anitabi_image_url,
 )
 
 
