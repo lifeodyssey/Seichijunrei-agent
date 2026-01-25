@@ -42,11 +42,17 @@ class Settings(BaseSettings):
     )
 
     # Google Cloud Configuration
-    google_application_credentials: str | None = Field(
-        default=None, description="Path to Google Cloud service account key"
-    )
+    # GOOGLE_CLOUD_PROJECT is the only required GCP config.
+    # Authentication:
+    # - Local dev: Uses ADC (gcloud auth application-default login)
+    # - Production: Uses Service Account (GOOGLE_APPLICATION_CREDENTIALS)
     google_cloud_project: str | None = Field(
-        default=None, description="Google Cloud project ID"
+        default=None,
+        description="Google Cloud project ID (required for GCP services)",
+    )
+    google_application_credentials: str | None = Field(
+        default=None,
+        description="Path to service account key (production only, local uses ADC)",
     )
 
     # Application Settings
@@ -210,6 +216,8 @@ class Settings(BaseSettings):
             "planner_confidence_threshold": self.planner_confidence_threshold,
             "a2ui_backend": self.a2ui_backend,
             "a2ui_port": self.a2ui_port,
+            "google_cloud_project": self.google_cloud_project or "(not set)",
+            "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }
 
     def get_feature_flags(self) -> dict[str, bool]:
@@ -249,6 +257,32 @@ class Settings(BaseSettings):
         if self.is_production and not self.weather_api_key:
             missing.append("WEATHER_API_KEY")
         return missing
+
+    def validate_gcp_config(self) -> list[str]:
+        """Validate GCP configuration.
+
+        Returns:
+            List of missing/invalid configuration items.
+
+        GCP Authentication Strategy:
+        - Local development: Uses ADC (Application Default Credentials)
+          Run: gcloud auth application-default login
+        - Production: Uses Service Account via GOOGLE_APPLICATION_CREDENTIALS
+        """
+        issues = []
+        if not self.google_cloud_project:
+            issues.append("GOOGLE_CLOUD_PROJECT is required")
+        return issues
+
+    @property
+    def uses_service_account(self) -> bool:
+        """Check if using service account authentication (production mode)."""
+        return bool(self.google_application_credentials)
+
+    @property
+    def uses_adc(self) -> bool:
+        """Check if using Application Default Credentials (local dev mode)."""
+        return not self.google_application_credentials
 
     @model_validator(mode="after")
     def _warn_missing_api_keys(self) -> "Settings":

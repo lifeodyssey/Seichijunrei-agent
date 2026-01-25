@@ -252,6 +252,9 @@ class AnitabiClient(BaseHTTPClient):
                             address=item.get("address"),
                             opening_hours=item.get("opening_hours"),
                             admission_fee=item.get("admission_fee"),
+                            # Source information (legacy schema may include these)
+                            origin=item.get("origin"),
+                            origin_url=item.get("origin_url") or item.get("originURL"),
                         )
                         points.append(point)
                         continue
@@ -290,6 +293,9 @@ class AnitabiClient(BaseHTTPClient):
                         address=None,
                         opening_hours=None,
                         admission_fee=None,
+                        # Source information from official Anitabi API
+                        origin=item.get("origin"),
+                        origin_url=item.get("originURL"),
                     )
                     points.append(point)
 
@@ -324,6 +330,10 @@ class AnitabiClient(BaseHTTPClient):
         """
         Look up station information by name.
 
+        DEPRECATED: This method uses the non-official /station endpoint which
+        may not be available in the official Anitabi API. Consider using
+        Google Maps Geocoding API instead for production use.
+
         Args:
             station_name: Name of the station (Japanese)
 
@@ -334,6 +344,15 @@ class AnitabiClient(BaseHTTPClient):
             NotFoundError: If station not found
             APIError: On API communication failure
         """
+        import warnings
+
+        warnings.warn(
+            "get_station_info uses non-official /station endpoint. "
+            "Consider using Google Maps Geocoding API instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         try:
             logger.info("Looking up station info", station_name=station_name)
 
