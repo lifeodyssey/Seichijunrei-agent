@@ -13,6 +13,7 @@ from adk_agents.seichijunrei_bot.skills import (
     SKILLS,
     SKILLS_BY_ID,
     SKILLS_BY_NAME,
+    STAGE1_5_LOCATION_COLLECTION,
     STAGE1_BANGUMI_SEARCH,
     STAGE2_ROUTE_PLANNING,
     StateContractError,
@@ -125,18 +126,24 @@ class TestSkillRegistry:
     def test_skills_tuple_contains_all_skills(self):
         """SKILLS tuple should contain all defined skills."""
         assert STAGE1_BANGUMI_SEARCH in SKILLS
+        assert STAGE1_5_LOCATION_COLLECTION in SKILLS
         assert STAGE2_ROUTE_PLANNING in SKILLS
-        assert len(SKILLS) == 2
+        assert len(SKILLS) == 3
 
     def test_skills_by_id_lookup(self):
         """SKILLS_BY_ID should allow lookup by skill_id."""
         assert SKILLS_BY_ID["bangumi_search"] == STAGE1_BANGUMI_SEARCH
+        assert SKILLS_BY_ID["location_collection"] == STAGE1_5_LOCATION_COLLECTION
         assert SKILLS_BY_ID["route_planning"] == STAGE2_ROUTE_PLANNING
 
     def test_skills_by_name_lookup(self):
         """SKILLS_BY_NAME should allow lookup by agent name."""
         # Access via the agent's name property
         assert SKILLS_BY_NAME[STAGE1_BANGUMI_SEARCH.name] == STAGE1_BANGUMI_SEARCH
+        assert (
+            SKILLS_BY_NAME[STAGE1_5_LOCATION_COLLECTION.name]
+            == STAGE1_5_LOCATION_COLLECTION
+        )
         assert SKILLS_BY_NAME[STAGE2_ROUTE_PLANNING.name] == STAGE2_ROUTE_PLANNING
 
     def test_skill_has_agent(self):
