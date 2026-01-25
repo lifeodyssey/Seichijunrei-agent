@@ -365,7 +365,9 @@ class TestAnitabiClient:
             assert points[0].origin_url == "https://maps.google.com/test"
 
     @pytest.mark.asyncio
-    async def test_get_station_info_deprecation_warning(self, client, mock_station_response):
+    async def test_get_station_info_deprecation_warning(
+        self, client, mock_station_response
+    ):
         """Test that get_station_info emits deprecation warning."""
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_station_response

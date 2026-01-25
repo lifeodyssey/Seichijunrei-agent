@@ -38,9 +38,7 @@ from .._state import (
 _EARTH_RADIUS_KM = 6371.0
 
 
-def _haversine_distance(
-    lat1: float, lng1: float, lat2: float, lng2: float
-) -> float:
+def _haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculate distance between two points using Haversine formula.
 
     Args:
@@ -180,8 +178,7 @@ class PointsSearchAgent(BaseAgent):
             # Add distance from user if coordinates are available
             if user_lat is not None and user_lng is not None:
                 distance_km = _haversine_distance(
-                    user_lat, user_lng,
-                    p.coordinates.latitude, p.coordinates.longitude
+                    user_lat, user_lng, p.coordinates.latitude, p.coordinates.longitude
                 )
                 point_data["distance_km"] = round(distance_km, 2)
 
