@@ -302,9 +302,7 @@ class TestInMemorySessionStoreLifecycle:
     @pytest.mark.asyncio
     async def test_set_processing(self, store):
         """Test setting session to processing state via store."""
-        await store.get_or_create(
-            context_id="ctx-1", user_id="user-1", app_name="app"
-        )
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
         result = await store.set_processing("ctx-1")
         assert result is True
 
@@ -320,9 +318,7 @@ class TestInMemorySessionStoreLifecycle:
     @pytest.mark.asyncio
     async def test_set_active(self, store):
         """Test setting session to active state via store."""
-        await store.get_or_create(
-            context_id="ctx-1", user_id="user-1", app_name="app"
-        )
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
         await store.set_processing("ctx-1")
         result = await store.set_active("ctx-1")
         assert result is True
@@ -333,9 +329,7 @@ class TestInMemorySessionStoreLifecycle:
     @pytest.mark.asyncio
     async def test_record_error(self, store):
         """Test recording error via store."""
-        await store.get_or_create(
-            context_id="ctx-1", user_id="user-1", app_name="app"
-        )
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
         result = await store.record_error("ctx-1", "Test error")
         assert result is True
 
@@ -346,12 +340,8 @@ class TestInMemorySessionStoreLifecycle:
     @pytest.mark.asyncio
     async def test_get_session_stats(self, store):
         """Test getting session statistics."""
-        await store.get_or_create(
-            context_id="ctx-1", user_id="user-1", app_name="app"
-        )
-        await store.get_or_create(
-            context_id="ctx-2", user_id="user-1", app_name="app"
-        )
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
+        await store.get_or_create(context_id="ctx-2", user_id="user-1", app_name="app")
         await store.set_processing("ctx-1")
         await store.record_error("ctx-2", "Error")
 
