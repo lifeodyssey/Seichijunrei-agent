@@ -186,8 +186,75 @@ async def handle_task(request: A2ATaskRequest) -> A2ATaskResponse:
 3. **Cleanup**: Implement session expiration and cleanup
 4. **Rate Limiting**: Per-session rate limits to prevent abuse
 
+## Session Adapter Pattern
+
+The session adapter pattern provides a clean abstraction for mapping between A2A and ADK sessions.
+
+### Interface
+
+```python
+class SessionAdapter(ABC):
+    """Abstract session adapter interface."""
+
+    @abstractmethod
+    async def get_or_create_session(
+        self,
+        *,
+        context_id: str,
+        user_id: str,
+        app_name: str,
+    ) -> tuple[SessionInfo, Session]:
+        """Get or create both A2UI session info and ADK session."""
+        ...
+
+    @abstractmethod
+    async def sync_state_to_store(
+        self,
+        context_id: str,
+        state: dict[str, Any],
+    ) -> None:
+        """Sync ADK session state to the session store."""
+        ...
+
+    @abstractmethod
+    async def get_state(self, context_id: str) -> dict[str, Any]:
+        """Get the current state for a context."""
+        ...
+```
+
+### Implementations
+
+| Adapter | Use Case | State Storage |
+|---------|----------|---------------|
+| `InMemorySessionAdapter` | Local development | In-memory dict |
+| `RedisSessionAdapter` | Production (future) | Redis |
+| `FirestoreSessionAdapter` | GCP production (future) | Firestore |
+
+### Usage in A2A Server
+
+```python
+from interfaces.a2a_server import InMemorySessionAdapter
+
+adapter = InMemorySessionAdapter()
+
+# Get or create session
+session_info, adk_session = await adapter.get_or_create_session(
+    context_id=context_id,
+    user_id="a2a-client",
+    app_name="seichijunrei_bot",
+)
+
+# Run agent with ADK session
+# ...
+
+# Sync state back to store
+await adapter.sync_state_to_store(context_id, adk_session.state)
+```
+
 ## Related Documents
 
 - [A2UI Contracts](CONTRACT.md) - Message format definitions
 - [Actions Reference](ACTIONS.md) - User action definitions
+- `contracts/a2ui/session.py` - Session store interface
+- `interfaces/a2a_server/session.py` - Session adapter implementation
 - `adk_agents/seichijunrei_bot/_state.py` - State key definitions
