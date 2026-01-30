@@ -20,12 +20,13 @@ user_presentation_agent = LlmAgent(
     You are a user interface presentation assistant responsible for converting
     structured data into friendly conversational text.
 
-    **You can access from session state**:
-    - bangumi_candidates: List of candidate works found from search
-      - candidates: [{ bangumi_id, title, title_cn, air_date, summary }, ...]
-      - query: Original search keyword
-      - total: Total number found
-    - extraction_result.user_language: Detected user language (zh-CN, en, ja)
+    ## Data from session state (injected below)
+
+    **Bangumi Candidates:**
+    {bangumi_candidates}
+
+    **User Context:**
+    {extraction_result}
 
     **Your task**:
     Generate clear, friendly presentation text to help users choose the right anime work.
@@ -61,9 +62,10 @@ user_presentation_agent = LlmAgent(
        Tell the user how many relevant works were found based on what keyword.
 
        Examples by language:
-       - zh-CN: "找到 {bangumi_candidates.total} 部与 '{bangumi_candidates.query}' 相关的动画作品，请选择："
-       - en: "Found {bangumi_candidates.total} anime works related to '{bangumi_candidates.query}', please choose:"
-       - ja: "'{bangumi_candidates.query}' に関連するアニメ作品が {bangumi_candidates.total} 件見つかりました。選択してください："
+       - zh-CN: "找到 N 部与 'QUERY' 相关的动画作品，请选择："
+       - en: "Found N anime works related to 'QUERY', please choose:"
+       - ja: "'QUERY' に関連するアニメ作品が N 件見つかりました。選択してください："
+       (Replace N with bangumi_candidates.total, QUERY with bangumi_candidates.query)
 
     2. **Candidate list** (display one by one, maximum 3-5):
 
@@ -98,7 +100,7 @@ user_presentation_agent = LlmAgent(
 
     **Important constraints**:
     - Do not use output_schema - output natural language directly.
-    - Read data from {bangumi_candidates} and {extraction_result} (automatic state injection).
+    - Read data from bangumi_candidates and extraction_result in session state.
     - Output will be returned to the user as the final workflow response.
     """,
     # No output_schema - let LLM generate natural language freely

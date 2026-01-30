@@ -11,6 +11,31 @@ from collections.abc import Iterable
 from typing import Any
 from urllib.parse import quote
 
+# Anitabi image CDN base URL
+ANITABI_IMAGE_CDN = "https://image.anitabi.cn/"
+
+
+def _build_anitabi_image_url(image_path: str | None) -> str:
+    """Build a full image URL from Anitabi image path.
+
+    Args:
+        image_path: The image path from Anitabi API (e.g., "points/xxx.jpg")
+
+    Returns:
+        Full URL to the image, or empty string if no path provided
+    """
+    if not image_path or not isinstance(image_path, str):
+        return ""
+
+    # If already a full URL, return as-is
+    if image_path.startswith("http://") or image_path.startswith("https://"):
+        return image_path
+
+    # Build full URL from CDN base
+    # Remove leading slash if present
+    clean_path = image_path.lstrip("/")
+    return f"{ANITABI_IMAGE_CDN}{clean_path}"
+
 
 def build_a2ui_response(state: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
     """Return (assistant_text, a2ui_messages) for the current session state."""
@@ -55,6 +80,86 @@ def build_a2ui_error_response(
         ja=f"エラー：{error_message}",
     )
     return assistant_text, _error_view_messages(lang, error_message)
+
+
+def build_a2ui_loading_response(
+    state: dict[str, Any], *, stage: str = "processing"
+) -> tuple[str, list[dict[str, Any]]]:
+    """Return a loading UI during agent processing.
+
+    Args:
+        state: Current session state
+        stage: Processing stage identifier for contextual messages
+
+    Returns:
+        Tuple of (assistant_text, a2ui_messages)
+    """
+    lang = _state_language(state)
+
+    stage_messages = {
+        "searching": _t(
+            lang,
+            zh="正在搜索作品信息...",
+            en="Searching for anime information...",
+            ja="作品情報を検索中...",
+        ),
+        "fetching_points": _t(
+            lang,
+            zh="正在获取圣地信息...",
+            en="Fetching pilgrimage locations...",
+            ja="聖地情報を取得中...",
+        ),
+        "planning_route": _t(
+            lang,
+            zh="正在规划路线...",
+            en="Planning your route...",
+            ja="ルートを計画中...",
+        ),
+        "processing": _t(
+            lang,
+            zh="处理中，请稍候...",
+            en="Processing, please wait...",
+            ja="処理中、お待ちください...",
+        ),
+    }
+
+    assistant_text = stage_messages.get(stage, stage_messages["processing"])
+    return assistant_text, _loading_view_messages(lang, assistant_text)
+
+
+def _loading_view_messages(lang: str, message: str) -> list[dict[str, Any]]:
+    """Build a loading view with a spinner-like message."""
+    surface_id = "main"
+
+    components: list[dict[str, Any]] = []
+    components.append(
+        _column(
+            "root",
+            ["loading-card"],
+            alignment="stretch",
+        )
+    )
+
+    components.append(_card("loading-card", "loading-content"))
+    components.append(
+        _column(
+            "loading-content",
+            ["loading-icon", "loading-message"],
+            alignment="center",
+        )
+    )
+
+    # Use a simple text indicator for loading
+    components.append(
+        _text(
+            "loading-icon",
+            _t(lang, zh="...", en="...", ja="..."),
+            usage_hint="h2",
+        )
+    )
+    components.append(_text("loading-message", message, usage_hint="body"))
+
+    return _surface_messages(surface_id, components, root_id="root")
 
 
 def _welcome_view_messages(lang: str) -> list[dict[str, Any]]:
@@ -454,7 +559,9 @@ def _route_view_messages(state: dict[str, Any], lang: str) -> list[dict[str, Any
         jp_name = p.get("name") or ""
         episode = p.get("episode")
         address = p.get("address") or ""
-        screenshot_url = p.get("screenshot_url") or ""
+        # Handle image URL - support both direct URLs and Anitabi paths
+        raw_image = p.get("screenshot_url") or p.get("image") or p.get("photo") or ""
+        screenshot_url = _build_anitabi_image_url(raw_image)
         lat = p.get("lat")
         lng = p.get("lng")
 
@@ -472,8 +579,24 @@ def _route_view_messages(state: dict[str, Any], lang: str) -> list[dict[str, Any
         # Image is optional; only render if present to avoid broken UI.
         content_children: list[str] = []
         if screenshot_url:
+            image_source_id = f"{card_id}-image-source"
             components.append(_image(image_id, screenshot_url))
             content_children.append(image_id)
+            # Add image source attribution for Anitabi images
+            if ANITABI_IMAGE_CDN in screenshot_url:
+                components.append(
+                    _text(
+                        image_source_id,
+                        _t(
+                            lang,
+                            zh="图片来源: Anitabi",
+                            en="Image: Anitabi",
+                            ja="画像: Anitabi",
+                        ),
+                        usage_hint="caption",
+                    )
+                )
+                content_children.append(image_source_id)
         content_children.extend([title_id, subtitle_id, actions_row_id])
 
         components.append(_column(content_id, content_children, alignment="stretch"))

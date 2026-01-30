@@ -8,11 +8,47 @@ Provides adapter pattern for future Redis/Firestore implementations.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import Any
 
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class SessionState(str, Enum):
+    """Session lifecycle states for tracking."""
+
+    ACTIVE = "active"
+    PROCESSING = "processing"
+    ERROR = "error"
+    EXPIRED = "expired"
+
+
+class SessionError(Exception):
+    """Base exception for session-related errors."""
+
+    def __init__(self, message: str, context_id: str | None = None) -> None:
+        super().__init__(message)
+        self.context_id = context_id
+
+
+class SessionNotFoundError(SessionError):
+    """Raised when a session is not found."""
+
+    pass
+
+
+class SessionExpiredError(SessionError):
+    """Raised when a session has expired."""
+
+    pass
+
+
+class SessionStateError(SessionError):
+    """Raised when session state is invalid or corrupted."""
+
+    pass
 
 
 @dataclass
@@ -43,6 +79,15 @@ class SessionInfo:
     metadata: dict[str, Any] = field(default_factory=dict)
     """Additional session metadata (e.g., client info, preferences)."""
 
+    lifecycle_state: SessionState = SessionState.ACTIVE
+    """Current lifecycle state of the session."""
+
+    error_count: int = 0
+    """Number of errors encountered in this session."""
+
+    last_error: str | None = None
+    """Last error message if any."""
+
     def is_expired(self, ttl_seconds: float) -> bool:
         """Check if session has expired based on TTL."""
         expiry = self.updated_at + timedelta(seconds=ttl_seconds)
@@ -51,6 +96,41 @@ class SessionInfo:
     def touch(self) -> None:
         """Update the last access time."""
         self.updated_at = datetime.now(UTC)
+
+    def set_processing(self) -> None:
+        """Mark session as processing a request."""
+        self.lifecycle_state = SessionState.PROCESSING
+        self.touch()
+
+    def set_active(self) -> None:
+        """Mark session as active (idle)."""
+        self.lifecycle_state = SessionState.ACTIVE
+        self.touch()
+
+    def set_error(self, error_message: str) -> None:
+        """Mark session as having encountered an error."""
+        self.lifecycle_state = SessionState.ERROR
+        self.error_count += 1
+        self.last_error = error_message
+        self.touch()
+        logger.warning(
+            "Session error recorded",
+            context_id=self.context_id,
+            error_count=self.error_count,
+            error=error_message,
+        )
+
+    def clear_error(self) -> None:
+        """Clear error state and return to active."""
+        self.lifecycle_state = SessionState.ACTIVE
+        self.last_error = None
+        self.touch()
+
+    def validate_state(self) -> bool:
+        """Validate that session state is consistent."""
+        if not isinstance(self.state, dict):
+            return False
+        return True
 
 
 class SessionStore(ABC):
@@ -252,3 +332,45 @@ class InMemorySessionStore(SessionStore):
     def clear_all(self) -> None:
         """Clear all sessions (for testing)."""
         self._sessions.clear()
+
+    async def set_processing(self, context_id: str) -> bool:
+        """Mark session as processing."""
+        session = self._sessions.get(context_id)
+        if session is not None:
+            session.set_processing()
+            return True
+        return False
+
+    async def set_active(self, context_id: str) -> bool:
+        """Mark session as active."""
+        session = self._sessions.get(context_id)
+        if session is not None:
+            session.set_active()
+            return True
+        return False
+
+    async def record_error(self, context_id: str, error_message: str) -> bool:
+        """Record an error for the session."""
+        session = self._sessions.get(context_id)
+        if session is not None:
+            session.set_error(error_message)
+            return True
+        return False
+
+    async def get_session_stats(self) -> dict[str, Any]:
+        """Get statistics about current sessions."""
+        total = len(self._sessions)
+        by_state: dict[str, int] = {}
+        error_sessions = 0
+
+        for session in self._sessions.values():
+            state_name = session.lifecycle_state.value
+            by_state[state_name] = by_state.get(state_name, 0) + 1
+            if session.error_count > 0:
+                error_sessions += 1
+
+        return {
+            "total_sessions": total,
+            "by_state": by_state,
+            "sessions_with_errors": error_sessions,
+        }

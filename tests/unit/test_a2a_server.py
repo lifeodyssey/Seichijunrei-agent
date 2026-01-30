@@ -1,5 +1,7 @@
 """Unit tests for A2A server."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from starlette.testclient import TestClient
 
@@ -8,16 +10,27 @@ from interfaces.a2a_server.types import ErrorCode, TaskState
 
 
 @pytest.fixture
-def client():
-    """Create test client for A2A server."""
-    app = create_app()
+def mock_agent():
+    """Create a mock agent for testing."""
+    agent = MagicMock()
+    agent.run_async = AsyncMock(return_value=iter([]))
+    return agent
+
+
+@pytest.fixture
+def client(mock_agent):
+    """Create test client for A2A server with mock agent."""
+    server = A2AServer(agent=mock_agent)
+    # Patch _run_agent to return a simple response
+    server._run_agent = AsyncMock(return_value="Mock response")
+    app = create_app(server)
     return TestClient(app)
 
 
 @pytest.fixture
-def server():
-    """Create A2A server instance."""
-    return A2AServer()
+def server(mock_agent):
+    """Create A2A server instance with mock agent."""
+    return A2AServer(agent=mock_agent)
 
 
 class TestA2ATypes:

@@ -4,7 +4,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from contracts.a2ui.session import InMemorySessionStore, SessionInfo
+from contracts.a2ui.session import (
+    InMemorySessionStore,
+    SessionInfo,
+    SessionState,
+)
 
 
 class TestSessionInfo:
@@ -202,3 +206,144 @@ class TestInMemorySessionStore:
 
         store.clear_all()
         assert len(store._sessions) == 0
+
+
+class TestSessionLifecycleState:
+    """Tests for session lifecycle state management."""
+
+    def test_session_default_state_is_active(self):
+        """Test that new sessions start in ACTIVE state."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        assert session.lifecycle_state == SessionState.ACTIVE
+
+    def test_session_set_processing(self):
+        """Test setting session to processing state."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        session.set_processing()
+        assert session.lifecycle_state == SessionState.PROCESSING
+
+    def test_session_set_error(self):
+        """Test setting session to error state."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        session.set_error("Test error message")
+        assert session.lifecycle_state == SessionState.ERROR
+        assert session.error_count == 1
+        assert session.last_error == "Test error message"
+
+    def test_session_error_count_increments(self):
+        """Test that error count increments on multiple errors."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        session.set_error("Error 1")
+        session.set_error("Error 2")
+        assert session.error_count == 2
+        assert session.last_error == "Error 2"
+
+    def test_session_clear_error(self):
+        """Test clearing error state."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        session.set_error("Test error")
+        session.clear_error()
+        assert session.lifecycle_state == SessionState.ACTIVE
+        assert session.last_error is None
+        # Error count should remain for tracking
+        assert session.error_count == 1
+
+    def test_session_validate_state(self):
+        """Test session state validation."""
+        session = SessionInfo(
+            context_id="ctx-123",
+            session_id="sess-123",
+            user_id="user-1",
+            app_name="test_app",
+        )
+        assert session.validate_state() is True
+
+        # Invalid state type
+        session.state = "not a dict"  # type: ignore
+        assert session.validate_state() is False
+
+
+class TestInMemorySessionStoreLifecycle:
+    """Tests for InMemorySessionStore lifecycle methods."""
+
+    @pytest.fixture
+    def store(self):
+        """Create a fresh session store."""
+        return InMemorySessionStore()
+
+    @pytest.mark.asyncio
+    async def test_set_processing(self, store):
+        """Test setting session to processing state via store."""
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
+        result = await store.set_processing("ctx-1")
+        assert result is True
+
+        session = await store.get("ctx-1")
+        assert session.lifecycle_state == SessionState.PROCESSING
+
+    @pytest.mark.asyncio
+    async def test_set_processing_missing_session(self, store):
+        """Test set_processing returns False for missing session."""
+        result = await store.set_processing("nonexistent")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_set_active(self, store):
+        """Test setting session to active state via store."""
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
+        await store.set_processing("ctx-1")
+        result = await store.set_active("ctx-1")
+        assert result is True
+
+        session = await store.get("ctx-1")
+        assert session.lifecycle_state == SessionState.ACTIVE
+
+    @pytest.mark.asyncio
+    async def test_record_error(self, store):
+        """Test recording error via store."""
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
+        result = await store.record_error("ctx-1", "Test error")
+        assert result is True
+
+        session = await store.get("ctx-1")
+        assert session.lifecycle_state == SessionState.ERROR
+        assert session.last_error == "Test error"
+
+    @pytest.mark.asyncio
+    async def test_get_session_stats(self, store):
+        """Test getting session statistics."""
+        await store.get_or_create(context_id="ctx-1", user_id="user-1", app_name="app")
+        await store.get_or_create(context_id="ctx-2", user_id="user-1", app_name="app")
+        await store.set_processing("ctx-1")
+        await store.record_error("ctx-2", "Error")
+
+        stats = await store.get_session_stats()
+        assert stats["total_sessions"] == 2
+        assert stats["sessions_with_errors"] == 1
+        assert "processing" in stats["by_state"]
+        assert "error" in stats["by_state"]

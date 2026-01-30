@@ -17,6 +17,7 @@ from domain.entities import BangumiSubjectType
 from infrastructure.gateways import AnitabiClientGateway, BangumiClientGateway
 from utils.logger import get_logger
 
+from .geocoding_tool import GeocodingResult, geocode_location, geocode_location_dict
 from .result import ErrorCodes, ToolResult, error_result, success_result
 from .translation import translate_tool
 
@@ -247,4 +248,8 @@ __all__ = [
     "get_anitabi_points",
     "search_anitabi_bangumi_near_station",
     "translate_tool",
+    # Geocoding tools
+    "geocode_location",
+    "geocode_location_dict",
+    "GeocodingResult",
 ]

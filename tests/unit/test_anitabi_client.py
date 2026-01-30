@@ -337,3 +337,47 @@ class TestAnitabiClient:
             async with client:
                 pass
             mock_close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_bangumi_points_with_origin_info(self, client):
+        """Test that origin information is parsed from official API response."""
+        mock_response = [
+            {
+                "id": "point_1",
+                "name": "Test Location",
+                "cn": "测试地点",
+                "geo": [35.6812, 139.7671],
+                "ep": 1,
+                "s": 120,
+                "image": "https://example.com/shot.jpg",
+                "origin": "Google Maps",
+                "originURL": "https://maps.google.com/test",
+            }
+        ]
+
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_response
+
+            points = await client.get_bangumi_points("test_bangumi")
+
+            assert len(points) == 1
+            assert points[0].origin == "Google Maps"
+            assert points[0].origin_url == "https://maps.google.com/test"
+
+    @pytest.mark.asyncio
+    async def test_get_station_info_deprecation_warning(
+        self, client, mock_station_response
+    ):
+        """Test that get_station_info emits deprecation warning."""
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_station_response
+
+            import warnings
+
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                await client.get_station_info("Tokyo")
+
+                assert len(w) == 1
+                assert issubclass(w[0].category, DeprecationWarning)
+                assert "non-official /station endpoint" in str(w[0].message)
