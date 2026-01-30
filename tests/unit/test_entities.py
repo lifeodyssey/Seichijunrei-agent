@@ -519,19 +519,26 @@ class TestDomainExceptions:
 
     def test_invalid_station_error(self):
         """Test InvalidStationError exception."""
-        error = InvalidStationError("Unknown station: XYZ")
-        assert str(error) == "Unknown station: XYZ"
+        error = InvalidStationError("XYZ")
+        assert str(error) == "Station not found: XYZ"
+        assert error.station_name == "XYZ"
         assert isinstance(error, Exception)
 
     def test_no_bangumi_found_error(self):
         """Test NoBangumiFoundError exception."""
-        error = NoBangumiFoundError("No anime locations found within 5km")
-        assert str(error) == "No anime locations found within 5km"
+        error = NoBangumiFoundError("Tokyo")
+        assert str(error) == "No bangumi found near Tokyo"
+        assert error.location == "Tokyo"
+        # Test without location
+        error_no_loc = NoBangumiFoundError()
+        assert str(error_no_loc) == "No bangumi found"
 
     def test_too_many_points_error(self):
         """Test TooManyPointsError exception."""
-        error = TooManyPointsError("Cannot optimize route with >50 points")
-        assert str(error) == "Cannot optimize route with >50 points"
+        error = TooManyPointsError(50, max_allowed=25)
+        assert str(error) == "Too many points (50) for route optimization. Maximum: 25"
+        assert error.count == 50
+        assert error.max_allowed == 25
 
     def test_api_error(self):
         """Test APIError exception."""

@@ -20,7 +20,7 @@ from pydantic import ConfigDict
 from application.errors import ExternalServiceError
 from application.use_cases import FetchBangumiPoints
 from clients.anitabi import AnitabiClient
-from clients.anitabi_gateway import AnitabiClientGateway
+from infrastructure.gateways import AnitabiClientGateway
 from utils.logger import get_logger
 
 from .._state import (
