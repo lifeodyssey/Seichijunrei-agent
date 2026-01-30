@@ -249,21 +249,6 @@ class Settings(BaseSettings):
             ),
         }
 
-    def get_secrets(self) -> dict[str, str]:
-        """Get masked secret information (safe to log for debugging).
-
-        Returns:
-            Dictionary of secret names to their masked values.
-        """
-        return {
-            "google_maps_api_key": _mask_secret(self.google_maps_api_key),
-            "gemini_api_key": _mask_secret(self.gemini_api_key),
-            "weather_api_key": _mask_secret(self.weather_api_key),
-            "google_application_credentials": _mask_secret(
-                self.google_application_credentials
-            ),
-        }
-
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
         missing = []
