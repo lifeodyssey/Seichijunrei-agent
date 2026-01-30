@@ -27,9 +27,11 @@ _bangumi_searcher = LlmAgent(
     its results for the next agent. Do not try to pick a single best match.
 
     Workflow:
-    1. Read the extracted bangumi name from {extraction_result.bangumi_name}
-       in the session state.
-    2. Call the `search_bangumi_subjects` tool with that keyword.
+    1. Read the extraction_result from session state. It contains:
+       - bangumi_name: the extracted anime title keyword
+       - location: user's location (may be empty)
+       - user_language: detected language (zh-CN, en, or ja)
+    2. Call the `search_bangumi_subjects` tool with the bangumi_name as keyword.
     3. Briefly summarize how many candidates were found and list them in a
        compact, machine-readable way (ID, titles, air date, summary).
 
@@ -52,8 +54,8 @@ _candidates_formatter = LlmAgent(
     Context:
     - The previous agent has called the Bangumi search tool and printed out
       the raw results (including IDs, titles, air dates, summaries, etc.).
-    - The user's inferred search keyword is available as
-      {extraction_result.bangumi_name}.
+    - The user's inferred search keyword is available in extraction_result.bangumi_name
+      from session state.
 
     Your task:
     1. From the raw search results, select the 3–5 MOST relevant anime works.
@@ -67,7 +69,7 @@ _candidates_formatter = LlmAgent(
        - summary: a concise 1–2 sentence description to help the user choose
     3. Fill BangumiCandidatesResult:
        - candidates: your 3–5 formatted BangumiCandidate objects
-       - query: the search keyword you used (bangumi_name)
+       - query: the search keyword (from extraction_result.bangumi_name)
        - total: total number of works returned by the Bangumi API (not just
          the 3–5 you selected).
 

@@ -19,7 +19,7 @@ from config import get_settings
 from utils.logger import get_logger, setup_logging
 
 from ._agents.mcp_probe_agent import mcp_probe_agent
-from ._agents.route_state_machine_agent import RouteStateMachineAgent
+from ._intent import IntentRouter
 from .skills import ROOT_SUB_AGENTS
 from .tools import (
     get_anitabi_points,
@@ -59,13 +59,13 @@ get_bangumi_tool = FunctionTool(get_bangumi_subject)
 get_anitabi_points_tool = FunctionTool(get_anitabi_points)
 search_anitabi_bangumi_tool = FunctionTool(search_anitabi_bangumi_near_station)
 
-# Root deterministic router between Stage 1 and Stage 2 workflows.
+# Root intent router between Stage 1 and Stage 2 workflows.
 # Name is kept as 'seichijunrei_bot' to match ADK Web app_name configuration.
-root_agent = RouteStateMachineAgent(
+root_agent = IntentRouter(
     name="seichijunrei_bot",
     description=(
-        "Deterministic router for Seichijunrei Bot. Chooses Stage 1 (Bangumi search) "
-        "or Stage 2 (Route planning) based on session state and simple user-intent rules."
+        "Intent router for Seichijunrei Bot. Routes user input via fast path "
+        "(regex patterns) or slow path (LLM classifier) to appropriate workflows."
     ),
     sub_agents=[*ROOT_SUB_AGENTS, mcp_probe_agent],
 )

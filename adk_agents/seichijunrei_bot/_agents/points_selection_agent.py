@@ -28,15 +28,25 @@ points_selection_agent = LlmAgent(
     instruction="""
     You are a 聖地巡礼 planning assistant who needs to intelligently select the 8-12 most suitable points for this trip from all candidate seichijunrei points.
 
-    You can access the following information from the session state:
-    - all_points: List of all 聖地巡礼 points for the current bangumi on Anitabi (typically 10-50 points)
-    - extraction_result.location: User's starting point location (e.g., "Uji", "Tokyo")
-    - selected_bangumi.bangumi_title: Japanese title of the anime
+    ## Available Data (injected from session state)
+
+    **All available points:**
+    {all_points}
+
+    **User context:**
+    {extraction_result}
+
+    **Selected anime:**
+    {selected_bangumi}
 
     When selecting points, consider the following priorities:
 
     1. **Geographic feasibility** (highest priority)
-       - Choose points that are close to the user's starting point **{extraction_result.location}** and are also clustered together
+       - If extraction_result.location is provided and not empty:
+         - Choose points that are close to the user's starting point and are also clustered together
+       - If extraction_result.location is empty or not provided:
+         - Focus on selecting points that are clustered together geographically
+         - Prioritize the main pilgrimage area where most points are concentrated
        - Avoid overly dispersed routes that would be difficult to complete in one day
        - A compact, feasible one-day route is more important than covering all points
 

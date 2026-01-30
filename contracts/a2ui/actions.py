@@ -16,12 +16,14 @@ class ActionName(str, Enum):
     - select_candidate_{n}: Select the n-th candidate (1-indexed)
     - remove_point_{n}: Remove the n-th point from route (0-indexed)
     - reset: Reset the session to initial state
+    - back: Go back to previous view (e.g., from route to candidates)
     - send_text:{text}: Send text as a user message (for quick prompts)
-    - open_maps_url: Open Google Maps directions URL
+    - open_url:{url}: Open an external URL (e.g., Google Maps)
     """
 
     # Session control
     RESET = "reset"
+    BACK = "back"
 
     # Candidates view actions (Stage 1)
     # Pattern: select_candidate_1, select_candidate_2, ...
@@ -32,7 +34,7 @@ class ActionName(str, Enum):
     REMOVE_POINT_PREFIX = "remove_point_"
 
     # External links
-    OPEN_MAPS_URL = "open_maps_url"
+    OPEN_URL_PREFIX = "open_url:"
 
     # Dynamic text sending
     # Pattern: send_text:Hello there
@@ -85,6 +87,10 @@ def parse_action(action_name: str) -> ActionPayload:
         text = action_name[len(ActionName.SEND_TEXT_PREFIX) :]
         payload["text"] = text
 
+    elif action_name.startswith(ActionName.OPEN_URL_PREFIX):
+        url = action_name[len(ActionName.OPEN_URL_PREFIX) :]
+        payload["url"] = url
+
     return payload
 
 
@@ -122,3 +128,15 @@ def make_send_text_action(text: str) -> str:
         Action name like "send_text:Hello there"
     """
     return f"{ActionName.SEND_TEXT_PREFIX}{text}"
+
+
+def make_open_url_action(url: str) -> str:
+    """Create an open_url action name.
+
+    Args:
+        url: URL to open externally
+
+    Returns:
+        Action name like "open_url:https://maps.google.com/..."
+    """
+    return f"{ActionName.OPEN_URL_PREFIX}{url}"

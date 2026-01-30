@@ -126,6 +126,9 @@ class Point(BaseModel):
     address: str | None = None
     opening_hours: str | None = None
     admission_fee: str | None = None
+    # Source information from Anitabi API (origin field)
+    origin: str | None = None  # e.g., "Google Maps", "user submission", etc.
+    origin_url: str | None = None  # URL to the original source
 
     @property
     def time_formatted(self) -> str:

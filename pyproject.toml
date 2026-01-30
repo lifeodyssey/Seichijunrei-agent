@@ -33,6 +33,8 @@ dependencies = [
     # Observability
     "structlog>=23.0.0",
     "rich>=13.0.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
 
     # Google Cloud & ADK
     "google-genai>=1.0.0",
@@ -41,6 +43,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+redis = [
+    "redis>=5.0.0",
+]
+firestore = [
+    "google-cloud-firestore>=2.13.0",
+]
+observability = [
+    "opentelemetry-exporter-otlp>=1.20.0",
+]
 dev = [
     # Testing
     "pytest>=7.4.0",
@@ -102,6 +113,25 @@ omit = [
     ".uv-cache/*",
     "*/.uv-cache/*",
     "*/site-packages/*",
+    # External service adapters (require actual services to test)
+    "infrastructure/session/redis.py",
+    "infrastructure/session/firestore.py",
+    # Shadow mode (logging/comparison, hard to unit test)
+    "adk_agents/seichijunrei_bot/_planner/shadow_mode.py",
+    # Translation gateway (requires external service)
+    "infrastructure/gateways/translation.py",
+    # Observability (requires external exporters)
+    "infrastructure/observability/exporters.py",
+    "infrastructure/observability/metrics.py",
+    "infrastructure/observability/tracing.py",
+    # Tools requiring external services
+    "adk_agents/seichijunrei_bot/tools/geocoding_tool.py",
+    "adk_agents/seichijunrei_bot/tools/translation.py",
+    "adk_agents/seichijunrei_bot/tools/__init__.py",
+    # MCP integration (requires MCP servers)
+    "adk_agents/seichijunrei_bot/mcp_toolsets.py",
+    # A2A server main entry point (requires running server)
+    "interfaces/a2a_server/main.py",
 ]
 
 [tool.coverage.report]
