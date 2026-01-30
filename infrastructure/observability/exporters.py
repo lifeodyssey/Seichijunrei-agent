@@ -10,25 +10,52 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def create_span_exporter(exporter_type: str, **kwargs: object) -> Any | None:
-    """Create a span exporter based on type."""
+def create_span_exporter(
+    exporter_type: str,
+    **kwargs: object,
+) -> Any | None:
+    """Create a span exporter based on type.
+
+    Args:
+        exporter_type: Type of exporter ("console", "otlp", "jaeger").
+        **kwargs: Additional arguments for the exporter.
+
+    Returns:
+        A span exporter instance, or None if type is invalid.
+    """
     if exporter_type == "console":
         return _create_console_span_exporter()
+
     elif exporter_type == "otlp":
         return _create_otlp_span_exporter(**kwargs)
+
     elif exporter_type == "jaeger":
         return _create_jaeger_span_exporter(**kwargs)
+
     else:
         logger.warning(f"Unknown span exporter type: {exporter_type}")
         return None
 
 
-def create_metric_exporter(exporter_type: str, **kwargs: object) -> Any | None:
-    """Create a metric exporter based on type."""
+def create_metric_exporter(
+    exporter_type: str,
+    **kwargs: object,
+) -> Any | None:
+    """Create a metric exporter based on type.
+
+    Args:
+        exporter_type: Type of exporter ("console", "otlp").
+        **kwargs: Additional arguments for the exporter.
+
+    Returns:
+        A metric exporter instance, or None if type is invalid.
+    """
     if exporter_type == "console":
         return _create_console_metric_exporter()
+
     elif exporter_type == "otlp":
         return _create_otlp_metric_exporter(**kwargs)
+
     else:
         logger.warning(f"Unknown metric exporter type: {exporter_type}")
         return None

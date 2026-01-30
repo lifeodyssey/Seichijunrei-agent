@@ -50,13 +50,29 @@ class SessionStore(Protocol):
     """
 
     async def get(self, session_id: str) -> dict[str, Any] | None:
-        """Retrieve session state by ID."""
+        """Retrieve session state by ID.
+
+        Args:
+            session_id: The unique session identifier.
+
+        Returns:
+            Session state dictionary if found, None otherwise.
+        """
         ...
 
     async def set(self, session_id: str, state: dict[str, Any]) -> None:
-        """Store or update session state."""
+        """Store or update session state.
+
+        Args:
+            session_id: The unique session identifier.
+            state: The state dictionary to store.
+        """
         ...
 
     async def delete(self, session_id: str) -> None:
-        """Delete a session."""
+        """Delete a session.
+
+        Args:
+            session_id: The unique session identifier.
+        """
         ...

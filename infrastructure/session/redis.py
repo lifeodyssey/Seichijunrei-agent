@@ -12,7 +12,11 @@ logger = get_logger(__name__)
 
 
 class RedisSessionStore:
-    """Redis-backed session store for distributed deployments."""
+    """Redis-backed session store for distributed deployments.
+
+    Provides persistent, distributed session storage with automatic
+    expiration support via Redis TTL.
+    """
 
     def __init__(
         self,
@@ -23,7 +27,16 @@ class RedisSessionStore:
         prefix: str = "session:",
         ttl_seconds: int = 3600,
     ) -> None:
-        """Initialize the Redis session store."""
+        """Initialize the Redis session store.
+
+        Args:
+            host: Redis server hostname.
+            port: Redis server port.
+            db: Redis database number.
+            password: Optional Redis password.
+            prefix: Key prefix for session keys.
+            ttl_seconds: Default TTL for sessions.
+        """
         self._host = host
         self._port = port
         self._db = db
@@ -73,6 +86,7 @@ class RedisSessionStore:
         if data is None:
             return None
 
+        # Refresh TTL on access
         await client.expire(key, self._ttl_seconds)
         logger.debug("Session retrieved from Redis", session_id=session_id)
 
@@ -85,7 +99,11 @@ class RedisSessionStore:
         client = await self._get_client()
         key = self._make_key(session_id)
 
-        await client.setex(key, self._ttl_seconds, json.dumps(state))
+        await client.setex(
+            key,
+            self._ttl_seconds,
+            json.dumps(state),
+        )
         logger.debug("Session stored in Redis", session_id=session_id)
 
     async def delete(self, session_id: str) -> None:

@@ -9,6 +9,7 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Global tracer provider reference
 _tracer_provider: Any = None
 _initialized: bool = False
 
@@ -20,7 +21,15 @@ def setup_tracing(
     exporter_type: str = "console",
     **exporter_kwargs: object,
 ) -> None:
-    """Initialize the OpenTelemetry tracer provider."""
+    """Initialize the OpenTelemetry tracer provider.
+
+    Args:
+        service_name: Name of the service for tracing.
+        service_version: Version of the service.
+        environment: Deployment environment (development, staging, production).
+        exporter_type: Type of exporter ("console", "otlp", "jaeger", "none").
+        **exporter_kwargs: Additional arguments for the exporter.
+    """
     global _tracer_provider, _initialized
 
     if _initialized:
@@ -34,9 +43,13 @@ def setup_tracing(
 
         from infrastructure.observability.exporters import create_span_exporter
     except ImportError as e:
-        logger.warning("OpenTelemetry not available", error=str(e))
+        logger.warning(
+            "OpenTelemetry not available, tracing disabled",
+            error=str(e),
+        )
         return
 
+    # Create resource with service information
     resource = Resource.create(
         {
             "service.name": service_name,
@@ -45,8 +58,10 @@ def setup_tracing(
         }
     )
 
+    # Create and configure tracer provider
     _tracer_provider = TracerProvider(resource=resource)
 
+    # Add span processor with exporter
     if exporter_type != "none":
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -54,6 +69,7 @@ def setup_tracing(
         if exporter is not None:
             _tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
 
+    # Set as global tracer provider
     trace.set_tracer_provider(_tracer_provider)
     _initialized = True
 
@@ -65,17 +81,26 @@ def setup_tracing(
 
 
 def get_tracer(name: str) -> Any:
-    """Get a tracer instance for the given module."""
+    """Get a tracer instance for the given module.
+
+    Args:
+        name: Module name (typically __name__).
+
+    Returns:
+        A tracer instance. Returns a no-op tracer if OpenTelemetry
+        is not available or not initialized.
+    """
     try:
         from opentelemetry import trace
 
         return trace.get_tracer(name)
     except ImportError:
+        # Return a no-op tracer if OpenTelemetry is not available
         return _NoOpTracer()
 
 
 def shutdown_tracing() -> None:
-    """Shutdown the tracer provider."""
+    """Shutdown the tracer provider and flush pending spans."""
     global _tracer_provider, _initialized
 
     if _tracer_provider is not None:
@@ -110,7 +135,11 @@ class _NoOpSpan:
 class _NoOpTracer:
     """No-op tracer for when OpenTelemetry is not available."""
 
-    def start_as_current_span(self, name: str, **kwargs: object) -> _NoOpSpan:
+    def start_as_current_span(
+        self,
+        name: str,
+        **kwargs: object,
+    ) -> _NoOpSpan:
         return _NoOpSpan()
 
     def start_span(self, name: str, **kwargs: object) -> _NoOpSpan:

@@ -38,12 +38,19 @@ class PlannerDecision(BaseModel):
     """
 
     skill_id: Literal[
-        "bangumi_search", "route_planning", "reset", "back", "help", "unknown"
+        "bangumi_search",
+        "route_planning",
+        "location_collection",
+        "reset",
+        "back",
+        "help",
+        "unknown",
     ] = Field(
         description=(
             "The skill to execute based on user intent. "
             "'bangumi_search' for anime title queries, "
             "'route_planning' for selection/route requests, "
+            "'location_collection' for gathering user location, "
             "'reset' to clear session, "
             "'back' to return to previous step, "
             "'help' for usage instructions, "

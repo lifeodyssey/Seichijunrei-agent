@@ -23,6 +23,7 @@ from pydantic import ConfigDict
 from config import get_settings
 from utils.logger import LogContext, get_logger
 
+from .._planner import PlannerDecision, planner_agent
 from .._state import (
     BANGUMI_CANDIDATES,
     EXTRACTION_RESULT,
@@ -31,6 +32,7 @@ from .._state import (
     USER_COORDINATES,
 )
 from ..skills import (
+    SKILLS_BY_ID,
     STAGE1_5_LOCATION_COLLECTION,
     STAGE1_BANGUMI_SEARCH,
     STAGE2_ROUTE_PLANNING,
@@ -285,9 +287,9 @@ class IntentRouter(BaseAgent):
 
             # Slow path: Use planner for ambiguous input
             logger.debug("Slow path: invoking planner")
-            # For now, fall back to Stage 1 (planner integration in future)
-            self._reset_all(state)
-            async for event in self._run_skill(STAGE1_BANGUMI_SEARCH, ctx):
+            async for event in self._invoke_planner(
+                ctx, user_text, state, user_language
+            ):
                 yield event
 
     def _create_event(
@@ -313,6 +315,134 @@ class IntentRouter(BaseAgent):
             raise RuntimeError(f"Skill agent ({skill.name}) not found")
         async for event in agent.run_async(ctx):
             yield event
+
+    async def _invoke_planner(  # pragma: no cover
+        self,
+        ctx: InvocationContext,
+        user_text: str,
+        state: dict[str, Any],
+        user_language: str,
+    ) -> AsyncGenerator[Event, None]:
+        """Invoke the LLM planner for ambiguous input classification.
+
+        Args:
+            ctx: Invocation context
+            user_text: User's message text
+            state: Current session state
+            user_language: Detected user language
+
+        Yields:
+            Events from the selected skill or clarification response
+        """
+        logger.debug("Invoking planner agent", user_text=user_text[:50])
+
+        try:
+            # Run planner and collect the decision
+            decision: PlannerDecision | None = None
+            async for event in planner_agent.run_async(ctx):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            try:
+                                decision = PlannerDecision.model_validate_json(
+                                    part.text
+                                )
+                                break
+                            except Exception:
+                                continue
+
+            if decision is None:
+                logger.warning("Planner returned no decision, falling back to Stage 1")
+                self._reset_all(state)
+                async for event in self._run_skill(STAGE1_BANGUMI_SEARCH, ctx):
+                    yield event
+                return
+
+            logger.info(
+                "Planner decision",
+                skill_id=decision.skill_id,
+                confidence=decision.confidence,
+                reasoning=decision.reasoning[:50],
+            )
+
+            # Handle clarification requests
+            if decision.requires_clarification and decision.clarification_prompt:
+                yield self._create_event(ctx, decision.clarification_prompt)
+                return
+
+            # Route based on skill_id
+            async for event in self._route_planner_decision(ctx, decision, state):
+                yield event
+
+        except Exception as e:
+            logger.error("Planner invocation failed", error=str(e))
+            self._reset_all(state)
+            async for event in self._run_skill(STAGE1_BANGUMI_SEARCH, ctx):
+                yield event
+
+    async def _route_planner_decision(  # pragma: no cover
+        self,
+        ctx: InvocationContext,
+        decision: PlannerDecision,
+        state: dict[str, Any],
+    ) -> AsyncGenerator[Event, None]:
+        """Route based on planner decision."""
+        skill_id = decision.skill_id
+        user_language = _state_get_user_language(state)
+
+        if skill_id == "reset":
+            self._reset_all(state)
+            yield self._create_event(ctx, self._reset_prompt(user_language))
+            return
+
+        if skill_id == "back":
+            self._reset_to_candidates(state)
+            yield self._create_event(ctx, self._candidates_prompt(state, user_language))
+            return
+
+        if skill_id == "help":
+            yield self._create_event(ctx, self._help_prompt(user_language))
+            return
+
+        if skill_id == "unknown":
+            prompt = decision.clarification_prompt or self._unknown_prompt(
+                user_language
+            )
+            yield self._create_event(ctx, prompt)
+            return
+
+        # Map skill_id to actual skill
+        skill = SKILLS_BY_ID.get(skill_id)
+        if skill is None:
+            logger.warning("Unknown skill_id from planner", skill_id=skill_id)
+            self._reset_all(state)
+            async for event in self._run_skill(STAGE1_BANGUMI_SEARCH, ctx):
+                yield event
+            return
+
+        async for event in self._run_skill(skill, ctx):
+            yield event
+
+    @staticmethod
+    def _unknown_prompt(user_language: str) -> str:  # pragma: no cover
+        """Get prompt for unknown intent."""
+        if user_language == "en":
+            return (
+                "I'm not sure what you'd like to do. "
+                "You can tell me an anime title to search, "
+                "or use commands like 'reset' or 'help'."
+            )
+        if user_language == "ja":
+            return (
+                "ご要望がよくわかりませんでした。"
+                "作品名を教えていただくか、"
+                "'reset'や'help'などのコマンドをお使いください。"
+            )
+        return (
+            "我不太确定您想做什么。"
+            "您可以告诉我动画作品名进行搜索，"
+            "或使用'reset'、'help'等命令。"
+        )
 
     @staticmethod
     def _reset_all(state: dict[str, Any]) -> None:

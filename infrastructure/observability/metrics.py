@@ -9,6 +9,7 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Global meter provider reference
 _meter_provider: Any = None
 _initialized: bool = False
 
@@ -20,7 +21,15 @@ def setup_metrics(
     exporter_type: str = "console",
     **exporter_kwargs: object,
 ) -> None:
-    """Initialize the OpenTelemetry meter provider."""
+    """Initialize the OpenTelemetry meter provider.
+
+    Args:
+        service_name: Name of the service for metrics.
+        service_version: Version of the service.
+        environment: Deployment environment.
+        exporter_type: Type of exporter ("console", "otlp", "none").
+        **exporter_kwargs: Additional arguments for the exporter.
+    """
     global _meter_provider, _initialized
 
     if _initialized:
@@ -34,9 +43,13 @@ def setup_metrics(
 
         from infrastructure.observability.exporters import create_metric_exporter
     except ImportError as e:
-        logger.warning("OpenTelemetry not available", error=str(e))
+        logger.warning(
+            "OpenTelemetry not available, metrics disabled",
+            error=str(e),
+        )
         return
 
+    # Create resource with service information
     resource = Resource.create(
         {
             "service.name": service_name,
@@ -45,6 +58,7 @@ def setup_metrics(
         }
     )
 
+    # Create metric reader with exporter
     readers = []
     if exporter_type != "none":
         from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -53,7 +67,13 @@ def setup_metrics(
         if exporter is not None:
             readers.append(PeriodicExportingMetricReader(exporter))
 
-    _meter_provider = MeterProvider(resource=resource, metric_readers=readers)
+    # Create and configure meter provider
+    _meter_provider = MeterProvider(
+        resource=resource,
+        metric_readers=readers,
+    )
+
+    # Set as global meter provider
     metrics.set_meter_provider(_meter_provider)
     _initialized = True
 
@@ -65,7 +85,14 @@ def setup_metrics(
 
 
 def get_meter(name: str) -> Any:
-    """Get a meter instance for the given module."""
+    """Get a meter instance for the given module.
+
+    Args:
+        name: Module name (typically __name__).
+
+    Returns:
+        A meter instance for creating metrics.
+    """
     try:
         from opentelemetry import metrics
 
