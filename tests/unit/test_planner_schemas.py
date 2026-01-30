@@ -109,6 +109,7 @@ class TestPlannerDecisionSchema:
         valid_ids = [
             "bangumi_search",
             "route_planning",
+            "location_collection",
             "reset",
             "back",
             "help",
