@@ -181,6 +181,8 @@ class Settings(BaseSettings):
             "enable_state_contract_validation": self.enable_state_contract_validation,
             "a2ui_backend": self.a2ui_backend,
             "a2ui_port": self.a2ui_port,
+            "google_cloud_project": self.google_cloud_project or "(not set)",
+            "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }
 
     def get_feature_flags(self) -> dict[str, bool]:
@@ -219,6 +221,32 @@ class Settings(BaseSettings):
         if self.is_production and not self.weather_api_key:
             missing.append("WEATHER_API_KEY")
         return missing
+
+    def validate_gcp_config(self) -> list[str]:
+        """Validate GCP configuration.
+
+        Returns:
+            List of missing/invalid configuration items.
+
+        GCP Authentication Strategy:
+        - Local development: Uses ADC (Application Default Credentials)
+          Run: gcloud auth application-default login
+        - Production: Uses Service Account via GOOGLE_APPLICATION_CREDENTIALS
+        """
+        issues = []
+        if not self.google_cloud_project:
+            issues.append("GOOGLE_CLOUD_PROJECT is required")
+        return issues
+
+    @property
+    def uses_service_account(self) -> bool:
+        """Check if using service account authentication (production mode)."""
+        return bool(self.google_application_credentials)
+
+    @property
+    def uses_adc(self) -> bool:
+        """Check if using Application Default Credentials (local dev mode)."""
+        return not self.google_application_credentials
 
     @model_validator(mode="after")
     def _warn_missing_api_keys(self) -> "Settings":
