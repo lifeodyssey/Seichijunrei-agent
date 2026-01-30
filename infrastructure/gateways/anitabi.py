@@ -47,7 +47,7 @@ class AnitabiClientGateway(AnitabiGateway):
                 return await client.get_station_info(station_name)
         except NotFoundError as exc:
             if exc.resource_type == "station":
-                raise InvalidStationError(str(exc)) from exc
+                raise InvalidStationError(station_name) from exc
             raise ExternalServiceError("anitabi", str(exc)) from exc
         except APIError as exc:
             raise ExternalServiceError("anitabi", str(exc)) from exc
@@ -65,7 +65,7 @@ class AnitabiClientGateway(AnitabiGateway):
                 return await client.search_bangumi(station=station, radius_km=radius_km)
         except NotFoundError as exc:
             if exc.resource_type == "bangumi":
-                raise NoBangumiFoundError(str(exc)) from exc
+                raise NoBangumiFoundError(station.name) from exc
             raise ExternalServiceError("anitabi", str(exc)) from exc
         except APIError as exc:
             raise ExternalServiceError("anitabi", str(exc)) from exc

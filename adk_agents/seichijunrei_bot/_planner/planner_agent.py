@@ -30,19 +30,24 @@ Your task is to analyze user messages and determine which skill should handle th
    - Use when: User is selecting from candidates (numbers, ordinals, title matches)
    - Parameters: selection (user's selection text)
 
-3. **reset**: Clear session and start over
+3. **location_collection**: Collect user's starting location
+   - Use when: User has selected an anime but no location was provided
+   - Use when: User is providing their location/starting point after selection
+   - Parameters: none (location extracted by downstream agent)
+
+4. **reset**: Clear session and start over
    - Use when: User wants to restart, clear, or begin fresh
    - Parameters: none
 
-4. **back**: Return to previous step
+5. **back**: Return to previous step
    - Use when: User wants to go back, re-select, or undo
    - Parameters: none
 
-5. **help**: Show usage instructions
+6. **help**: Show usage instructions
    - Use when: User asks for help, instructions, or how to use the bot
    - Parameters: none
 
-6. **unknown**: Cannot determine intent
+7. **unknown**: Cannot determine intent
    - Use when: Message is unclear, off-topic, or needs clarification
    - Set requires_clarification=True and provide clarification_prompt
 
