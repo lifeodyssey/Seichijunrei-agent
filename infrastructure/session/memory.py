@@ -24,16 +24,29 @@ class InMemorySessionStore:
         self._metadata: dict[str, dict[str, Any]] = {}
 
     async def get(self, session_id: str) -> dict[str, Any] | None:
-        """Retrieve session state by ID."""
+        """Retrieve session state by ID.
+
+        Args:
+            session_id: The unique session identifier.
+
+        Returns:
+            Session state dictionary if found, None otherwise.
+        """
         state = self._sessions.get(session_id)
         if state is not None:
+            # Update access time in metadata
             if session_id in self._metadata:
                 self._metadata[session_id]["updated_at"] = datetime.now(UTC)
             logger.debug("Session retrieved", session_id=session_id)
         return state
 
     async def set(self, session_id: str, state: dict[str, Any]) -> None:
-        """Store or update session state."""
+        """Store or update session state.
+
+        Args:
+            session_id: The unique session identifier.
+            state: The state dictionary to store.
+        """
         is_new = session_id not in self._sessions
         self._sessions[session_id] = state
 
@@ -49,18 +62,36 @@ class InMemorySessionStore:
             logger.debug("Session updated", session_id=session_id)
 
     async def delete(self, session_id: str) -> None:
-        """Delete a session."""
+        """Delete a session.
+
+        Args:
+            session_id: The unique session identifier.
+        """
         if session_id in self._sessions:
             del self._sessions[session_id]
             self._metadata.pop(session_id, None)
             logger.debug("Session deleted", session_id=session_id)
 
     async def exists(self, session_id: str) -> bool:
-        """Check if a session exists."""
+        """Check if a session exists.
+
+        Args:
+            session_id: The unique session identifier.
+
+        Returns:
+            True if session exists, False otherwise.
+        """
         return session_id in self._sessions
 
     async def list_sessions(self, limit: int = 100) -> list[str]:
-        """List all session IDs."""
+        """List all session IDs.
+
+        Args:
+            limit: Maximum number of sessions to return.
+
+        Returns:
+            List of session IDs.
+        """
         return list(self._sessions.keys())[:limit]
 
     def clear_all(self) -> None:

@@ -23,6 +23,7 @@ class TestTracing:
         tracer = get_tracer(__name__)
 
         with tracer.start_as_current_span("test-span") as span:
+            # Should not raise
             span.set_attribute("session_id", "test-123")
             span.set_attribute("skill_id", "search")
 
@@ -45,6 +46,7 @@ class TestMetrics:
         """Test that counter can add values."""
         meter = get_meter(__name__)
         counter = meter.create_counter("test_counter")
+        # Should not raise
         counter.add(1, {"key": "value"})
 
     def test_meter_can_create_histogram(self):
@@ -57,4 +59,5 @@ class TestMetrics:
         """Test that histogram can record values."""
         meter = get_meter(__name__)
         histogram = meter.create_histogram("test_histogram")
+        # Should not raise
         histogram.record(100, {"operation": "test"})

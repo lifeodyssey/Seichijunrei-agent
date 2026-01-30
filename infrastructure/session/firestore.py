@@ -12,14 +12,23 @@ logger = get_logger(__name__)
 
 
 class FirestoreSessionStore:
-    """Firestore-backed session store for GCP deployments."""
+    """Firestore-backed session store for GCP deployments.
+
+    Provides persistent, distributed session storage using
+    Google Cloud Firestore.
+    """
 
     def __init__(
         self,
         project_id: str | None = None,
         collection_name: str = "sessions",
     ) -> None:
-        """Initialize the Firestore session store."""
+        """Initialize the Firestore session store.
+
+        Args:
+            project_id: GCP project ID. If None, uses default.
+            collection_name: Firestore collection name for sessions.
+        """
         self._project_id = project_id
         self._collection_name = collection_name
         self._client: Any = None
@@ -58,6 +67,8 @@ class FirestoreSessionStore:
 
         data = doc.to_dict()
         logger.debug("Session retrieved from Firestore", session_id=session_id)
+
+        # Return just the state portion
         return data.get("state", {})
 
     async def set(self, session_id: str, state: dict[str, Any]) -> None:
@@ -67,7 +78,14 @@ class FirestoreSessionStore:
         collection = self._get_collection()
         doc_ref = collection.document(session_id)
 
-        await doc_ref.set({"state": state, "updated_at": datetime.now(UTC)}, merge=True)
+        await doc_ref.set(
+            {
+                "state": state,
+                "updated_at": datetime.now(UTC),
+            },
+            merge=True,
+        )
+
         logger.debug("Session stored in Firestore", session_id=session_id)
 
     async def delete(self, session_id: str) -> None:

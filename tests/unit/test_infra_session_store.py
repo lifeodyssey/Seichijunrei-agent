@@ -72,6 +72,18 @@ class TestInMemorySessionStore:
 
         sessions = await store.list_sessions()
         assert len(sessions) == 3
+        assert "session-1" in sessions
+        assert "session-2" in sessions
+        assert "session-3" in sessions
+
+    @pytest.mark.asyncio
+    async def test_list_sessions_with_limit(self, store: InMemorySessionStore):
+        """Test listing sessions with limit."""
+        for i in range(10):
+            await store.set(f"session-{i}", {})
+
+        sessions = await store.list_sessions(limit=5)
+        assert len(sessions) == 5
 
     def test_clear_all(self, store: InMemorySessionStore):
         """Test clearing all sessions."""
@@ -86,7 +98,7 @@ class TestSessionStoreProtocol:
     """Tests for SessionStore protocol compliance."""
 
     def test_inmemory_implements_protocol(self):
-        """Test that InMemorySessionStore implements SessionStore."""
+        """Test that InMemorySessionStore implements SessionStore protocol."""
         store = InMemorySessionStore()
         assert isinstance(store, SessionStore)
 

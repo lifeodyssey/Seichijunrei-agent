@@ -329,3 +329,81 @@ def test_anitabi_image_url_builder_with_empty():
     """Test building Anitabi image URL handles empty input."""
     assert _build_anitabi_image_url("") == ""
     assert _build_anitabi_image_url(None) == ""
+
+
+# --- Route View Additional Tests ---
+
+
+def test_route_view_with_points_meta_info():
+    """Test route view displays points meta information."""
+    state = {
+        "extraction_result": {"user_language": "zh-CN"},
+        "selected_bangumi": {"bangumi_title": "Test"},
+        "points_selection_result": {
+            "selected_points": [{"name": "Point A", "lat": 35.0, "lng": 139.0}],
+            "total_available": 15,
+            "rejected_count": 10,
+        },
+        "route_plan": {"recommended_order": ["Point A"]},
+    }
+    _, messages = build_a2ui_response(state)
+    comps = _components_from_messages(messages)
+    assert "points-meta" in comps
+
+
+def test_route_view_with_selection_rationale():
+    """Test route view displays selection rationale."""
+    state = {
+        "extraction_result": {"user_language": "en"},
+        "selected_bangumi": {"bangumi_title": "Test"},
+        "points_selection_result": {
+            "selected_points": [{"name": "Point A", "lat": 35.0, "lng": 139.0}],
+            "selection_rationale": "Selected based on proximity.",
+        },
+        "route_plan": {"recommended_order": ["Point A"]},
+    }
+    _, messages = build_a2ui_response(state)
+    comps = _components_from_messages(messages)
+    assert "points-rationale-card" in comps
+
+
+def test_route_view_with_anitabi_image_attribution():
+    """Test route view shows Anitabi image attribution."""
+    state = {
+        "extraction_result": {"user_language": "zh-CN"},
+        "selected_bangumi": {"bangumi_title": "Test"},
+        "points_selection_result": {
+            "selected_points": [
+                {
+                    "name": "Point A",
+                    "lat": 35.0,
+                    "lng": 139.0,
+                    "screenshot_url": "points/image.jpg",
+                }
+            ],
+        },
+        "route_plan": {"recommended_order": ["Point A"]},
+    }
+    _, messages = build_a2ui_response(state)
+    comps = _components_from_messages(messages)
+    assert "pt-card-1-image" in comps
+    assert "pt-card-1-image-source" in comps
+
+
+def test_route_view_with_transport_and_notes():
+    """Test route view with transport tips and special notes."""
+    state = {
+        "extraction_result": {"user_language": "ja"},
+        "selected_bangumi": {"bangumi_title": "Test"},
+        "points_selection_result": {
+            "selected_points": [{"name": "Point A", "lat": 35.0, "lng": 139.0}],
+        },
+        "route_plan": {
+            "recommended_order": ["Point A"],
+            "transport_tips": "Take the train",
+            "special_notes": ["Note 1"],
+        },
+    }
+    _, messages = build_a2ui_response(state)
+    comps = _components_from_messages(messages)
+    assert "route-tips-card" in comps

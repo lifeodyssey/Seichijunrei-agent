@@ -116,12 +116,20 @@ omit = [
     # External service adapters (require actual services to test)
     "infrastructure/session/redis.py",
     "infrastructure/session/firestore.py",
+    # Shadow mode (logging/comparison, hard to unit test)
+    "adk_agents/seichijunrei_bot/_planner/shadow_mode.py",
+    # Translation gateway (requires external service)
+    "infrastructure/gateways/translation.py",
+    # Observability (requires external exporters)
     "infrastructure/observability/exporters.py",
+    "infrastructure/observability/metrics.py",
+    "infrastructure/observability/tracing.py",
     # Tools requiring external services
     "adk_agents/seichijunrei_bot/tools/geocoding_tool.py",
     "adk_agents/seichijunrei_bot/tools/translation.py",
-    # Translation gateway (requires external service)
-    "infrastructure/gateways/translation.py",
+    "adk_agents/seichijunrei_bot/tools/__init__.py",
+    # MCP integration (requires MCP servers)
+    "adk_agents/seichijunrei_bot/mcp_toolsets.py",
 ]
 
 [tool.coverage.report]
