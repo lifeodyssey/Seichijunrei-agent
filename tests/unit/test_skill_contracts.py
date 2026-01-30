@@ -212,3 +212,166 @@ class TestSkillStateMachineEdgeCases:
         state = {EXTRACTION_RESULT: {"location": "Tokyo"}}
         skill = get_skill_for_state(state)
         assert skill == STAGE1_BANGUMI_SEARCH
+
+
+class TestStage1_5LocationCollection:
+    """Tests for Stage 1.5 Location Collection skill."""
+
+    def test_stage1_5_requires_selected_bangumi(self):
+        """Stage 1.5 skill should require SELECTED_BANGUMI."""
+        assert SELECTED_BANGUMI in STAGE1_5_LOCATION_COLLECTION.required_state_keys
+
+    def test_stage1_5_provides_location_keys(self):
+        """Stage 1.5 should provide location collection keys."""
+        from adk_agents.seichijunrei_bot._state import (
+            LOCATION_PROMPT_SHOWN,
+            USER_COORDINATES,
+        )
+
+        assert LOCATION_PROMPT_SHOWN in STAGE1_5_LOCATION_COLLECTION.provided_state_keys
+        assert USER_COORDINATES in STAGE1_5_LOCATION_COLLECTION.provided_state_keys
+
+    def test_stage1_5_reset_clears_location_state(self):
+        """Stage 1.5 reset should clear location state keys."""
+        from adk_agents.seichijunrei_bot._state import STAGE1_5_STATE_KEYS
+
+        assert STAGE1_5_LOCATION_COLLECTION.reset_state_keys == frozenset(
+            STAGE1_5_STATE_KEYS
+        )
+
+    def test_stage1_5_validate_preconditions_fails_without_selected_bangumi(self):
+        """Stage 1.5 precondition validation fails without selected_bangumi."""
+        state = {}
+        with pytest.raises(StateContractError) as exc_info:
+            STAGE1_5_LOCATION_COLLECTION.validate_preconditions(state)
+        assert "Missing required state keys" in str(exc_info.value)
+        assert "selected_bangumi" in str(exc_info.value)
+
+    def test_stage1_5_validate_preconditions_passes_with_selected_bangumi(self):
+        """Stage 1.5 precondition validation passes with selected_bangumi."""
+        state = {SELECTED_BANGUMI: {"bangumi_id": 123, "title": "Test"}}
+        # Should not raise
+        STAGE1_5_LOCATION_COLLECTION.validate_preconditions(state)
+
+
+class TestSkillResetBehavior:
+    """Tests for skill reset behavior."""
+
+    def test_stage1_reset_clears_all_keys(self):
+        """Stage 1 reset should clear all state keys."""
+        from adk_agents.seichijunrei_bot._state import (
+            ALL_POINTS,
+            LOCATION_PROMPT_SHOWN,
+            POINTS_META,
+            POINTS_SELECTION_RESULT,
+            USER_COORDINATES,
+        )
+
+        state = {
+            EXTRACTION_RESULT: {"location": "Tokyo"},
+            BANGUMI_CANDIDATES: [{"id": 1}],
+            SELECTED_BANGUMI: {"id": 1},
+            ALL_POINTS: [{"name": "Point A"}],
+            POINTS_META: {"total": 10},
+            POINTS_SELECTION_RESULT: {"selected_points": []},
+            ROUTE_PLAN: {"recommended_order": []},
+            LOCATION_PROMPT_SHOWN: True,
+            USER_COORDINATES: {"lat": 35.0, "lng": 139.0},
+        }
+        STAGE1_BANGUMI_SEARCH.apply_reset(state)
+        # All keys should be removed
+        assert len(state) == 0
+
+    def test_stage2_reset_preserves_stage1_keys(self):
+        """Stage 2 reset should preserve Stage 1 keys."""
+        from adk_agents.seichijunrei_bot._state import ALL_POINTS, POINTS_META
+
+        state = {
+            EXTRACTION_RESULT: {"location": "Tokyo"},
+            BANGUMI_CANDIDATES: [{"id": 1}],
+            SELECTED_BANGUMI: {"id": 1},
+            ALL_POINTS: [{"name": "Point A"}],
+            POINTS_META: {"total": 10},
+            ROUTE_PLAN: {"recommended_order": []},
+        }
+        STAGE2_ROUTE_PLANNING.apply_reset(state)
+        # Stage 1 keys should remain
+        assert EXTRACTION_RESULT in state
+        assert BANGUMI_CANDIDATES in state
+        # Stage 2 keys should be removed
+        assert SELECTED_BANGUMI not in state
+        assert ALL_POINTS not in state
+        assert ROUTE_PLAN not in state
+
+    def test_stage1_5_reset_preserves_other_keys(self):
+        """Stage 1.5 reset should preserve non-location keys."""
+        from adk_agents.seichijunrei_bot._state import (
+            LOCATION_PROMPT_SHOWN,
+            USER_COORDINATES,
+        )
+
+        state = {
+            EXTRACTION_RESULT: {"location": "Tokyo"},
+            BANGUMI_CANDIDATES: [{"id": 1}],
+            SELECTED_BANGUMI: {"id": 1},
+            LOCATION_PROMPT_SHOWN: True,
+            USER_COORDINATES: {"lat": 35.0, "lng": 139.0},
+        }
+        STAGE1_5_LOCATION_COLLECTION.apply_reset(state)
+        # Non-location keys should remain
+        assert EXTRACTION_RESULT in state
+        assert BANGUMI_CANDIDATES in state
+        assert SELECTED_BANGUMI in state
+        # Location keys should be removed
+        assert LOCATION_PROMPT_SHOWN not in state
+        assert USER_COORDINATES not in state
+
+    def test_reset_on_empty_state_is_safe(self):
+        """Reset on empty state should not raise."""
+        state = {}
+        STAGE1_BANGUMI_SEARCH.apply_reset(state)
+        assert state == {}
+
+        STAGE2_ROUTE_PLANNING.apply_reset(state)
+        assert state == {}
+
+        STAGE1_5_LOCATION_COLLECTION.apply_reset(state)
+        assert state == {}
+
+
+class TestSkillNameProperty:
+    """Tests for skill name property."""
+
+    def test_skill_name_matches_agent_name(self):
+        """Skill name property should return agent name."""
+        for skill in SKILLS:
+            assert skill.name == skill.agent.name
+
+    def test_skill_names_are_strings(self):
+        """All skill names should be non-empty strings."""
+        for skill in SKILLS:
+            assert isinstance(skill.name, str)
+            assert len(skill.name) > 0
+
+
+class TestStateContractErrorDetails:
+    """Tests for StateContractError exception details."""
+
+    def test_error_contains_skill_id(self):
+        """StateContractError should contain skill_id."""
+        error = StateContractError("test_skill", "test message")
+        assert error.skill_id == "test_skill"
+        assert "test_skill" in str(error)
+
+    def test_error_contains_message(self):
+        """StateContractError should contain the message."""
+        error = StateContractError("test_skill", "custom error message")
+        assert "custom error message" in str(error)
+
+    def test_error_format(self):
+        """StateContractError should have proper format."""
+        error = StateContractError("my_skill", "something went wrong")
+        assert (
+            str(error)
+            == "State contract error in skill 'my_skill': something went wrong"
+        )
