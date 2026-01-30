@@ -127,6 +127,8 @@ omit = [
     "adk_agents/seichijunrei_bot/tools/__init__.py",
     # MCP integration (requires MCP servers)
     "adk_agents/seichijunrei_bot/mcp_toolsets.py",
+    # A2A server main entry point (requires running server)
+    "interfaces/a2a_server/main.py",
 ]
 
 [tool.coverage.report]
