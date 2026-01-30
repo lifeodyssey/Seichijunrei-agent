@@ -113,6 +113,9 @@ omit = [
     ".uv-cache/*",
     "*/.uv-cache/*",
     "*/site-packages/*",
+    # External service adapters (require actual services to test)
+    "infrastructure/session/redis.py",
+    "infrastructure/session/firestore.py",
     # Shadow mode (logging/comparison, hard to unit test)
     "adk_agents/seichijunrei_bot/_planner/shadow_mode.py",
     # Translation gateway (requires external service)
