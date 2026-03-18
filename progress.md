@@ -21,6 +21,13 @@
 - [x] 故事卡 AC + Test Cases 编写
 - [x] 写入 task_plan.md + findings.md + progress.md
 
+### V2 基础设施搭建（2026-03-18）
+- [x] 清理 ralph loop（iteration 221 → 停止）
+- [x] 添加 v2 依赖（pydantic-ai, supabase, asyncpg, pgvector, fastembed）
+- [x] 创建 Supabase DDL 迁移脚本（5 个 SQL: extensions, bangumi, points, sessions/routes, indexes）
+- [x] 创建 Supabase 异步客户端骨架（infrastructure/supabase/client.py）
+- [x] 创建 Pydantic AI Agent 骨架（agents/base.py, agents/intent_agent.py）
+
 ### 关键决策
 | 决策 | 时间 |
 |------|------|
@@ -36,7 +43,7 @@
 ### 下一步
 - 开始 ITER-0: 数据爬取 + Evaluation 基线
   - STORY 0.1: Anitabi 种子数据爬取
-  - STORY 0.2: Bangumi 元数据 + Supabase 建表
+  - STORY 0.2: Bangumi 元数据 + Supabase 建表 + embedding 生成
   - STORY 0.3: Evaluation 框架
 
 ### 费用

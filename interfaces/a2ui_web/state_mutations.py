@@ -1,6 +1,6 @@
 """Deterministic state mutations for the A2UI web UI.
 
-These helpers modify the ADK-style session state dict in-place and keep
+These helpers modify the session state dict in-place and keep
 derived fields (like `route_plan`) consistent, without invoking the LLM.
 """
 
@@ -8,17 +8,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from adk_agents.seichijunrei_bot._state import (
-    ALL_POINTS,
-    BANGUMI_CANDIDATES,
-    EXTRACTION_RESULT,
-    POINTS_SELECTION_RESULT,
-    ROUTE_PLAN,
-    SELECTED_BANGUMI,
-    STAGE2_STATE_KEYS,
-)
 from application.use_cases import PlanRoute
 from services.route_planner_gateway import SimpleRoutePlannerGateway
+
+# Session state keys (inlined from former adk_agents._state)
+EXTRACTION_RESULT = "extraction_result"
+BANGUMI_CANDIDATES = "bangumi_candidates"
+SELECTED_BANGUMI = "selected_bangumi"
+ALL_POINTS = "all_points"
+POINTS_SELECTION_RESULT = "points_selection_result"
+ROUTE_PLAN = "route_plan"
+STAGE2_STATE_KEYS = {
+    SELECTED_BANGUMI, ALL_POINTS, "points_meta",
+    POINTS_SELECTION_RESULT, ROUTE_PLAN,
+}
 
 
 def _replan_route(

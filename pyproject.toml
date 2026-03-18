@@ -18,52 +18,60 @@ classifiers = [
 
 dependencies = [
     # Core Dependencies
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "python-dotenv>=1.0.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.9.0",
+    "python-dotenv>=1.1.0",
 
     # Async/HTTP
-    "aiohttp>=3.9.0",
-    "httpx>=0.25.0",
+    "aiohttp>=3.12.0",
+    "httpx>=0.28.0",
 
-    # Google APIs
+    # Google APIs (keep for Maps geocoding)
     "googlemaps>=4.10.0",
-    "google-cloud-storage>=2.10.0",
 
     # Observability
-    "structlog>=23.0.0",
-    "rich>=13.0.0",
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
+    "structlog>=25.0.0",
+    "rich>=14.0.0",
+    "opentelemetry-api>=1.39.0",
+    "opentelemetry-sdk>=1.39.0",
 
-    # Google Cloud & ADK
-    "google-genai>=1.0.0",
-    "google-cloud-aiplatform[adk,agent_engines]>=1.111",
-    "google-adk>=1.23.0",
+    # Google Generative AI (model-agnostic, used by pydantic-ai)
+    "google-genai>=1.16.0",
+
+    # v2: Agent Framework
+    "pydantic-ai>=1.69.0",
+
+    # v2: Database (Supabase + pgvector + PostGIS)
+    "supabase>=2.28.0",
+    "asyncpg>=0.31.0",
+    "pgvector>=0.4.0",
+
+    # v2: Embeddings
+    "fastembed>=0.7.0",
 ]
 
 [project.optional-dependencies]
 redis = [
-    "redis>=5.0.0",
+    "redis>=5.3.0",
 ]
 firestore = [
-    "google-cloud-firestore>=2.13.0",
+    "google-cloud-firestore>=2.22.0",
 ]
 observability = [
-    "opentelemetry-exporter-otlp>=1.20.0",
+    "opentelemetry-exporter-otlp>=1.39.0",
 ]
 dev = [
     # Testing
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.0",
+    "pytest>=9.0.0",
+    "pytest-asyncio>=0.26.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.0",
 
     # Code Quality
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.5.0",
+    "black>=26.0.0",
+    "ruff>=0.14.0",
+    "mypy>=1.19.0",
+    "pre-commit>=4.2.0",
 ]
 
 [build-system]
@@ -71,7 +79,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["application", "clients", "config", "domain", "infrastructure", "services", "utils"]
+packages = ["agents", "application", "clients", "config", "contracts", "domain", "infrastructure", "interfaces", "services", "utils"]
 
 [tool.ruff]
 line-length = 88
@@ -116,20 +124,12 @@ omit = [
     # External service adapters (require actual services to test)
     "infrastructure/session/redis.py",
     "infrastructure/session/firestore.py",
-    # Shadow mode (logging/comparison, hard to unit test)
-    "adk_agents/seichijunrei_bot/_planner/shadow_mode.py",
     # Translation gateway (requires external service)
     "infrastructure/gateways/translation.py",
     # Observability (requires external exporters)
     "infrastructure/observability/exporters.py",
     "infrastructure/observability/metrics.py",
     "infrastructure/observability/tracing.py",
-    # Tools requiring external services
-    "adk_agents/seichijunrei_bot/tools/geocoding_tool.py",
-    "adk_agents/seichijunrei_bot/tools/translation.py",
-    "adk_agents/seichijunrei_bot/tools/__init__.py",
-    # MCP integration (requires MCP servers)
-    "adk_agents/seichijunrei_bot/mcp_toolsets.py",
     # A2A server main entry point (requires running server)
     "interfaces/a2a_server/main.py",
 ]

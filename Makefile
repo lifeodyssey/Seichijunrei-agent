@@ -1,58 +1,38 @@
 # Seichijunrei Bot - Makefile
-# Convenience commands for development, testing, and deployment
 
-.PHONY: help install dev test lint format check clean run deploy health smoke a2ui-web
+.PHONY: help install dev test lint format check clean build a2a a2ui-web
 
-# Use a project-local cache directory for uv to avoid permission issues in
-# restricted environments (CI, sandboxes). Can be overridden by env.
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
 
-# Default target
 help:
 	@echo "Seichijunrei Bot - Available commands:"
 	@echo ""
 	@echo "Development:"
 	@echo "  make install     Install production dependencies"
 	@echo "  make dev         Install all dependencies (including dev)"
-	@echo "  make run         Run the agent locally with ADK"
-	@echo "  make web         Run the agent with ADK web interface"
 	@echo "  make a2a         Run the A2A server (port 8080)"
+	@echo "  make a2ui-web    Run the A2UI web interface"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test        Run unit tests"
 	@echo "  make test-all    Run all tests (unit + integration)"
 	@echo "  make test-cov    Run tests with coverage report"
-	@echo "  make health      Run health checks"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint        Run linters (ruff)"
 	@echo "  make format      Format code (black + ruff)"
 	@echo "  make check       Run all checks (lint + test)"
 	@echo ""
-	@echo "Deployment:"
-	@echo "  make deploy-staging    Deploy to staging environment"
-	@echo "  make deploy-prod       Deploy to production environment"
-	@echo "  make deploy-dry-run    Show deployment plan without executing"
-	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean       Remove build artifacts and caches"
 
-# Installation
 install:
 	uv sync --no-dev
 
 dev:
-	uv sync --dev
+	uv sync --extra dev
 
-# Run locally
-run:
-	uv run adk run adk_agents/seichijunrei_bot
-
-web:
-	@bash scripts/start_adk_web.sh
-
-# Testing
 test:
 	uv run pytest tests/unit/ -v
 
@@ -65,22 +45,12 @@ test-cov:
 test-integration:
 	uv run pytest tests/integration/ -v -m integration
 
-# Health checks
-health:
-	uv run python health.py
-
-smoke:
-	uv run python scripts/smoke_test.py
-
-# A2UI (experimental)
 a2ui-web:
-	./.venv/bin/python -m interfaces.a2ui_web.server
+	uv run python -m interfaces.a2ui_web.server
 
-# A2A Server
 a2a:
 	uv run uvicorn interfaces.a2a_server.main:app --port 8080 --reload
 
-# Code quality
 lint:
 	uv run ruff check .
 	uv run black --check .
@@ -91,45 +61,16 @@ format:
 
 check: lint test
 
-# Deployment
-deploy-staging:
-	@if [ -z "$(GCP_PROJECT_ID)" ]; then \
-		echo "Error: GCP_PROJECT_ID environment variable is required"; \
-		exit 1; \
-	fi
-	uv run python deploy/deploy.py --project=$(GCP_PROJECT_ID) --env=staging
-
-deploy-prod:
-	@if [ -z "$(GCP_PROJECT_ID)" ]; then \
-		echo "Error: GCP_PROJECT_ID environment variable is required"; \
-		exit 1; \
-	fi
-	uv run python deploy/deploy.py --project=$(GCP_PROJECT_ID) --env=production
-
-deploy-dry-run:
-	@if [ -z "$(GCP_PROJECT_ID)" ]; then \
-		echo "Error: GCP_PROJECT_ID environment variable is required"; \
-		exit 1; \
-	fi
-	uv run python deploy/deploy.py --project=$(GCP_PROJECT_ID) --env=staging --dry-run
-
-# Cleanup
 clean:
 	rm -rf __pycache__ .pytest_cache .coverage htmlcov coverage.xml
 	rm -rf .ruff_cache .mypy_cache
 	rm -rf dist build *.egg-info
-	rm -rf output/maps/*.html output/pdfs/*.pdf
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Build
 build:
 	uv build
 
-# Quick start for new developers
 setup: dev
 	@echo ""
-	@echo "Setup complete! Try these commands:"
-	@echo "  make test    - Run tests"
-	@echo "  make run     - Run the agent locally"
-	@echo "  make web     - Run with web interface"
+	@echo "Setup complete! Try: make test"

@@ -10,27 +10,17 @@ from interfaces.a2a_server.types import ErrorCode, TaskState
 
 
 @pytest.fixture
-def mock_agent():
-    """Create a mock agent for testing."""
-    agent = MagicMock()
-    agent.run_async = AsyncMock(return_value=iter([]))
-    return agent
-
-
-@pytest.fixture
-def client(mock_agent):
-    """Create test client for A2A server with mock agent."""
-    server = A2AServer(agent=mock_agent)
-    # Patch _run_agent to return a simple response
-    server._run_agent = AsyncMock(return_value="Mock response")
+def client():
+    """Create test client for A2A server."""
+    server = A2AServer()
     app = create_app(server)
     return TestClient(app)
 
 
 @pytest.fixture
-def server(mock_agent):
-    """Create A2A server instance with mock agent."""
-    return A2AServer(agent=mock_agent)
+def server():
+    """Create A2A server instance."""
+    return A2AServer()
 
 
 class TestA2ATypes:

@@ -17,10 +17,9 @@ def mock_agent():
 
 
 @pytest.fixture
-def server_with_state(mock_agent):
+def server_with_state():
     """Create A2A server with controllable state."""
-    server = A2AServer(agent=mock_agent)
-    server._run_agent = AsyncMock(return_value="Mock response")
+    server = A2AServer()
     return server
 
 

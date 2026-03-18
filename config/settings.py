@@ -76,25 +76,9 @@ class Settings(BaseSettings):
     rate_limit_calls: int = Field(default=100, description="Rate limit calls")
     rate_limit_period_seconds: int = Field(default=60, description="Rate limit period")
 
-    # A2UI (Agent-to-User Interface) Settings
-    a2ui_backend: str = Field(
-        default="local",
-        description='A2UI backend mode: "local" or "agent_engine"',
-    )
+    # A2UI Settings
     a2ui_port: int = Field(default=8081, description="A2UI web server port")
     a2ui_host: str = Field(default="0.0.0.0", description="A2UI web server host")
-    a2ui_vertexai_project: str | None = Field(
-        default=None, description="Vertex AI project for Agent Engine backend"
-    )
-    a2ui_vertexai_location: str | None = Field(
-        default=None, description="Vertex AI location for Agent Engine backend"
-    )
-    a2ui_agent_engine_name: str | None = Field(
-        default=None, description="Agent Engine resource name"
-    )
-    a2ui_agent_engine_user_id: str = Field(
-        default="a2ui-web", description="User ID for Agent Engine sessions"
-    )
 
     # MCP (Model Context Protocol) - optional
     enable_mcp_tools: bool = Field(
@@ -114,43 +98,6 @@ class Settings(BaseSettings):
         description="Anitabi MCP server URL for sse/streamable-http transports",
     )
 
-    # State Contract Validation (ADK-001)
-    enable_state_contract_validation: bool = Field(
-        default=True,
-        description=(
-            "Enable runtime validation of ADK skill state contracts. "
-            "When enabled, preconditions are validated before skill execution "
-            "and postconditions are validated after. Set to False in production "
-            "for performance if contracts are well-tested."
-        ),
-    )
-
-    # LLM Planner Settings (PLAN-002)
-    enable_llm_planner: bool = Field(
-        default=True,
-        description=(
-            "Enable LLM planner for ambiguous inputs. "
-            "When enabled, ambiguous user inputs are routed to an LLM for intent "
-            "classification. When disabled, only deterministic fast paths are used."
-        ),
-    )
-    planner_model: str = Field(
-        default="gemini-2.0-flash",
-        description=(
-            "Model to use for the planner agent. "
-            "Should be a fast, cost-effective model for intent classification."
-        ),
-    )
-    planner_confidence_threshold: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Minimum confidence score to execute planner decision. "
-            "Below this threshold, clarification is requested from the user."
-        ),
-    )
-
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -159,17 +106,6 @@ class Settings(BaseSettings):
         v = v.upper()
         if v not in valid_levels:
             raise ValueError(f"Invalid log level: {v}. Must be one of {valid_levels}")
-        return v
-
-    @field_validator("a2ui_backend")
-    @classmethod
-    def validate_a2ui_backend(cls, v: str) -> str:
-        v = v.strip().lower()
-        valid = {"local", "agent_engine"}
-        if v not in valid:
-            raise ValueError(
-                f"Invalid A2UI_BACKEND: {v}. Must be one of {sorted(valid)}"
-            )
         return v
 
     @field_validator("mcp_transport")
@@ -210,11 +146,6 @@ class Settings(BaseSettings):
             "cache_ttl_seconds": self.cache_ttl_seconds,
             "use_cache": self.use_cache,
             "enable_mcp_tools": self.enable_mcp_tools,
-            "enable_state_contract_validation": self.enable_state_contract_validation,
-            "enable_llm_planner": self.enable_llm_planner,
-            "planner_model": self.planner_model,
-            "planner_confidence_threshold": self.planner_confidence_threshold,
-            "a2ui_backend": self.a2ui_backend,
             "a2ui_port": self.a2ui_port,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
@@ -230,8 +161,6 @@ class Settings(BaseSettings):
             "use_cache": self.use_cache,
             "debug": self.debug,
             "enable_mcp_tools": self.enable_mcp_tools,
-            "enable_state_contract_validation": self.enable_state_contract_validation,
-            "enable_llm_planner": self.enable_llm_planner,
         }
 
     def get_secrets(self) -> dict[str, str]:
