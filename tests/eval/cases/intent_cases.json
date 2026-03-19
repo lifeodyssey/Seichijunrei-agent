@@ -1,0 +1,233 @@
+[
+  {
+    "id": "bangumi_01",
+    "input": "秒速5厘米的取景地在哪",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "927"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_02",
+    "input": "君の名は。の聖地を教えて",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "160209"},
+    "tags": ["ja", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_03",
+    "input": "你的名字取景地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "160209"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_04",
+    "input": "天气之子的圣地巡礼",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "269235"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_05",
+    "input": "铃芽之旅的取景地有哪些",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "362577"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_06",
+    "input": "言叶之庭在哪里取景的",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "58949"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_07",
+    "input": "吹响吧上低音号的圣地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "115908"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_08",
+    "input": "響け！ユーフォニアムの聖地巡礼スポット",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "115908"},
+    "tags": ["ja", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_09",
+    "input": "凉宫春日的忧郁取景地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "485"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_10",
+    "input": "轻音少女的圣地在哪",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "1424"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_11",
+    "input": "冰菓的取景地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "27364"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_12",
+    "input": "玉子市场圣地巡礼",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "55113"},
+    "tags": ["cn", "bangumi_search"]
+  },
+  {
+    "id": "bangumi_episode_01",
+    "input": "吹响第3集出现的地方",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "115908", "episode": 3},
+    "tags": ["cn", "episode_filter"]
+  },
+  {
+    "id": "bangumi_episode_02",
+    "input": "秒速5厘米第1话的场景",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "927", "episode": 1},
+    "tags": ["cn", "episode_filter"]
+  },
+  {
+    "id": "bangumi_episode_03",
+    "input": "君の名は。の第5話に出てくる場所",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "160209", "episode": 5},
+    "tags": ["ja", "episode_filter"]
+  },
+  {
+    "id": "location_01",
+    "input": "宇治附近有什么圣地",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "宇治"},
+    "tags": ["cn", "location_search"]
+  },
+  {
+    "id": "location_02",
+    "input": "東京駅の近くにあるアニメ聖地",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "東京駅"},
+    "tags": ["ja", "location_search"]
+  },
+  {
+    "id": "location_03",
+    "input": "新宿周辺のアニメスポット",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "新宿"},
+    "tags": ["ja", "location_search"]
+  },
+  {
+    "id": "location_04",
+    "input": "京都有哪些动漫取景地",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "京都"},
+    "tags": ["cn", "location_search"]
+  },
+  {
+    "id": "location_05",
+    "input": "飛騨高山周辺の聖地",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "飛騨高山"},
+    "tags": ["ja", "location_search"]
+  },
+  {
+    "id": "location_06",
+    "input": "秋叶原附近的圣地巡礼点",
+    "expected_intent": "search_by_location",
+    "expected_params": {"location": "秋叶原"},
+    "tags": ["cn", "location_search"]
+  },
+  {
+    "id": "route_01",
+    "input": "从京都站出发去吹响的圣地",
+    "expected_intent": "plan_route",
+    "expected_params": {"origin": "京都站", "bangumi": "115908"},
+    "tags": ["cn", "route"]
+  },
+  {
+    "id": "route_02",
+    "input": "東京駅から君の名はの聖地を回るルート",
+    "expected_intent": "plan_route",
+    "expected_params": {"origin": "東京駅", "bangumi": "160209"},
+    "tags": ["ja", "route"]
+  },
+  {
+    "id": "route_03",
+    "input": "帮我规划从新宿到天气之子取景地的路线",
+    "expected_intent": "plan_route",
+    "expected_params": {"origin": "新宿", "bangumi": "269235"},
+    "tags": ["cn", "route"]
+  },
+  {
+    "id": "route_04",
+    "input": "宇治駅から響けユーフォの聖地巡りルートを作って",
+    "expected_intent": "plan_route",
+    "expected_params": {"origin": "宇治駅", "bangumi": "115908"},
+    "tags": ["ja", "route"]
+  },
+  {
+    "id": "qa_01",
+    "input": "圣地巡礼是什么意思",
+    "expected_intent": "general_qa",
+    "expected_params": {},
+    "tags": ["cn", "qa"]
+  },
+  {
+    "id": "qa_02",
+    "input": "聖地巡礼のマナーを教えて",
+    "expected_intent": "general_qa",
+    "expected_params": {},
+    "tags": ["ja", "qa"]
+  },
+  {
+    "id": "qa_03",
+    "input": "日本动漫圣地巡礼需要注意什么",
+    "expected_intent": "general_qa",
+    "expected_params": {},
+    "tags": ["cn", "qa"]
+  },
+  {
+    "id": "unclear_01",
+    "input": "推荐一下",
+    "expected_intent": "unclear",
+    "expected_params": {},
+    "tags": ["cn", "unclear"]
+  },
+  {
+    "id": "unclear_02",
+    "input": "你好",
+    "expected_intent": "unclear",
+    "expected_params": {},
+    "tags": ["cn", "unclear"]
+  },
+  {
+    "id": "unclear_03",
+    "input": "おすすめ",
+    "expected_intent": "unclear",
+    "expected_params": {},
+    "tags": ["ja", "unclear"]
+  },
+  {
+    "id": "combo_01",
+    "input": "京都的冰菓取景地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "27364", "location": "京都"},
+    "tags": ["cn", "combo"]
+  },
+  {
+    "id": "combo_02",
+    "input": "宇治にある響けユーフォの聖地",
+    "expected_intent": "search_by_bangumi",
+    "expected_params": {"bangumi": "115908", "location": "宇治"},
+    "tags": ["ja", "combo"]
+  }
+]
