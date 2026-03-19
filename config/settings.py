@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     rate_limit_calls: int = Field(default=100, description="Rate limit calls")
     rate_limit_period_seconds: int = Field(default=60, description="Rate limit period")
 
+    # Supabase
+    supabase_url: str = Field(default="", description="Supabase project URL")
+    supabase_anon_key: str = Field(default="", description="Supabase anon key")
+    supabase_service_role_key: str = Field(
+        default="", description="Supabase service role key"
+    )
+    supabase_db_url: str = Field(
+        default="", description="Direct Postgres DSN for asyncpg"
+    )
+
     # A2UI Settings
     a2ui_port: int = Field(default=8081, description="A2UI web server port")
     a2ui_host: str = Field(default="0.0.0.0", description="A2UI web server host")

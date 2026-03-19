@@ -144,6 +144,30 @@ class SupabaseClient:
             str(embedding), limit,
         )
 
+    async def upsert_point(self, point_id: str, **fields: object) -> None:
+        """Insert or update a point record."""
+        columns = ["id"] + list(fields.keys())
+        placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in fields.keys())
+        sql = (
+            f"INSERT INTO points ({', '.join(columns)}) VALUES ({placeholders}) "
+            f"ON CONFLICT (id) DO UPDATE SET {update_set}"
+        )
+        await self.pool.execute(sql, point_id, *fields.values())
+
+    async def upsert_points_batch(self, rows: list[dict]) -> int:
+        """Batch upsert points. Each dict must contain 'id' + field values.
+
+        Returns the number of rows upserted.
+        """
+        if not rows:
+            return 0
+        for row in rows:
+            pid = row.pop("id")
+            await self.upsert_point(pid, **row)
+            row["id"] = pid  # restore
+        return len(rows)
+
     # --- Sessions ---
 
     async def get_session(self, session_id: str) -> asyncpg.Record | None:
