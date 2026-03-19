@@ -10,7 +10,7 @@ Usage:
     agent = create_agent(
         "gemini-2.0-flash",
         system_prompt="You are a travel assistant.",
-        result_type=MyOutputModel,
+        output_type=MyOutputModel,
     )
     result = await agent.run("Plan a trip to Kamakura")
 """
@@ -29,20 +29,19 @@ DEFAULT_MODEL = "gemini-2.0-flash"
 
 
 def create_agent(
-    model: str = DEFAULT_MODEL,
+    model: Any = DEFAULT_MODEL,
     *,
     system_prompt: str = "",
-    result_type: type[T] | None = None,
+    output_type: type[T] | None = None,
     retries: int = 2,
     **kwargs: Any,
 ) -> Agent[Any, T] | Agent[Any, str]:
     """Create a Pydantic AI agent with the given configuration.
 
     Args:
-        model: Model identifier (e.g. "gemini-2.0-flash", "openai:gpt-4o",
-               "anthropic:claude-sonnet-4-20250514").
+        model: Model identifier or pydantic-ai Model instance.
         system_prompt: System prompt for the agent.
-        result_type: Pydantic model for structured output. If None, returns str.
+        output_type: Pydantic model for structured output. If None, returns str.
         retries: Number of retries on failure.
         **kwargs: Additional Agent constructor arguments.
 
@@ -56,7 +55,7 @@ def create_agent(
     }
     if system_prompt:
         agent_kwargs["system_prompt"] = system_prompt
-    if result_type is not None:
-        agent_kwargs["result_type"] = result_type
+    if output_type is not None:
+        agent_kwargs["output_type"] = output_type
 
     return Agent(**agent_kwargs)
