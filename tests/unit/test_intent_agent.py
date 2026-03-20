@@ -155,6 +155,27 @@ class TestClassifyIntentRegex:
         assert result.intent == "search_by_bangumi"
         assert result.extracted_params.bangumi == "27364"
 
+    def test_plan_route_walk_through_cn(self) -> None:
+        """走一遍 should trigger route intent, not bangumi search."""
+        result = classify_intent_regex("想走一遍吹响的圣地")
+        assert result is not None
+        assert result.intent == "plan_route"
+        assert result.extracted_params.bangumi == "115908"
+
+    def test_plan_route_arrange_cn(self) -> None:
+        """安排路线 should trigger route intent."""
+        result = classify_intent_regex("安排一下天气之子的路线")
+        assert result is not None
+        assert result.intent == "plan_route"
+        assert result.extracted_params.bangumi == "269235"
+
+    def test_plan_route_make_ja(self) -> None:
+        """ルートを作って should trigger route intent."""
+        result = classify_intent_regex("響けユーフォのルートを作って")
+        assert result is not None
+        assert result.intent == "plan_route"
+        assert result.extracted_params.bangumi == "115908"
+
     def test_returns_none_for_ambiguous(self) -> None:
         """Ambiguous input should return None (fall through to LLM)."""
         result = classify_intent_regex("我想去日本旅游看看动漫相关的东西")
