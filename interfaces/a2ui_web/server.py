@@ -1,7 +1,7 @@
 """Local A2UI web server (aiohttp) for Seichijunrei.
 
 This is a developer-facing / local-user UI to validate an A2UI-driven
-experience without relying on the ADK web UI.
+experience.
 """
 
 from __future__ import annotations

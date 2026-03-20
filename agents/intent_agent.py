@@ -1,7 +1,5 @@
 """IntentAgent — classifies user intent with regex fast-path + LLM fallback.
 
-Replaces the ADK intent recognition in adk_agents/_intent/.
-
 Intent categories:
     - search_by_location: User wants to find anime near a station/location
     - search_by_bangumi: User wants to visit locations from a specific anime
@@ -17,9 +15,19 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from agents.base import DEFAULT_MODEL, create_agent
+from agents.base import create_agent, get_default_model
 
 # ── Structured output ────────────────────────────────────────────────
+
+
+class ExtractedParams(BaseModel):
+    """Typed parameters extracted from user input."""
+
+    bangumi: str | None = Field(default=None, description="Bangumi ID")
+    location: str | None = Field(default=None, description="Location/station name")
+    episode: int | None = Field(default=None, description="Episode number")
+    origin: str | None = Field(default=None, description="Route starting point")
+    radius: int | None = Field(default=None, description="Search radius in meters")
 
 
 class IntentOutput(BaseModel):
@@ -30,8 +38,8 @@ class IntentOutput(BaseModel):
         description="Classified intent: search_by_location, search_by_bangumi, plan_route, general_qa, unclear",
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Classification confidence")
-    extracted_params: dict = Field(
-        default_factory=dict,
+    extracted_params: ExtractedParams = Field(
+        default_factory=ExtractedParams,
         description="Extracted parameters (e.g. bangumi, location, episode, origin)",
     )
     reasoning: str = Field(default="", description="Brief reasoning for the classification")
@@ -188,7 +196,7 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     if not text_stripped:
         return IntentOutput(
             intent="unclear", confidence=1.0,
-            extracted_params={}, reasoning="empty input",
+            extracted_params=ExtractedParams(), reasoning="empty input",
         )
 
     bangumi_id = _match_bangumi_title(text_stripped)
@@ -199,37 +207,30 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     # 1. Route intent (highest priority — has explicit origin + destination)
     if is_route and bangumi_id:
         origin = _extract_route_origin(text_stripped)
-        params: dict = {"bangumi": bangumi_id}
-        if origin:
-            params["origin"] = origin
-        if episode:
-            params["episode"] = episode
         return IntentOutput(
             intent="plan_route", confidence=0.95,
-            extracted_params=params,
+            extracted_params=ExtractedParams(
+                bangumi=bangumi_id, origin=origin, episode=episode,
+            ),
             reasoning="route pattern + bangumi title matched",
         )
 
     # 2. Bangumi search (title matched + search trigger)
     if bangumi_id and is_bangumi_trigger:
-        params = {"bangumi": bangumi_id}
-        if episode:
-            params["episode"] = episode
         location = _extract_location(text_stripped)
-        if location:
-            params["location"] = location
         return IntentOutput(
             intent="search_by_bangumi", confidence=0.95,
-            extracted_params=params,
+            extracted_params=ExtractedParams(
+                bangumi=bangumi_id, episode=episode, location=location,
+            ),
             reasoning="bangumi title + search trigger matched",
         )
 
     # 3. Bangumi + episode (title + episode number, no explicit trigger needed)
     if bangumi_id and episode:
-        params = {"bangumi": bangumi_id, "episode": episode}
         return IntentOutput(
             intent="search_by_bangumi", confidence=0.90,
-            extracted_params=params,
+            extracted_params=ExtractedParams(bangumi=bangumi_id, episode=episode),
             reasoning="bangumi title + episode number matched",
         )
 
@@ -239,7 +240,7 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
         if location and (is_bangumi_trigger or re.search(r"动漫|アニメ|anime|圣地|聖地", text_stripped)):
             return IntentOutput(
                 intent="search_by_location", confidence=0.90,
-                extracted_params={"location": location},
+                extracted_params=ExtractedParams(location=location),
                 reasoning="location pattern + anime/pilgrimage trigger",
             )
 
@@ -247,7 +248,7 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     if _QA_TRIGGER.search(text_stripped) and not bangumi_id:
         return IntentOutput(
             intent="general_qa", confidence=0.80,
-            extracted_params={},
+            extracted_params=ExtractedParams(),
             reasoning="QA trigger pattern matched",
         )
 
@@ -255,7 +256,7 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     if len(text_stripped) <= 5 and not bangumi_id:
         return IntentOutput(
             intent="unclear", confidence=0.85,
-            extracted_params={},
+            extracted_params=ExtractedParams(),
             reasoning="input too short to determine intent",
         )
 
@@ -287,25 +288,25 @@ Respond in the user's language (Japanese, Chinese, or English).
 """
 
 
-def create_intent_agent(model: Any = DEFAULT_MODEL) -> object:
+def create_intent_agent(model: Any = None) -> object:
     """Create an IntentAgent with structured output.
 
     Returns a Pydantic AI Agent configured for intent classification.
     Will be called by the PlannerAgent in the Plan-and-Execute pattern.
     """
     return create_agent(
-        model,
+        model or get_default_model(),
         system_prompt=INTENT_SYSTEM_PROMPT,
         output_type=IntentOutput,
     )
 
 
-async def classify_intent(text: str, *, model: Any = DEFAULT_MODEL) -> IntentOutput:
+async def classify_intent(text: str, *, model: Any = None) -> IntentOutput:
     """Classify user intent — regex fast-path, then LLM fallback.
 
     Args:
         text: User input text.
-        model: LLM model identifier for fallback.
+        model: LLM model identifier for fallback. Uses settings default if None.
 
     Returns:
         IntentOutput with classified intent and extracted parameters.

@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     a2ui_port: int = Field(default=8081, description="A2UI web server port")
     a2ui_host: str = Field(default="0.0.0.0", description="A2UI web server host")
 
+    # Agent model
+    default_agent_model: str = Field(
+        default="gemini-2.0-flash",
+        description="Default LLM model for pydantic-ai agents",
+    )
+
     # MCP (Model Context Protocol) - optional
     enable_mcp_tools: bool = Field(
         default=False,

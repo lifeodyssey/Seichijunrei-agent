@@ -5,12 +5,13 @@ from __future__ import annotations
 import pytest
 
 from agents.intent_agent import (
+    ExtractedParams,
     IntentOutput,
-    classify_intent_regex,
     _extract_episode,
     _extract_location,
     _extract_route_origin,
     _match_bangumi_title,
+    classify_intent_regex,
 )
 
 
@@ -88,45 +89,45 @@ class TestClassifyIntentRegex:
         result = classify_intent_regex("秒速5厘米的取景地在哪")
         assert result is not None
         assert result.intent == "search_by_bangumi"
-        assert result.extracted_params["bangumi"] == "927"
+        assert result.extracted_params.bangumi == "927"
 
     def test_search_by_bangumi_ja(self) -> None:
         result = classify_intent_regex("君の名は。の聖地を教えて")
         assert result is not None
         assert result.intent == "search_by_bangumi"
-        assert result.extracted_params["bangumi"] == "160209"
+        assert result.extracted_params.bangumi == "160209"
 
     def test_search_by_bangumi_with_episode(self) -> None:
         result = classify_intent_regex("吹响第3集出现的地方")
         assert result is not None
         assert result.intent == "search_by_bangumi"
-        assert result.extracted_params["bangumi"] == "115908"
-        assert result.extracted_params["episode"] == 3
+        assert result.extracted_params.bangumi == "115908"
+        assert result.extracted_params.episode == 3
 
     def test_search_by_location_cn(self) -> None:
         result = classify_intent_regex("宇治附近有什么圣地")
         assert result is not None
         assert result.intent == "search_by_location"
-        assert result.extracted_params["location"] == "宇治"
+        assert result.extracted_params.location == "宇治"
 
     def test_search_by_location_ja(self) -> None:
         result = classify_intent_regex("東京駅の近くにあるアニメ聖地")
         assert result is not None
         assert result.intent == "search_by_location"
-        assert result.extracted_params["location"] == "東京駅"
+        assert result.extracted_params.location == "東京駅"
 
     def test_plan_route_cn(self) -> None:
         result = classify_intent_regex("从京都站出发去吹响的圣地")
         assert result is not None
         assert result.intent == "plan_route"
-        assert result.extracted_params["bangumi"] == "115908"
-        assert result.extracted_params["origin"] == "京都站"
+        assert result.extracted_params.bangumi == "115908"
+        assert result.extracted_params.origin == "京都站"
 
     def test_plan_route_ja(self) -> None:
         result = classify_intent_regex("東京駅から君の名はの聖地を回るルート")
         assert result is not None
         assert result.intent == "plan_route"
-        assert result.extracted_params["bangumi"] == "160209"
+        assert result.extracted_params.bangumi == "160209"
 
     def test_general_qa(self) -> None:
         result = classify_intent_regex("圣地巡礼是什么意思")
@@ -152,7 +153,7 @@ class TestClassifyIntentRegex:
         result = classify_intent_regex("京都的冰菓取景地")
         assert result is not None
         assert result.intent == "search_by_bangumi"
-        assert result.extracted_params["bangumi"] == "27364"
+        assert result.extracted_params.bangumi == "27364"
 
     def test_returns_none_for_ambiguous(self) -> None:
         """Ambiguous input should return None (fall through to LLM)."""
@@ -165,8 +166,9 @@ class TestClassifyIntentRegex:
         output = IntentOutput(
             intent="search_by_bangumi",
             confidence=0.95,
-            extracted_params={"bangumi": "927"},
+            extracted_params=ExtractedParams(bangumi="927"),
             reasoning="test",
         )
         assert output.intent == "search_by_bangumi"
         assert output.confidence == 0.95
+        assert output.extracted_params.bangumi == "927"

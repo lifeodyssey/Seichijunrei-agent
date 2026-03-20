@@ -111,7 +111,7 @@ class ParamsEvaluator(Evaluator[str, IntentOutput, dict[str, Any]]):
         if not expected_params:
             return 1.0
 
-        actual = ctx.output.extracted_params
+        actual = ctx.output.extracted_params.model_dump(exclude_none=True)
         matched = sum(
             1 for k, v in expected_params.items()
             if str(actual.get(k, "")) == str(v)

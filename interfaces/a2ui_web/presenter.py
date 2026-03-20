@@ -1,6 +1,6 @@
 """Generate A2UI (v0.8) messages from Seichijunrei session state.
 
-This is intentionally deterministic: it reads the ADK session state and
+This is intentionally deterministic: it reads the session state and
 produces A2UI surfaces (candidate picker / route view) without requiring the
 LLM to emit UI JSON.
 """

@@ -11,7 +11,7 @@ from typing import Any
 from application.use_cases import PlanRoute
 from services.route_planner_gateway import SimpleRoutePlannerGateway
 
-# Session state keys (inlined from former adk_agents._state)
+# Session state keys
 EXTRACTION_RESULT = "extraction_result"
 BANGUMI_CANDIDATES = "bangumi_candidates"
 SELECTED_BANGUMI = "selected_bangumi"

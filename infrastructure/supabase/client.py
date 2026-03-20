@@ -5,10 +5,8 @@ for better performance on vector/geo queries). Connection pooling via
 asyncpg.Pool.
 
 Usage:
-    client = SupabaseClient(dsn="postgresql://...")
-    await client.connect()
-    bangumi = await client.get_bangumi("12345")
-    await client.close()
+    async with SupabaseClient(dsn="postgresql://...") as db:
+        bangumi = await db.get_bangumi("12345")
 """
 
 from __future__ import annotations
@@ -18,6 +16,24 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# Column allowlists — only these names may appear in dynamic SQL identifiers.
+_BANGUMI_COLUMNS = frozenset({
+    "title", "title_cn", "cover_url", "air_date", "summary",
+    "eps_count", "rating", "points_count", "primary_color",
+})
+_POINT_COLUMNS = frozenset({
+    "bangumi_id", "name", "cn_name", "episode", "time_seconds",
+    "screenshot_url", "address", "origin", "origin_url", "scene_desc",
+    "location", "embedding", "search_text",
+})
+
+
+def _validate_columns(columns: frozenset[str], fields: dict) -> None:
+    """Raise ValueError if any field key is not in the allowlist."""
+    bad = set(fields.keys()) - columns
+    if bad:
+        raise ValueError(f"Invalid column names: {bad}")
+
 
 class SupabaseClient:
     """Async PostgreSQL client for Supabase.
@@ -25,6 +41,10 @@ class SupabaseClient:
     Wraps asyncpg with connection pooling. Designed for direct SQL access
     to leverage pgvector HNSW and PostGIS geography queries that the
     Supabase REST API cannot express efficiently.
+
+    Supports async context manager for safe lifecycle management:
+        async with SupabaseClient(dsn) as db:
+            ...
     """
 
     def __init__(self, dsn: str, *, min_pool_size: int = 2, max_pool_size: int = 10) -> None:
@@ -51,6 +71,13 @@ class SupabaseClient:
             self._pool = None
             logger.info("supabase_disconnected")
 
+    async def __aenter__(self) -> SupabaseClient:
+        await self.connect()
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        await self.close()
+
     @property
     def pool(self) -> asyncpg.Pool:
         """Get the connection pool (raises if not connected)."""
@@ -74,7 +101,11 @@ class SupabaseClient:
         )
 
     async def upsert_bangumi(self, bangumi_id: str, **fields: object) -> None:
-        """Insert or update a bangumi record."""
+        """Insert or update a bangumi record.
+
+        Column names are validated against an allowlist to prevent SQL injection.
+        """
+        _validate_columns(_BANGUMI_COLUMNS, fields)
         columns = ["id"] + list(fields.keys())
         placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
         update_set = ", ".join(
@@ -145,7 +176,11 @@ class SupabaseClient:
         )
 
     async def upsert_point(self, point_id: str, **fields: object) -> None:
-        """Insert or update a point record."""
+        """Insert or update a point record.
+
+        Column names are validated against an allowlist to prevent SQL injection.
+        """
+        _validate_columns(_POINT_COLUMNS, fields)
         columns = ["id"] + list(fields.keys())
         placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
         update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in fields.keys())
@@ -156,16 +191,18 @@ class SupabaseClient:
         await self.pool.execute(sql, point_id, *fields.values())
 
     async def upsert_points_batch(self, rows: list[dict]) -> int:
-        """Batch upsert points. Each dict must contain 'id' + field values.
+        """Batch upsert points using a single transaction.
 
+        Each dict must contain 'id' + field values. Does not mutate input dicts.
         Returns the number of rows upserted.
         """
         if not rows:
             return 0
-        for row in rows:
-            pid = row.pop("id")
-            await self.upsert_point(pid, **row)
-            row["id"] = pid  # restore
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                for row in rows:
+                    fields = {k: v for k, v in row.items() if k != "id"}
+                    await self.upsert_point(row["id"], **fields)
         return len(rows)
 
     # --- Sessions ---

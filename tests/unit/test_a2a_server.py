@@ -1,6 +1,5 @@
 """Unit tests for A2A server."""
 
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from starlette.testclient import TestClient

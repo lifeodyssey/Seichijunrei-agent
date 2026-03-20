@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agents.intent_agent import IntentOutput
+from agents.intent_agent import ExtractedParams, IntentOutput
 from agents.sql_agent import KNOWN_LOCATIONS, SQLAgent, SQLResult
 
 
@@ -45,15 +45,15 @@ class TestSearchByBangumi:
         intent = IntentOutput(
             intent="search_by_bangumi",
             confidence=0.95,
-            extracted_params={"bangumi": "115908"},
+            extracted_params=ExtractedParams(bangumi="115908"),
         )
         result = await agent.execute(intent)
         assert result.success
-        # Verify parameterized query was called
         mock_db.pool.fetch.assert_called_once()
         call_args = mock_db.pool.fetch.call_args
         sql = call_args[0][0]
         assert "WHERE p.bangumi_id = $1" in sql
+        assert "LIMIT" in sql
         assert call_args[0][1] == "115908"
 
     @pytest.mark.asyncio
@@ -61,7 +61,7 @@ class TestSearchByBangumi:
         intent = IntentOutput(
             intent="search_by_bangumi",
             confidence=0.95,
-            extracted_params={"bangumi": "115908", "episode": 3},
+            extracted_params=ExtractedParams(bangumi="115908", episode=3),
         )
         result = await agent.execute(intent)
         assert result.success
@@ -76,7 +76,7 @@ class TestSearchByBangumi:
         intent = IntentOutput(
             intent="search_by_bangumi",
             confidence=0.95,
-            extracted_params={},
+            extracted_params=ExtractedParams(),
         )
         result = await agent.execute(intent)
         assert not result.success
@@ -91,24 +91,23 @@ class TestSearchByLocation:
         intent = IntentOutput(
             intent="search_by_location",
             confidence=0.90,
-            extracted_params={"location": "宇治"},
+            extracted_params=ExtractedParams(location="宇治"),
         )
         result = await agent.execute(intent)
         assert result.success
         call_args = mock_db.pool.fetch.call_args
         sql = call_args[0][0]
         assert "ST_DWithin" in sql
-        # Verify lon, lat, radius params
         lon, lat = KNOWN_LOCATIONS["宇治"][1], KNOWN_LOCATIONS["宇治"][0]
-        assert call_args[0][1] == lon  # $1 = longitude
-        assert call_args[0][2] == lat  # $2 = latitude
+        assert call_args[0][1] == lon
+        assert call_args[0][2] == lat
 
     @pytest.mark.asyncio
     async def test_unknown_location(self, agent):
         intent = IntentOutput(
             intent="search_by_location",
             confidence=0.90,
-            extracted_params={"location": "不存在的地方"},
+            extracted_params=ExtractedParams(location="不存在的地方"),
         )
         result = await agent.execute(intent)
         assert not result.success
@@ -123,7 +122,7 @@ class TestPlanRoute:
         intent = IntentOutput(
             intent="plan_route",
             confidence=0.95,
-            extracted_params={"bangumi": "115908", "origin": "京都站"},
+            extracted_params=ExtractedParams(bangumi="115908", origin="京都站"),
         )
         result = await agent.execute(intent)
         assert result.success
@@ -131,13 +130,14 @@ class TestPlanRoute:
         sql = call_args[0][0]
         assert "ST_Distance" in sql
         assert "ORDER BY distance_m" in sql
+        assert "LIMIT" in sql
 
     @pytest.mark.asyncio
     async def test_route_without_origin(self, agent, mock_db):
         intent = IntentOutput(
             intent="plan_route",
             confidence=0.95,
-            extracted_params={"bangumi": "115908"},
+            extracted_params=ExtractedParams(bangumi="115908"),
         )
         result = await agent.execute(intent)
         assert result.success
@@ -150,7 +150,7 @@ class TestPlanRoute:
         intent = IntentOutput(
             intent="plan_route",
             confidence=0.95,
-            extracted_params={"origin": "京都站"},
+            extracted_params=ExtractedParams(origin="京都站"),
         )
         result = await agent.execute(intent)
         assert not result.success
@@ -164,7 +164,7 @@ class TestUnsupportedIntent:
         intent = IntentOutput(
             intent="general_qa",
             confidence=0.80,
-            extracted_params={},
+            extracted_params=ExtractedParams(),
         )
         result = await agent.execute(intent)
         assert not result.success
@@ -175,7 +175,7 @@ class TestUnsupportedIntent:
         intent = IntentOutput(
             intent="unclear",
             confidence=0.85,
-            extracted_params={},
+            extracted_params=ExtractedParams(),
         )
         result = await agent.execute(intent)
         assert not result.success
@@ -190,12 +190,11 @@ class TestSQLSafety:
         intent = IntentOutput(
             intent="search_by_bangumi",
             confidence=0.95,
-            extracted_params={"bangumi": "'; DROP TABLE points; --"},
+            extracted_params=ExtractedParams(bangumi="'; DROP TABLE points; --"),
         )
         result = await agent.execute(intent)
         assert result.success
         call_args = mock_db.pool.fetch.call_args
         sql = call_args[0][0]
-        # The malicious string should be in params, not in SQL
         assert "DROP TABLE" not in sql
         assert call_args[0][1] == "'; DROP TABLE points; --"

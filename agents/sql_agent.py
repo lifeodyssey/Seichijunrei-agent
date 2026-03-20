@@ -17,10 +17,13 @@ from typing import Any
 
 import structlog
 
-from agents.intent_agent import IntentOutput
+from agents.intent_agent import ExtractedParams, IntentOutput
 from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
+
+# Default row limit for unbounded queries
+_DEFAULT_LIMIT = 100
 
 
 @dataclass
@@ -107,10 +110,10 @@ class SQLAgent:
 
     # ── Query builders ───────────────────────────────────────────────
 
-    async def _search_by_bangumi(self, params: dict) -> SQLResult:
+    async def _search_by_bangumi(self, params: ExtractedParams) -> SQLResult:
         """Search points by bangumi ID, optionally filtered by episode."""
-        bangumi_id = params.get("bangumi")
-        episode = params.get("episode")
+        bangumi_id = params.bangumi
+        episode = params.episode
 
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID")
@@ -124,7 +127,8 @@ class SQLAgent:
                 "b.title, b.title_cn "
                 "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 "WHERE p.bangumi_id = $1 AND p.episode = $2 "
-                "ORDER BY p.time_seconds"
+                "ORDER BY p.time_seconds "
+                f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params: list[Any] = [bangumi_id, episode]
         else:
@@ -136,16 +140,17 @@ class SQLAgent:
                 "b.title, b.title_cn "
                 "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 "WHERE p.bangumi_id = $1 "
-                "ORDER BY p.episode, p.time_seconds"
+                "ORDER BY p.episode, p.time_seconds "
+                f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params = [bangumi_id]
 
         return await self._run(sql, query_params)
 
-    async def _search_by_location(self, params: dict) -> SQLResult:
+    async def _search_by_location(self, params: ExtractedParams) -> SQLResult:
         """Search points near a location using PostGIS ST_DWithin."""
-        location_name = params.get("location", "")
-        radius_m = params.get("radius", 5000)
+        location_name = params.location or ""
+        radius_m = params.radius or 5000
 
         coords = KNOWN_LOCATIONS.get(location_name)
         if coords is None:
@@ -170,10 +175,10 @@ class SQLAgent:
         query_params: list[Any] = [lon, lat, radius_m]
         return await self._run(sql, query_params)
 
-    async def _plan_route(self, params: dict) -> SQLResult:
+    async def _plan_route(self, params: ExtractedParams) -> SQLResult:
         """Fetch points for route planning (sorted by distance from origin)."""
-        bangumi_id = params.get("bangumi")
-        origin_name = params.get("origin", "")
+        bangumi_id = params.bangumi
+        origin_name = params.origin or ""
 
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID for route")
@@ -191,7 +196,8 @@ class SQLAgent:
                 "b.title, b.title_cn "
                 "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 "WHERE p.bangumi_id = $3 "
-                "ORDER BY distance_m"
+                "ORDER BY distance_m "
+                f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params: list[Any] = [lon, lat, bangumi_id]
         else:
@@ -204,7 +210,8 @@ class SQLAgent:
                 "b.title, b.title_cn "
                 "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 "WHERE p.bangumi_id = $1 "
-                "ORDER BY p.episode, p.time_seconds"
+                "ORDER BY p.episode, p.time_seconds "
+                f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params = [bangumi_id]
 
