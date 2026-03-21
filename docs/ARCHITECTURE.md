@@ -12,6 +12,10 @@ infrastructure adapters.
 The codebase does **not** currently maintain a separate UI workflow layer or a
 second orchestration stack.
 
+The deployable entry path is now:
+
+`HTTP service -> RuntimeAPI -> run_pipeline -> Intent -> Planner -> Executor`
+
 ## Runtime Components
 
 ### `agents/intent_agent.py`
@@ -61,6 +65,13 @@ second orchestration stack.
 - Persists session state via the configured session store
 - Records route history and mirrors route saves into Supabase when available
 
+### `interfaces/http_service.py`
+
+- Wraps `RuntimeAPI` in a minimal `aiohttp` service
+- Exposes `/healthz` for container health probes
+- Exposes `/v1/runtime` as the deployable backend endpoint
+- Owns service startup and shutdown for Supabase and session-store resources
+
 ### `infrastructure/`
 
 - Supabase client
@@ -100,10 +111,11 @@ second orchestration stack.
 - secondary workflow stacks
 - presentation-specific orchestration code
 - Separate stage-workflow agent stacks
+- frontend rendering systems such as A2UI or generative UI
 
 If these return later, they should be reintroduced as thin adapters around the
 existing runtime rather than as a competing architecture.
 
 ## Next Major Work
 
-- Deployment hardening and observability
+- Observability and end-to-end validation

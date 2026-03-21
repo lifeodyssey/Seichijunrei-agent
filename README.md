@@ -18,7 +18,9 @@ the code actually does today.
 - Retriever-side cache plus DB-miss fallback with write-through persistence
 - Executor responses with normalized status, message, notices, and summaries
 - Thin public API request/response facade for future external adapters
+- `aiohttp` HTTP service exposing `/healthz` and `/v1/runtime`
 - Session-aware public API flow with persisted route history
+- Dockerized runtime service entrypoint for container deployment
 - Deterministic planner that maps intent to execution steps
 - Sequential executor that runs retrieval and route-planning handlers
 - Gateway/use-case layer for Bangumi, Anitabi, translation, and route planning
@@ -43,6 +45,8 @@ High-level flow:
    Provide stable use cases, ports, and gateways for external services.
 7. `interfaces/public_api.py`
    Exposes a thin public request/response facade over the runtime, including session persistence and route history.
+8. `interfaces/http_service.py`
+   Wraps the public facade in a minimal HTTP service suitable for local runs and container deployment.
 
 Detailed reference: [docs/ARCHITECTURE.md](/Users/lumimamini/Documents/Seichijunrei-agent/docs/ARCHITECTURE.md)
 
@@ -66,6 +70,12 @@ Run all checks:
 make check
 ```
 
+Run the HTTP service:
+
+```bash
+make serve
+```
+
 ## Environment
 
 The current runtime primarily depends on:
@@ -74,6 +84,9 @@ The current runtime primarily depends on:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `ANITABI_API_URL`
+- `SERVICE_HOST`
+- `SERVICE_PORT`
+- `SESSION_STORE_BACKEND`
 - `GEMINI_API_KEY` or provider-specific model credentials when using LLM fallback
 
 See [config/settings.py](/Users/lumimamini/Documents/Seichijunrei-agent/config/settings.py) for the current source of truth.
@@ -82,13 +95,23 @@ See [config/settings.py](/Users/lumimamini/Documents/Seichijunrei-agent/config/s
 
 ```python
 from agents.pipeline import run_pipeline
+from config.settings import get_settings
 from infrastructure.supabase.client import SupabaseClient
 
 
 async def main() -> None:
-    db = SupabaseClient.from_settings()
-    result = await run_pipeline("从京都站出发去吹响的圣地", db)
-    print(result.final_output)
+    settings = get_settings()
+    async with SupabaseClient(settings.supabase_db_url) as db:
+        result = await run_pipeline("从京都站出发去吹响的圣地", db)
+        print(result.final_output)
+```
+
+HTTP request example:
+
+```bash
+curl -X POST http://127.0.0.1:8080/v1/runtime \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"从京都站出发去吹响的圣地"}'
 ```
 
 ## Project Layout

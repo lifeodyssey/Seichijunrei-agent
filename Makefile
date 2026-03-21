@@ -1,6 +1,6 @@
 # Seichijunrei Agent - Makefile
 
-.PHONY: help install dev test test-all test-cov test-integration lint format check clean build
+.PHONY: help install dev serve test test-all test-cov test-integration lint format check clean build
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -11,6 +11,7 @@ help:
 	@echo "Development:"
 	@echo "  make install     Install production dependencies"
 	@echo "  make dev         Install all dependencies (including dev)"
+	@echo "  make serve       Run the HTTP runtime service"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test        Run unit tests"
@@ -30,6 +31,9 @@ install:
 
 dev:
 	uv sync --extra dev
+
+serve:
+	uv run seichijunrei-api
 
 test:
 	uv run pytest tests/unit/ -v

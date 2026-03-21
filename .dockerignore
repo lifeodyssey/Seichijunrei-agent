@@ -1,5 +1,6 @@
 .git
 .github
+.env
 .venv
 .uv_cache
 .uv-cache
@@ -12,3 +13,4 @@ dist
 outputs
 output
 .DS_Store
+CLAUDE.md

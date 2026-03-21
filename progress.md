@@ -59,6 +59,15 @@
 - Persisted route records via Supabase `save_route` when the database adapter exposes it
 - Added unit coverage for session reuse, session summaries, and route history persistence
 
+## 2026-03-21 — HTTP Service And Container Path
+
+- Added `interfaces/http_service.py` as a thin `aiohttp` adapter over `RuntimeAPI`
+- Exposed `GET /healthz` and `POST /v1/runtime` as deployable backend endpoints
+- Added service host/port and session-backend deployment settings
+- Added a container image build target via `Dockerfile`
+- Documented the local container run path and the Cloudflare-compatible container deployment shape
+- Added unit coverage for HTTP request validation, service lifecycle, and runtime endpoint mapping
+
 ## Current Status
 
 - Core runtime is in place
@@ -67,4 +76,5 @@
 - Executor output is normalized for ok, empty, partial, and error states
 - A thin public API layer now wraps `run_pipeline`
 - Session state and route history persist across public API calls
-- Next story is deployment hardening
+- An HTTP service and container deployment path now exist
+- Next story is OpenTelemetry instrumentation

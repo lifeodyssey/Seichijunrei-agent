@@ -3,6 +3,7 @@
 import warnings
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -57,6 +58,8 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="Debug mode")
     max_retries: int = Field(default=3, description="Maximum API retry attempts")
     timeout_seconds: int = Field(default=30, description="API request timeout")
+    service_host: str = Field(default="0.0.0.0", description="HTTP service bind host")
+    service_port: int = Field(default=8080, description="HTTP service bind port")
 
     # Cache Settings
     cache_ttl_seconds: int = Field(default=3600, description="Cache TTL in seconds")
@@ -80,6 +83,40 @@ class Settings(BaseSettings):
     )
     supabase_db_url: str = Field(
         default="", description="Direct Postgres DSN for asyncpg"
+    )
+
+    # Session storage
+    session_store_backend: Literal["memory", "redis", "firestore"] = Field(
+        default="memory",
+        description="Session persistence backend for the public runtime service",
+    )
+    session_ttl_seconds: int = Field(
+        default=86400,
+        description="TTL for session backends that support expiration",
+    )
+    redis_session_host: str = Field(
+        default="localhost",
+        description="Redis hostname for session storage",
+    )
+    redis_session_port: int = Field(
+        default=6379,
+        description="Redis port for session storage",
+    )
+    redis_session_db: int = Field(
+        default=0,
+        description="Redis database number for session storage",
+    )
+    redis_session_password: str | None = Field(
+        default=None,
+        description="Redis password for session storage",
+    )
+    redis_session_prefix: str = Field(
+        default="session:",
+        description="Redis key prefix for session storage",
+    )
+    firestore_session_collection: str = Field(
+        default="sessions",
+        description="Firestore collection used for session storage",
     )
 
     # Agent model
@@ -149,11 +186,14 @@ class Settings(BaseSettings):
             "app_env": self.app_env,
             "log_level": self.log_level,
             "debug": self.debug,
+            "service_host": self.service_host,
+            "service_port": self.service_port,
             "max_retries": self.max_retries,
             "timeout_seconds": self.timeout_seconds,
             "cache_ttl_seconds": self.cache_ttl_seconds,
             "use_cache": self.use_cache,
             "enable_mcp_tools": self.enable_mcp_tools,
+            "session_store_backend": self.session_store_backend,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }

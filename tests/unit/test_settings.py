@@ -1,5 +1,8 @@
 """Unit tests for application settings and configuration."""
 
+import pytest
+from pydantic import ValidationError
+
 from config.settings import Settings
 
 
@@ -65,6 +68,27 @@ class TestGCPConfiguration:
         )
         config = settings.get_runtime_config()
         assert config["google_cloud_project"] == "(not set)"
+
+    def test_runtime_config_includes_service_fields(self):
+        """Test that runtime config includes service deployment fields."""
+        settings = Settings(
+            google_maps_api_key="test_key",
+            service_host="127.0.0.1",
+            service_port=9000,
+            session_store_backend="redis",
+        )
+        config = settings.get_runtime_config()
+        assert config["service_host"] == "127.0.0.1"
+        assert config["service_port"] == 9000
+        assert config["session_store_backend"] == "redis"
+
+    def test_invalid_session_store_backend_is_rejected(self):
+        """Test that unsupported session store backends are rejected."""
+        with pytest.raises(ValidationError):
+            Settings(
+                google_maps_api_key="test_key",
+                session_store_backend="sqlite",  # type: ignore[arg-type]
+            )
 
 
 class TestAPIKeyValidation:
