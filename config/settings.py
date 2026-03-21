@@ -41,18 +41,14 @@ class Settings(BaseSettings):
         description="Weather API base URL",
     )
 
-    # Google Cloud Configuration
-    # GOOGLE_CLOUD_PROJECT is the only required GCP config.
-    # Authentication:
-    # - Local dev: Uses ADC (gcloud auth application-default login)
-    # - Production: Uses Service Account (GOOGLE_APPLICATION_CREDENTIALS)
+    # Optional Google Cloud configuration used by Google-backed integrations.
     google_cloud_project: str | None = Field(
         default=None,
-        description="Google Cloud project ID (required for GCP services)",
+        description="Google Cloud project ID",
     )
     google_application_credentials: str | None = Field(
         default=None,
-        description="Path to service account key (production only, local uses ADC)",
+        description="Path to service account key",
     )
 
     # Application Settings
@@ -85,10 +81,6 @@ class Settings(BaseSettings):
     supabase_db_url: str = Field(
         default="", description="Direct Postgres DSN for asyncpg"
     )
-
-    # A2UI Settings
-    a2ui_port: int = Field(default=8081, description="A2UI web server port")
-    a2ui_host: str = Field(default="0.0.0.0", description="A2UI web server host")
 
     # Agent model
     default_agent_model: str = Field(
@@ -162,7 +154,6 @@ class Settings(BaseSettings):
             "cache_ttl_seconds": self.cache_ttl_seconds,
             "use_cache": self.use_cache,
             "enable_mcp_tools": self.enable_mcp_tools,
-            "a2ui_port": self.a2ui_port,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }
@@ -209,10 +200,8 @@ class Settings(BaseSettings):
         Returns:
             List of missing/invalid configuration items.
 
-        GCP Authentication Strategy:
-        - Local development: Uses ADC (Application Default Credentials)
-          Run: gcloud auth application-default login
-        - Production: Uses Service Account via GOOGLE_APPLICATION_CREDENTIALS
+        This check only validates whether project-level Google integrations have
+        enough configuration to run.
         """
         issues = []
         if not self.google_cloud_project:

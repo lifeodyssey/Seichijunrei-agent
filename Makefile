@@ -1,18 +1,16 @@
-# Seichijunrei Bot - Makefile
+# Seichijunrei Agent - Makefile
 
-.PHONY: help install dev test lint format check clean build a2a a2ui-web
+.PHONY: help install dev test test-all test-cov test-integration lint format check clean build
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
 
 help:
-	@echo "Seichijunrei Bot - Available commands:"
+	@echo "Seichijunrei Agent - Available commands:"
 	@echo ""
 	@echo "Development:"
 	@echo "  make install     Install production dependencies"
 	@echo "  make dev         Install all dependencies (including dev)"
-	@echo "  make a2a         Run the A2A server (port 8080)"
-	@echo "  make a2ui-web    Run the A2UI web interface"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test        Run unit tests"
@@ -44,12 +42,6 @@ test-cov:
 
 test-integration:
 	uv run pytest tests/integration/ -v -m integration
-
-a2ui-web:
-	uv run python -m interfaces.a2ui_web.server
-
-a2a:
-	uv run uvicorn interfaces.a2a_server.main:app --port 8080 --reload
 
 lint:
 	uv run ruff check .

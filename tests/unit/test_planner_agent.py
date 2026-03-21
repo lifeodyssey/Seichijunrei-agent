@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from agents.intent_agent import ExtractedParams, IntentOutput
 from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType, create_plan
 

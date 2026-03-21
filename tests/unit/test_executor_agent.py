@@ -13,7 +13,7 @@ from agents.executor_agent import (
     _nearest_neighbor_sort,
 )
 from agents.intent_agent import ExtractedParams, IntentOutput
-from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType, create_plan
+from agents.planner_agent import create_plan
 
 
 @pytest.fixture

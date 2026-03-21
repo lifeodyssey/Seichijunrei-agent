@@ -130,8 +130,6 @@ omit = [
     "infrastructure/observability/exporters.py",
     "infrastructure/observability/metrics.py",
     "infrastructure/observability/tracing.py",
-    # A2A server main entry point (requires running server)
-    "interfaces/a2a_server/main.py",
 ]
 
 [tool.coverage.report]
