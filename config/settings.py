@@ -60,6 +60,26 @@ class Settings(BaseSettings):
     timeout_seconds: int = Field(default=30, description="API request timeout")
     service_host: str = Field(default="0.0.0.0", description="HTTP service bind host")
     service_port: int = Field(default=8080, description="HTTP service bind port")
+    observability_enabled: bool = Field(
+        default=False,
+        description="Enable OpenTelemetry tracing and metrics",
+    )
+    observability_service_name: str = Field(
+        default="seichijunrei-runtime",
+        description="Service name reported to observability backends",
+    )
+    observability_service_version: str = Field(
+        default="0.1.0",
+        description="Service version reported to observability backends",
+    )
+    observability_exporter_type: Literal["none", "console", "otlp"] = Field(
+        default="none",
+        description="OpenTelemetry exporter type",
+    )
+    observability_otlp_endpoint: str | None = Field(
+        default=None,
+        description="Optional OTLP endpoint for tracing and metrics export",
+    )
 
     # Cache Settings
     cache_ttl_seconds: int = Field(default=3600, description="Cache TTL in seconds")
@@ -192,6 +212,8 @@ class Settings(BaseSettings):
             "timeout_seconds": self.timeout_seconds,
             "cache_ttl_seconds": self.cache_ttl_seconds,
             "use_cache": self.use_cache,
+            "observability_enabled": self.observability_enabled,
+            "observability_exporter_type": self.observability_exporter_type,
             "enable_mcp_tools": self.enable_mcp_tools,
             "session_store_backend": self.session_store_backend,
             "google_cloud_project": self.google_cloud_project or "(not set)",

@@ -71,6 +71,7 @@ The deployable entry path is now:
 - Exposes `/healthz` for container health probes
 - Exposes `/v1/runtime` as the deployable backend endpoint
 - Owns service startup and shutdown for Supabase and session-store resources
+- Creates request-level HTTP spans and metrics
 
 ### `infrastructure/`
 
@@ -78,6 +79,13 @@ The deployable entry path is now:
 - Gateway adapters
 - Optional session backends
 - MCP server implementations
+
+### `infrastructure/observability/`
+
+- Initializes OpenTelemetry tracing and metrics from runtime settings
+- Records HTTP request counts and durations
+- Records runtime call counts and durations
+- Adds span attributes for session, intent, status, and error counts
 
 ## Data Flow
 
@@ -118,4 +126,4 @@ existing runtime rather than as a competing architecture.
 
 ## Next Major Work
 
-- Observability and end-to-end validation
+- End-to-end validation and baseline comparison

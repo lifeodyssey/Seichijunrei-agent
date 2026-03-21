@@ -12,6 +12,32 @@ from infrastructure.session.memory import InMemorySessionStore
 from interfaces.public_api import PublicAPIRequest, RuntimeAPI, handle_public_request
 
 
+class DummySpan:
+    def __init__(self) -> None:
+        self.attributes: dict[str, object] = {}
+        self.exceptions: list[BaseException] = []
+
+    def set_attribute(self, key: str, value: object) -> None:
+        self.attributes[key] = value
+
+    def record_exception(self, exception: BaseException) -> None:
+        self.exceptions.append(exception)
+
+    def __enter__(self) -> DummySpan:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+class DummyTracer:
+    def __init__(self, span: DummySpan) -> None:
+        self.span = span
+
+    def start_as_current_span(self, name: str, **kwargs: object) -> DummySpan:
+        return self.span
+
+
 @pytest.fixture
 def mock_db():
     db = MagicMock()
@@ -133,6 +159,23 @@ class TestRuntimeAPI:
         assert response.success is False
         assert response.intent == "unknown"
         assert response.errors[0].code == "internal_error"
+
+    async def test_handle_records_runtime_observability(self, mock_db):
+        api = RuntimeAPI(mock_db)
+        span = DummySpan()
+
+        with patch(
+            "interfaces.public_api.get_runtime_tracer",
+            return_value=DummyTracer(span),
+        ), patch("interfaces.public_api.record_runtime_request") as record_metric:
+            response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
+
+        assert response.intent == "search_by_bangumi"
+        assert span.attributes["runtime.intent"] == "search_by_bangumi"
+        assert span.attributes["runtime.status"] == "empty"
+        assert span.attributes["runtime.success"] is True
+        record_metric.assert_called_once()
+        assert record_metric.call_args.kwargs["transport"] == "public_api"
 
 
 class TestHandlePublicRequest:

@@ -1,6 +1,14 @@
 """Unit tests for infrastructure observability module."""
 
-from infrastructure.observability import get_meter, get_tracer
+from unittest.mock import patch
+
+from config.settings import Settings
+from infrastructure.observability import (
+    get_meter,
+    get_tracer,
+    setup_observability,
+    shutdown_observability,
+)
 
 
 class TestTracing:
@@ -61,3 +69,39 @@ class TestMetrics:
         histogram = meter.create_histogram("test_histogram")
         # Should not raise
         histogram.record(100, {"operation": "test"})
+
+
+class TestObservabilityLifecycle:
+    """Tests for combined observability setup and shutdown helpers."""
+
+    def test_setup_observability_configures_tracing_and_metrics(self):
+        settings = Settings(
+            observability_enabled=True,
+            observability_exporter_type="otlp",
+            observability_otlp_endpoint="http://otel:4317",
+        )
+
+        with patch("infrastructure.observability.setup_tracing") as setup_tracing_mock, patch(
+            "infrastructure.observability.setup_metrics"
+        ) as setup_metrics_mock, patch(
+            "infrastructure.observability.reset_runtime_observability"
+        ) as reset_mock:
+            setup_observability(settings)
+
+        setup_tracing_mock.assert_called_once()
+        setup_metrics_mock.assert_called_once()
+        assert setup_tracing_mock.call_args.kwargs["endpoint"] == "http://otel:4317"
+        assert setup_metrics_mock.call_args.kwargs["endpoint"] == "http://otel:4317"
+        reset_mock.assert_called_once()
+
+    def test_shutdown_observability_flushes_all_providers(self):
+        with patch("infrastructure.observability.shutdown_tracing") as shutdown_tracing_mock, patch(
+            "infrastructure.observability.shutdown_metrics"
+        ) as shutdown_metrics_mock, patch(
+            "infrastructure.observability.reset_runtime_observability"
+        ) as reset_mock:
+            shutdown_observability()
+
+        shutdown_tracing_mock.assert_called_once()
+        shutdown_metrics_mock.assert_called_once()
+        reset_mock.assert_called_once()

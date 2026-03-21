@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import inspect
 import json
+from time import perf_counter
 from typing import Any
 
 from aiohttp import web
 from pydantic import ValidationError
 
 from config.settings import Settings, get_settings
+from infrastructure.observability import (
+    get_http_tracer,
+    record_http_request,
+    setup_observability,
+    shutdown_observability,
+)
 from infrastructure.session import SessionStore, create_session_store
 from infrastructure.supabase.client import SupabaseClient
 from interfaces.public_api import PublicAPIRequest, PublicAPIResponse, RuntimeAPI
@@ -26,8 +33,9 @@ def create_http_app(
     session_store: SessionStore | None = None,
 ) -> web.Application:
     """Build the HTTP service app for the runtime."""
-    app = web.Application()
+    app = web.Application(middlewares=[_observability_middleware])
     app[_SETTINGS_KEY] = settings or get_settings()
+    app.cleanup_ctx.append(_observability_context(app[_SETTINGS_KEY]))
 
     app.router.add_get("/healthz", _handle_health)
     app.router.add_post("/v1/runtime", _handle_runtime)
@@ -60,6 +68,7 @@ async def _handle_health(request: web.Request) -> web.Response:
         "status": "ok",
         "service": "seichijunrei-runtime",
         "app_env": settings.app_env,
+        "observability_enabled": settings.observability_enabled,
         "db_adapter": type(getattr(runtime_api, "_db", None)).__name__,
         "session_store": type(getattr(runtime_api, "_session_store", None)).__name__,
     }
@@ -126,6 +135,52 @@ def _runtime_context(
             await _call_optional_async(runtime_db, "close")
 
     return context
+
+
+def _observability_context(settings: Settings):
+    async def context(app: web.Application):
+        if settings.observability_enabled:
+            setup_observability(settings)
+
+        try:
+            yield
+        finally:
+            if settings.observability_enabled:
+                shutdown_observability()
+
+    return context
+
+
+@web.middleware
+async def _observability_middleware(
+    request: web.Request,
+    handler: web.Handler,
+) -> web.StreamResponse:
+    started_at = perf_counter()
+    tracer = get_http_tracer()
+    status_code = 500
+
+    with tracer.start_as_current_span("http.request") as span:
+        span.set_attribute("http.method", request.method)
+        span.set_attribute("http.route", request.path)
+
+        try:
+            response = await handler(request)
+        except Exception as exc:
+            span.record_exception(exc)
+            raise
+        else:
+            status_code = response.status
+            return response
+        finally:
+            elapsed_ms = (perf_counter() - started_at) * 1000
+            span.set_attribute("http.status_code", status_code)
+            record_http_request(
+                duration_ms=elapsed_ms,
+                method=request.method,
+                route=request.path,
+                status_code=status_code,
+            )
 
 
 def _build_supabase_client(settings: Settings) -> SupabaseClient:

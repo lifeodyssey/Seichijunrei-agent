@@ -13,6 +13,32 @@ from interfaces.http_service import create_http_app
 from interfaces.public_api import RuntimeAPI
 
 
+class DummySpan:
+    def __init__(self) -> None:
+        self.attributes: dict[str, object] = {}
+        self.exceptions: list[BaseException] = []
+
+    def set_attribute(self, key: str, value: object) -> None:
+        self.attributes[key] = value
+
+    def record_exception(self, exception: BaseException) -> None:
+        self.exceptions.append(exception)
+
+    def __enter__(self) -> DummySpan:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+
+class DummyTracer:
+    def __init__(self, span: DummySpan) -> None:
+        self.span = span
+
+    def start_as_current_span(self, name: str, **kwargs: object) -> DummySpan:
+        return self.span
+
+
 @pytest.fixture
 def mock_db():
     db = MagicMock()
@@ -141,3 +167,65 @@ class TestHTTPService:
         db.connect.assert_awaited_once()
         db.close.assert_awaited_once()
         session_store.close.assert_awaited_once()
+
+    async def test_runtime_endpoint_records_http_observability(self, mock_db):
+        app = create_http_app(
+            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+            settings=Settings(),
+        )
+        span = DummySpan()
+
+        with patch(
+            "interfaces.http_service.get_http_tracer",
+            return_value=DummyTracer(span),
+        ), patch("interfaces.http_service.record_http_request") as record_metric:
+            async with TestClient(TestServer(app)) as client:
+                response = await client.post(
+                    "/v1/runtime",
+                    json={"text": "秒速5厘米的取景地在哪"},
+                )
+                assert response.status == 200
+
+        assert span.attributes["http.method"] == "POST"
+        assert span.attributes["http.route"] == "/v1/runtime"
+        assert span.attributes["http.status_code"] == 200
+        record_metric.assert_called_once()
+        assert record_metric.call_args.kwargs["route"] == "/v1/runtime"
+
+    async def test_service_lifecycle_initializes_observability_when_enabled(self):
+        db = MagicMock()
+        db.connect = AsyncMock()
+        db.close = AsyncMock()
+        pool = AsyncMock()
+        pool.fetch = AsyncMock(return_value=[])
+        db.pool = pool
+        db.search_points_by_location = AsyncMock(return_value=[])
+        db.upsert_session = AsyncMock()
+        db.save_route = AsyncMock(return_value="route-1")
+
+        session_store = MagicMock()
+        session_store.get = AsyncMock(return_value=None)
+        session_store.set = AsyncMock()
+        session_store.delete = AsyncMock()
+        session_store.close = AsyncMock()
+
+        settings = Settings(
+            observability_enabled=True,
+            observability_exporter_type="none",
+        )
+
+        with patch("interfaces.http_service.setup_observability") as setup_obs, patch(
+            "interfaces.http_service.shutdown_observability"
+        ) as shutdown_obs:
+            app = create_http_app(
+                settings=settings,
+                db=db,
+                session_store=session_store,
+            )
+
+            async with TestClient(TestServer(app)) as client:
+                response = await client.get("/healthz")
+                assert response.status == 200
+
+        setup_obs.assert_called_once_with(settings)
+        shutdown_obs.assert_called_once()

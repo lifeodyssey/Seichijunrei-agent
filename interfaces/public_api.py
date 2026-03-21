@@ -7,6 +7,7 @@ RPC adapters can wrap without depending directly on internal pipeline types.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +16,10 @@ from pydantic import BaseModel, Field, field_validator
 from agents.executor_agent import PipelineResult, StepResult
 from agents.pipeline import run_pipeline
 from application.errors import ApplicationError, ErrorCode
+from infrastructure.observability import (
+    get_runtime_tracer,
+    record_runtime_request,
+)
 from infrastructure.session import SessionStore, create_session_store
 
 _MAX_INTERACTIONS = 20
@@ -85,62 +90,96 @@ class RuntimeAPI:
     async def handle(self, request: PublicAPIRequest) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
         session_id = request.session_id or uuid4().hex
-        previous_state = await self._load_session_state(session_id)
-        result: PipelineResult | None = None
+        started_at = perf_counter()
+        tracer = get_runtime_tracer()
+        response: PublicAPIResponse | None = None
 
-        try:
-            result = await run_pipeline(
-                request.text,
-                self._db,
-                model=request.model,
-            )
-        except ApplicationError as exc:
-            response = _application_error_response(exc)
-        except Exception as exc:
-            response = PublicAPIResponse(
-                success=False,
-                status="error",
-                intent="unknown",
-                message="The runtime failed before producing a pipeline result.",
-                errors=[
-                    PublicAPIError(
-                        code=ErrorCode.INTERNAL_ERROR.value,
-                        message=str(exc),
+        with tracer.start_as_current_span("runtime.handle") as span:
+            span.set_attribute("runtime.session_id", session_id)
+            span.set_attribute("runtime.include_debug", request.include_debug)
+            if request.model:
+                span.set_attribute("runtime.model", request.model)
+
+            try:
+                previous_state = await self._load_session_state(session_id)
+                result: PipelineResult | None = None
+
+                try:
+                    result = await run_pipeline(
+                        request.text,
+                        self._db,
+                        model=request.model,
                     )
-                ],
-            )
-        else:
-            response = _pipeline_result_to_public_response(
-                result,
-                include_debug=request.include_debug,
-            )
+                except ApplicationError as exc:
+                    span.record_exception(exc)
+                    response = _application_error_response(exc)
+                except Exception as exc:
+                    span.record_exception(exc)
+                    response = PublicAPIResponse(
+                        success=False,
+                        status="error",
+                        intent="unknown",
+                        message="The runtime failed before producing a pipeline result.",
+                        errors=[
+                            PublicAPIError(
+                                code=ErrorCode.INTERNAL_ERROR.value,
+                                message=str(exc),
+                            )
+                        ],
+                    )
+                else:
+                    response = _pipeline_result_to_public_response(
+                        result,
+                        include_debug=request.include_debug,
+                    )
 
-        response.session_id = session_id
+                response.session_id = session_id
 
-        session_state = _build_updated_session_state(
-            previous_state,
-            request=request,
-            response=response,
-        )
-        await self._persist_session(session_id, session_state, response)
+                session_state = _build_updated_session_state(
+                    previous_state,
+                    request=request,
+                    response=response,
+                )
+                await self._persist_session(session_id, session_state, response)
 
-        route_record = None
-        if result is not None:
-            route_record = await self._maybe_persist_route(
-                session_id=session_id,
-                result=result,
-                response=response,
-            )
+                route_record = None
+                if result is not None:
+                    route_record = await self._maybe_persist_route(
+                        session_id=session_id,
+                        result=result,
+                        response=response,
+                    )
 
-        if route_record is not None:
-            route_history = list(session_state["route_history"])
-            route_history.append(route_record)
-            session_state["route_history"] = route_history[-_MAX_ROUTE_HISTORY:]
-            await self._persist_session(session_id, session_state, response)
+                if route_record is not None:
+                    route_history = list(session_state["route_history"])
+                    route_history.append(route_record)
+                    session_state["route_history"] = route_history[-_MAX_ROUTE_HISTORY:]
+                    await self._persist_session(session_id, session_state, response)
 
-        response.session = _build_session_summary(session_state)
-        response.route_history = list(session_state["route_history"])
-        return response
+                response.session = _build_session_summary(session_state)
+                response.route_history = list(session_state["route_history"])
+                return response
+            except Exception as exc:
+                span.record_exception(exc)
+                raise
+            finally:
+                elapsed_ms = (perf_counter() - started_at) * 1000
+                intent = response.intent if response is not None else "unknown"
+                status = response.status if response is not None else "error"
+                success = response.success if response is not None else False
+                error_count = len(response.errors) if response is not None else 1
+
+                span.set_attribute("runtime.intent", intent)
+                span.set_attribute("runtime.status", status)
+                span.set_attribute("runtime.success", success)
+                span.set_attribute("runtime.error_count", error_count)
+
+                record_runtime_request(
+                    duration_ms=elapsed_ms,
+                    intent=intent,
+                    status=status,
+                    transport="public_api",
+                )
 
     async def _load_session_state(self, session_id: str) -> dict[str, Any]:
         state = await self._session_store.get(session_id)

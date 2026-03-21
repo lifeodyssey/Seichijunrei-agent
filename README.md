@@ -21,6 +21,7 @@ the code actually does today.
 - `aiohttp` HTTP service exposing `/healthz` and `/v1/runtime`
 - Session-aware public API flow with persisted route history
 - Dockerized runtime service entrypoint for container deployment
+- OpenTelemetry-ready tracing and metrics hooks at the HTTP and runtime layers
 - Deterministic planner that maps intent to execution steps
 - Sequential executor that runs retrieval and route-planning handlers
 - Gateway/use-case layer for Bangumi, Anitabi, translation, and route planning
@@ -47,6 +48,8 @@ High-level flow:
    Exposes a thin public request/response facade over the runtime, including session persistence and route history.
 8. `interfaces/http_service.py`
    Wraps the public facade in a minimal HTTP service suitable for local runs and container deployment.
+9. `infrastructure/observability/`
+   Initializes OpenTelemetry providers and records spans/metrics for HTTP requests and runtime calls.
 
 Detailed reference: [docs/ARCHITECTURE.md](/Users/lumimamini/Documents/Seichijunrei-agent/docs/ARCHITECTURE.md)
 
@@ -87,6 +90,9 @@ The current runtime primarily depends on:
 - `SERVICE_HOST`
 - `SERVICE_PORT`
 - `SESSION_STORE_BACKEND`
+- `OBSERVABILITY_ENABLED`
+- `OBSERVABILITY_EXPORTER_TYPE`
+- `OBSERVABILITY_OTLP_ENDPOINT`
 - `GEMINI_API_KEY` or provider-specific model credentials when using LLM fallback
 
 See [config/settings.py](/Users/lumimamini/Documents/Seichijunrei-agent/config/settings.py) for the current source of truth.

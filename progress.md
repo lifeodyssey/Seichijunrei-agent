@@ -68,6 +68,14 @@
 - Documented the local container run path and the Cloudflare-compatible container deployment shape
 - Added unit coverage for HTTP request validation, service lifecycle, and runtime endpoint mapping
 
+## 2026-03-21 — OpenTelemetry Runtime Instrumentation
+
+- Added request-level spans and metrics around the HTTP service middleware
+- Added runtime-level spans and metrics around `RuntimeAPI.handle()`
+- Added observability settings for exporter type, OTLP endpoint, and service identity
+- Added startup and shutdown wiring for OpenTelemetry providers in the HTTP service
+- Added unit coverage for observability lifecycle and runtime/http metric recording
+
 ## Current Status
 
 - Core runtime is in place
@@ -77,4 +85,5 @@
 - A thin public API layer now wraps `run_pipeline`
 - Session state and route history persist across public API calls
 - An HTTP service and container deployment path now exist
-- Next story is OpenTelemetry instrumentation
+- OpenTelemetry tracing and metrics hooks are now wired into the runtime
+- Next story is end-to-end acceptance and baseline comparison

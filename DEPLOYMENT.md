@@ -44,6 +44,14 @@ Optional session backend configuration:
 - `REDIS_SESSION_PREFIX`
 - `FIRESTORE_SESSION_COLLECTION`
 
+Optional observability configuration:
+
+- `OBSERVABILITY_ENABLED=true`
+- `OBSERVABILITY_EXPORTER_TYPE=none|console|otlp`
+- `OBSERVABILITY_OTLP_ENDPOINT`
+- `OBSERVABILITY_SERVICE_NAME`
+- `OBSERVABILITY_SERVICE_VERSION`
+
 ## Container Path
 
 Build the image:
@@ -92,5 +100,5 @@ future Cloudflare-hosted container deployment.
 ## Known Limitations
 
 - Default session storage is in-memory unless a distributed backend is configured
-- No tracing export is wired yet
+- OpenTelemetry exporters are opt-in and disabled by default
 - Deployment automation is still manual
