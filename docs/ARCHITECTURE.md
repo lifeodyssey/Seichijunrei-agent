@@ -126,4 +126,4 @@ existing runtime rather than as a competing architecture.
 
 ## Next Major Work
 
-- End-to-end validation and baseline comparison
+- Future work should build on the stabilized runtime rather than reopen orchestration design

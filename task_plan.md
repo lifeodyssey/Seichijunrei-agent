@@ -7,7 +7,7 @@ Pydantic AI, Supabase, and a Plan-and-Execute execution model.
 
 ## Current Phase
 
-Phase 5 — Platform hardening
+Phase 5 — Platform hardening complete
 
 ## Phases
 
@@ -41,8 +41,8 @@ Phase 5 — Platform hardening
 
 - [x] STORY 5.1: Cloudflare/Container deployment path
 - [x] STORY 5.2: OpenTelemetry tracing and metrics
-- [ ] STORY 5.3: End-to-end acceptance and baseline comparison
-- Status: pending
+- [x] STORY 5.3: End-to-end acceptance and baseline comparison
+- Status: done
 
 ## Key Decisions
 
@@ -53,4 +53,4 @@ Phase 5 — Platform hardening
 
 ## Next Story
 
-`STORY 5.3: End-to-end acceptance and baseline comparison`
+No active story queued

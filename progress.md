@@ -76,6 +76,13 @@
 - Added startup and shutdown wiring for OpenTelemetry providers in the HTTP service
 - Added unit coverage for observability lifecycle and runtime/http metric recording
 
+## 2026-03-21 — Acceptance Baseline
+
+- Added integration acceptance cases covering bangumi search, location search, route planning, and unclear input
+- Added a JSON baseline file to freeze expected runtime/public-API behavior
+- Compared `run_pipeline` output and `handle_public_request` output against the same baseline scenarios
+- Split stable acceptance runs from model-backed eval runs in the Makefile so CI-safe tests do not depend on external LLM availability
+
 ## Current Status
 
 - Core runtime is in place
@@ -86,4 +93,5 @@
 - Session state and route history persist across public API calls
 - An HTTP service and container deployment path now exist
 - OpenTelemetry tracing and metrics hooks are now wired into the runtime
-- Next story is end-to-end acceptance and baseline comparison
+- Acceptance baselines now cover the main runtime flows end to end
+- The current task plan is complete through Phase 5

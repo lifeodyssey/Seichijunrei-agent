@@ -1,6 +1,6 @@
 # Seichijunrei Agent - Makefile
 
-.PHONY: help install dev serve test test-all test-cov test-integration lint format check clean build
+.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format check clean build
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -15,8 +15,9 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test        Run unit tests"
-	@echo "  make test-all    Run all tests (unit + integration)"
+	@echo "  make test-all    Run stable automated tests (unit + integration)"
 	@echo "  make test-cov    Run tests with coverage report"
+	@echo "  make test-eval   Run model-backed evals"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint        Run linters (ruff)"
@@ -39,13 +40,16 @@ test:
 	uv run pytest tests/unit/ -v
 
 test-all:
-	uv run pytest tests/ -v
+	uv run pytest tests/unit tests/integration -v
 
 test-cov:
 	uv run pytest tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
 
 test-integration:
-	uv run pytest tests/integration/ -v -m integration
+	uv run pytest tests/integration/ -v --no-cov
+
+test-eval:
+	uv run pytest tests/eval/ -v -m integration --no-cov
 
 lint:
 	uv run ruff check .

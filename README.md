@@ -73,6 +73,18 @@ Run all checks:
 make check
 ```
 
+Run stable acceptance coverage:
+
+```bash
+make test-all
+```
+
+Run model-backed evals separately:
+
+```bash
+make test-eval
+```
+
 Run the HTTP service:
 
 ```bash
