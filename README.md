@@ -17,6 +17,8 @@ the code actually does today.
 - Deterministic retrieval strategy layer with `sql`, `geo`, and `hybrid`
 - Retriever-side cache plus DB-miss fallback with write-through persistence
 - Executor responses with normalized status, message, notices, and summaries
+- Thin public API request/response facade for future external adapters
+- Session-aware public API flow with persisted route history
 - Deterministic planner that maps intent to execution steps
 - Sequential executor that runs retrieval and route-planning handlers
 - Gateway/use-case layer for Bangumi, Anitabi, translation, and route planning
@@ -39,6 +41,8 @@ High-level flow:
    Handles structured SQL retrieval for bangumi and route-constrained queries.
 6. `application/` + `infrastructure/`
    Provide stable use cases, ports, and gateways for external services.
+7. `interfaces/public_api.py`
+   Exposes a thin public request/response facade over the runtime, including session persistence and route history.
 
 Detailed reference: [docs/ARCHITECTURE.md](/Users/lumimamini/Documents/Seichijunrei-agent/docs/ARCHITECTURE.md)
 
@@ -96,6 +100,7 @@ clients/         External HTTP clients
 config/          Environment and runtime configuration
 domain/          Core entities and domain errors
 infrastructure/  Gateways, Supabase adapter, session backends, MCP servers
+interfaces/      Thin public interface facades over the runtime
 services/        Shared utilities such as retry/cache/route planner
 tests/           Unit and eval coverage
 ```

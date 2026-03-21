@@ -7,7 +7,7 @@ Pydantic AI, Supabase, and a Plan-and-Execute execution model.
 
 ## Current Phase
 
-Phase 3 — Retrieval and execution capabilities
+Phase 5 — Platform hardening
 
 ## Phases
 
@@ -33,9 +33,9 @@ Phase 3 — Retrieval and execution capabilities
 
 ### Phase 4 — Public Interface
 
-- [ ] STORY 4.1: Add a thin public API surface over `run_pipeline`
-- [ ] STORY 4.2: Session persistence and route history
-- Status: pending
+- [x] STORY 4.1: Add a thin public API surface over `run_pipeline`
+- [x] STORY 4.2: Session persistence and route history
+- Status: done
 
 ### Phase 5 — Platform
 
@@ -53,4 +53,4 @@ Phase 3 — Retrieval and execution capabilities
 
 ## Next Story
 
-`STORY 4.1: thin public API over run_pipeline`
+`STORY 5.1: Cloudflare/Container deployment path`

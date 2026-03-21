@@ -44,10 +44,27 @@
 - Added notices for cache hits, write-through results, and geo fallback conditions
 - Added unit coverage for empty results, formatted failures, and executor notices
 
+## 2026-03-21 — Public Runtime API
+
+- Added a thin public facade over `run_pipeline` in `interfaces/public_api.py`
+- Defined stable request/response and error payload schemas for future HTTP or RPC adapters
+- Added optional debug output so external callers can inspect plans and step results without binding to internal classes
+- Added unit coverage for success, failure, validation, and exception mapping through the public facade
+
+## 2026-03-21 — Session Persistence And Route History
+
+- Added session-aware public API requests with optional `session_id`
+- Persisted session state through the configured session store and mirrored it into Supabase when available
+- Added route history tracking on successful route responses
+- Persisted route records via Supabase `save_route` when the database adapter exposes it
+- Added unit coverage for session reuse, session summaries, and route history persistence
+
 ## Current Status
 
 - Core runtime is in place
 - Legacy interface branches are removed
 - `sql/geo/hybrid` retrieval is in place with cache and DB-miss fallback
 - Executor output is normalized for ok, empty, partial, and error states
-- Next story is a thin public API layer over `run_pipeline`
+- A thin public API layer now wraps `run_pipeline`
+- Session state and route history persist across public API calls
+- Next story is deployment hardening

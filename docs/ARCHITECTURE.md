@@ -53,6 +53,14 @@ second orchestration stack.
 - Stable use cases and port interfaces
 - Keeps external clients out of orchestration code
 
+### `interfaces/public_api.py`
+
+- Wraps `run_pipeline` behind a stable request/response contract
+- Maps internal exceptions into public-facing error payloads
+- Optionally exposes debug details without forcing callers to depend on runtime dataclasses
+- Persists session state via the configured session store
+- Records route history and mirrors route saves into Supabase when available
+
 ### `infrastructure/`
 
 - Supabase client
@@ -98,6 +106,4 @@ existing runtime rather than as a competing architecture.
 
 ## Next Major Work
 
-- Public API/interface surface on top of the runtime
-- Session persistence and route history
 - Deployment hardening and observability
