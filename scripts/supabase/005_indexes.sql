@@ -1,9 +1,5 @@
 -- 005_indexes.sql
--- Performance indexes: HNSW for vector search, GIST for geospatial queries
-
--- Vector similarity search (cosine distance, HNSW for fast ANN)
-CREATE INDEX IF NOT EXISTS idx_points_embedding
-    ON points USING hnsw (embedding vector_cosine_ops);
+-- Performance indexes: GIST for geospatial queries and standard relational lookups
 
 -- Geospatial queries (find points within radius)
 CREATE INDEX IF NOT EXISTS idx_points_location

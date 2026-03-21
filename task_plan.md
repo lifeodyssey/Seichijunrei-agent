@@ -26,10 +26,10 @@ Phase 3 — Retrieval and execution capabilities
 
 ### Phase 3 — Retrieval And Execution
 
-- [ ] STORY 3.1: Agentic retriever with `sql`, `geo`, `semantic`, and `hybrid` strategies
-- [ ] STORY 3.2: Write-through cache and DB-miss fallback flow
-- [ ] STORY 3.3: Richer executor handler surface on top of retriever output
-- Status: in_progress
+- [x] STORY 3.1: Deterministic retriever with `sql`, `geo`, and `hybrid` strategies
+- [x] STORY 3.2: Write-through cache and DB-miss fallback flow
+- [x] STORY 3.3: Richer executor handler surface on top of retriever output
+- Status: done
 
 ### Phase 4 — Public Interface
 
@@ -47,10 +47,10 @@ Phase 3 — Retrieval and execution capabilities
 ## Key Decisions
 
 - Runtime orchestration stays `Intent -> Plan -> Execute`
-- Retrieval stays structured-first; embeddings are additive, not the default path
+- Retrieval stays deterministic and structured-first
 - UI/protocol layers are deferred until the runtime is stable
 - Any future interface must wrap the runtime, not replace it
 
 ## Next Story
 
-`STORY 3.1: Agentic retriever`
+`STORY 4.1: thin public API over run_pipeline`

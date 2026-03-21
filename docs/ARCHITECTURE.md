@@ -31,6 +31,16 @@ second orchestration stack.
 - Executes plan steps sequentially
 - Passes successful step output forward as context
 - Produces `PipelineResult`
+- Normalizes final response status and message shape
+- Still formats a response when retrieval or route execution fails partway through
+
+### `agents/retriever.py`
+
+- Selects retrieval strategy deterministically
+- Supports `sql`, `geo`, and `hybrid`
+- Caches successful retrieval results for repeated identical queries
+- On bangumi DB misses, can fetch points from external sources and write them through to Supabase
+- Keeps strategy policy outside the executor step loop
 
 ### `agents/sql_agent.py`
 
@@ -57,15 +67,16 @@ second orchestration stack.
 1. User text enters `run_pipeline`
 2. `IntentAgent` extracts bangumi id and optional episode/location
 3. `PlannerAgent` emits `query_db -> format_response`
-4. `ExecutorAgent` runs `SQLAgent`
-5. Final payload is returned as structured output
+4. `ExecutorAgent` runs `Retriever`, which selects `sql` or `hybrid`
+5. On a bangumi DB miss, `Retriever` can backfill from Anitabi and persist the results
+6. Final payload is returned as structured output
 
 ### Plan Route
 
 1. User text enters `run_pipeline`
 2. `IntentAgent` extracts bangumi id and optional origin
 3. `PlannerAgent` emits `query_db -> plan_route -> format_response`
-4. `ExecutorAgent` fetches points, applies route ordering, and formats output
+4. `ExecutorAgent` uses `Retriever` to fetch points, then applies route ordering and formatting
 
 ## Design Rules
 
@@ -87,7 +98,6 @@ existing runtime rather than as a competing architecture.
 
 ## Next Major Work
 
-- Agentic retriever strategies
-- Better executor handler composition
 - Public API/interface surface on top of the runtime
+- Session persistence and route history
 - Deployment hardening and observability

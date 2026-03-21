@@ -1,5 +1,5 @@
 -- 003_points.sql
--- Pilgrimage points with vector embeddings (BGE-M3 1024-dim) and PostGIS geography
+-- Pilgrimage points with PostGIS geography and search text
 
 CREATE TABLE IF NOT EXISTS points (
     id              TEXT PRIMARY KEY,
@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS points (
     opening_hours   TEXT,
     admission_fee   TEXT,
     location        GEOGRAPHY(POINT, 4326) NOT NULL,
-    embedding       VECTOR(1024),
     search_text     TEXT GENERATED ALWAYS AS (
         COALESCE(name, '') || ' ' || COALESCE(cn_name, '') || ' ' || COALESCE(address, '')
     ) STORED,

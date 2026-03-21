@@ -1,6 +1,6 @@
 """Supabase infrastructure layer.
 
-Async PostgreSQL client for Supabase with pgvector and PostGIS support.
+Async PostgreSQL client for Supabase with PostGIS support.
 Implements the data access layer for the v2 architecture.
 """
 

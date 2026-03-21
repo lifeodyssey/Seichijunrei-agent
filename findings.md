@@ -14,7 +14,7 @@ retrieval and route-planning logic inspectable.
 - Intent classification is a separate concern from execution
 - Planning should stay explicit, typed, and deterministic
 - Execution should call handlers and tools, not hide orchestration in prompts
-- Structured retrieval works better than embedding-first search for the current data
+- Structured retrieval fits the current data and product scope better than a fuzzier policy layer
 
 ## Retrieval Direction
 
@@ -28,7 +28,6 @@ Next expansion:
 
 - `sql`
 - `geo`
-- `semantic`
 - `hybrid`
 
 These strategies should plug into the executor as capabilities, not as a second

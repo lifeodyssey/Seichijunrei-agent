@@ -1,7 +1,7 @@
-"""Async Supabase client with pgvector and PostGIS support.
+"""Async Supabase client with PostGIS support.
 
 Uses asyncpg for direct PostgreSQL connections (bypasses Supabase REST API
-for better performance on vector/geo queries). Connection pooling via
+for better performance on geospatial queries). Connection pooling via
 asyncpg.Pool.
 
 Usage:
@@ -23,8 +23,8 @@ _BANGUMI_COLUMNS = frozenset({
 })
 _POINT_COLUMNS = frozenset({
     "bangumi_id", "name", "cn_name", "episode", "time_seconds",
-    "screenshot_url", "address", "origin", "origin_url", "scene_desc",
-    "location", "embedding", "search_text",
+    "screenshot_url", "address", "origin", "origin_url", "opening_hours",
+    "admission_fee", "location", "search_text",
 })
 
 
@@ -39,7 +39,7 @@ class SupabaseClient:
     """Async PostgreSQL client for Supabase.
 
     Wraps asyncpg with connection pooling. Designed for direct SQL access
-    to leverage pgvector HNSW and PostGIS geography queries that the
+    to leverage PostGIS geography queries that the
     Supabase REST API cannot express efficiently.
 
     Supports async context manager for safe lifecycle management:
@@ -146,49 +146,37 @@ class SupabaseClient:
             lon, lat, radius_m, limit,
         )
 
-    async def search_points_by_embedding(
-        self,
-        embedding: list[float],
-        *,
-        limit: int = 10,
-        bangumi_id: str | None = None,
-    ) -> list[asyncpg.Record]:
-        """Semantic search using pgvector cosine similarity."""
-        if bangumi_id:
-            return await self.pool.fetch(
-                """
-                SELECT *, 1 - (embedding <=> $1::vector) AS similarity
-                FROM points
-                WHERE bangumi_id = $2
-                ORDER BY embedding <=> $1::vector
-                LIMIT $3
-                """,
-                str(embedding), bangumi_id, limit,
-            )
-        return await self.pool.fetch(
-            """
-            SELECT *, 1 - (embedding <=> $1::vector) AS similarity
-            FROM points
-            ORDER BY embedding <=> $1::vector
-            LIMIT $2
-            """,
-            str(embedding), limit,
-        )
-
     async def upsert_point(self, point_id: str, **fields: object) -> None:
         """Insert or update a point record.
 
         Column names are validated against an allowlist to prevent SQL injection.
         """
         _validate_columns(_POINT_COLUMNS, fields)
-        columns = ["id"] + list(fields.keys())
-        placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
-        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in fields.keys())
+        point_fields = dict(fields)
+        location_wkt = point_fields.pop("location", None)
+
+        columns = ["id"] + list(point_fields.keys())
+        values: list[object] = [point_id] + list(point_fields.values())
+        placeholders = [f"${i + 1}" for i in range(len(values))]
+
+        if location_wkt is not None:
+            columns.append("location")
+            values.append(location_wkt)
+            placeholders.append(f"ST_GeogFromText(${len(values)})")
+
+        update_columns = list(point_fields.keys())
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in update_columns)
+        if location_wkt is not None:
+            if update_set:
+                update_set = f"{update_set}, location = EXCLUDED.location"
+            else:
+                update_set = "location = EXCLUDED.location"
+
         sql = (
-            f"INSERT INTO points ({', '.join(columns)}) VALUES ({placeholders}) "
+            f"INSERT INTO points ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
             f"ON CONFLICT (id) DO UPDATE SET {update_set}"
         )
-        await self.pool.execute(sql, point_id, *fields.values())
+        await self.pool.execute(sql, *values)
 
     async def upsert_points_batch(self, rows: list[dict]) -> int:
         """Batch upsert points using a single transaction.

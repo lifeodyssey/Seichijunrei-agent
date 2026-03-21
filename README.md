@@ -14,6 +14,9 @@ the code actually does today.
 
 - Intent classification with regex fast-path + LLM fallback
 - Parameterized SQL retrieval against Supabase/Postgres + PostGIS
+- Deterministic retrieval strategy layer with `sql`, `geo`, and `hybrid`
+- Retriever-side cache plus DB-miss fallback with write-through persistence
+- Executor responses with normalized status, message, notices, and summaries
 - Deterministic planner that maps intent to execution steps
 - Sequential executor that runs retrieval and route-planning handlers
 - Gateway/use-case layer for Bangumi, Anitabi, translation, and route planning
@@ -29,10 +32,12 @@ High-level flow:
 2. `agents/planner_agent.py`
    Converts the classified intent into an `ExecutionPlan`.
 3. `agents/executor_agent.py`
-   Executes the plan step by step and builds the final output.
-4. `agents/sql_agent.py`
-   Handles structured database retrieval for bangumi, location, and route intents.
-5. `application/` + `infrastructure/`
+   Executes the plan step by step and builds normalized final output, including partial and error responses.
+4. `agents/retriever.py`
+   Chooses `sql`, `geo`, or `hybrid` retrieval deterministically, caches repeated lookups, and can refill Supabase on DB misses.
+5. `agents/sql_agent.py`
+   Handles structured SQL retrieval for bangumi and route-constrained queries.
+6. `application/` + `infrastructure/`
    Provide stable use cases, ports, and gateways for external services.
 
 Detailed reference: [docs/ARCHITECTURE.md](/Users/lumimamini/Documents/Seichijunrei-agent/docs/ARCHITECTURE.md)
