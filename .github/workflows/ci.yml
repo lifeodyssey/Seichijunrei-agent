@@ -34,7 +34,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Type check with MyPy
-        run: uv run mypy clients/ services/ tools/ utils/ --ignore-missing-imports
+        run: uv run mypy agents/ interfaces/ infrastructure/ application/ --ignore-missing-imports
         continue-on-error: true  # Don't fail on type errors for now
 
   test:
@@ -92,8 +92,7 @@ jobs:
         run: uv run pytest tests/integration/ -v -m integration
         continue-on-error: true
         env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
   build:
     name: Build Check
@@ -115,9 +114,9 @@ jobs:
 
       - name: Verify imports
         run: |
-          uv run python -c "from adk_agents.seichijunrei_bot.agent import root_agent; print('Root agent OK:', root_agent.name)"
-          uv run python -c "from domain.entities import SeichijunreiSession; print('Domain OK')"
-          uv run python -c "from clients.anitabi import AnitabiClient; from clients.bangumi import BangumiClient; print('Clients OK')"
+          uv run python -c "from agents.pipeline import run_pipeline; print('v2 runtime OK')"
+          uv run python -c "from interfaces.http_service import create_http_app; print('HTTP service OK')"
+          uv run python -c "from domain.entities import Point; print('Domain OK')"
 
       - name: Build package
         run: uv build

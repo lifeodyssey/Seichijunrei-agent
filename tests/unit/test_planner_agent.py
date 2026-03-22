@@ -1,70 +1,105 @@
-"""Unit tests for PlannerAgent.
+"""Unit tests for PlannerAgent — deterministic intent-to-plan mapping."""
 
-Tests verify:
-- Agent creation with correct configuration
-- Prompt formatting with session context
-- Integration with PlannerDecision schema
-"""
+from __future__ import annotations
 
-from unittest.mock import patch
-
-from adk_agents.seichijunrei_bot._planner import (
-    PlannerDecision,
-    create_planner_agent,
-    format_planner_prompt,
-)
-from adk_agents.seichijunrei_bot._state import BANGUMI_CANDIDATES
+from agents.intent_agent import ExtractedParams, IntentOutput
+from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType, create_plan
 
 
-class TestCreatePlannerAgent:
-    """Tests for create_planner_agent function."""
+class TestStepType:
+    """Test StepType enum values."""
 
-    def test_creates_llm_agent(self):
-        """Should create an LlmAgent instance."""
-        agent = create_planner_agent()
-        assert agent is not None
-        assert agent.name == "PlannerAgent"
-
-    def test_agent_has_output_schema(self):
-        """Agent should have PlannerDecision as output schema."""
-        agent = create_planner_agent()
-        assert agent.output_schema == PlannerDecision
-
-    def test_agent_uses_configured_model(self):
-        """Agent should use model from settings."""
-        with patch(
-            "adk_agents.seichijunrei_bot._planner.planner_agent.get_settings"
-        ) as mock:
-            mock.return_value.planner_model = "gemini-1.5-flash"
-            agent = create_planner_agent()
-            assert agent.model == "gemini-1.5-flash"
+    def test_values(self):
+        assert StepType.QUERY_DB == "query_db"
+        assert StepType.PLAN_ROUTE == "plan_route"
+        assert StepType.FORMAT_RESPONSE == "format_response"
 
 
-class TestFormatPlannerPrompt:
-    """Tests for format_planner_prompt function."""
+class TestExecutionStep:
+    """Test ExecutionStep model."""
 
-    def test_includes_user_text(self):
-        """Prompt should include user message."""
-        prompt = format_planner_prompt("Your Name", {}, "en")
-        assert "Your Name" in prompt
+    def test_defaults(self):
+        step = ExecutionStep(step_type=StepType.QUERY_DB, description="test")
+        assert step.params == {}
 
-    def test_includes_has_candidates_false(self):
-        """Prompt should indicate no candidates when state is empty."""
-        prompt = format_planner_prompt("test", {}, "en")
-        assert "Has candidates: False" in prompt
+    def test_with_params(self):
+        step = ExecutionStep(
+            step_type=StepType.QUERY_DB,
+            description="test",
+            params={"bangumi": "927"},
+        )
+        assert step.params["bangumi"] == "927"
 
-    def test_includes_has_candidates_true(self):
-        """Prompt should indicate candidates when present in state."""
-        state = {BANGUMI_CANDIDATES: {"candidates": [{"id": 1}]}}
-        prompt = format_planner_prompt("test", state, "en")
-        assert "Has candidates: True" in prompt
 
-    def test_includes_user_language(self):
-        """Prompt should include user language."""
-        prompt = format_planner_prompt("test", {}, "ja")
-        assert "User language: ja" in prompt
+class TestCreatePlan:
+    """Test create_plan() for each intent type."""
 
-    def test_default_language_is_zh_cn(self):
-        """Default language should be zh-CN."""
-        prompt = format_planner_prompt("test", {})
-        assert "User language: zh-CN" in prompt
+    def _make_intent(self, intent: str, **kwargs) -> IntentOutput:
+        return IntentOutput(
+            intent=intent,
+            confidence=0.95,
+            extracted_params=ExtractedParams(**kwargs),
+        )
+
+    def test_search_by_bangumi(self):
+        intent = self._make_intent("search_by_bangumi", bangumi="927")
+        plan = create_plan(intent)
+        assert plan.intent == "search_by_bangumi"
+        assert len(plan.steps) == 2
+        assert plan.steps[0].step_type == StepType.QUERY_DB
+        assert plan.steps[1].step_type == StepType.FORMAT_RESPONSE
+        assert plan.steps[0].params["bangumi"] == "927"
+
+    def test_search_by_location(self):
+        intent = self._make_intent("search_by_location", location="宇治")
+        plan = create_plan(intent)
+        assert plan.intent == "search_by_location"
+        assert len(plan.steps) == 2
+        assert plan.steps[0].step_type == StepType.QUERY_DB
+        assert plan.steps[0].params["location"] == "宇治"
+
+    def test_plan_route(self):
+        intent = self._make_intent("plan_route", bangumi="115908", origin="京都站")
+        plan = create_plan(intent)
+        assert plan.intent == "plan_route"
+        assert len(plan.steps) == 3
+        assert plan.steps[0].step_type == StepType.QUERY_DB
+        assert plan.steps[1].step_type == StepType.PLAN_ROUTE
+        assert plan.steps[2].step_type == StepType.FORMAT_RESPONSE
+
+    def test_general_qa(self):
+        intent = self._make_intent("general_qa")
+        plan = create_plan(intent)
+        assert plan.intent == "general_qa"
+        assert len(plan.steps) == 1
+        assert plan.steps[0].step_type == StepType.FORMAT_RESPONSE
+
+    def test_unclear(self):
+        intent = self._make_intent("unclear")
+        plan = create_plan(intent)
+        assert plan.intent == "unclear"
+        assert len(plan.steps) == 1
+        assert plan.steps[0].step_type == StepType.FORMAT_RESPONSE
+
+    def test_unknown_intent(self):
+        intent = self._make_intent("nonexistent_intent")
+        plan = create_plan(intent)
+        assert len(plan.steps) == 1
+        assert plan.steps[0].step_type == StepType.FORMAT_RESPONSE
+        assert "Unknown intent" in plan.steps[0].description
+
+    def test_params_exclude_none(self):
+        """Only non-None params should be in step params."""
+        intent = self._make_intent("search_by_bangumi", bangumi="927")
+        plan = create_plan(intent)
+        assert "bangumi" in plan.steps[0].params
+        assert "location" not in plan.steps[0].params
+        assert "episode" not in plan.steps[0].params
+
+    def test_plan_is_valid_pydantic(self):
+        intent = self._make_intent("search_by_bangumi", bangumi="927")
+        plan = create_plan(intent)
+        assert isinstance(plan, ExecutionPlan)
+        dumped = plan.model_dump()
+        assert "steps" in dumped
+        assert "intent" in dumped

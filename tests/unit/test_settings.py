@@ -1,5 +1,8 @@
 """Unit tests for application settings and configuration."""
 
+import pytest
+from pydantic import ValidationError
+
 from config.settings import Settings
 
 
@@ -66,34 +69,43 @@ class TestGCPConfiguration:
         config = settings.get_runtime_config()
         assert config["google_cloud_project"] == "(not set)"
 
+    def test_runtime_config_includes_service_fields(self):
+        """Test that runtime config includes service deployment fields."""
+        settings = Settings(
+            google_maps_api_key="test_key",
+            service_host="127.0.0.1",
+            service_port=9000,
+            session_store_backend="redis",
+            observability_enabled=True,
+            observability_exporter_type="console",
+        )
+        config = settings.get_runtime_config()
+        assert config["service_host"] == "127.0.0.1"
+        assert config["service_port"] == 9000
+        assert config["session_store_backend"] == "redis"
+        assert config["observability_enabled"] is True
+        assert config["observability_exporter_type"] == "console"
+
+    def test_invalid_session_store_backend_is_rejected(self):
+        """Test that unsupported session store backends are rejected."""
+        with pytest.raises(ValidationError):
+            Settings(
+                google_maps_api_key="test_key",
+                session_store_backend="sqlite",  # type: ignore[arg-type]
+            )
+
 
 class TestAPIKeyValidation:
     """Test API key validation."""
 
-    def test_validate_api_keys_missing_google_maps(self):
-        """Test that missing Google Maps API key is reported."""
-        settings = Settings(
-            google_maps_api_key="",
-        )
+    def test_validate_api_keys_missing_gemini(self):
+        """Test that missing Gemini API key is reported."""
+        settings = Settings(gemini_api_key="")
         missing = settings.validate_api_keys()
-        assert "GOOGLE_MAPS_API_KEY" in missing
+        assert "GEMINI_API_KEY" in missing
 
-    def test_validate_api_keys_production_requires_weather(self):
-        """Test that production requires weather API key."""
-        settings = Settings(
-            google_maps_api_key="test_key",
-            weather_api_key="",
-            app_env="production",
-        )
+    def test_validate_api_keys_all_present(self):
+        """Test that no keys are reported missing when all are set."""
+        settings = Settings(gemini_api_key="test_key")
         missing = settings.validate_api_keys()
-        assert "WEATHER_API_KEY" in missing
-
-    def test_validate_api_keys_development_no_weather_required(self):
-        """Test that development does not require weather API key."""
-        settings = Settings(
-            google_maps_api_key="test_key",
-            weather_api_key="",
-            app_env="development",
-        )
-        missing = settings.validate_api_keys()
-        assert "WEATHER_API_KEY" not in missing
+        assert missing == []

@@ -1,5 +1,5 @@
 """Application layer (use cases + ports).
 
-This package intentionally contains no ADK-specific code. It defines the core
-use cases and the ports (interfaces) they depend on.
+This package defines the core use cases and the ports (interfaces) they
+depend on. It contains no infrastructure-specific code.
 """

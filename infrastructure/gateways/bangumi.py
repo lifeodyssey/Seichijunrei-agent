@@ -11,8 +11,8 @@ from clients.errors import APIError
 class BangumiClientGateway(BangumiGateway):
     """Adapter that creates a fresh BangumiClient per call.
 
-    ADK tool execution may span multiple event loops; creating a new aiohttp client
-    per call avoids cross-loop session issues.
+    Agent tool execution may span multiple event loops; creating a new aiohttp
+    client per call avoids cross-loop session issues.
     """
 
     def __init__(self, *, client: BangumiClient | None = None) -> None:

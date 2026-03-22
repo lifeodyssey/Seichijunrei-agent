@@ -1,7 +1,7 @@
 """
 LLM client utilities.
 
-After the ADK refactor, all real LLM reasoning is handled by the ADK agent
+After the v2 refactor, all LLM reasoning is handled by the pydantic-ai agent
 layer. The core Python orchestration and domain agents no longer depend on
 any local LLM client.
 

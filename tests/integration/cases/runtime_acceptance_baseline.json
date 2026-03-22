@@ -1,0 +1,53 @@
+[
+  {
+    "name": "bangumi_search_empty",
+    "text": "秒速5厘米的取景地在哪",
+    "scenario": "empty_search",
+    "expected": {
+      "intent": "search_by_bangumi",
+      "status": "empty",
+      "success": true,
+      "plan_steps": ["query_db", "format_response"],
+      "result_count": 0
+    }
+  },
+  {
+    "name": "location_search_geo",
+    "text": "宇治附近有什么圣地",
+    "scenario": "geo_search",
+    "expected": {
+      "intent": "search_by_location",
+      "status": "ok",
+      "success": true,
+      "plan_steps": ["query_db", "format_response"],
+      "result_count": 1,
+      "strategy": "geo"
+    }
+  },
+  {
+    "name": "route_planning_hybrid",
+    "text": "从京都站出发去吹响的圣地",
+    "scenario": "route_planning",
+    "expected": {
+      "intent": "plan_route",
+      "status": "ok",
+      "success": true,
+      "plan_steps": ["query_db", "plan_route", "format_response"],
+      "result_count": 2,
+      "route_point_count": 2,
+      "route_history_count": 1,
+      "strategy": "hybrid"
+    }
+  },
+  {
+    "name": "unclear_greeting",
+    "text": "你好",
+    "scenario": "unclear",
+    "expected": {
+      "intent": "unclear",
+      "status": "needs_clarification",
+      "success": true,
+      "plan_steps": ["format_response"]
+    }
+  }
+]

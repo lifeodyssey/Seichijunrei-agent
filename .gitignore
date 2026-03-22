@@ -67,3 +67,16 @@ test_results.json
 secrets/
 credentials/
 anitabi/
+
+# AI/IDE agent configs (local only)
+.agents/
+.augment/
+.claude/
+.kiro/
+.roo/
+.trae/
+.mcp.json
+
+# Misc
+images/
+*.pen

@@ -1,8 +1,8 @@
 """Minimal MCP server for testing stdio subprocess viability.
 
 This server intentionally exposes a tiny surface area so we can verify:
-1) ADK can spawn a local MCP server process (stdio)
-2) ADK can list tools and call a tool end-to-end
+1) The agent can spawn a local MCP server process (stdio)
+2) The agent can list tools and call a tool end-to-end
 
 Run manually:
   python -m infrastructure.mcp_servers.ping_server

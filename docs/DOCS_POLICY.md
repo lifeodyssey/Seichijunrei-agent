@@ -1,99 +1,47 @@
 # Documentation Policy
 
-> DOC-001: Established minimal documentation rules
+## Principle
 
-## Philosophy
+Keep one architecture story and one task board.
 
-**"少而准" (Less but accurate)**
+Code and tests are the primary source of truth. Documentation should describe
+stable boundaries, current entry points, and active plans only.
 
-Code and tests are the source of truth. Documentation describes stable boundaries and usage patterns only. Minimize maintenance burden.
-
-## Canonical Documents
-
-| Document | Purpose | Owner |
-|----------|---------|-------|
-| `README.md` | User entry point: install, run, common commands, architecture overview | All |
-| `DEPLOYMENT.md` | Vertex AI Agent Engine deployment guide | DevOps |
-| `docs/ARCHITECTURE.md` | Deep architecture reference (optional) | Architecture |
-| `docs/a2ui/` | A2UI protocol contracts and session model | A2UI Team |
-| `docs/MCP_VERIFICATION.md` | MCP feasibility findings | Infrastructure |
-
-## Working Documents (Planning)
-
-These documents support the planning-with-files workflow and may contain process-level detail:
+## Canonical Docs
 
 | Document | Purpose |
 |----------|---------|
-| `task_plan.md` | Main task tracking |
-| `task_plan_a2ui.md` | A2UI subproject plan |
-| `findings.md` | Research findings and decisions |
-| `progress.md` | Session progress log |
-| `TODO.adk.md` | ADK-related backlog |
+| `README.md` | Repo entry point and current usage |
+| `docs/ARCHITECTURE.md` | Current v2 runtime architecture |
+| `DEPLOYMENT.md` | Intended deployment shape for v2 |
+| `task_plan.md` | Main task tracker |
+| `progress.md` | Session log |
+| `findings.md` | Current design findings and rationale |
 
-## Writing Rules
+## Rules
 
-### Avoid Drift
+1. Do not keep legacy and current architecture docs side by side.
+2. Do not add separate roadmap files when `task_plan.md` already tracks the work.
+3. If a subsystem is removed from the codebase, remove its docs in the same change.
+4. Prefer linking to code paths over hardcoding volatile counts.
+5. Planning docs may contain process detail; README and architecture docs should not.
 
-❌ **Don't** hardcode counts or volatile metrics:
-```markdown
-The system uses 5 agents and 12 tools...
-```
+## Single Sources Of Truth
 
-✅ **Do** reference code or commands:
-```markdown
-See `adk_agents/seichijunrei_bot/agent.py` for agent composition.
-Run `adk run adk_agents/seichijunrei_bot/` to see available tools.
-```
+| Topic | Source |
+|-------|--------|
+| Runtime entry path | `agents/pipeline.py` |
+| Intent schema | `agents/intent_agent.py` |
+| Plan schema | `agents/planner_agent.py` |
+| Execution behavior | `agents/executor_agent.py` |
+| SQL retrieval | `agents/sql_agent.py` |
+| Configuration | `config/settings.py` |
 
-### Single Source of Truth
-
-| Information | Source |
-|-------------|--------|
-| State keys | `adk_agents/seichijunrei_bot/_state.py` |
-| Schemas | `adk_agents/seichijunrei_bot/_schemas.py` |
-| Config options | `config/settings.py` |
-| A2UI actions | `contracts/a2ui/actions.py` |
-| A2UI components | `contracts/a2ui/components.py` |
-
-### Diagrams
-
-- **One high-level diagram** per major concept
-- No duplicate diagrams across documents
-- Prefer Mermaid (text-based, diff-friendly)
-- Link to code for implementation details
-
-### Separation of Concerns
-
-| Topic | Location |
-|-------|----------|
-| User onboarding | `README.md` |
-| Deployment | `DEPLOYMENT.md` |
-| Architecture deep-dive | `docs/ARCHITECTURE.md` |
-| A2UI protocol | `docs/a2ui/` |
-| Planning/progress | `task_plan*.md`, `findings.md`, `progress.md` |
-
-## Documents to Avoid
-
-| Pattern | Problem | Alternative |
-|---------|---------|-------------|
-| Long-form writeups | High drift, duplicate content | Keep README concise |
-| Generated diagram folders | Require sync with code | Inline Mermaid or code links |
-| Roadmap documents | Duplicate task plans | Use `task_plan.md` |
-| API documentation | Duplicates code | Use docstrings + type hints |
-
-## Review Checklist
+## Review Check
 
 Before merging documentation changes:
 
-- [ ] Does it reference code instead of hardcoding values?
-- [ ] Is there a single source of truth for this information?
-- [ ] Will this document stay accurate without constant updates?
-- [ ] Is this the right location for this content?
-- [ ] Does it duplicate existing documentation?
-
-## Enforcement
-
-1. PR reviews should check documentation against these rules
-2. Stale documentation should be updated or removed
-3. New features should document only stable interfaces
-4. Implementation details belong in code comments, not docs
+- Is the doc still true after this patch?
+- Does it duplicate another file?
+- Does it describe code that no longer exists?
+- Does it introduce a second architecture narrative?
