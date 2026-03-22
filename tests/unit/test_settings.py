@@ -98,30 +98,14 @@ class TestGCPConfiguration:
 class TestAPIKeyValidation:
     """Test API key validation."""
 
-    def test_validate_api_keys_missing_google_maps(self):
-        """Test that missing Google Maps API key is reported."""
-        settings = Settings(
-            google_maps_api_key="",
-        )
+    def test_validate_api_keys_missing_gemini(self):
+        """Test that missing Gemini API key is reported."""
+        settings = Settings(gemini_api_key="")
         missing = settings.validate_api_keys()
-        assert "GOOGLE_MAPS_API_KEY" in missing
+        assert "GEMINI_API_KEY" in missing
 
-    def test_validate_api_keys_production_requires_weather(self):
-        """Test that production requires weather API key."""
-        settings = Settings(
-            google_maps_api_key="test_key",
-            weather_api_key="",
-            app_env="production",
-        )
+    def test_validate_api_keys_all_present(self):
+        """Test that no keys are reported missing when all are set."""
+        settings = Settings(gemini_api_key="test_key")
         missing = settings.validate_api_keys()
-        assert "WEATHER_API_KEY" in missing
-
-    def test_validate_api_keys_development_no_weather_required(self):
-        """Test that development does not require weather API key."""
-        settings = Settings(
-            google_maps_api_key="test_key",
-            weather_api_key="",
-            app_env="development",
-        )
-        missing = settings.validate_api_keys()
-        assert "WEATHER_API_KEY" not in missing
+        assert missing == []

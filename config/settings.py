@@ -26,20 +26,11 @@ class Settings(BaseSettings):
     )
 
     # API Keys
-    google_maps_api_key: str = Field(default="", description="Google Maps API key")
-    # Kept for backwards compatibility but no longer required by Python code.
-    gemini_api_key: str = Field(
-        default="", description="Gemini API key (legacy, optional)"
-    )
-    weather_api_key: str = Field(default="", description="Weather API key")
+    gemini_api_key: str = Field(default="", description="Gemini API key for LLM agents")
 
     # API Endpoints
     anitabi_api_url: str = Field(
         default="https://api.anitabi.cn/bangumi", description="Anitabi API base URL"
-    )
-    weather_api_url: str = Field(
-        default="https://api.openweathermap.org/data/2.5",
-        description="Weather API base URL",
     )
 
     # Optional Google Cloud configuration used by Google-backed integrations.
@@ -141,7 +132,7 @@ class Settings(BaseSettings):
 
     # Agent model
     default_agent_model: str = Field(
-        default="gemini-2.0-flash",
+        default="gemini-2.5-pro",
         description="Default LLM model for pydantic-ai agents",
     )
 
@@ -239,9 +230,7 @@ class Settings(BaseSettings):
             Dictionary of secret names to their masked values.
         """
         return {
-            "google_maps_api_key": _mask_secret(self.google_maps_api_key),
             "gemini_api_key": _mask_secret(self.gemini_api_key),
-            "weather_api_key": _mask_secret(self.weather_api_key),
             "google_application_credentials": _mask_secret(
                 self.google_application_credentials
             ),
@@ -250,10 +239,8 @@ class Settings(BaseSettings):
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
         missing = []
-        if not self.google_maps_api_key:
-            missing.append("GOOGLE_MAPS_API_KEY")
-        if self.is_production and not self.weather_api_key:
-            missing.append("WEATHER_API_KEY")
+        if not self.gemini_api_key:
+            missing.append("GEMINI_API_KEY")
         return missing
 
     def validate_gcp_config(self) -> list[str]:
@@ -299,9 +286,7 @@ class Settings(BaseSettings):
             f"app_env={self.app_env!r}, "
             f"debug={self.debug}, "
             f"log_level={self.log_level!r}, "
-            f"google_maps_api_key={_mask_secret(self.google_maps_api_key)}, "
-            f"gemini_api_key={_mask_secret(self.gemini_api_key)}, "
-            f"weather_api_key={_mask_secret(self.weather_api_key)}"
+            f"gemini_api_key={_mask_secret(self.gemini_api_key)}"
             f")"
         )
 

@@ -1,0 +1,26 @@
+# Cloudflare Workers + Containers configuration
+# https://developers.cloudflare.com/workers/containers/
+#
+# Required GitHub Secrets for deploy.yml:
+#   CLOUDFLARE_API_TOKEN   — API token with Workers:Edit + Containers:Edit permissions
+#   CLOUDFLARE_ACCOUNT_ID  — Your Cloudflare account ID (visible in dashboard URL)
+#   SUPABASE_DB_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   GEMINI_API_KEY
+
+name = "seichijunrei"
+compatibility_date = "2025-03-01"
+main = "src/worker.js"
+
+[[containers]]
+class_name = "RuntimeContainer"
+# Image is updated by deploy.yml via sed before wrangler deploy
+image = "ghcr.io/OWNER/seichijunrei-agent:latest"
+max_instances = 3
+
+[[durable_objects.bindings]]
+name = "CONTAINER"
+class_name = "RuntimeContainer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RuntimeContainer"]

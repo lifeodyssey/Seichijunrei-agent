@@ -25,7 +25,7 @@ from pydantic_ai import Agent
 T = TypeVar("T", bound=BaseModel)
 
 # Fallback when settings don't specify a model
-_FALLBACK_MODEL = "gemini-2.0-flash"
+_FALLBACK_MODEL = "gemini-2.5-pro"
 
 
 def get_default_model() -> str:
