@@ -17,7 +17,9 @@ from typing import Any
 
 import structlog
 
+from agents.base import create_agent, get_default_model
 from agents.intent_agent import ExtractedParams, IntentOutput
+from pydantic import BaseModel, Field
 from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
@@ -80,6 +82,59 @@ KNOWN_LOCATIONS: dict[str, tuple[float, float]] = {
     "宇治駅": (34.8891, 135.8008),
     "六地蔵": (34.9340, 135.7930),
 }
+
+_KNOWN_KEYS_STR = ", ".join(KNOWN_LOCATIONS.keys())
+
+_RESOLVE_LOCATION_PROMPT = """\
+You are a location name resolver for a Japanese travel app.
+
+Given a user-provided location name, find the best match from this list of known locations:
+{known_locations}
+
+Rules:
+- Match across languages: 宇治站 = 宇治駅 = 宇治, 东京站 = 東京駅, etc.
+- Strip suffixes like 站/駅/车站/車站 when matching
+- If the location is clearly a variant or synonym of a known location, return that known key
+- If no reasonable match exists, return null
+- Return ONLY the exact key string from the list, or null
+"""
+
+
+class ResolvedLocation(BaseModel):
+    matched_key: str | None = Field(
+        description="Exact key from KNOWN_LOCATIONS, or null if no match"
+    )
+
+
+async def resolve_location(name: str) -> tuple[float, float] | None:
+    """Resolve a location name to coordinates.
+
+    First tries exact match in KNOWN_LOCATIONS, then falls back to LLM
+    for fuzzy matching (e.g. 宇治站 → 宇治, 东京站 → 東京駅).
+    """
+    # Exact match
+    coords = KNOWN_LOCATIONS.get(name)
+    if coords is not None:
+        return coords
+
+    # LLM fuzzy match
+    try:
+        agent = create_agent(
+            get_default_model(),
+            system_prompt=_RESOLVE_LOCATION_PROMPT.format(
+                known_locations=_KNOWN_KEYS_STR,
+            ),
+            output_type=ResolvedLocation,
+        )
+        result = await agent.run(name)
+        matched = result.output.matched_key
+        if matched and matched in KNOWN_LOCATIONS:
+            logger.info("location_resolved_by_llm", input=name, matched=matched)
+            return KNOWN_LOCATIONS[matched]
+    except Exception as exc:
+        logger.warning("location_resolve_llm_failed", input=name, error=str(exc))
+
+    return None
 
 
 class SQLAgent:
@@ -156,12 +211,12 @@ class SQLAgent:
         location_name = params.location or ""
         radius_m = params.radius or 5000
 
-        coords = KNOWN_LOCATIONS.get(location_name)
+        coords = await resolve_location(location_name)
         if coords is None:
             return SQLResult(
                 query="",
                 params=[],
-                error=f"Unknown location: {location_name}. Geocoding not yet implemented.",
+                error=f"Unknown location: {location_name}. Could not resolve coordinates.",
             )
 
         lat, lon = coords
@@ -186,7 +241,7 @@ class SQLAgent:
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID for route")
 
-        origin_coords = KNOWN_LOCATIONS.get(origin_name)
+        origin_coords = await resolve_location(origin_name) if origin_name else None
 
         if origin_coords:
             lat, lon = origin_coords
