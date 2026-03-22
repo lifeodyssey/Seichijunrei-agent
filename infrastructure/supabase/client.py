@@ -179,18 +179,45 @@ class SupabaseClient:
         await self.pool.execute(sql, *values)
 
     async def upsert_points_batch(self, rows: list[dict]) -> int:
-        """Batch upsert points using a single transaction.
+        """Batch upsert points using a prepared statement executed for each row.
 
-        Each dict must contain 'id' + field values. Does not mutate input dicts.
+        Each dict must contain 'id' + field values matching _POINT_COLUMNS.
+        All rows must share the same set of columns (validated against first row).
         Returns the number of rows upserted.
         """
         if not rows:
             return 0
+
+        first = rows[0]
+        fields_sample = {k: v for k, v in first.items() if k != "id"}
+        _validate_columns(_POINT_COLUMNS, fields_sample)
+
+        location_present = "location" in fields_sample
+        point_fields = {k: v for k, v in fields_sample.items() if k != "location"}
+
+        columns = ["id"] + list(point_fields.keys())
+        placeholders = [f"${i + 1}" for i in range(len(columns))]
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in point_fields)
+
+        if location_present:
+            columns.append("location")
+            placeholders.append(f"ST_GeogFromText(${len(columns)})")
+            update_set = f"{update_set}, location = EXCLUDED.location" if update_set else "location = EXCLUDED.location"
+
+        sql = (
+            f"INSERT INTO points ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
+            f"ON CONFLICT (id) DO UPDATE SET {update_set}"
+        )
+
+        col_order = ["id"] + list(point_fields.keys())
+        if location_present:
+            col_order.append("location")
+
+        args = [tuple(row.get(col) for col in col_order) for row in rows]
+
         async with self.pool.acquire() as conn:
-            async with conn.transaction():
-                for row in rows:
-                    fields = {k: v for k, v in row.items() if k != "id"}
-                    await self.upsert_point(row["id"], **fields)
+            await conn.executemany(sql, args)
+
         return len(rows)
 
     # --- Sessions ---

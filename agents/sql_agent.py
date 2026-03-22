@@ -22,8 +22,12 @@ from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
 
-# Default row limit for unbounded queries
+# Default row limits
 _DEFAULT_LIMIT = 100
+_DEFAULT_LOCATION_LIMIT = 50
+
+# Reusable PostGIS column expressions for extracting lat/lon from geography columns
+_GEO_COLUMNS = "ST_Y(p.location::geometry) AS latitude, ST_X(p.location::geometry) AS longitude"
 
 
 @dataclass
@@ -120,27 +124,23 @@ class SQLAgent:
 
         if episode is not None:
             sql = (
-                "SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                "p.screenshot_url, p.address, p.origin, "
-                "ST_Y(p.location::geometry) AS latitude, "
-                "ST_X(p.location::geometry) AS longitude, "
-                "b.title, b.title_cn "
-                "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-                "WHERE p.bangumi_id = $1 AND p.episode = $2 "
-                "ORDER BY p.time_seconds "
+                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
+                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"b.title, b.title_cn "
+                f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
+                f"WHERE p.bangumi_id = $1 AND p.episode = $2 "
+                f"ORDER BY p.time_seconds "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params: list[Any] = [bangumi_id, episode]
         else:
             sql = (
-                "SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                "p.screenshot_url, p.address, p.origin, "
-                "ST_Y(p.location::geometry) AS latitude, "
-                "ST_X(p.location::geometry) AS longitude, "
-                "b.title, b.title_cn "
-                "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-                "WHERE p.bangumi_id = $1 "
-                "ORDER BY p.episode, p.time_seconds "
+                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
+                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"b.title, b.title_cn "
+                f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
+                f"WHERE p.bangumi_id = $1 "
+                f"ORDER BY p.episode, p.time_seconds "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params = [bangumi_id]
@@ -161,16 +161,14 @@ class SQLAgent:
 
         lat, lon = coords
         sql = (
-            "SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-            "p.screenshot_url, p.address, p.bangumi_id, "
-            "ST_Y(p.location::geometry) AS latitude, "
-            "ST_X(p.location::geometry) AS longitude, "
-            "ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
-            "b.title, b.title_cn "
-            "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-            "WHERE ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $3) "
-            "ORDER BY distance_m "
-            "LIMIT 50"
+            f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
+            f"p.screenshot_url, p.address, p.bangumi_id, {_GEO_COLUMNS}, "
+            f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
+            f"b.title, b.title_cn "
+            f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
+            f"WHERE ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $3) "
+            f"ORDER BY distance_m "
+            f"LIMIT {_DEFAULT_LOCATION_LIMIT}"
         )
         query_params: list[Any] = [lon, lat, radius_m]
         return await self._run(sql, query_params)
@@ -188,29 +186,24 @@ class SQLAgent:
         if origin_coords:
             lat, lon = origin_coords
             sql = (
-                "SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                "p.screenshot_url, p.address, "
-                "ST_Y(p.location::geometry) AS latitude, "
-                "ST_X(p.location::geometry) AS longitude, "
-                "ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
-                "b.title, b.title_cn "
-                "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-                "WHERE p.bangumi_id = $3 "
-                "ORDER BY distance_m "
+                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
+                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
+                f"b.title, b.title_cn "
+                f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
+                f"WHERE p.bangumi_id = $3 "
+                f"ORDER BY distance_m "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params: list[Any] = [lon, lat, bangumi_id]
         else:
-            # No origin coords — just return points ordered by episode
             sql = (
-                "SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                "p.screenshot_url, p.address, "
-                "ST_Y(p.location::geometry) AS latitude, "
-                "ST_X(p.location::geometry) AS longitude, "
-                "b.title, b.title_cn "
-                "FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-                "WHERE p.bangumi_id = $1 "
-                "ORDER BY p.episode, p.time_seconds "
+                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
+                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"b.title, b.title_cn "
+                f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
+                f"WHERE p.bangumi_id = $1 "
+                f"ORDER BY p.episode, p.time_seconds "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params = [bangumi_id]

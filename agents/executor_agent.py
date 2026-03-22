@@ -271,7 +271,6 @@ def _build_query_payload(retrieval_result: RetrievalResult) -> dict[str, Any]:
         "empty": empty,
         "summary": {
             "count": retrieval_result.row_count,
-            "strategy": retrieval_result.strategy.value,
             "source": metadata.get("data_origin", metadata.get("source", "db")),
             "cache": metadata.get("cache", "miss"),
         },

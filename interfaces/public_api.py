@@ -140,7 +140,6 @@ class RuntimeAPI:
                     request=request,
                     response=response,
                 )
-                await self._persist_session(session_id, session_state, response)
 
                 route_record = None
                 if result is not None:
@@ -154,7 +153,8 @@ class RuntimeAPI:
                     route_history = list(session_state["route_history"])
                     route_history.append(route_record)
                     session_state["route_history"] = route_history[-_MAX_ROUTE_HISTORY:]
-                    await self._persist_session(session_id, session_state, response)
+
+                await self._persist_session(session_id, session_state, response)
 
                 response.session = _build_session_summary(session_state)
                 response.route_history = list(session_state["route_history"])

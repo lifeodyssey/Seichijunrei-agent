@@ -9,6 +9,7 @@ This module provides a deterministic strategy layer above SQLAgent:
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -169,7 +170,11 @@ class Retriever:
         params = intent.extracted_params
         anchor = params.location or params.origin or ""
 
-        sql_result, sql_metadata = await self._execute_sql_with_fallback(intent)
+        (sql_result, sql_metadata), (geo_rows, geo_error) = await asyncio.gather(
+            self._execute_sql_with_fallback(intent),
+            self._fetch_geo_rows(anchor, radius_m=params.radius or 5000),
+        )
+
         if not sql_result.success:
             return RetrievalResult(
                 strategy=RetrievalStrategy.HYBRID,
@@ -177,10 +182,6 @@ class Retriever:
                 metadata={"source": "hybrid", "mode": "sql_error", **sql_metadata},
             )
 
-        geo_rows, geo_error = await self._fetch_geo_rows(
-            anchor,
-            radius_m=params.radius or 5000,
-        )
         if geo_error:
             return RetrievalResult(
                 strategy=RetrievalStrategy.HYBRID,
@@ -201,8 +202,6 @@ class Retriever:
             ]
 
         merged_rows = _merge_rows_preserving_order(sql_result.rows, geo_rows)
-        if not merged_rows:
-            merged_rows = list(sql_result.rows)
 
         mode = "hybrid" if geo_rows else "sql_fallback"
         return RetrievalResult(
@@ -275,8 +274,10 @@ class Retriever:
                 "fallback_status": "empty",
             }
 
-        await self._ensure_bangumi_record(bangumi_id, points)
-        await self._persist_points(points)
+        await asyncio.gather(
+            self._ensure_bangumi_record(bangumi_id, points),
+            self._persist_points(points),
+        )
         await self._update_bangumi_points_count(bangumi_id, len(points))
 
         logger.info(
@@ -297,12 +298,6 @@ class Retriever:
         bangumi_id: str,
         points: list[Point],
     ) -> None:
-        get_bangumi = getattr(self._db, "get_bangumi", None)
-        if get_bangumi is not None:
-            existing = await get_bangumi(bangumi_id)
-            if existing is not None:
-                return
-
         upsert_bangumi = getattr(self._db, "upsert_bangumi", None)
         if upsert_bangumi is None:
             return
