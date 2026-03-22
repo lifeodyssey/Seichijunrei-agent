@@ -41,6 +41,9 @@ dependencies = [
     # v2: Agent Framework
     "pydantic-ai>=1.69.0",
 
+    # v2: Observability (Logfire)
+    "logfire[pydantic-ai]>=4.29.0",
+
     # v2: Database (Supabase + PostGIS)
     "supabase>=2.28.0",
     "asyncpg>=0.31.0",

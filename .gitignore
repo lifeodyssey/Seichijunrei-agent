@@ -80,3 +80,6 @@ anitabi/
 # Misc
 images/
 *.pen
+.next/
+frontend/.next/
+frontend/node_modules/

@@ -311,3 +311,28 @@ class SupabaseClient:
             json.dumps(route_data),
         )
         return str(row["id"])
+
+    # --- Feedback ---
+
+    async def save_feedback(
+        self,
+        session_id: str | None,
+        query_text: str,
+        intent: str | None,
+        rating: str,
+        comment: str | None = None,
+    ) -> str:
+        """Save user feedback for a response. Returns the feedback UUID."""
+        row = await self.pool.fetchrow(
+            """
+            INSERT INTO feedback (session_id, query_text, intent, rating, comment)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            """,
+            session_id,
+            query_text,
+            intent,
+            rating,
+            comment,
+        )
+        return str(row["id"])

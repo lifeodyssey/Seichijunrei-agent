@@ -7,6 +7,7 @@ import json
 from time import perf_counter
 from typing import Any
 
+import structlog
 from aiohttp import web
 from pydantic import ValidationError
 
@@ -21,8 +22,11 @@ from infrastructure.session import SessionStore, create_session_store
 from infrastructure.supabase.client import SupabaseClient
 from interfaces.public_api import PublicAPIRequest, PublicAPIResponse, RuntimeAPI
 
+logger = structlog.get_logger(__name__)
+
 _RUNTIME_API_KEY = web.AppKey("runtime_api", RuntimeAPI)
 _SETTINGS_KEY = web.AppKey("settings", Settings)
+_DB_KEY = web.AppKey("db_client", SupabaseClient)
 
 
 def create_http_app(
@@ -33,23 +37,31 @@ def create_http_app(
     session_store: SessionStore | None = None,
 ) -> web.Application:
     """Build the HTTP service app for the runtime."""
+    resolved_settings = settings or get_settings()
+
+    # Logfire: auto-trace all pydantic-ai agent calls (non-invasive)
+    _setup_logfire(resolved_settings)
+
     app = web.Application(middlewares=[_observability_middleware])
-    app[_SETTINGS_KEY] = settings or get_settings()
-    app.cleanup_ctx.append(_observability_context(app[_SETTINGS_KEY]))
+    app[_SETTINGS_KEY] = resolved_settings
+    app.cleanup_ctx.append(_observability_context(resolved_settings))
 
     app.router.add_get("/healthz", _handle_health)
     app.router.add_post("/v1/runtime", _handle_runtime)
+    app.router.add_post("/v1/feedback", _handle_feedback)
 
     if runtime_api is not None:
         app[_RUNTIME_API_KEY] = runtime_api
     else:
         app.cleanup_ctx.append(
             _runtime_context(
-                settings=app[_SETTINGS_KEY],
+                settings=resolved_settings,
                 db=db,
                 session_store=session_store,
             )
         )
+
+    return app
 
     return app
 
@@ -127,6 +139,7 @@ def _runtime_context(
             runtime_db,
             session_store=runtime_session_store,
         )
+        app[_DB_KEY] = runtime_db
 
         try:
             yield
@@ -250,6 +263,62 @@ def _http_status_for_response(response: PublicAPIResponse) -> int:
         return 500
 
     return 500
+
+
+async def _handle_feedback(request: web.Request) -> web.Response:
+    """Store user feedback (thumbs up/down) for a response."""
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, ValueError):
+        return web.json_response(
+            {"error": {"code": "invalid_json", "message": "Invalid JSON."}},
+            status=400,
+        )
+
+    rating = body.get("rating")
+    if rating not in ("good", "bad"):
+        return web.json_response(
+            {"error": {"code": "invalid_request", "message": "rating must be 'good' or 'bad'."}},
+            status=422,
+        )
+
+    query_text = body.get("query_text", "")
+    if not query_text:
+        return web.json_response(
+            {"error": {"code": "invalid_request", "message": "query_text is required."}},
+            status=422,
+        )
+
+    db: SupabaseClient = request.app[_DB_KEY]
+    feedback_id = await db.save_feedback(
+        session_id=body.get("session_id"),
+        query_text=query_text,
+        intent=body.get("intent"),
+        rating=rating,
+        comment=body.get("comment"),
+    )
+    return web.json_response({"feedback_id": feedback_id})
+
+
+def _setup_logfire(settings: Settings) -> None:
+    """Configure Logfire for pydantic-ai agent tracing (no-op if token not set)."""
+    import os
+
+    if not os.environ.get("LOGFIRE_TOKEN"):
+        logger.debug("logfire_skipped", reason="LOGFIRE_TOKEN not set")
+        return
+
+    try:
+        import logfire
+
+        logfire.configure(
+            service_name=settings.observability_service_name,
+            service_version=settings.observability_service_version,
+        )
+        logfire.instrument_pydantic_ai()
+        logger.info("logfire_configured", service=settings.observability_service_name)
+    except ImportError:
+        logger.debug("logfire_skipped", reason="logfire package not installed")
 
 
 if __name__ == "__main__":
