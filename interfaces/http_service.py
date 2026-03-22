@@ -42,7 +42,7 @@ def create_http_app(
     # Logfire: auto-trace all pydantic-ai agent calls (non-invasive)
     _setup_logfire(resolved_settings)
 
-    app = web.Application(middlewares=[_observability_middleware])
+    app = web.Application(middlewares=[_cors_middleware, _observability_middleware])
     app[_SETTINGS_KEY] = resolved_settings
     app.cleanup_ctx.append(_observability_context(resolved_settings))
 
@@ -162,6 +162,22 @@ def _observability_context(settings: Settings):
                 shutdown_observability()
 
     return context
+
+
+@web.middleware
+async def _cors_middleware(
+    request: web.Request,
+    handler: web.Handler,
+) -> web.StreamResponse:
+    """Allow cross-origin requests from the frontend dev server."""
+    if request.method == "OPTIONS":
+        resp = web.Response(status=204)
+    else:
+        resp = await handler(request)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return resp
 
 
 @web.middleware
