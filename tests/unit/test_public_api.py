@@ -7,9 +7,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
+from agents.executor_agent import _get_fallback_message
 from application.errors import InvalidInputError
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.public_api import PublicAPIRequest, RuntimeAPI, handle_public_request
+
+
+@pytest.fixture(autouse=True)
+def _mock_message_llm():
+    async def _fake(intent, query_data, route_data, failure, locale):
+        return _get_fallback_message(intent, query_data, failure, locale)
+
+    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
+        yield
 
 
 class DummySpan:
@@ -179,6 +189,33 @@ class TestRuntimeAPI:
         assert span.attributes["runtime.success"] is True
         record_metric.assert_called_once()
         assert record_metric.call_args.kwargs["transport"] == "public_api"
+
+
+class TestLocalePassthrough:
+    async def test_locale_field_accepted_in_request(self):
+        req = PublicAPIRequest(text="hello", locale="zh")
+        assert req.locale == "zh"
+
+    async def test_locale_defaults_to_ja(self):
+        req = PublicAPIRequest(text="hello")
+        assert req.locale == "ja"
+
+    async def test_handle_passes_locale_to_pipeline(self, mock_db):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+        response = await api.handle(PublicAPIRequest(text="你好", locale="zh"))
+        # unclear intent → should get Chinese fallback message
+        assert response.intent == "unclear"
+        msg = response.message
+        assert msg  # non-empty
+        assert "具体" in msg  # 能再具体一些吗
+
+    async def test_handle_ja_locale_produces_japanese_message(self, mock_db):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+        response = await api.handle(PublicAPIRequest(text="你好", locale="ja"))
+        assert response.intent == "unclear"
+        msg = response.message
+        assert msg
+        assert "具体" in msg  # もう少し具体的に
 
 
 class TestHandlePublicRequest:

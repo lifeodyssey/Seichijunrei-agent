@@ -59,9 +59,11 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
               <p className="text-xs text-[var(--color-muted-fg)]">
                 {point.title_cn || point.title}
               </p>
-              <span className="inline-block rounded bg-[var(--color-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-fg)]">
-                {t.episode.replace("{ep}", String(point.episode))}
-              </span>
+              {point.episode != null && point.episode !== 0 && (
+                <span className="inline-block rounded bg-[var(--color-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-fg)]">
+                  {t.episode.replace("{ep}", String(point.episode))}
+                </span>
+              )}
             </div>
           </div>
         ))}

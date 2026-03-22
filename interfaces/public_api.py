@@ -38,6 +38,10 @@ class PublicAPIRequest(BaseModel):
         default=None,
         description="Optional override for the runtime model used by the pipeline",
     )
+    locale: str = Field(
+        default="ja",
+        description="Response locale: ja (Japanese) or zh (Chinese)",
+    )
     include_debug: bool = Field(
         default=False,
         description="Include plan and step-level details in the response",
@@ -109,6 +113,7 @@ class RuntimeAPI:
                         request.text,
                         self._db,
                         model=request.model,
+                        locale=request.locale,
                     )
                 except ApplicationError as exc:
                     span.record_exception(exc)

@@ -10,9 +10,11 @@ const RUNTIME_URL =
 export async function sendMessage(
   text: string,
   sessionId?: string | null,
+  locale?: string,
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
   if (sessionId) body.session_id = sessionId;
+  if (locale) body.locale = locale;
 
   const res = await fetch(`${RUNTIME_URL}/v1/runtime`, {
     method: "POST",

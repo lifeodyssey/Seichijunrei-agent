@@ -17,6 +17,7 @@ from typing import Any
 
 import structlog
 
+from agents.base import create_agent, get_default_model
 from agents.intent_agent import IntentOutput
 from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType
 from agents.retriever import RetrievalResult, Retriever
@@ -55,19 +56,20 @@ class ExecutorAgent:
         self._retriever = Retriever(db)
 
     async def execute(
-        self, plan: ExecutionPlan, intent: IntentOutput
+        self, plan: ExecutionPlan, intent: IntentOutput, *, locale: str = "ja"
     ) -> PipelineResult:
         """Execute all steps in the plan.
 
         Args:
             plan: The execution plan from PlannerAgent.
             intent: The original IntentOutput (for parameter access).
+            locale: Response language — "ja" or "zh".
 
         Returns:
             PipelineResult with all step results and final output.
         """
         result = PipelineResult(intent=plan.intent, plan=plan)
-        context: dict[str, Any] = {"intent": intent}
+        context: dict[str, Any] = {"intent": intent, "locale": locale}
 
         for index, step in enumerate(plan.steps):
             step_result = await self._execute_step(step, intent, context)
@@ -219,7 +221,10 @@ class ExecutorAgent:
         if notices:
             formatted["notices"] = notices
 
-        message = _build_response_message(intent, query_data, route_data, failure)
+        locale = context.get("locale", "ja")
+        message = await _build_response_message_llm(
+            intent, query_data, route_data, failure, locale
+        )
         if message:
             formatted["message"] = message
 
@@ -307,34 +312,122 @@ def _derive_response_status(
     return "ok"
 
 
-def _build_response_message(
+_LOCALE_NAMES: dict[str, str] = {"ja": "日本語", "zh": "中文"}
+
+_MESSAGE_SYSTEM_PROMPT = """\
+You are a concise response writer for an anime pilgrimage (聖地巡礼) travel assistant.
+Generate a short, friendly user-facing message in {language_name}.
+
+Rules:
+- One sentence only, keep it under 60 characters
+- Match the tone of a helpful travel assistant
+- If the intent is unclear: politely ask the user to be more specific
+- If no results were found: say nothing was found for the search
+- If results were found: briefly summarize what was found (mention count if available)
+- If a route was built: mention the number of stops
+- If there was a failure: briefly explain what went wrong
+- Do NOT include English — respond only in {language_name}
+"""
+
+_FALLBACK_MESSAGES: dict[str, dict[str, str]] = {
+    "unclear": {
+        "ja": "もう少し具体的に教えていただけますか？",
+        "zh": "能再具体一些吗？",
+    },
+    "general_qa": {
+        "ja": "アニメ聖地巡礼についてのご質問ですね。",
+        "zh": "这是关于动漫圣地巡礼的问题。",
+    },
+    "empty": {
+        "ja": "該当する巡礼地が見つかりませんでした。",
+        "zh": "没有找到相关的巡礼地。",
+    },
+    "failure": {
+        "ja": "データの取得に失敗しました。",
+        "zh": "数据获取失败。",
+    },
+    "default": {
+        "ja": "",
+        "zh": "",
+    },
+}
+
+
+def _build_message_context(
     intent: IntentOutput,
     query_data: dict[str, Any] | None,
     route_data: dict[str, Any] | None,
     failure: dict[str, Any] | None,
 ) -> str:
-    if intent.intent == "unclear":
-        return "Could you be more specific about what you're looking for?"
-    if intent.intent == "general_qa":
-        return "This is a general question about anime pilgrimage."
+    """Build a concise context string for the LLM to generate a message from."""
+    parts: list[str] = [f"intent: {intent.intent}"]
+
     if failure:
-        if failure.get("step_type") == StepType.QUERY_DB.value:
-            return "I couldn't retrieve pilgrimage data right now."
-        if failure.get("step_type") == StepType.PLAN_ROUTE.value:
-            if query_data and query_data.get("empty"):
-                return "No pilgrimage points were available to build a route."
-            return "I found pilgrimage points, but couldn't turn them into a route."
+        parts.append(f"failure at step: {failure.get('step_type', 'unknown')}")
+        parts.append(f"error: {failure.get('error', 'unknown')}")
+    elif query_data:
+        row_count = query_data.get("row_count", 0)
+        is_empty = query_data.get("empty", False)
+        parts.append(f"results: {row_count} points found, empty={is_empty}")
+        if query_data.get("metadata", {}).get("data_origin") == "fallback":
+            parts.append("note: data was fetched fresh from external source")
+
+    if route_data:
+        parts.append(f"route: {route_data.get('point_count', 0)} stops")
+
+    if intent.extracted_params.bangumi:
+        parts.append(f"bangumi_id: {intent.extracted_params.bangumi}")
+    if intent.extracted_params.location:
+        parts.append(f"location: {intent.extracted_params.location}")
+
+    return "\n".join(parts)
+
+
+def _get_fallback_message(
+    intent: IntentOutput,
+    query_data: dict[str, Any] | None,
+    failure: dict[str, Any] | None,
+    locale: str,
+) -> str:
+    """Return a static fallback message when LLM is unavailable."""
+    if intent.intent == "unclear":
+        return _FALLBACK_MESSAGES["unclear"].get(locale, "")
+    if intent.intent == "general_qa":
+        return _FALLBACK_MESSAGES["general_qa"].get(locale, "")
+    if failure:
+        return _FALLBACK_MESSAGES["failure"].get(locale, "")
     if query_data and query_data.get("empty"):
-        messages = {
-            "search_by_bangumi": "No pilgrimage points were found for that bangumi.",
-            "search_by_location": "No pilgrimage points were found near that location.",
-            "plan_route": "No pilgrimage points were available to build a route.",
-        }
-        return messages.get(intent.intent, "No pilgrimage points were found.")
-    if intent.intent == "plan_route" and route_data is not None:
-        point_count = route_data.get("point_count", 0)
-        return f"Built a route across {point_count} pilgrimage points."
-    return ""
+        return _FALLBACK_MESSAGES["empty"].get(locale, "")
+    return _FALLBACK_MESSAGES["default"].get(locale, "")
+
+
+async def _build_response_message_llm(
+    intent: IntentOutput,
+    query_data: dict[str, Any] | None,
+    route_data: dict[str, Any] | None,
+    failure: dict[str, Any] | None,
+    locale: str,
+) -> str:
+    """Generate a localized response message using an LLM call.
+
+    Falls back to static messages if the LLM call fails.
+    """
+    language_name = _LOCALE_NAMES.get(locale, "日本語")
+    context_str = _build_message_context(intent, query_data, route_data, failure)
+
+    try:
+        agent = create_agent(
+            get_default_model(),
+            system_prompt=_MESSAGE_SYSTEM_PROMPT.format(language_name=language_name),
+        )
+        result = await agent.run(context_str)
+        message = result.output.strip()
+        if message:
+            return message
+    except Exception as exc:
+        logger.warning("message_llm_fallback", error=str(exc), locale=locale)
+
+    return _get_fallback_message(intent, query_data, failure, locale)
 
 
 def _build_response_notices(query_data: dict[str, Any] | None) -> list[str]:

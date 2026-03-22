@@ -86,6 +86,7 @@ export interface QAData {
 export interface RuntimeRequest {
   text: string;
   session_id?: string | null;
+  locale?: string;
   model?: string | null;
   include_debug?: boolean;
 }

@@ -109,3 +109,69 @@ async def test_unclear_input_returns_clarification(db: SupabaseClient):
     assert result.success
     assert result.intent == "unclear"
     assert result.final_output.get("data", {}).get("status") == "needs_clarification"
+
+
+# ── Locale / i18n tests (real LLM message generation) ─────────────
+
+
+async def test_unclear_message_is_japanese_when_locale_ja(db: SupabaseClient):
+    """locale=ja should produce a Japanese clarification message."""
+    result = await run_pipeline("hello", db, locale="ja")
+
+    assert result.success
+    assert result.intent == "unclear"
+    msg = result.final_output.get("message", "")
+    assert msg, "Expected non-empty message"
+    # Should contain Japanese characters (hiragana/katakana/kanji), not English
+    import re
+
+    assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
+        f"Expected Japanese characters in message, got: {msg}"
+    )
+
+
+async def test_unclear_message_is_chinese_when_locale_zh(db: SupabaseClient):
+    """locale=zh should produce a Chinese clarification message."""
+    result = await run_pipeline("hello", db, locale="zh")
+
+    assert result.success
+    assert result.intent == "unclear"
+    msg = result.final_output.get("message", "")
+    assert msg, "Expected non-empty message"
+    import re
+
+    assert re.search(r"[\u4e00-\u9fff]", msg), (
+        f"Expected Chinese characters in message, got: {msg}"
+    )
+
+
+async def test_bangumi_search_message_respects_locale_zh(db: SupabaseClient):
+    """Bangumi search with locale=zh should return a Chinese message."""
+    result = await run_pipeline("秒速5厘米的取景地在哪", db, locale="zh")
+
+    assert result.success
+    assert result.intent == "search_by_bangumi"
+    msg = result.final_output.get("message", "")
+    if msg:  # empty message is acceptable for success cases
+        import re
+
+        assert re.search(r"[\u4e00-\u9fff]", msg), (
+            f"Expected Chinese in message, got: {msg}"
+        )
+
+
+async def test_route_message_respects_locale_ja(db: SupabaseClient):
+    """Route planning with locale=ja should return a Japanese message."""
+    result = await run_pipeline(
+        "新宿から君の名はの聖地を回るルートを作って", db, locale="ja"
+    )
+
+    assert result.success
+    assert result.intent == "plan_route"
+    msg = result.final_output.get("message", "")
+    if msg:
+        import re
+
+        assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
+            f"Expected Japanese in message, got: {msg}"
+        )

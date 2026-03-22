@@ -23,8 +23,9 @@ from infrastructure.supabase.client import SupabaseClient
 logger = structlog.get_logger(__name__)
 
 # Default row limits
-_DEFAULT_LIMIT = 100
-_DEFAULT_LOCATION_LIMIT = 50
+_DEFAULT_LIMIT = 20
+_DEFAULT_LOCATION_LIMIT = 20
+_DEFAULT_ROUTE_RADIUS_M = 50_000  # 50 km — typical day-trip transit radius in Japan
 
 # Reusable PostGIS column expressions for extracting lat/lon from geography columns
 _GEO_COLUMNS = (
@@ -189,6 +190,7 @@ class SQLAgent:
 
         if origin_coords:
             lat, lon = origin_coords
+            radius_m = params.radius or _DEFAULT_ROUTE_RADIUS_M
             sql = (
                 f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
                 f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
@@ -196,10 +198,11 @@ class SQLAgent:
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $3 "
+                f"AND ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $4) "
                 f"ORDER BY distance_m "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
-            query_params: list[Any] = [lon, lat, bangumi_id]
+            query_params: list[Any] = [lon, lat, bangumi_id, radius_m]
         else:
             sql = (
                 f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "

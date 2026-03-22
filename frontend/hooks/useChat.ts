@@ -12,6 +12,7 @@ function nextId() {
 export function useChat(
   sessionId: string | null,
   onSessionId: (id: string) => void,
+  locale?: string,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -45,6 +46,7 @@ export function useChat(
         const response: RuntimeResponse = await sendMessage(
           text.trim(),
           sessionId,
+          locale,
         );
 
         if (response.session_id) {
@@ -73,7 +75,7 @@ export function useChat(
         abortRef.current = null;
       }
     },
-    [sessionId, sending, onSessionId],
+    [sessionId, sending, onSessionId, locale],
   );
 
   const clear = useCallback(() => setMessages([]), []);
