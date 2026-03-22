@@ -219,7 +219,7 @@ class ExecutorAgent:
 
         notices = _build_response_notices(query_data)
         if notices:
-            formatted["notices"] = notices
+            formatted["_debug_notices"] = notices
 
         locale = context.get("locale", "ja")
         message = await _build_response_message_llm(
@@ -229,7 +229,7 @@ class ExecutorAgent:
             formatted["message"] = message
 
         if failure:
-            formatted["failure"] = failure
+            formatted["_debug_failure"] = failure
 
         return StepResult(
             step_type=step.step_type.value,

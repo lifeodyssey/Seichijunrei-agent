@@ -217,7 +217,7 @@ class TestExecutorFormatResponse:
         intent = _make_intent("search_by_bangumi", bangumi="115908")
         plan = create_plan(intent)
         result = await executor.execute(plan, intent)
-        notices = result.final_output["data"]["notices"]
+        notices = result.final_output["data"]["_debug_notices"]
         assert any("cache" in notice.lower() for notice in notices)
         assert any("anitabi" in notice.lower() for notice in notices)
 

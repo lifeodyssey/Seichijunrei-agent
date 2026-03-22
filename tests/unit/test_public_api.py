@@ -142,7 +142,7 @@ class TestRuntimeAPI:
         assert response.success is False
         assert response.status == "error"
         assert response.errors[0].code == "pipeline_error"
-        assert "db down" in response.errors[0].message
+        assert response.errors[0].message == "A processing step failed."
 
     async def test_handle_maps_application_error(self, mock_db):
         api = RuntimeAPI(mock_db)

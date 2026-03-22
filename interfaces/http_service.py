@@ -63,8 +63,6 @@ def create_http_app(
 
     return app
 
-    return app
-
 
 def main() -> None:
     """Run the HTTP service."""

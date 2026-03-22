@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -38,7 +38,7 @@ class PublicAPIRequest(BaseModel):
         default=None,
         description="Optional override for the runtime model used by the pipeline",
     )
-    locale: str = Field(
+    locale: Literal["ja", "zh"] = Field(
         default="ja",
         description="Response locale: ja (Japanese) or zh (Chinese)",
     )
@@ -284,9 +284,13 @@ def _pipeline_result_to_public_response(
     include_debug: bool,
 ) -> PublicAPIResponse:
     final_output = result.final_output or {}
+    raw_errors = final_output.get("errors", [])
     errors = [
-        PublicAPIError(code="pipeline_error", message=str(error))
-        for error in final_output.get("errors", [])
+        PublicAPIError(
+            code="pipeline_error",
+            message="A processing step failed." if not include_debug else str(error),
+        )
+        for error in raw_errors
     ]
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
