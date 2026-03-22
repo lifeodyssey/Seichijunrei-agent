@@ -65,7 +65,9 @@ async def test_bangumi_search_returns_rows_with_coordinates(db: SupabaseClient):
 
     first = rows[0]
     assert first.get("screenshot_url"), "Row missing screenshot_url"
-    assert first.get("latitude") is not None, "Row missing latitude (location backfill issue?)"
+    assert (
+        first.get("latitude") is not None
+    ), "Row missing latitude (location backfill issue?)"
     assert first.get("longitude") is not None, "Row missing longitude"
     assert first.get("name"), "Row missing name"
 
@@ -97,9 +99,9 @@ async def test_route_planning_returns_ordered_points_with_coords(db: SupabaseCli
     assert len(points) > 0, "Route should have at least 1 point"
 
     with_coords = sum(1 for p in points if p.get("latitude") is not None)
-    assert with_coords == len(points), (
-        f"All route points should have coordinates, got {with_coords}/{len(points)}"
-    )
+    assert with_coords == len(
+        points
+    ), f"All route points should have coordinates, got {with_coords}/{len(points)}"
 
 
 async def test_unclear_input_returns_clarification(db: SupabaseClient):
@@ -125,9 +127,9 @@ async def test_unclear_message_is_japanese_when_locale_ja(db: SupabaseClient):
     # Should contain Japanese characters (hiragana/katakana/kanji), not English
     import re
 
-    assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
-        f"Expected Japanese characters in message, got: {msg}"
-    )
+    assert re.search(
+        r"[\u3040-\u30ff\u4e00-\u9fff]", msg
+    ), f"Expected Japanese characters in message, got: {msg}"
 
 
 async def test_unclear_message_is_chinese_when_locale_zh(db: SupabaseClient):
@@ -140,9 +142,9 @@ async def test_unclear_message_is_chinese_when_locale_zh(db: SupabaseClient):
     assert msg, "Expected non-empty message"
     import re
 
-    assert re.search(r"[\u4e00-\u9fff]", msg), (
-        f"Expected Chinese characters in message, got: {msg}"
-    )
+    assert re.search(
+        r"[\u4e00-\u9fff]", msg
+    ), f"Expected Chinese characters in message, got: {msg}"
 
 
 async def test_bangumi_search_message_respects_locale_zh(db: SupabaseClient):
@@ -155,9 +157,9 @@ async def test_bangumi_search_message_respects_locale_zh(db: SupabaseClient):
     if msg:  # empty message is acceptable for success cases
         import re
 
-        assert re.search(r"[\u4e00-\u9fff]", msg), (
-            f"Expected Chinese in message, got: {msg}"
-        )
+        assert re.search(
+            r"[\u4e00-\u9fff]", msg
+        ), f"Expected Chinese in message, got: {msg}"
 
 
 async def test_route_message_respects_locale_ja(db: SupabaseClient):
@@ -172,6 +174,6 @@ async def test_route_message_respects_locale_ja(db: SupabaseClient):
     if msg:
         import re
 
-        assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
-            f"Expected Japanese in message, got: {msg}"
-        )
+        assert re.search(
+            r"[\u3040-\u30ff\u4e00-\u9fff]", msg
+        ), f"Expected Japanese in message, got: {msg}"

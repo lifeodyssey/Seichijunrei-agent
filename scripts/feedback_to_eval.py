@@ -61,7 +61,9 @@ def to_eval_cases(feedback_rows: list[dict]) -> list[dict]:
 async def main_async(args: argparse.Namespace) -> None:
     dsn = os.environ.get("SUPABASE_DB_URL")
     if not dsn:
-        print("Error: SUPABASE_DB_URL environment variable is required.", file=sys.stderr)
+        print(
+            "Error: SUPABASE_DB_URL environment variable is required.", file=sys.stderr
+        )
         sys.exit(1)
 
     rows = await fetch_bad_feedback(dsn, args.since)

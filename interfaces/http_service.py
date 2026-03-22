@@ -305,14 +305,24 @@ async def _handle_feedback(request: web.Request) -> web.Response:
     rating = body.get("rating")
     if rating not in ("good", "bad"):
         return web.json_response(
-            {"error": {"code": "invalid_request", "message": "rating must be 'good' or 'bad'."}},
+            {
+                "error": {
+                    "code": "invalid_request",
+                    "message": "rating must be 'good' or 'bad'.",
+                }
+            },
             status=422,
         )
 
     query_text = body.get("query_text", "")
     if not query_text:
         return web.json_response(
-            {"error": {"code": "invalid_request", "message": "query_text is required."}},
+            {
+                "error": {
+                    "code": "invalid_request",
+                    "message": "query_text is required.",
+                }
+            },
             status=422,
         )
 
