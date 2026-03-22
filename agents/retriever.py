@@ -393,15 +393,12 @@ def _point_to_db_row(point: Point) -> dict[str, Any]:
         "id": point.id,
         "bangumi_id": point.bangumi_id,
         "name": point.name,
-        "cn_name": point.cn_name,
-        "address": point.address,
+        "name_cn": point.cn_name,
         "episode": point.episode,
         "time_seconds": point.time_seconds,
-        "screenshot_url": str(point.screenshot_url),
+        "image": str(point.screenshot_url),
         "origin": point.origin,
         "origin_url": point.origin_url,
-        "opening_hours": point.opening_hours,
-        "admission_fee": point.admission_fee,
         "location": (
             f"POINT({point.coordinates.longitude} {point.coordinates.latitude})"
         ),

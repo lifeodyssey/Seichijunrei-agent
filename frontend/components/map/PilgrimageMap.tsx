@@ -77,7 +77,7 @@ export default function PilgrimageMap({
           icon={markerIcon}
         >
           <Popup>
-            <strong>{route ? `${idx + 1}. ` : ""}{point.cn_name || point.name}</strong>
+            <strong>{route ? `${idx + 1}. ` : ""}{point.name_cn || point.name}</strong>
             <br />
             {point.title_cn || point.title} · 第{point.episode}話
           </Popup>

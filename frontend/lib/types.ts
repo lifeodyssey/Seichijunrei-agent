@@ -19,7 +19,7 @@ export type Intent =
 export interface PilgrimagePoint {
   id: string;
   name: string;           // Japanese name
-  cn_name: string;        // Chinese name
+  name_cn: string;        // Chinese name
   episode: number;
   time_seconds: number;
   screenshot_url: string; // Anitabi public URL

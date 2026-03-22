@@ -121,7 +121,20 @@ async def _handle_runtime(request: web.Request) -> web.Response:
     return web.json_response(
         response.model_dump(mode="json"),
         status=_http_status_for_response(response),
+        dumps=_json_dumps,
     )
+
+
+def _json_dumps(obj: object) -> str:
+    """JSON encoder that handles datetime and other non-standard types."""
+    import datetime as dt
+
+    def default(o: object) -> object:
+        if isinstance(o, (dt.datetime, dt.date)):
+            return o.isoformat()
+        raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+
+    return json.dumps(obj, default=default, ensure_ascii=False)
 
 
 def _runtime_context(

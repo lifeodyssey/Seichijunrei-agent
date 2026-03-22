@@ -3,6 +3,7 @@
 import type { ChatMessage } from "../../lib/types";
 import MessageBubble from "./MessageBubble";
 import { useEffect, useRef } from "react";
+import { useDict } from "../../lib/i18n-context";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -10,6 +11,7 @@ interface MessageListProps {
 }
 
 export default function MessageList({ messages, onSuggest }: MessageListProps) {
+  const { chat: t } = useDict();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,8 +22,8 @@ export default function MessageList({ messages, onSuggest }: MessageListProps) {
     return (
       <div className="flex flex-1 items-center justify-center text-[var(--color-muted-fg)]">
         <div className="text-center">
-          <p className="text-lg font-medium">聖地巡礼 AI</p>
-          <p className="mt-1 text-sm">アニメの聖地を探したり、巡礼ルートを計画できます</p>
+          <p className="text-lg font-medium">{t.welcome_title}</p>
+          <p className="mt-1 text-sm">{t.welcome_subtitle}</p>
         </div>
       </div>
     );

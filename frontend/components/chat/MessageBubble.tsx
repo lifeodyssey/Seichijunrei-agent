@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ChatMessage } from "../../lib/types";
 import IntentRenderer from "../generative/IntentRenderer";
 import { submitFeedback } from "../../lib/api";
+import { useDict } from "../../lib/i18n-context";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -11,6 +12,8 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ message, onSuggest }: MessageBubbleProps) {
+  const { chat: t } = useDict();
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -21,17 +24,16 @@ export default function MessageBubble({ message, onSuggest }: MessageBubbleProps
     );
   }
 
-  // Assistant message
   return (
     <div className="flex gap-3">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-medium text-[var(--color-primary-fg)]">
-        聖
+        {t.bot_icon}
       </div>
       <div className="min-w-0 flex-1 space-y-3">
-        <p className="text-xs font-medium text-[var(--color-fg)]">聖地巡礼 AI</p>
+        <p className="text-xs font-medium text-[var(--color-fg)]">{t.bot_name}</p>
         {message.loading ? (
           <div className="flex items-center gap-1 text-sm text-[var(--color-muted-fg)]">
-            <span className="animate-pulse">考え中…</span>
+            <span className="animate-pulse">{t.thinking}</span>
           </div>
         ) : (
           <>
@@ -54,6 +56,7 @@ export default function MessageBubble({ message, onSuggest }: MessageBubbleProps
 }
 
 function FeedbackButtons({ message }: { message: ChatMessage }) {
+  const { chat: t } = useDict();
   const [state, setState] = useState<"idle" | "commenting" | "submitted">("idle");
   const [comment, setComment] = useState("");
 
@@ -80,7 +83,7 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
   if (state === "submitted") {
     return (
       <p className="text-xs text-[var(--color-muted-fg)]">
-        ✓ フィードバック送信済み
+        {t.feedback_sent}
       </p>
     );
   }
@@ -109,14 +112,14 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
             type="text"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="何が問題でしたか？（任意）"
+            placeholder={t.feedback_placeholder}
             className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 text-xs outline-none"
           />
           <button
             onClick={() => handleFeedback("bad")}
             className="rounded bg-[var(--color-secondary)] px-3 py-1 text-xs font-medium text-[var(--color-fg)]"
           >
-            送信
+            {t.send}
           </button>
         </div>
       )}

@@ -127,8 +127,8 @@ class SQLAgent:
 
         if episode is not None:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 AND p.episode = $2 "
@@ -138,8 +138,8 @@ class SQLAgent:
             query_params: list[Any] = [bangumi_id, episode]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "
@@ -165,8 +165,8 @@ class SQLAgent:
 
         lat, lon = coords
         sql = (
-            f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-            f"p.screenshot_url, p.address, p.bangumi_id, {_GEO_COLUMNS}, "
+            f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+            f"p.image AS screenshot_url, p.bangumi_id, {_GEO_COLUMNS}, "
             f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
             f"b.title, b.title_cn "
             f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
@@ -190,8 +190,8 @@ class SQLAgent:
         if origin_coords:
             lat, lon = origin_coords
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
                 f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
@@ -202,8 +202,8 @@ class SQLAgent:
             query_params: list[Any] = [lon, lat, bangumi_id]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "

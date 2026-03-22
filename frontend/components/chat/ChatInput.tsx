@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { useDict } from "../../lib/i18n-context";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -9,6 +10,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps) {
+  const { chat: t } = useDict();
   const [text, setText] = useState(prefill ?? "");
 
   function handleSubmit() {
@@ -30,7 +32,7 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="聖地を探す・ルートを計画する…"
+        placeholder={t.placeholder}
         rows={1}
         disabled={disabled}
         className="flex-1 resize-none rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] disabled:opacity-50"
@@ -40,7 +42,7 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
         disabled={disabled || !text.trim()}
         className="rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-fg)] disabled:opacity-40"
       >
-        送信
+        {t.send}
       </button>
     </div>
   );
