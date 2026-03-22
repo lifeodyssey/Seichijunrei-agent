@@ -164,10 +164,13 @@ class TestRuntimeAPI:
         api = RuntimeAPI(mock_db)
         span = DummySpan()
 
-        with patch(
-            "interfaces.public_api.get_runtime_tracer",
-            return_value=DummyTracer(span),
-        ), patch("interfaces.public_api.record_runtime_request") as record_metric:
+        with (
+            patch(
+                "interfaces.public_api.get_runtime_tracer",
+                return_value=DummyTracer(span),
+            ),
+            patch("interfaces.public_api.record_runtime_request") as record_metric,
+        ):
             response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
 
         assert response.intent == "search_by_bangumi"

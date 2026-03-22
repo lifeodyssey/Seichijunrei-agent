@@ -12,9 +12,7 @@ from agents.pipeline import run_pipeline
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.public_api import PublicAPIRequest, handle_public_request
 
-_BASELINE_PATH = (
-    Path(__file__).parent / "cases" / "runtime_acceptance_baseline.json"
-)
+_BASELINE_PATH = Path(__file__).parent / "cases" / "runtime_acceptance_baseline.json"
 
 
 def _load_cases() -> list[dict[str, object]]:

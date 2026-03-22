@@ -175,10 +175,13 @@ class TestHTTPService:
         )
         span = DummySpan()
 
-        with patch(
-            "interfaces.http_service.get_http_tracer",
-            return_value=DummyTracer(span),
-        ), patch("interfaces.http_service.record_http_request") as record_metric:
+        with (
+            patch(
+                "interfaces.http_service.get_http_tracer",
+                return_value=DummyTracer(span),
+            ),
+            patch("interfaces.http_service.record_http_request") as record_metric,
+        ):
             async with TestClient(TestServer(app)) as client:
                 response = await client.post(
                     "/v1/runtime",
@@ -214,9 +217,10 @@ class TestHTTPService:
             observability_exporter_type="none",
         )
 
-        with patch("interfaces.http_service.setup_observability") as setup_obs, patch(
-            "interfaces.http_service.shutdown_observability"
-        ) as shutdown_obs:
+        with (
+            patch("interfaces.http_service.setup_observability") as setup_obs,
+            patch("interfaces.http_service.shutdown_observability") as shutdown_obs,
+        ):
             app = create_http_app(
                 settings=settings,
                 db=db,

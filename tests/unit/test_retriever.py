@@ -20,7 +20,9 @@ def mock_db():
     pool.execute = AsyncMock()
     db.pool = pool
     db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_bangumi = AsyncMock(return_value={"id": "115908", "title": "響け！ユーフォニアム"})
+    db.get_bangumi = AsyncMock(
+        return_value={"id": "115908", "title": "響け！ユーフォニアム"}
+    )
     db.upsert_bangumi = AsyncMock()
     db.upsert_points_batch = AsyncMock(return_value=0)
     return db
@@ -140,14 +142,16 @@ class TestRetrievalExecution:
         ]
         mock_db.get_bangumi.return_value = None
         fetch_bangumi_points = AsyncMock(return_value=[_make_point()])
-        get_bangumi_subject = AsyncMock(return_value={
-            "name": "響け！ユーフォニアム",
-            "name_cn": "吹响吧！上低音号",
-            "images": {"large": "https://example.com/cover.jpg"},
-            "rating": {"score": 8.7},
-            "date": "2015-04-01",
-            "eps": 13,
-        })
+        get_bangumi_subject = AsyncMock(
+            return_value={
+                "name": "響け！ユーフォニアム",
+                "name_cn": "吹响吧！上低音号",
+                "images": {"large": "https://example.com/cover.jpg"},
+                "rating": {"score": 8.7},
+                "date": "2015-04-01",
+                "eps": 13,
+            }
+        )
         retriever = Retriever(
             mock_db,
             cache=cache,
@@ -209,10 +213,12 @@ class TestRetrievalExecution:
             mock_db,
             cache=cache,
             fetch_bangumi_points=AsyncMock(return_value=[_make_point()]),
-            get_bangumi_subject=AsyncMock(return_value={
-                "name": "響け！ユーフォニアム",
-                "images": {"large": "https://example.com/cover.jpg"},
-            }),
+            get_bangumi_subject=AsyncMock(
+                return_value={
+                    "name": "響け！ユーフォニアム",
+                    "images": {"large": "https://example.com/cover.jpg"},
+                }
+            ),
         )
 
         result = await retriever.execute(

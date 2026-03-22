@@ -27,7 +27,9 @@ _DEFAULT_LIMIT = 100
 _DEFAULT_LOCATION_LIMIT = 50
 
 # Reusable PostGIS column expressions for extracting lat/lon from geography columns
-_GEO_COLUMNS = "ST_Y(p.location::geometry) AS latitude, ST_X(p.location::geometry) AS longitude"
+_GEO_COLUMNS = (
+    "ST_Y(p.location::geometry) AS latitude, ST_X(p.location::geometry) AS longitude"
+)
 
 
 @dataclass
@@ -102,7 +104,8 @@ class SQLAgent:
 
         if handler is None:
             return SQLResult(
-                query="", params=[],
+                query="",
+                params=[],
                 error=f"No SQL handler for intent: {intent.intent}",
             )
 
@@ -155,7 +158,8 @@ class SQLAgent:
         coords = KNOWN_LOCATIONS.get(location_name)
         if coords is None:
             return SQLResult(
-                query="", params=[],
+                query="",
+                params=[],
                 error=f"Unknown location: {location_name}. Geocoding not yet implemented.",
             )
 
@@ -218,6 +222,8 @@ class SQLAgent:
         rows = [dict(r) for r in records]
         logger.info("sql_executed", row_count=len(rows), sql=sql[:80])
         return SQLResult(
-            query=sql, params=params,
-            rows=rows, row_count=len(rows),
+            query=sql,
+            params=params,
+            rows=rows,
+            row_count=len(rows),
         )

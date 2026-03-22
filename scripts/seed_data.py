@@ -30,16 +30,16 @@ SEED_BANGUMI_IDS: list[int] = [
     160209,  # 君の名は。
     269235,  # 天気の子
     362577,  # すずめの戸締まり
-    927,     # 秒速5センチメートル
-    58949,   # 言の葉の庭
+    927,  # 秒速5センチメートル
+    58949,  # 言の葉の庭
     # KyoAni TV (7)
     115908,  # 響け！ユーフォニアム
     152091,  # 響け！ユーフォニアム2
     283643,  # 響け！ユーフォニアム3
-    485,     # 涼宮ハルヒの憂鬱
-    1424,    # けいおん！
-    55113,   # たまこまーけっと
-    27364,   # 氷菓
+    485,  # 涼宮ハルヒの憂鬱
+    1424,  # けいおん！
+    55113,  # たまこまーけっと
+    27364,  # 氷菓
     # Hibike movies (5)
     152092,  # 劇場版 響け！北宇治
     211089,  # 劇場版 響け！届けたいメロディ
@@ -85,18 +85,20 @@ async def fetch_points(client: AnitabiClient, bangumi_id: int) -> list[dict]:
 
     rows: list[dict] = []
     for p in points:
-        rows.append({
-            "id": p.id,
-            "bangumi_id": str(bangumi_id),
-            "name": p.name,
-            "cn_name": p.cn_name,
-            "episode": p.episode,
-            "time_seconds": p.time_seconds,
-            "screenshot_url": str(p.screenshot_url),
-            "origin": p.origin,
-            "origin_url": p.origin_url,
-            "location": f"POINT({p.coordinates.longitude} {p.coordinates.latitude})",
-        })
+        rows.append(
+            {
+                "id": p.id,
+                "bangumi_id": str(bangumi_id),
+                "name": p.name,
+                "cn_name": p.cn_name,
+                "episode": p.episode,
+                "time_seconds": p.time_seconds,
+                "screenshot_url": str(p.screenshot_url),
+                "origin": p.origin,
+                "origin_url": p.origin_url,
+                "location": f"POINT({p.coordinates.longitude} {p.coordinates.latitude})",
+            }
+        )
     return rows
 
 
@@ -152,9 +154,7 @@ async def seed(dry_run: bool = False) -> None:
                 vals = [pid] + list(row.values())
                 placeholders = ", ".join(f"${i+1}" for i in range(len(vals)))
                 placeholders += f", ST_GeogFromText(${len(vals)+1})"
-                update_set = ", ".join(
-                    f"{c} = EXCLUDED.{c}" for c in row.keys()
-                )
+                update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in row.keys())
                 update_set += ", location = EXCLUDED.location"
                 sql = (
                     f"INSERT INTO points ({', '.join(cols)}) "
@@ -168,7 +168,8 @@ async def seed(dry_run: bool = False) -> None:
             # Update points_count on bangumi
             await db.pool.execute(
                 "UPDATE bangumi SET points_count = $1 WHERE id = $2",
-                len(rows), str(sid),
+                len(rows),
+                str(sid),
             )
             total_points += len(rows)
             logger.info("upserted_points", bangumi_id=sid, count=len(rows))
@@ -187,7 +188,9 @@ async def seed(dry_run: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed Supabase with anime data")
-    parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without writing"
+    )
     args = parser.parse_args()
     asyncio.run(seed(dry_run=args.dry_run))
 

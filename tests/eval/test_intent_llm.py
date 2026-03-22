@@ -56,7 +56,9 @@ def make_model(model_id: str | None = None) -> Any:
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openai import OpenAIProvider
 
-        lm_model_name = model_id.split(":", 1)[1] if ":" in model_id else "qwen/qwen3.5-9b"
+        lm_model_name = (
+            model_id.split(":", 1)[1] if ":" in model_id else "qwen/qwen3.5-9b"
+        )
         return OpenAIChatModel(
             lm_model_name,
             provider=OpenAIProvider(
@@ -90,7 +92,9 @@ EVAL_MODEL = make_model(_EVAL_MODEL_ID)
 class IntentMatchEvaluator(Evaluator[str, IntentOutput, dict[str, Any]]):
     """Check if predicted intent matches expected intent."""
 
-    async def evaluate(self, ctx: EvaluatorContext[str, IntentOutput, dict[str, Any]]) -> float:
+    async def evaluate(
+        self, ctx: EvaluatorContext[str, IntentOutput, dict[str, Any]]
+    ) -> float:
         expected = ctx.expected_output
         if expected is None:
             return 1.0
@@ -103,7 +107,9 @@ class IntentMatchEvaluator(Evaluator[str, IntentOutput, dict[str, Any]]):
 class ParamsEvaluator(Evaluator[str, IntentOutput, dict[str, Any]]):
     """Check if extracted params match expected params (partial match OK)."""
 
-    async def evaluate(self, ctx: EvaluatorContext[str, IntentOutput, dict[str, Any]]) -> float:
+    async def evaluate(
+        self, ctx: EvaluatorContext[str, IntentOutput, dict[str, Any]]
+    ) -> float:
         expected = ctx.expected_output
         if expected is None:
             return 1.0
@@ -113,8 +119,7 @@ class ParamsEvaluator(Evaluator[str, IntentOutput, dict[str, Any]]):
 
         actual = ctx.output.extracted_params.model_dump(exclude_none=True)
         matched = sum(
-            1 for k, v in expected_params.items()
-            if str(actual.get(k, "")) == str(v)
+            1 for k, v in expected_params.items() if str(actual.get(k, "")) == str(v)
         )
         total = len(expected_params)
         return matched / total if total > 0 else 1.0
@@ -144,25 +149,37 @@ CASES = [
     Case(
         name="bangumi_ja_01",
         inputs="君の名は。の聖地を教えて",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "160209"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "160209"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="bangumi_cn_02",
         inputs="你的名字取景地",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "160209"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "160209"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="bangumi_cn_03",
         inputs="天气之子的圣地巡礼",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "269235"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "269235"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="bangumi_cn_04",
         inputs="铃芽之旅的取景地有哪些",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "362577"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "362577"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
@@ -174,13 +191,19 @@ CASES = [
     Case(
         name="bangumi_cn_06",
         inputs="吹响吧上低音号的圣地",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="bangumi_ja_02",
         inputs="響け！ユーフォニアムの聖地巡礼スポット",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
@@ -230,112 +253,166 @@ CASES = [
     Case(
         name="episode_cn_01",
         inputs="吹响第3集出现的地方",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908", "episode": 3}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908", "episode": 3},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="episode_cn_02",
         inputs="秒速5厘米第1话的场景",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "927", "episode": 1}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "927", "episode": 1},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="episode_ja_01",
         inputs="君の名は。の第5話に出てくる場所",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "160209", "episode": 5}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "160209", "episode": 5},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="episode_llm_01",
         inputs="吹响上低音号里面有一集在大吉山展望台的是第几集",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908"},
+        },
         metadata={"regex_path": False, "lang": "cn"},
     ),
     # ── search_by_location (regex-matchable) ─────────────────────────
     Case(
         name="location_cn_01",
         inputs="宇治附近有什么圣地",
-        expected_output={"intent": "search_by_location", "params": {"location": "宇治"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "宇治"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="location_ja_01",
         inputs="東京駅の近くにあるアニメ聖地",
-        expected_output={"intent": "search_by_location", "params": {"location": "東京駅"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "東京駅"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="location_ja_02",
         inputs="新宿周辺のアニメスポット",
-        expected_output={"intent": "search_by_location", "params": {"location": "新宿"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "新宿"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="location_cn_02",
         inputs="京都有哪些动漫取景地",
-        expected_output={"intent": "search_by_location", "params": {"location": "京都"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "京都"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="location_ja_03",
         inputs="飛騨高山周辺の聖地",
-        expected_output={"intent": "search_by_location", "params": {"location": "飛騨高山"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "飛騨高山"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="location_cn_03",
         inputs="秋叶原附近的圣地巡礼点",
-        expected_output={"intent": "search_by_location", "params": {"location": "秋叶原"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "秋叶原"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     # ── search_by_location (LLM-only) ───────────────────────────────
     Case(
         name="location_llm_01",
         inputs="东京有没有什么动漫相关的景点可以逛",
-        expected_output={"intent": "search_by_location", "params": {"location": "东京"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "东京"},
+        },
         metadata={"regex_path": False, "lang": "cn"},
     ),
     Case(
         name="location_llm_02",
         inputs="大阪で聖地巡礼できるところある？",
-        expected_output={"intent": "search_by_location", "params": {"location": "大阪"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "大阪"},
+        },
         metadata={"regex_path": False, "lang": "ja"},
     ),
     Case(
         name="location_llm_03",
         inputs="我在镰仓旅游，这边有什么动漫圣地吗",
-        expected_output={"intent": "search_by_location", "params": {"location": "镰仓"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "镰仓"},
+        },
         metadata={"regex_path": False, "lang": "cn"},
     ),
     Case(
         name="location_llm_04",
         inputs="名古屋あたりでアニメの聖地ってある？",
-        expected_output={"intent": "search_by_location", "params": {"location": "名古屋"}},
+        expected_output={
+            "intent": "search_by_location",
+            "params": {"location": "名古屋"},
+        },
         metadata={"regex_path": False, "lang": "ja"},
     ),
     # ── plan_route (regex-matchable) ─────────────────────────────────
     Case(
         name="route_cn_01",
         inputs="从京都站出发去吹响的圣地",
-        expected_output={"intent": "plan_route", "params": {"origin": "京都站", "bangumi": "115908"}},
+        expected_output={
+            "intent": "plan_route",
+            "params": {"origin": "京都站", "bangumi": "115908"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="route_ja_01",
         inputs="東京駅から君の名はの聖地を回るルート",
-        expected_output={"intent": "plan_route", "params": {"origin": "東京駅", "bangumi": "160209"}},
+        expected_output={
+            "intent": "plan_route",
+            "params": {"origin": "東京駅", "bangumi": "160209"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="route_cn_02",
         inputs="帮我规划从新宿到天气之子取景地的路线",
-        expected_output={"intent": "plan_route", "params": {"origin": "新宿", "bangumi": "269235"}},
+        expected_output={
+            "intent": "plan_route",
+            "params": {"origin": "新宿", "bangumi": "269235"},
+        },
         metadata={"regex_path": True, "lang": "cn"},
     ),
     Case(
         name="route_ja_02",
         inputs="宇治駅から響けユーフォの聖地巡りルートを作って",
-        expected_output={"intent": "plan_route", "params": {"origin": "宇治駅", "bangumi": "115908"}},
+        expected_output={
+            "intent": "plan_route",
+            "params": {"origin": "宇治駅", "bangumi": "115908"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     # ── plan_route (LLM-only) ────────────────────────────────────────
@@ -454,13 +531,19 @@ CASES = [
     Case(
         name="combo_ja_01",
         inputs="宇治にある響けユーフォの聖地",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908"},
+        },
         metadata={"regex_path": True, "lang": "ja"},
     ),
     Case(
         name="combo_llm_01",
         inputs="东京都内有没有你的名字里出现过的地方",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "160209"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "160209"},
+        },
         metadata={"regex_path": False, "lang": "cn"},
     ),
     Case(
@@ -472,7 +555,10 @@ CASES = [
     Case(
         name="combo_llm_03",
         inputs="我在宇治旅游，这附近有吹响上低音号的取景地吗",
-        expected_output={"intent": "search_by_bangumi", "params": {"bangumi": "115908"}},
+        expected_output={
+            "intent": "search_by_bangumi",
+            "params": {"bangumi": "115908"},
+        },
         metadata={"regex_path": False, "lang": "cn"},
     ),
 ]
@@ -511,7 +597,9 @@ def test_intent_classification_eval():
     print(f"  Total cases:      {len(CASES)}")
     print(f"{'=' * 60}")
 
-    assert intent_score >= 0.70, f"Intent accuracy {intent_score:.1%} below 70% threshold"
+    assert (
+        intent_score >= 0.70
+    ), f"Intent accuracy {intent_score:.1%} below 70% threshold"
 
 
 # ── Standalone runner ────────────────────────────────────────────────
@@ -549,6 +637,8 @@ if __name__ == "__main__":
         intent_score = avg.scores.get("IntentMatchEvaluator", 0)
         params_score = avg.scores.get("ParamsEvaluator", 0)
         print(f"\n  Model: {_mid}")
-        print(f"  Intent: {intent_score:.1%}  Params: {params_score:.1%}  Cases: {len(CASES)}")
+        print(
+            f"  Intent: {intent_score:.1%}  Params: {params_score:.1%}  Cases: {len(CASES)}"
+        )
 
     asyncio.run(main())

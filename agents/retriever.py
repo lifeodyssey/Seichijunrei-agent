@@ -82,9 +82,8 @@ class Retriever:
                 self._fetch_bangumi_points
                 or FetchBangumiPoints(anitabi=AnitabiClientGateway())
             )
-            self._get_bangumi_subject = (
-                self._get_bangumi_subject
-                or GetBangumiSubject(bangumi=BangumiClientGateway())
+            self._get_bangumi_subject = self._get_bangumi_subject or GetBangumiSubject(
+                bangumi=BangumiClientGateway()
             )
 
     def choose_strategy(self, intent: IntentOutput) -> RetrievalStrategy:
@@ -153,7 +152,9 @@ class Retriever:
         )
 
     async def _execute_geo(self, intent: IntentOutput) -> RetrievalResult:
-        anchor = intent.extracted_params.location or intent.extracted_params.origin or ""
+        anchor = (
+            intent.extracted_params.location or intent.extracted_params.origin or ""
+        )
         rows, error = await self._fetch_geo_rows(
             anchor,
             radius_m=intent.extracted_params.radius or 5000,
@@ -198,7 +199,9 @@ class Retriever:
 
         if params.bangumi:
             geo_rows = [
-                row for row in geo_rows if str(row.get("bangumi_id", "")) == params.bangumi
+                row
+                for row in geo_rows
+                if str(row.get("bangumi_id", "")) == params.bangumi
             ]
 
         merged_rows = _merge_rows_preserving_order(sql_result.rows, geo_rows)
@@ -341,7 +344,9 @@ class Retriever:
         rows = [_point_to_db_row(point) for point in points]
         await upsert_points_batch(rows)
 
-    async def _update_bangumi_points_count(self, bangumi_id: str, points_count: int) -> None:
+    async def _update_bangumi_points_count(
+        self, bangumi_id: str, points_count: int
+    ) -> None:
         pool = getattr(self._db, "pool", None)
         if pool is None:
             return
@@ -443,12 +448,12 @@ def _clone_result(
     )
 
 
-def _merge_rows_preserving_order(sql_rows: list[dict], geo_rows: list[dict]) -> list[dict]:
+def _merge_rows_preserving_order(
+    sql_rows: list[dict], geo_rows: list[dict]
+) -> list[dict]:
     """Merge SQL rows with geo rows, keeping SQL order as the primary ranking."""
     geo_by_id = {
-        str(row.get("id")): row
-        for row in geo_rows
-        if row.get("id") is not None
+        str(row.get("id")): row for row in geo_rows if row.get("id") is not None
     }
 
     merged: list[dict] = []

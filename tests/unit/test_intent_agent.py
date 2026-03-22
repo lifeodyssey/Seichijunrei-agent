@@ -18,20 +18,23 @@ from agents.intent_agent import (
 class TestBangumiTitleMatch:
     """Test bangumi title → ID matching."""
 
-    @pytest.mark.parametrize("text,expected_id", [
-        ("秒速5厘米的取景地", "927"),
-        ("君の名は。の聖地", "160209"),
-        ("你的名字取景地", "160209"),
-        ("天气之子的圣地", "269235"),
-        ("吹响吧上低音号的圣地", "115908"),
-        ("響けユーフォニアムの聖地", "115908"),
-        ("凉宫春日的忧郁取景地", "485"),
-        ("轻音少女的圣地", "1424"),
-        ("冰菓的取景地", "27364"),
-        ("玉子市场圣地巡礼", "55113"),
-        ("言叶之庭在哪里", "58949"),
-        ("铃芽之旅的取景地", "362577"),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected_id",
+        [
+            ("秒速5厘米的取景地", "927"),
+            ("君の名は。の聖地", "160209"),
+            ("你的名字取景地", "160209"),
+            ("天气之子的圣地", "269235"),
+            ("吹响吧上低音号的圣地", "115908"),
+            ("響けユーフォニアムの聖地", "115908"),
+            ("凉宫春日的忧郁取景地", "485"),
+            ("轻音少女的圣地", "1424"),
+            ("冰菓的取景地", "27364"),
+            ("玉子市场圣地巡礼", "55113"),
+            ("言叶之庭在哪里", "58949"),
+            ("铃芽之旅的取景地", "362577"),
+        ],
+    )
     def test_title_match(self, text: str, expected_id: str) -> None:
         assert _match_bangumi_title(text) == expected_id
 
@@ -43,14 +46,17 @@ class TestBangumiTitleMatch:
 class TestEpisodeExtraction:
     """Test episode number extraction."""
 
-    @pytest.mark.parametrize("text,expected", [
-        ("第3集", 3),
-        ("第 5 话", 5),
-        ("第12話", 12),
-        ("ep3", 3),
-        ("Episode 7", 7),
-        ("没有集数", None),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("第3集", 3),
+            ("第 5 话", 5),
+            ("第12話", 12),
+            ("ep3", 3),
+            ("Episode 7", 7),
+            ("没有集数", None),
+        ],
+    )
     def test_episode(self, text: str, expected: int | None) -> None:
         assert _extract_episode(text) == expected
 
@@ -58,13 +64,16 @@ class TestEpisodeExtraction:
 class TestLocationExtraction:
     """Test location name extraction."""
 
-    @pytest.mark.parametrize("text,expected", [
-        ("宇治附近有什么圣地", "宇治"),
-        ("東京駅の近くにあるアニメ聖地", "東京駅"),
-        ("新宿周辺のアニメスポット", "新宿"),
-        ("京都有哪些动漫取景地", "京都"),
-        ("秋叶原附近的圣地巡礼点", "秋叶原"),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("宇治附近有什么圣地", "宇治"),
+            ("東京駅の近くにあるアニメ聖地", "東京駅"),
+            ("新宿周辺のアニメスポット", "新宿"),
+            ("京都有哪些动漫取景地", "京都"),
+            ("秋叶原附近的圣地巡礼点", "秋叶原"),
+        ],
+    )
     def test_location(self, text: str, expected: str) -> None:
         result = _extract_location(text)
         assert result == expected
@@ -73,10 +82,13 @@ class TestLocationExtraction:
 class TestRouteOriginExtraction:
     """Test route origin extraction."""
 
-    @pytest.mark.parametrize("text,expected", [
-        ("从京都站出发去吹响的圣地", "京都站"),
-        ("从新宿到天气之子取景地", "新宿"),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("从京都站出发去吹响的圣地", "京都站"),
+            ("从新宿到天气之子取景地", "新宿"),
+        ],
+    )
     def test_origin(self, text: str, expected: str) -> None:
         result = _extract_route_origin(text)
         assert result == expected

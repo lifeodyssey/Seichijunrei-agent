@@ -17,15 +17,36 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Column allowlists — only these names may appear in dynamic SQL identifiers.
-_BANGUMI_COLUMNS = frozenset({
-    "title", "title_cn", "cover_url", "air_date", "summary",
-    "eps_count", "rating", "points_count", "primary_color",
-})
-_POINT_COLUMNS = frozenset({
-    "bangumi_id", "name", "cn_name", "episode", "time_seconds",
-    "screenshot_url", "address", "origin", "origin_url", "opening_hours",
-    "admission_fee", "location", "search_text",
-})
+_BANGUMI_COLUMNS = frozenset(
+    {
+        "title",
+        "title_cn",
+        "cover_url",
+        "air_date",
+        "summary",
+        "eps_count",
+        "rating",
+        "points_count",
+        "primary_color",
+    }
+)
+_POINT_COLUMNS = frozenset(
+    {
+        "bangumi_id",
+        "name",
+        "cn_name",
+        "episode",
+        "time_seconds",
+        "screenshot_url",
+        "address",
+        "origin",
+        "origin_url",
+        "opening_hours",
+        "admission_fee",
+        "location",
+        "search_text",
+    }
+)
 
 
 def _validate_columns(columns: frozenset[str], fields: dict) -> None:
@@ -47,7 +68,9 @@ class SupabaseClient:
             ...
     """
 
-    def __init__(self, dsn: str, *, min_pool_size: int = 2, max_pool_size: int = 10) -> None:
+    def __init__(
+        self, dsn: str, *, min_pool_size: int = 2, max_pool_size: int = 10
+    ) -> None:
         self._dsn = dsn
         self._min_pool_size = min_pool_size
         self._max_pool_size = max_pool_size
@@ -108,9 +131,7 @@ class SupabaseClient:
         _validate_columns(_BANGUMI_COLUMNS, fields)
         columns = ["id"] + list(fields.keys())
         placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
-        update_set = ", ".join(
-            f"{col} = EXCLUDED.{col}" for col in fields.keys()
-        )
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in fields.keys())
         sql = (
             f"INSERT INTO bangumi ({', '.join(columns)}) VALUES ({placeholders}) "
             f"ON CONFLICT (id) DO UPDATE SET {update_set}"
@@ -143,7 +164,10 @@ class SupabaseClient:
             ORDER BY distance_m
             LIMIT $4
             """,
-            lon, lat, radius_m, limit,
+            lon,
+            lat,
+            radius_m,
+            limit,
         )
 
     async def upsert_point(self, point_id: str, **fields: object) -> None:
@@ -202,7 +226,11 @@ class SupabaseClient:
         if location_present:
             columns.append("location")
             placeholders.append(f"ST_GeogFromText(${len(columns)})")
-            update_set = f"{update_set}, location = EXCLUDED.location" if update_set else "location = EXCLUDED.location"
+            update_set = (
+                f"{update_set}, location = EXCLUDED.location"
+                if update_set
+                else "location = EXCLUDED.location"
+            )
 
         sql = (
             f"INSERT INTO points ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
@@ -229,7 +257,9 @@ class SupabaseClient:
             "SELECT * FROM sessions WHERE id = $1", session_id
         )
 
-    async def upsert_session(self, session_id: str, state: dict, metadata: dict | None = None) -> None:
+    async def upsert_session(
+        self, session_id: str, state: dict, metadata: dict | None = None
+    ) -> None:
         """Create or update a session."""
         import json
 
@@ -238,7 +268,9 @@ class SupabaseClient:
             INSERT INTO sessions (id, state, metadata) VALUES ($1, $2::jsonb, $3::jsonb)
             ON CONFLICT (id) DO UPDATE SET state = $2::jsonb, metadata = COALESCE($3::jsonb, sessions.metadata)
             """,
-            session_id, json.dumps(state), json.dumps(metadata or {}),
+            session_id,
+            json.dumps(state),
+            json.dumps(metadata or {}),
         )
 
     # --- Routes ---
@@ -269,7 +301,13 @@ class SupabaseClient:
             VALUES ($1, $2, $3, ST_GeogFromText($4), $5, $6, $7, $8::jsonb)
             RETURNING id
             """,
-            session_id, bangumi_id, origin_station, origin_location,
-            point_ids, total_distance, total_duration, json.dumps(route_data),
+            session_id,
+            bangumi_id,
+            origin_station,
+            origin_location,
+            point_ids,
+            total_distance,
+            total_duration,
+            json.dumps(route_data),
         )
         return str(row["id"])

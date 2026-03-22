@@ -81,11 +81,13 @@ class TestObservabilityLifecycle:
             observability_otlp_endpoint="http://otel:4317",
         )
 
-        with patch("infrastructure.observability.setup_tracing") as setup_tracing_mock, patch(
-            "infrastructure.observability.setup_metrics"
-        ) as setup_metrics_mock, patch(
-            "infrastructure.observability.reset_runtime_observability"
-        ) as reset_mock:
+        with (
+            patch("infrastructure.observability.setup_tracing") as setup_tracing_mock,
+            patch("infrastructure.observability.setup_metrics") as setup_metrics_mock,
+            patch(
+                "infrastructure.observability.reset_runtime_observability"
+            ) as reset_mock,
+        ):
             setup_observability(settings)
 
         setup_tracing_mock.assert_called_once()
@@ -95,11 +97,17 @@ class TestObservabilityLifecycle:
         reset_mock.assert_called_once()
 
     def test_shutdown_observability_flushes_all_providers(self):
-        with patch("infrastructure.observability.shutdown_tracing") as shutdown_tracing_mock, patch(
-            "infrastructure.observability.shutdown_metrics"
-        ) as shutdown_metrics_mock, patch(
-            "infrastructure.observability.reset_runtime_observability"
-        ) as reset_mock:
+        with (
+            patch(
+                "infrastructure.observability.shutdown_tracing"
+            ) as shutdown_tracing_mock,
+            patch(
+                "infrastructure.observability.shutdown_metrics"
+            ) as shutdown_metrics_mock,
+            patch(
+                "infrastructure.observability.reset_runtime_observability"
+            ) as reset_mock,
+        ):
             shutdown_observability()
 
         shutdown_tracing_mock.assert_called_once()

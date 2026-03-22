@@ -72,6 +72,7 @@ def shutdown_observability() -> None:
     shutdown_metrics()
     reset_runtime_observability()
 
+
 __all__ = [
     "get_tracer",
     "setup_tracing",

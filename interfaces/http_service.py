@@ -240,8 +240,13 @@ def _http_status_for_response(response: PublicAPIResponse) -> int:
         return 504
     if codes & {"service_unavailable", "external_service_error"}:
         return 503
-    if codes & {"internal_error", "unknown_error", "configuration_error",
-                 "missing_config", "pipeline_error"}:
+    if codes & {
+        "internal_error",
+        "unknown_error",
+        "configuration_error",
+        "missing_config",
+        "pipeline_error",
+    }:
         return 500
 
     return 500

@@ -37,12 +37,16 @@ class IntentOutput(BaseModel):
         ...,
         description="Classified intent: search_by_location, search_by_bangumi, plan_route, general_qa, unclear",
     )
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Classification confidence")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Classification confidence"
+    )
     extracted_params: ExtractedParams = Field(
         default_factory=ExtractedParams,
         description="Extracted parameters (e.g. bangumi, location, episode, origin)",
     )
-    reasoning: str = Field(default="", description="Brief reasoning for the classification")
+    reasoning: str = Field(
+        default="", description="Brief reasoning for the classification"
+    )
 
 
 # ── Bangumi title → ID mapping (seeded 17 anime) ────────────────────
@@ -126,8 +130,7 @@ _ROUTE_PATTERN = re.compile(
 
 # Route origin extraction
 _ROUTE_ORIGIN_PATTERN = re.compile(
-    r"(?:从|從)\s*(.+?)\s*(?:出发|出發|到|去)"
-    r"|(.+?)\s*(?:から|より)",
+    r"(?:从|從)\s*(.+?)\s*(?:出发|出發|到|去)" r"|(.+?)\s*(?:から|より)",
 )
 
 # Location search: X附近/X周辺/X有什么/X有哪些
@@ -198,8 +201,10 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     text_stripped = text.strip()
     if not text_stripped:
         return IntentOutput(
-            intent="unclear", confidence=1.0,
-            extracted_params=ExtractedParams(), reasoning="empty input",
+            intent="unclear",
+            confidence=1.0,
+            extracted_params=ExtractedParams(),
+            reasoning="empty input",
         )
 
     bangumi_id = _match_bangumi_title(text_stripped)
@@ -211,9 +216,12 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     if is_route and bangumi_id:
         origin = _extract_route_origin(text_stripped)
         return IntentOutput(
-            intent="plan_route", confidence=0.95,
+            intent="plan_route",
+            confidence=0.95,
             extracted_params=ExtractedParams(
-                bangumi=bangumi_id, origin=origin, episode=episode,
+                bangumi=bangumi_id,
+                origin=origin,
+                episode=episode,
             ),
             reasoning="route pattern + bangumi title matched",
         )
@@ -222,9 +230,12 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     if bangumi_id and is_bangumi_trigger:
         location = _extract_location(text_stripped)
         return IntentOutput(
-            intent="search_by_bangumi", confidence=0.95,
+            intent="search_by_bangumi",
+            confidence=0.95,
             extracted_params=ExtractedParams(
-                bangumi=bangumi_id, episode=episode, location=location,
+                bangumi=bangumi_id,
+                episode=episode,
+                location=location,
             ),
             reasoning="bangumi title + search trigger matched",
         )
@@ -232,7 +243,8 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     # 3. Bangumi + episode (title + episode number, no explicit trigger needed)
     if bangumi_id and episode:
         return IntentOutput(
-            intent="search_by_bangumi", confidence=0.90,
+            intent="search_by_bangumi",
+            confidence=0.90,
             extracted_params=ExtractedParams(bangumi=bangumi_id, episode=episode),
             reasoning="bangumi title + episode number matched",
         )
@@ -240,9 +252,13 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     # 4. Location search (no bangumi title, but location pattern)
     if not bangumi_id:
         location = _extract_location(text_stripped)
-        if location and (is_bangumi_trigger or re.search(r"动漫|アニメ|anime|圣地|聖地", text_stripped)):
+        if location and (
+            is_bangumi_trigger
+            or re.search(r"动漫|アニメ|anime|圣地|聖地", text_stripped)
+        ):
             return IntentOutput(
-                intent="search_by_location", confidence=0.90,
+                intent="search_by_location",
+                confidence=0.90,
                 extracted_params=ExtractedParams(location=location),
                 reasoning="location pattern + anime/pilgrimage trigger",
             )
@@ -250,7 +266,8 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     # 5. General QA
     if _QA_TRIGGER.search(text_stripped) and not bangumi_id:
         return IntentOutput(
-            intent="general_qa", confidence=0.80,
+            intent="general_qa",
+            confidence=0.80,
             extracted_params=ExtractedParams(),
             reasoning="QA trigger pattern matched",
         )
@@ -258,7 +275,8 @@ def classify_intent_regex(text: str) -> IntentOutput | None:
     # 6. Very short / greeting → unclear
     if len(text_stripped) <= 5 and not bangumi_id:
         return IntentOutput(
-            intent="unclear", confidence=0.85,
+            intent="unclear",
+            confidence=0.85,
             extracted_params=ExtractedParams(),
             reasoning="input too short to determine intent",
         )

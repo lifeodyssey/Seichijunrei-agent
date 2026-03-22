@@ -299,7 +299,9 @@ def _pipeline_result_to_public_response(
                 "rationale": result.plan.rationale,
                 "steps": [step.step_type.value for step in result.plan.steps],
             },
-            "step_results": [_serialize_step_result(step) for step in result.step_results],
+            "step_results": [
+                _serialize_step_result(step) for step in result.step_results
+            ],
         }
 
     return response
