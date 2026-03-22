@@ -225,11 +225,26 @@ def _http_status_for_response(response: PublicAPIResponse) -> int:
         return 200
 
     codes = {error.code for error in response.errors}
-    if "invalid_input" in codes:
+
+    if codes & {"invalid_input", "missing_required_field", "invalid_format"}:
         return 400
-    if "internal_error" in codes or "pipeline_error" in codes:
+    if codes & {"authentication_error", "invalid_credentials"}:
+        return 401
+    if codes & {"not_found"}:
+        return 404
+    if codes & {"already_exists"}:
+        return 409
+    if codes & {"rate_limited"}:
+        return 429
+    if codes & {"timeout"}:
+        return 504
+    if codes & {"service_unavailable", "external_service_error"}:
+        return 503
+    if codes & {"internal_error", "unknown_error", "configuration_error",
+                 "missing_config", "pipeline_error"}:
         return 500
-    return 200
+
+    return 500
 
 
 if __name__ == "__main__":

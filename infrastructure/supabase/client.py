@@ -216,7 +216,8 @@ class SupabaseClient:
         args = [tuple(row.get(col) for col in col_order) for row in rows]
 
         async with self.pool.acquire() as conn:
-            await conn.executemany(sql, args)
+            async with conn.transaction():
+                await conn.executemany(sql, args)
 
         return len(rows)
 
