@@ -19,10 +19,10 @@ async def test_upsert_point_uses_geography_cast_for_location() -> None:
         "p1",
         bangumi_id="115908",
         name="宇治桥",
-        cn_name="宇治桥",
+        name_cn="宇治桥",
         episode=1,
         time_seconds=42,
-        screenshot_url="https://example.com/point.jpg",
+        image="https://example.com/point.jpg",
         location="POINT(135.7997 34.8843)",
     )
 

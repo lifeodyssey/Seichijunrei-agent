@@ -16,15 +16,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
+from pydantic import BaseModel, Field
 
+from agents.base import create_agent, get_default_model
 from agents.intent_agent import ExtractedParams, IntentOutput
 from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
 
 # Default row limits
-_DEFAULT_LIMIT = 100
-_DEFAULT_LOCATION_LIMIT = 50
+_DEFAULT_LIMIT = 20
+_DEFAULT_LOCATION_LIMIT = 20
+_DEFAULT_ROUTE_RADIUS_M = 50_000  # 50 km — typical day-trip transit radius in Japan
 
 # Reusable PostGIS column expressions for extracting lat/lon from geography columns
 _GEO_COLUMNS = (
@@ -80,6 +83,59 @@ KNOWN_LOCATIONS: dict[str, tuple[float, float]] = {
     "六地蔵": (34.9340, 135.7930),
 }
 
+_KNOWN_KEYS_STR = ", ".join(KNOWN_LOCATIONS.keys())
+
+_RESOLVE_LOCATION_PROMPT = """\
+You are a location name resolver for a Japanese travel app.
+
+Given a user-provided location name, find the best match from this list of known locations:
+{known_locations}
+
+Rules:
+- Match across languages: 宇治站 = 宇治駅 = 宇治, 东京站 = 東京駅, etc.
+- Strip suffixes like 站/駅/车站/車站 when matching
+- If the location is clearly a variant or synonym of a known location, return that known key
+- If no reasonable match exists, return null
+- Return ONLY the exact key string from the list, or null
+"""
+
+
+class ResolvedLocation(BaseModel):
+    matched_key: str | None = Field(
+        description="Exact key from KNOWN_LOCATIONS, or null if no match"
+    )
+
+
+async def resolve_location(name: str) -> tuple[float, float] | None:
+    """Resolve a location name to coordinates.
+
+    First tries exact match in KNOWN_LOCATIONS, then falls back to LLM
+    for fuzzy matching (e.g. 宇治站 → 宇治, 东京站 → 東京駅).
+    """
+    # Exact match
+    coords = KNOWN_LOCATIONS.get(name)
+    if coords is not None:
+        return coords
+
+    # LLM fuzzy match
+    try:
+        agent = create_agent(
+            get_default_model(),
+            system_prompt=_RESOLVE_LOCATION_PROMPT.format(
+                known_locations=_KNOWN_KEYS_STR,
+            ),
+            output_type=ResolvedLocation,
+        )
+        result = await agent.run(name)
+        matched = result.output.matched_key
+        if matched and matched in KNOWN_LOCATIONS:
+            logger.info("location_resolved_by_llm", input=name, matched=matched)
+            return KNOWN_LOCATIONS[matched]
+    except Exception as exc:
+        logger.warning("location_resolve_llm_failed", input=name, error=str(exc))
+
+    return None
+
 
 class SQLAgent:
     """Generates and executes parameterized SQL queries from intent output."""
@@ -127,8 +183,8 @@ class SQLAgent:
 
         if episode is not None:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 AND p.episode = $2 "
@@ -138,8 +194,8 @@ class SQLAgent:
             query_params: list[Any] = [bangumi_id, episode]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, p.origin, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "
@@ -155,18 +211,18 @@ class SQLAgent:
         location_name = params.location or ""
         radius_m = params.radius or 5000
 
-        coords = KNOWN_LOCATIONS.get(location_name)
+        coords = await resolve_location(location_name)
         if coords is None:
             return SQLResult(
                 query="",
                 params=[],
-                error=f"Unknown location: {location_name}. Geocoding not yet implemented.",
+                error=f"Unknown location: {location_name}. Could not resolve coordinates.",
             )
 
         lat, lon = coords
         sql = (
-            f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-            f"p.screenshot_url, p.address, p.bangumi_id, {_GEO_COLUMNS}, "
+            f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+            f"p.image AS screenshot_url, p.bangumi_id, {_GEO_COLUMNS}, "
             f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
             f"b.title, b.title_cn "
             f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
@@ -185,25 +241,27 @@ class SQLAgent:
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID for route")
 
-        origin_coords = KNOWN_LOCATIONS.get(origin_name)
+        origin_coords = await resolve_location(origin_name) if origin_name else None
 
         if origin_coords:
             lat, lon = origin_coords
+            radius_m = params.radius or _DEFAULT_ROUTE_RADIUS_M
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
                 f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $3 "
+                f"AND ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $4) "
                 f"ORDER BY distance_m "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
-            query_params: list[Any] = [lon, lat, bangumi_id]
+            query_params: list[Any] = [lon, lat, bangumi_id, radius_m]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.cn_name, p.episode, p.time_seconds, "
-                f"p.screenshot_url, p.address, {_GEO_COLUMNS}, "
+                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
+                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
                 f"b.title, b.title_cn "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "

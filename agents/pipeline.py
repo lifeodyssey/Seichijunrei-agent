@@ -24,6 +24,7 @@ async def run_pipeline(
     db: Any,
     *,
     model: Any = None,
+    locale: str = "ja",
 ) -> PipelineResult:
     """Run the full agent pipeline: classify → plan → execute.
 
@@ -53,7 +54,7 @@ async def run_pipeline(
 
     # Step 3: Execute plan
     executor = ExecutorAgent(db)
-    result = await executor.execute(plan, intent)
+    result = await executor.execute(plan, intent, locale=locale)
     logger.info(
         "pipeline_complete",
         intent=result.intent,

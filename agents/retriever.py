@@ -18,7 +18,7 @@ from typing import Any
 import structlog
 
 from agents.intent_agent import IntentOutput
-from agents.sql_agent import KNOWN_LOCATIONS, SQLAgent, SQLResult
+from agents.sql_agent import SQLAgent, SQLResult, resolve_location
 from application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from application.use_cases.get_bangumi_subject import GetBangumiSubject
 from domain.entities import Point
@@ -370,9 +370,9 @@ class Retriever:
         if not anchor:
             return [], "Missing location/origin for geo retrieval"
 
-        coords = KNOWN_LOCATIONS.get(anchor)
+        coords = await resolve_location(anchor)
         if coords is None:
-            return [], f"Unknown location: {anchor}. Geocoding not yet implemented."
+            return [], f"Unknown location: {anchor}. Could not resolve coordinates."
 
         search_points = getattr(self._db, "search_points_by_location", None)
         if search_points is None:
@@ -393,15 +393,12 @@ def _point_to_db_row(point: Point) -> dict[str, Any]:
         "id": point.id,
         "bangumi_id": point.bangumi_id,
         "name": point.name,
-        "cn_name": point.cn_name,
-        "address": point.address,
+        "name_cn": point.cn_name,
         "episode": point.episode,
         "time_seconds": point.time_seconds,
-        "screenshot_url": str(point.screenshot_url),
+        "image": str(point.screenshot_url),
         "origin": point.origin,
         "origin_url": point.origin_url,
-        "opening_hours": point.opening_hours,
-        "admission_fee": point.admission_fee,
         "location": (
             f"POINT({point.coordinates.longitude} {point.coordinates.latitude})"
         ),

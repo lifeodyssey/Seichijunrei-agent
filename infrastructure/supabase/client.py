@@ -34,17 +34,14 @@ _POINT_COLUMNS = frozenset(
     {
         "bangumi_id",
         "name",
-        "cn_name",
+        "name_cn",
         "episode",
         "time_seconds",
-        "screenshot_url",
-        "address",
+        "image",
+        "scene_desc",
         "origin",
         "origin_url",
-        "opening_hours",
-        "admission_fee",
         "location",
-        "search_text",
     }
 )
 
@@ -289,7 +286,13 @@ class SupabaseClient:
         total_duration: int | None = None,
     ) -> str:
         """Save a computed route. Returns the generated route UUID."""
+        import datetime as dt
         import json
+
+        def _default(o: object) -> object:
+            if isinstance(o, (dt.datetime, dt.date)):
+                return o.isoformat()
+            raise TypeError(f"Not serializable: {type(o).__name__}")
 
         origin_location = (
             f"POINT({origin_lon} {origin_lat})" if origin_lat and origin_lon else None
@@ -308,6 +311,31 @@ class SupabaseClient:
             point_ids,
             total_distance,
             total_duration,
-            json.dumps(route_data),
+            json.dumps(route_data, default=_default),
+        )
+        return str(row["id"])
+
+    # --- Feedback ---
+
+    async def save_feedback(
+        self,
+        session_id: str | None,
+        query_text: str,
+        intent: str | None,
+        rating: str,
+        comment: str | None = None,
+    ) -> str:
+        """Save user feedback for a response. Returns the feedback UUID."""
+        row = await self.pool.fetchrow(
+            """
+            INSERT INTO feedback (session_id, query_text, intent, rating, comment)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            """,
+            session_id,
+            query_text,
+            intent,
+            rating,
+            comment,
         )
         return str(row["id"])

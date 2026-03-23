@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from agents.executor_agent import _get_fallback_message
 from agents.pipeline import run_pipeline
+
+
+@pytest.fixture(autouse=True)
+def _mock_message_llm():
+    async def _fake(intent, query_data, route_data, failure, locale):
+        return _get_fallback_message(intent, query_data, failure, locale)
+
+    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
+        yield
 
 
 @pytest.fixture
@@ -86,3 +96,23 @@ class TestRunPipeline:
         assert not result.step_results[1].success
         assert result.step_results[2].success
         assert result.final_output["status"] == "empty"
+
+    async def test_locale_passes_through_to_message(self, mock_db):
+        """Verify locale flows from pipeline to response message."""
+        result_ja = await run_pipeline("你好", mock_db, locale="ja")
+        result_zh = await run_pipeline("你好", mock_db, locale="zh")
+        msg_ja = result_ja.final_output.get("message", "")
+        msg_zh = result_zh.final_output.get("message", "")
+        # Both should have non-empty localized messages
+        assert msg_ja
+        assert msg_zh
+        # ja fallback contains Japanese, zh fallback contains Chinese
+        assert "具体" in msg_ja  # もう少し具体的に
+        assert "具体" in msg_zh  # 能再具体一些吗
+
+    async def test_locale_defaults_to_ja(self, mock_db):
+        """Default locale should produce Japanese message."""
+        result = await run_pipeline("你好", mock_db)
+        msg = result.final_output.get("message", "")
+        assert msg  # non-empty
+        assert "具体" in msg
