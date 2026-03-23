@@ -16,10 +16,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
+from pydantic import BaseModel, Field
 
 from agents.base import create_agent, get_default_model
 from agents.intent_agent import ExtractedParams, IntentOutput
-from pydantic import BaseModel, Field
 from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)

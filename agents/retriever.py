@@ -18,7 +18,7 @@ from typing import Any
 import structlog
 
 from agents.intent_agent import IntentOutput
-from agents.sql_agent import KNOWN_LOCATIONS, SQLAgent, SQLResult, resolve_location
+from agents.sql_agent import SQLAgent, SQLResult, resolve_location
 from application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from application.use_cases.get_bangumi_subject import GetBangumiSubject
 from domain.entities import Point
