@@ -77,9 +77,12 @@ anitabi/
 .claude/
 .kiro/
 .roo/
+.superpowers/
 .trae/
 .mcp.json
 
 # Misc
 images/
 *.pen
+.next/
+.wrangler/
