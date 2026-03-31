@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from application.errors import InvalidInputError
 from infrastructure.session.memory import InMemorySessionStore
-from interfaces.public_api import PublicAPIRequest, RuntimeAPI, handle_public_request
+from interfaces.public_api import PublicAPIRequest, PublicAPIResponse, RuntimeAPI, handle_public_request
 
 
 class DummySpan:
@@ -255,6 +255,32 @@ class TestLocalePassthrough:
         msg = response.message
         assert msg
         assert "具体" in msg  # もう少し具体的に
+
+
+class TestPublicAPIRequestLocaleEn:
+    def test_en_locale_accepted(self):
+        req = PublicAPIRequest(text="where is kyoani", locale="en")
+        assert req.locale == "en"
+
+    def test_invalid_locale_rejected(self):
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="test", locale="fr")
+
+
+class TestPublicAPIResponseUIField:
+    def test_response_has_ui_field(self):
+        resp = PublicAPIResponse(
+            success=True,
+            status="ok",
+            intent="search_bangumi",
+            ui={"component": "PilgrimageGrid", "props": {}},
+        )
+        assert resp.ui is not None
+        assert resp.ui["component"] == "PilgrimageGrid"
+
+    def test_response_ui_optional(self):
+        resp = PublicAPIResponse(success=True, status="ok", intent="search_bangumi")
+        assert resp.ui is None
 
 
 class TestHandlePublicRequest:

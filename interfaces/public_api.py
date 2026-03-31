@@ -41,9 +41,9 @@ class PublicAPIRequest(BaseModel):
         default=None,
         description="Optional override for the runtime model used by the pipeline",
     )
-    locale: Literal["ja", "zh"] = Field(
+    locale: Literal["ja", "zh", "en"] = Field(
         default="ja",
-        description="Response locale: ja (Japanese) or zh (Chinese)",
+        description="Response locale: ja (Japanese), zh (Chinese), or en (English)",
     )
     include_debug: bool = Field(
         default=False,
@@ -79,6 +79,10 @@ class PublicAPIResponse(BaseModel):
     session: dict[str, Any] = Field(default_factory=dict)
     route_history: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[PublicAPIError] = Field(default_factory=list)
+    ui: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional Generative UI descriptor: {component, props}",
+    )
     debug: dict[str, Any] | None = None
 
 
@@ -296,6 +300,16 @@ async def handle_public_request(
     return await api.handle(request)
 
 
+_UI_MAP: dict[str, str] = {
+    "search_bangumi": "PilgrimageGrid",
+    "search_nearby": "NearbyMap",
+    "plan_route": "RouteVisualization",
+    "general_qa": "GeneralAnswer",
+    "answer_question": "GeneralAnswer",
+    "unclear": "Clarification",
+}
+
+
 def _pipeline_result_to_public_response(
     result: PipelineResult,
     *,
@@ -310,6 +324,8 @@ def _pipeline_result_to_public_response(
         )
         for error in raw_errors
     ]
+    component = _UI_MAP.get(result.intent)
+    ui = {"component": component, "props": {}} if component else None
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
         status=str(final_output.get("status", "ok" if result.success else "error")),
@@ -317,6 +333,7 @@ def _pipeline_result_to_public_response(
         message=str(final_output.get("message") or ""),
         data=dict(final_output.get("data") or {}),
         errors=errors,
+        ui=ui,
     )
 
     if include_debug:
