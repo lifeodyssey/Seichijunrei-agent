@@ -1,5 +1,5 @@
-import AuthGate from "../components/auth/AuthGate";
+import { LocaleRedirect } from "../components/routing/LocaleRedirect";
 
 export default function Home() {
-  return <AuthGate />;
+  return <LocaleRedirect suffix="/design/" />;
 }

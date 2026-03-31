@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "圣地巡礼 AI",
+    "description": "搜索动漫取景地 · 规划巡礼路线"
+  },
+  "auth": {
+    "title": "圣地巡礼 AI",
+    "subtitle": "内测版",
+    "tab_waitlist": "申请内测",
+    "tab_login": "登录",
+    "email_label": "邮箱地址",
+    "email_placeholder": "you@example.com",
+    "submitting": "提交中...",
+    "btn_waitlist": "申请内测资格",
+    "btn_login": "发送登录链接",
+    "loading": "加载中...",
+    "already_registered": "该邮箱已经注册过了。",
+    "not_configured": "登录配置尚未完成，请联系管理员确认。",
+    "error": "错误: {message}",
+    "waitlist_success": "注册成功！审核通过后会发送登录链接。",
+    "not_registered": "该邮箱未申请内测，请先提交申请。",
+    "pending_review": "正在审核中，请耐心等待。",
+    "magic_link_sent": "登录链接已发送到您的邮箱，请查收。"
+  },
+  "chat": {
+    "placeholder": "搜索取景地 · 规划巡礼路线…",
+    "send": "发送",
+    "thinking": "思考中…",
+    "bot_name": "圣地巡礼 AI",
+    "bot_icon": "圣",
+    "feedback_sent": "✓ 反馈已提交",
+    "feedback_placeholder": "有什么问题？（选填）",
+    "welcome_title": "圣地巡礼 AI",
+    "welcome_subtitle": "搜索动漫取景地，规划巡礼路线"
+  },
+  "sidebar": {
+    "logo_icon": "圣",
+    "logo_text": "圣地巡礼",
+    "new_chat": "+ 新对话",
+    "recent": "最近搜索",
+    "spots": "{count}个景点",
+    "footer": "巡礼者"
+  },
+  "header": {
+    "title": "圣地巡礼 AI",
+    "subtitle": "搜索动漫取景地 · 规划巡礼路线",
+    "map_open": "关闭地图",
+    "map_closed": "地图"
+  },
+  "map": {
+    "no_results": "附近没有找到取景地。",
+    "count": "{count}个",
+    "episode": "第{ep}集"
+  },
+  "grid": {
+    "no_results": "没有找到结果，请尝试其他作品名。",
+    "count": "{count}个",
+    "episode": "第{ep}集"
+  },
+  "route": {
+    "no_results": "无法创建路线。",
+    "spots": "{count}个景点",
+    "no_coords": "⚠ {count}个缺少坐标",
+    "episode": "第{ep}集"
+  },
+  "clarification": {
+    "examples_label": "例如：",
+    "suggestions": [
+      { "label": "按作品搜索", "query": "秒速五厘米的取景地在哪" },
+      { "label": "按地点搜索", "query": "宇治站附近有哪些取景地" },
+      { "label": "规划路线", "query": "从新宿出发去你的名字取景地的路线" }
+    ]
+  }
+}

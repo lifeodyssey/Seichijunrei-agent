@@ -1,7 +1,7 @@
 import type { RuntimeRequest, RuntimeResponse } from "./types";
 
 const RUNTIME_URL =
-  process.env.NEXT_PUBLIC_RUNTIME_URL ?? "http://localhost:8080";
+  (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "").replace(/\/$/, "");
 
 /**
  * Send a user message to the backend runtime and return the typed response.

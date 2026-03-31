@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "聖地巡礼 AI",
+    "description": "アニメ聖地を探す・ルートを計画する"
+  },
+  "auth": {
+    "title": "聖地巡礼 AI",
+    "subtitle": "内部テスト版",
+    "tab_waitlist": "テスト申請",
+    "tab_login": "ログイン",
+    "email_label": "メールアドレス",
+    "email_placeholder": "you@example.com",
+    "submitting": "送信中...",
+    "btn_waitlist": "内部テストに申し込む",
+    "btn_login": "ログインリンクを送信",
+    "loading": "読み込み中...",
+    "already_registered": "このメールアドレスは既に登録されています。",
+    "not_configured": "ログイン設定がまだ完了していません。管理者に確認してください。",
+    "error": "エラー: {message}",
+    "waitlist_success": "登録完了！審査通過後にログインリンクをお送りします。",
+    "not_registered": "このメールアドレスは内部テストに登録されていません。先に申し込んでください。",
+    "pending_review": "審査中です。しばらくお待ちください。",
+    "magic_link_sent": "ログインリンクをメールに送信しました。メールをご確認ください。"
+  },
+  "chat": {
+    "placeholder": "聖地を探す・ルートを計画する…",
+    "send": "送信",
+    "thinking": "考え中…",
+    "bot_name": "聖地巡礼 AI",
+    "bot_icon": "聖",
+    "feedback_sent": "✓ フィードバック送信済み",
+    "feedback_placeholder": "何が問題でしたか？（任意）",
+    "welcome_title": "聖地巡礼 AI",
+    "welcome_subtitle": "アニメの聖地を探したり、巡礼ルートを計画できます"
+  },
+  "sidebar": {
+    "logo_icon": "聖",
+    "logo_text": "聖地巡礼",
+    "new_chat": "+ 新しい会話",
+    "recent": "最近の検索",
+    "spots": "{count}スポット",
+    "footer": "巡礼者"
+  },
+  "header": {
+    "title": "聖地巡礼 AI",
+    "subtitle": "動漫聖地を探す · ルートを計画する",
+    "map_open": "地図を閉じる",
+    "map_closed": "地図"
+  },
+  "map": {
+    "no_results": "この周辺に聖地が見つかりませんでした。",
+    "count": "{count}件",
+    "episode": "第{ep}話"
+  },
+  "grid": {
+    "no_results": "見つかりませんでした。別の作品名で試してください。",
+    "count": "{count}件",
+    "episode": "第{ep}話"
+  },
+  "route": {
+    "no_results": "ルートを作成できませんでした。",
+    "spots": "{count}スポット",
+    "no_coords": "⚠ {count}件の座標なし",
+    "episode": "第{ep}話"
+  },
+  "clarification": {
+    "examples_label": "例えば：",
+    "suggestions": [
+      { "label": "作品名で探す", "query": "秒速5センチメートル の聖地を探して" },
+      { "label": "場所で探す", "query": "宇治駅の近くにある聖地を教えて" },
+      { "label": "ルートを作る", "query": "新宿から君の名は の聖地を回るルートを作って" }
+    ]
+  }
+}

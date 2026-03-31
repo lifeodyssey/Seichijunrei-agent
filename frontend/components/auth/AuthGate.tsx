@@ -1,46 +1,73 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { useDict } from "../../lib/i18n-context";
-import type { Session } from "@supabase/supabase-js";
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import { useDict, useLocale } from "../../lib/i18n-context";
 import AppShell from "../layout/AppShell";
 
 type Tab = "waitlist" | "login";
 
+let supabaseClient: SupabaseClient | null | undefined;
+
+function getSupabaseClient() {
+  if (supabaseClient !== undefined) return supabaseClient;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    supabaseClient = null;
+    return supabaseClient;
+  }
+
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  return supabaseClient;
+}
+
 export default function AuthGate() {
   const dict = useDict();
+  const locale = useLocale();
   const t = dict.auth;
+  const authClient = getSupabaseClient();
+  const authConfigured = !!authClient;
 
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(authConfigured);
   const [tab, setTab] = useState<Tab>("waitlist");
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const effectiveStatus = status ?? (!authConfigured ? t.not_configured : null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!authClient) return;
+
+    authClient.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = authClient.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [authClient]);
 
   async function handleWaitlist(e: React.FormEvent) {
     e.preventDefault();
+    if (!authClient) {
+      setStatus(t.not_configured);
+      return;
+    }
+
     setSubmitting(true);
     setStatus(null);
 
-    const { error } = await supabase
+    const { error } = await authClient
       .from("waitlist")
       .insert({ email: email.trim().toLowerCase() });
 
@@ -58,12 +85,17 @@ export default function AuthGate() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!authClient) {
+      setStatus(t.not_configured);
+      return;
+    }
+
     setSubmitting(true);
     setStatus(null);
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { data } = await supabase
+    const { data } = await authClient
       .from("waitlist")
       .select("status")
       .eq("email", normalizedEmail)
@@ -81,10 +113,10 @@ export default function AuthGate() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await authClient.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/${locale}/auth/callback/`,
       },
     });
 
@@ -159,7 +191,7 @@ export default function AuthGate() {
           />
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !authConfigured}
             className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {submitting
@@ -170,9 +202,9 @@ export default function AuthGate() {
           </button>
         </form>
 
-        {status && (
+        {effectiveStatus && (
           <p className="mt-4 rounded-lg bg-[var(--color-bg)] p-3 text-center text-sm text-[var(--color-muted-fg)]">
-            {status}
+            {effectiveStatus}
           </p>
         )}
       </div>
