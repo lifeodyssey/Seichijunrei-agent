@@ -1,11 +1,4 @@
-"""Pipeline — top-level entry point wiring Intent → Plan → Execute.
-
-Usage:
-    from agents.pipeline import run_pipeline
-
-    result = await run_pipeline("秒速5厘米的取景地在哪", db_client)
-"""
-
+"""Pipeline — top-level entry point: plan → execute."""
 from __future__ import annotations
 
 from typing import Any
@@ -13,8 +6,7 @@ from typing import Any
 import structlog
 
 from agents.executor_agent import ExecutorAgent, PipelineResult
-from agents.intent_agent import classify_intent
-from agents.planner_agent import create_plan
+from agents.planner_agent import ReActPlannerAgent
 
 logger = structlog.get_logger(__name__)
 
@@ -26,40 +18,18 @@ async def run_pipeline(
     model: Any = None,
     locale: str = "ja",
 ) -> PipelineResult:
-    """Run the full agent pipeline: classify → plan → execute.
-
-    Args:
-        text: User input text.
-        db: SupabaseClient instance (or mock with .pool.fetch).
-        model: Optional LLM model for intent classification fallback.
-
-    Returns:
-        PipelineResult with all step results and final output.
-    """
-    # Step 1: Classify intent
-    intent = await classify_intent(text, model=model)
-    logger.info(
-        "intent_classified",
-        intent=intent.intent,
-        confidence=intent.confidence,
-    )
-
-    # Step 2: Create execution plan
-    plan = create_plan(intent)
+    """Run the full agent pipeline: plan → execute."""
+    plan = await ReActPlannerAgent(model).create_plan(text, locale=locale)
     logger.info(
         "plan_created",
-        intent=plan.intent,
-        steps=[s.step_type.value for s in plan.steps],
+        steps=[s.tool.value for s in plan.steps],
+        reasoning=plan.reasoning[:120],
     )
-
-    # Step 3: Execute plan
-    executor = ExecutorAgent(db)
-    result = await executor.execute(plan)
+    result = await ExecutorAgent(db).execute(plan)
     logger.info(
         "pipeline_complete",
         intent=result.intent,
         success=result.success,
         steps_executed=len(result.step_results),
     )
-
     return result
