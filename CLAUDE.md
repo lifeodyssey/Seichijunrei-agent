@@ -4,15 +4,9 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## What This Repo Is
 
-Seichijunrei is a backend runtime for anime pilgrimage search and route
-planning.
+Seichijunrei is an anime pilgrimage search and route planning service.
 
-The repository is now a single-track v2 codebase centered on:
-
-`IntentAgent -> PlannerAgent -> ExecutorAgent`
-
-The runtime sits behind a thin public API and a thin HTTP service. Legacy ADK,
-A2A, and A2UI architecture are not part of the current codebase.
+**Implementation status:** Iter 0.5–3 are in progress. See `docs/superpowers/plans/` for task-by-task steps. Docs here describe the TARGET architecture — check which files exist before assuming they are complete.
 
 ## Current Commands
 
@@ -27,7 +21,7 @@ make serve
 make test                 # unit tests
 make test-integration     # stable integration acceptance tests
 make test-all             # unit + integration
-make test-eval            # model-backed evals, separate from stable CI tests
+make test-eval            # model-backed evals (separate from stable CI)
 
 # Code quality
 make lint
@@ -36,91 +30,115 @@ make check
 ```
 
 Notes:
-- `pytest` is configured with `--asyncio-mode=auto`
-- stable test gates are `tests/unit` and `tests/integration`
-- `tests/eval` is intentionally separate because it can depend on external model
-  availability
+- pytest is configured with `--asyncio-mode=auto`
+- stable test gates: `tests/unit` and `tests/integration`
+- `tests/eval` depends on external model availability — intentionally separate
 
-## Current Architecture
+## Architecture
+
+### Pipeline
+
+```
+User text
+    ↓
+ReActPlannerAgent   →  LLM structured output  →  ExecutionPlan
+    ↓
+ExecutorAgent       →  deterministic tool dispatch  →  PipelineResult
+```
+
+No IntentAgent. Intent reasoning is part of the planner's LLM pass.
 
 ### Agents
 
-- `agents/intent_agent.py`
-  Regex fast-path classification first, then LLM fallback.
-- `agents/planner_agent.py`
-  Deterministic intent-to-plan mapping.
-- `agents/executor_agent.py`
-  Sequential plan execution and normalized final response shaping.
-- `agents/retriever.py`
-  Deterministic retrieval policy: `sql`, `geo`, `hybrid`.
-- `agents/sql_agent.py`
-  Parameterized SQL generation/execution for Supabase/PostGIS.
-- `agents/pipeline.py`
-  Main runtime entry: classify -> plan -> execute.
+- `agents/models.py` — Shared types: `ToolName`, `PlanStep`, `ExecutionPlan`, `RetrievalRequest`
+- `agents/planner_agent.py` — `ReActPlannerAgent`: Pydantic AI agent, `output_type=ExecutionPlan`, `retries=2`
+- `agents/executor_agent.py` — Deterministic dispatch for 5 tools; static message templates; no LLM calls
+- `agents/retriever.py` — Unchanged: `sql`, `geo`, `hybrid` strategies; write-through on DB miss
+- `agents/sql_agent.py` — Structured SQL retrieval; accepts `RetrievalRequest` (not `IntentOutput`)
+- `agents/pipeline.py` — Two lines: `create_plan(text, locale)` → `execute(plan)`
+
+### Tools (ExecutorAgent dispatches these)
+
+| Tool | Handler | Description |
+|---|---|---|
+| `resolve_anime` | `_execute_resolve_anime` | DB-first title→bangumi_id; API fallback; write-through |
+| `search_bangumi` | `_execute_search_bangumi` | Retriever → points by bangumi_id |
+| `search_nearby` | `_execute_search_nearby` | Geo retrieval by location + radius |
+| `plan_route` | `_execute_plan_route` | Nearest-neighbor route ordering |
+| `answer_question` | `_execute_answer_question` | Static FAQ / general QA |
+
+### Self-Evolve via `resolve_anime`
+
+For any anime query the planner emits `resolve_anime` as the first step.
+`resolve_anime(title)` → fuzzy-match Supabase `bangumi` table → on miss: query Bangumi.tv API → upsert row → return `bangumi_id`.
+DB is source of truth. No hardcoded anime list in code.
 
 ### Interfaces
 
-- `interfaces/public_api.py`
-  Stable request/response facade over `run_pipeline`, with session persistence
-  and route history.
-- `interfaces/http_service.py`
-  `aiohttp` service exposing `GET /healthz` and `POST /v1/runtime`.
+- `interfaces/public_api.py` — Stable facade over `run_pipeline`; session persistence; route history; `ui` field in response; request logging
+- `interfaces/http_service.py` — aiohttp service: `/healthz`, `/v1/runtime`, `/v1/feedback`
 
 ### Infrastructure
 
-- `infrastructure/supabase/client.py`
-  Direct `asyncpg` access for structured PostGIS queries and write-through
-  persistence.
-- `infrastructure/session/`
-  `memory`, `redis`, and `firestore` session stores.
-- `infrastructure/observability/`
-  OpenTelemetry setup plus runtime/http instrumentation helpers.
-- `infrastructure/gateways/`
-  Bangumi, Anitabi, route-planner, and translation adapters.
+- `infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
+- `infrastructure/supabase/migrations/` — DDL migrations (apply in order before each deploy)
+- `infrastructure/session/` — memory, redis, firestore backends
+- `infrastructure/observability/` — OpenTelemetry setup
+- `infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi, route-planner, translation
 
-### Application
+### Auth
 
-- `application/use_cases/`
-  Use-case layer for point fetch, subject lookup, route planning, and other
-  orchestrated operations.
-- `application/ports/`
-  Protocol boundaries for external integrations.
+Auth is enforced in the Cloudflare Worker (`src/worker.js`) before reaching the container.
 
-## Data / Retrieval Notes
+- Human users: `Authorization: Bearer <supabase_jwt>` (magic-link session)
+- Agent/CLI users: `Authorization: Bearer sk_<hex>` (API key — stored as SHA-256 hash in `api_keys` table)
+- `/healthz` and static frontend assets: no auth required
+- Container trusts `X-User-Id` and `X-User-Type` headers set by the Worker
 
-- Database is Supabase PostgreSQL with PostGIS
-- The current runtime does **not** use semantic/vector retrieval
-- Retrieval is structured-first and deterministic
-- On selected DB misses, retriever fallback can fetch from external sources and
-  write through to Supabase
+### Frontend
 
-## Deployment Notes
+Three-column layout (always dark):
 
-- Local and container entrypoint is the same HTTP backend service
-- `Dockerfile` packages the runtime service
-- Cloudflare deployment is treated as a container-hosting path around the same
-  HTTP service, not as a separate orchestration architecture
+```
+┌─────────┬──────────────────┬──────────────────────┐
+│ Sidebar │ Chat Panel 360px │ Result Panel flex-1  │
+│ 240px   │ text-only        │ GenerativeUIRenderer │
+│ History │ + ◈ anchors      │ (empty: dark map bg) │
+└─────────┴──────────────────┴──────────────────────┘
+```
 
-## Observability
+Key components:
+- `frontend/components/layout/AppShell.tsx` — three-column, `activeMessageId` state
+- `frontend/components/layout/ResultPanel.tsx` — renders active result via `GenerativeUIRenderer`
+- `frontend/components/generative/registry.ts` — `COMPONENT_REGISTRY: Record<string, ComponentRenderer>`
+- `frontend/components/generative/GenerativeUIRenderer.tsx` — registry lookup; replaces `IntentRenderer`
+- `frontend/components/chat/MessageBubble.tsx` — bot messages: text + `◈` anchor card only
+- Mobile: `ResultDrawer` (vaul bottom sheet) activated by `◈` anchor tap
 
-- Request-level HTTP spans/metrics are emitted in `interfaces/http_service.py`
-- Runtime-level spans/metrics are emitted in `interfaces/public_api.py`
-- Observability is controlled via settings such as:
-  - `OBSERVABILITY_ENABLED`
-  - `OBSERVABILITY_EXPORTER_TYPE`
-  - `OBSERVABILITY_OTLP_ENDPOINT`
+Design tokens (`frontend/app/globals.css`):
+- `--color-bg: #0f0f11` · `--color-primary: #d4954a` · `--font-display: "Shippori Mincho B1"`
+- Always dark — no `@media (prefers-color-scheme: dark)` conditional
 
-## Acceptance / Baseline
+### Eval Infrastructure
 
-- Stable acceptance coverage lives in `tests/integration/`
-- The frozen runtime baseline is:
-  `tests/integration/cases/runtime_acceptance_baseline.json`
-- This baseline checks the same scenarios through both `run_pipeline` and the
-  public API facade
+- `tests/eval/datasets/plan_quality_v1.json` — 50+ cases × 3 locales
+- `tests/eval/test_plan_quality.py` — pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp
+- `tools/eval_scorer.py` — batch LLM judge; writes `plan_quality_score` to `request_log`
+- `tools/eval_feedback_miner.py` — mines `feedback(rating='bad')` → prompt-improvement suggestions
+- `clients/python/seichijunrei_client.py` — sync/async Python client for agent/CLI use
+
+## Deployment
+
+- Container: Python aiohttp service via `Dockerfile` → GHCR → Cloudflare Containers
+- Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
+- Worker: `src/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
+- Deploy: `gh workflow run deploy.yml -f environment=staging|production`
+- DB migrations: apply `infrastructure/supabase/migrations/` in order before each deploy
 
 ## Working Expectations
 
-- Prefer updating the current v2 runtime instead of reintroducing alternate
-  interface stacks
+- Prefer updating the current runtime; do not reintroduce alternate stacks
 - Keep retrieval deterministic unless a task explicitly changes that rule
-- Preserve the simple frontend/backend split described in the current docs
+- ExecutorAgent must not make LLM calls — use static `_MESSAGES` templates
+- Adding a new UI component = register in `frontend/components/generative/registry.ts` only
+- Run `make test` before and after any agent change

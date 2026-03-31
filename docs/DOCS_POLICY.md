@@ -31,11 +31,15 @@ stable boundaries, current entry points, and active plans only.
 | Topic | Source |
 |-------|--------|
 | Runtime entry path | `agents/pipeline.py` |
-| Intent schema | `agents/intent_agent.py` |
-| Plan schema | `agents/planner_agent.py` |
+| Shared types (Plan, Step, RetrievalRequest) | `agents/models.py` |
+| Planner behavior | `agents/planner_agent.py` |
 | Execution behavior | `agents/executor_agent.py` |
 | SQL retrieval | `agents/sql_agent.py` |
 | Configuration | `config/settings.py` |
+| Auth middleware | `src/worker.js` |
+| DB schema | `infrastructure/supabase/migrations/` |
+| Frontend component registry | `frontend/components/generative/registry.ts` |
+| Design tokens | `frontend/app/globals.css` |
 
 ## Review Check
 

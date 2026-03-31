@@ -1,129 +1,187 @@
-# V2 Architecture
+# Architecture
 
 ## Overview
 
-The repository now targets one runtime model only:
+```
+User text  →  ReActPlannerAgent (LLM)  →  ExecutionPlan
+                                              ↓
+                                        ExecutorAgent (deterministic)
+                                              ↓
+                                        PipelineResult
+```
 
-`IntentAgent -> PlannerAgent -> ExecutorAgent`
+Entry path: `HTTP service → RuntimeAPI → run_pipeline → ReActPlannerAgent → ExecutorAgent`
 
-Everything else hangs off that path as deterministic handlers, use cases, or
-infrastructure adapters.
+No IntentAgent. No hardcoded anime list. DB is source of truth.
 
-The codebase does **not** currently maintain a separate UI workflow layer or a
-second orchestration stack.
+## Shared Types — `agents/models.py`
 
-The deployable entry path is now:
+```python
+class ToolName(str, Enum):
+    RESOLVE_ANIME = "resolve_anime"
+    SEARCH_BANGUMI = "search_bangumi"
+    SEARCH_NEARBY = "search_nearby"
+    PLAN_ROUTE = "plan_route"
+    ANSWER_QUESTION = "answer_question"
 
-`HTTP service -> RuntimeAPI -> run_pipeline -> Intent -> Planner -> Executor`
+class PlanStep(BaseModel):
+    tool: ToolName
+    params: dict[str, Any] = {}
+    parallel: bool = False
 
-## Runtime Components
+class ExecutionPlan(BaseModel):
+    steps: list[PlanStep]
+    reasoning: str   # for eval / debugging
+    locale: str = "ja"
 
-### `agents/intent_agent.py`
+class RetrievalRequest(BaseModel):
+    tool: Literal["search_bangumi", "search_nearby"]
+    bangumi_id: str | None = None
+    episode: int | None = None
+    location: str | None = None
+    origin: str | None = None
+    radius: int | None = None
+```
 
-- Fast-path regex classification for common Chinese/Japanese queries
-- LLM fallback for ambiguous inputs
-- Produces `IntentOutput`
+## ReActPlannerAgent — `agents/planner_agent.py`
 
-### `agents/planner_agent.py`
+- Pydantic AI `Agent`, `output_type=ExecutionPlan`, `retries=2`
+- Single method: `create_plan(text: str, locale: str) → ExecutionPlan`
+- System prompt describes tools without hardcoded anime IDs
+- For any anime query: always emits `resolve_anime` as first step
 
-- Converts `IntentOutput` into `ExecutionPlan`
-- Keeps planning explicit and inspectable
-- Avoids hidden orchestration logic in handlers
+## ExecutorAgent — `agents/executor_agent.py`
 
-### `agents/executor_agent.py`
+- Receives `ExecutionPlan`; no LLM calls
+- Dispatches each step to a handler; deposits result in `context[tool_name]`
+- Response message comes from `_MESSAGES[(tool, locale)]` static templates
+- Adds `ui: {component, props}` to the response based on intent
 
-- Executes plan steps sequentially
-- Passes successful step output forward as context
-- Produces `PipelineResult`
-- Normalizes final response status and message shape
-- Still formats a response when retrieval or route execution fails partway through
+### Tool handlers
 
-### `agents/retriever.py`
+| Tool | Handler | Notes |
+|---|---|---|
+| `resolve_anime` | `_execute_resolve_anime` | Fuzzy-match `bangumi` table; Bangumi.tv API on miss; write-through upsert |
+| `search_bangumi` | `_execute_search_bangumi` | Reads `context["resolve_anime"]["bangumi_id"]` when `params.bangumi_id` is None |
+| `search_nearby` | `_execute_search_nearby` | Geo query via Retriever |
+| `plan_route` | `_execute_plan_route` | Nearest-neighbor sort on bangumi points |
+| `answer_question` | `_execute_answer_question` | Static FAQ response |
 
-- Selects retrieval strategy deterministically
-- Supports `sql`, `geo`, and `hybrid`
-- Caches successful retrieval results for repeated identical queries
-- On bangumi DB misses, can fetch points from external sources and write them through to Supabase
-- Keeps strategy policy outside the executor step loop
+## Retriever — `agents/retriever.py`
 
-### `agents/sql_agent.py`
+Unchanged. Accepts `RetrievalRequest`. Selects `sql`, `geo`, or `hybrid` deterministically. Write-through on bangumi DB miss (Anitabi → Supabase).
 
-- Owns SQL generation/execution for structured retrieval
-- Uses parameterized queries only
-- Supports bangumi, location, and route-fetch intents
+## SQL Agent — `agents/sql_agent.py`
 
-### `application/`
+Accepts `RetrievalRequest` (replaces old `IntentOutput`). Parameterized queries only.
 
-- Stable use cases and port interfaces
-- Keeps external clients out of orchestration code
+## Public API — `interfaces/public_api.py`
 
-### `interfaces/public_api.py`
+- Stable request/response facade over `run_pipeline`
+- Adds `ui: UIDescriptor` field to response
+- Writes to `request_log` after every response (best-effort, never raises)
+- Session persistence + route history
 
-- Wraps `run_pipeline` behind a stable request/response contract
-- Maps internal exceptions into public-facing error payloads
-- Optionally exposes debug details without forcing callers to depend on runtime dataclasses
-- Persists session state via the configured session store
-- Records route history and mirrors route saves into Supabase when available
+## HTTP Service — `interfaces/http_service.py`
 
-### `interfaces/http_service.py`
+aiohttp. Endpoints: `GET /healthz`, `POST /v1/runtime`, `POST /v1/feedback`. Auth is NOT enforced here — it is enforced upstream in the CF Worker.
 
-- Wraps `RuntimeAPI` in a minimal `aiohttp` service
-- Exposes `/healthz` for container health probes
-- Exposes `/v1/runtime` as the deployable backend endpoint
-- Owns service startup and shutdown for Supabase and session-store resources
-- Creates request-level HTTP spans and metrics
+## Response Contract
 
-### `infrastructure/`
+```typescript
+interface UIDescriptor {
+  component: string   // e.g. "PilgrimageGrid"
+  props: Record<string, unknown>
+}
 
-- Supabase client
-- Gateway adapters
-- Optional session backends
-- MCP server implementations
+interface RuntimeResponse {
+  intent: string
+  message: string     // localized static template, no LLM latency
+  data: SearchData | RouteData | QAData | null
+  ui?: UIDescriptor   // additive field for Generative UI
+  session: string | null
+  route_history: RoutePoint[]
+}
+```
 
-### `infrastructure/observability/`
+## Self-Evolve
 
-- Initializes OpenTelemetry tracing and metrics from runtime settings
-- Records HTTP request counts and durations
-- Records runtime call counts and durations
-- Adds span attributes for session, intent, status, and error counts
+Every anime query triggers `resolve_anime` first:
+1. Fuzzy-match `bangumi` table (title / title_cn)
+2. On miss: query Bangumi.tv search API → upsert → return `bangumi_id`
 
-## Data Flow
+DB grows automatically. No hardcoded list in code.
 
-### Search by Bangumi
+## Auth Layer — `src/worker.js`
 
-1. User text enters `run_pipeline`
-2. `IntentAgent` extracts bangumi id and optional episode/location
-3. `PlannerAgent` emits `query_db -> format_response`
-4. `ExecutorAgent` runs `Retriever`, which selects `sql` or `hybrid`
-5. On a bangumi DB miss, `Retriever` can backfill from Anitabi and persist the results
-6. Final payload is returned as structured output
+CF Worker validates credentials before proxying to the container:
 
-### Plan Route
+- `Authorization: Bearer <supabase_jwt>` → call `SUPABASE_URL/auth/v1/user`
+- `Authorization: Bearer sk_<hex>` → SHA-256 hash → lookup `api_keys` table
+- Sets `X-User-Id` + `X-User-Type` on forwarded request
+- `/healthz` and static assets bypass auth
 
-1. User text enters `run_pipeline`
-2. `IntentAgent` extracts bangumi id and optional origin
-3. `PlannerAgent` emits `query_db -> plan_route -> format_response`
-4. `ExecutorAgent` uses `Retriever` to fetch points, then applies route ordering and formatting
+API keys: stored as SHA-256 hash in `api_keys` table. Raw key shown once at creation.
+
+## Frontend Architecture
+
+### Three-Column Layout
+
+```
+┌─────────┬──────────────────┬──────────────────────┐
+│ Sidebar │ Chat Panel 360px │ Result Panel flex-1  │
+│ 240px   │                  │                      │
+│ History │ user messages    │ GenerativeUIRenderer │
+│ New     │ bot: text only   │ (active result)      │
+│         │ + ◈ anchor cards │                      │
+│         │ [input]          │ empty: dark map bg   │
+└─────────┴──────────────────┴──────────────────────┘
+```
+
+`◈` anchor click sets `activeMessageId` in AppShell → drives `ResultPanel`. On mobile: opens `ResultDrawer` (vaul bottom sheet).
+
+### Generative UI Registry
+
+```typescript
+// frontend/components/generative/registry.ts
+export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
+  PilgrimageGrid:     (r) => <PilgrimageGrid data={r.data} />,
+  RouteVisualization: (r) => <RouteVisualization data={r.data} />,
+  NearbyMap:          (r) => <NearbyMap data={r.data} />,
+  GeneralAnswer:      (r) => <GeneralAnswer data={r.data} />,
+}
+```
+
+Adding a new component: register in `COMPONENT_REGISTRY` only. No routing changes.
+
+### Design Tokens
+
+Always dark — no media query conditional.
+
+```css
+--color-bg:       #0f0f11
+--color-fg:       #f0ece6
+--color-card:     #17171a
+--color-primary:  #d4954a   /* 琥珀橙 */
+--font-display:   "Shippori Mincho B1"
+```
+
+## Eval Infrastructure
+
+| Path | Purpose |
+|---|---|
+| `infrastructure/supabase/migrations/002_request_log.sql` | Logs every request: plan_steps, intent, latency_ms |
+| `tests/eval/datasets/plan_quality_v1.json` | 50+ cases × 3 locales |
+| `tests/eval/test_plan_quality.py` | pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp |
+| `tools/eval_scorer.py` | Batch LLM judge; writes `plan_quality_score` back to DB |
+| `tools/eval_feedback_miner.py` | Mines `feedback(rating='bad')` → LLM prompt suggestions |
+| `clients/python/seichijunrei_client.py` | Sync/async Python client for agent/CLI use |
 
 ## Design Rules
 
-- One orchestration path
-- Deterministic planning
-- Structured outputs between runtime stages
-- Gateway/use-case boundaries around external services
-- No parallel architecture narrative in docs
-
-## What Is Intentionally Not In Scope
-
-- legacy interface-specific protocol layers
-- secondary workflow stacks
-- presentation-specific orchestration code
-- Separate stage-workflow agent stacks
-- frontend rendering systems such as A2UI or generative UI
-
-If these return later, they should be reintroduced as thin adapters around the
-existing runtime rather than as a competing architecture.
-
-## Next Major Work
-
-- Future work should build on the stabilized runtime rather than reopen orchestration design
+- One orchestration path: `ReActPlannerAgent → ExecutorAgent`
+- ExecutorAgent is deterministic — no LLM calls
+- Retrieval is structured-first — no semantic/vector search
+- DB is source of truth for anime catalog — no hardcoded lists
+- Frontend component additions require only a registry entry
+- Auth is enforced at the CF Worker edge — container is not auth-aware
