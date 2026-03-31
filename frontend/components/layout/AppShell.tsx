@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useSession } from "../../hooks/useSession";
 import { useChat } from "../../hooks/useChat";
 import { useLocale } from "../../lib/i18n-context";
@@ -14,7 +14,6 @@ export default function AppShell() {
   const locale = useLocale();
   const { sessionId, setSessionId, clearSession } = useSession();
   const { messages, send, sending, clear } = useChat(sessionId, setSessionId, locale);
-  const [prefill, setPrefill] = useState("");
 
   // Extract route history from the latest response that has one
   const routeHistory: RouteHistoryRecord[] =
@@ -46,7 +45,7 @@ export default function AppShell() {
         <ChatInput
           onSend={send}
           disabled={sending}
-          prefill={prefill}
+          prefill=""
         />
       </main>
     </div>

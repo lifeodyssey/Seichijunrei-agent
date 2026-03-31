@@ -1,86 +1,103 @@
-@import "tailwindcss";
+@import "../node_modules/tailwindcss/index.css";
 
 /* ── Seichijunrei design tokens (matching lunaris design system) ── */
 :root {
+  --app-font-sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB",
+    "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC", sans-serif;
+  --app-font-mono: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
+  --app-font-display: "Iowan Old Style", "Songti SC", "Source Han Serif SC",
+    "Hiragino Mincho ProN", "Yu Mincho", serif;
+
   /* Core */
-  --color-bg: #F2F3F0;
-  --color-fg: #111111;
-  --color-card: #FFFFFF;
-  --color-card-fg: #111111;
-  --color-muted: #F2F3F0;
-  --color-muted-fg: #666666;
-  --color-border: #CBCCC9;
-  --color-input: #CBCCC9;
+  --color-bg: #f4ede5;
+  --color-fg: #181511;
+  --color-card: #fdfaf5;
+  --color-card-fg: #181511;
+  --color-muted: #efe6d9;
+  --color-muted-fg: #6e6052;
+  --color-border: #d6c8b8;
+  --color-input: #d6c8b8;
 
   /* Primary (orange) */
-  --color-primary: #FF8400;
-  --color-primary-fg: #111111;
+  --color-primary: #d9863b;
+  --color-primary-fg: #181511;
 
   /* Secondary */
-  --color-secondary: #E7E8E5;
-  --color-secondary-fg: #111111;
+  --color-secondary: #ebe0d2;
+  --color-secondary-fg: #181511;
 
   /* Semantic */
-  --color-info: #DFDFE6;
-  --color-info-fg: #000066;
-  --color-success: #DFE6E1;
-  --color-success-fg: #004D1A;
-  --color-warning: #E9E3D8;
-  --color-warning-fg: #804200;
-  --color-error: #E5DCDA;
-  --color-error-fg: #8C1C00;
+  --color-info: #dee4e7;
+  --color-info-fg: #23445c;
+  --color-success: #dfe6de;
+  --color-success-fg: #214e2c;
+  --color-warning: #ebe1cf;
+  --color-warning-fg: #84511e;
+  --color-error: #ead9d2;
+  --color-error-fg: #8a2e1c;
 
   /* Sidebar */
-  --color-sidebar: #E7E8E5;
-  --color-sidebar-fg: #666666;
-  --color-sidebar-border: #CBCCC9;
-  --color-sidebar-accent: #CBCCC9;
-  --color-sidebar-accent-fg: #18181b;
+  --color-sidebar: #ece3d7;
+  --color-sidebar-fg: #6e6052;
+  --color-sidebar-border: #d6c8b8;
+  --color-sidebar-accent: #dfd2c3;
+  --color-sidebar-accent-fg: #181511;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #111111;
-    --color-fg: #FFFFFF;
-    --color-card: #1A1A1A;
-    --color-card-fg: #FFFFFF;
-    --color-muted: #2E2E2E;
-    --color-muted-fg: #B8B9B6;
-    --color-border: #2E2E2E;
-    --color-input: #2E2E2E;
+    --color-bg: #12100d;
+    --color-fg: #f8f3ec;
+    --color-card: #1a1713;
+    --color-card-fg: #f8f3ec;
+    --color-muted: #26211c;
+    --color-muted-fg: #baa996;
+    --color-border: #2f2922;
+    --color-input: #2f2922;
 
-    --color-primary: #FF8400;
-    --color-primary-fg: #111111;
+    --color-primary: #e5a166;
+    --color-primary-fg: #181511;
 
-    --color-secondary: #2E2E2E;
-    --color-secondary-fg: #FFFFFF;
+    --color-secondary: #26211c;
+    --color-secondary-fg: #f8f3ec;
 
-    --color-info: #222229;
-    --color-info-fg: #B2B2FF;
-    --color-success: #222924;
-    --color-success-fg: #B6FFCE;
-    --color-warning: #291C0F;
-    --color-warning-fg: #FF8400;
-    --color-error: #24100B;
-    --color-error-fg: #FF5C33;
+    --color-info: #1d2327;
+    --color-info-fg: #bed9eb;
+    --color-success: #1f2721;
+    --color-success-fg: #bee2c5;
+    --color-warning: #2a1d11;
+    --color-warning-fg: #e5a166;
+    --color-error: #291813;
+    --color-error-fg: #f08b69;
 
-    --color-sidebar: #18181b;
-    --color-sidebar-fg: #fafafa;
-    --color-sidebar-border: rgba(255, 255, 255, 0.1);
-    --color-sidebar-accent: #2a2a30;
-    --color-sidebar-accent-fg: #fafafa;
+    --color-sidebar: #181511;
+    --color-sidebar-fg: #f2e8dc;
+    --color-sidebar-border: rgba(255, 255, 255, 0.08);
+    --color-sidebar-accent: #26211c;
+    --color-sidebar-accent-fg: #f8f3ec;
   }
 }
 
 @theme inline {
   --color-background: var(--color-bg);
   --color-foreground: var(--color-fg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
 }
 
 body {
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at top left, rgba(226, 181, 118, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(174, 189, 162, 0.18), transparent 24%),
+    var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--app-font-sans);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 32%, transparent);
+}
+
+a {
+  color: inherit;
 }
