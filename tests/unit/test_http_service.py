@@ -7,20 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from agents.executor_agent import _get_fallback_message
 from config.settings import Settings
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.http_service import create_http_app
 from interfaces.public_api import RuntimeAPI
-
-
-@pytest.fixture(autouse=True)
-def _mock_message_llm():
-    async def _fake(intent, query_data, route_data, failure, locale):
-        return _get_fallback_message(intent, query_data, failure, locale)
-
-    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
-        yield
 
 
 class DummySpan:

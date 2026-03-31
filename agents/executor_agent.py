@@ -1,15 +1,9 @@
-"""ExecutorAgent — runs ExecutionPlan steps sequentially.
+"""ExecutorAgent — deterministic plan step execution.
 
-Takes an ExecutionPlan and executes each step using the appropriate
-handler (SQLAgent for DB queries, nearest-neighbor for route planning).
-
-Usage:
-    from agents.executor_agent import ExecutorAgent
-
-    executor = ExecutorAgent(db_client)
-    result = await executor.execute(plan, intent)
+Accepts an ExecutionPlan from ReActPlannerAgent and executes each step using
+the appropriate handler. No LLM calls — all responses use static message
+templates. Steps communicate via context dict (each step deposits its output).
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,19 +11,52 @@ from typing import Any
 
 import structlog
 
-from agents.base import create_agent, get_default_model
-from agents.intent_agent import IntentOutput
-from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType
+from agents.models import ExecutionPlan, PlanStep, RetrievalRequest, ToolName
 from agents.retriever import RetrievalResult, Retriever
+from infrastructure.gateways.bangumi import BangumiClientGateway
 
 logger = structlog.get_logger(__name__)
 
 
+# ── Static response message templates ────────────────────────────────────────
+# Keyed by (primary_tool, locale). These replace the LLM message call,
+# saving one LLM round-trip per request.
+
+_MESSAGES: dict[tuple[str, str], str] = {
+    ("search_bangumi", "ja"): "{count}件の聖地が見つかりました。",
+    ("search_bangumi", "zh"): "找到了{count}处圣地。",
+    ("search_bangumi", "en"): "Found {count} pilgrimage spots.",
+    ("search_nearby", "ja"): "この周辺に{count}件の聖地があります。",
+    ("search_nearby", "zh"): "附近有{count}处圣地。",
+    ("search_nearby", "en"): "Found {count} pilgrimage spots nearby.",
+    ("plan_route", "ja"): "{count}件のスポットで最適ルートを作成しました。",
+    ("plan_route", "zh"): "已为{count}处圣地规划路线。",
+    ("plan_route", "en"): "Created a route with {count} pilgrimage stops.",
+    ("answer_question", "ja"): "",
+    ("answer_question", "zh"): "",
+    ("answer_question", "en"): "",
+    ("empty", "ja"): "該当する巡礼地が見つかりませんでした。",
+    ("empty", "zh"): "没有找到相关的巡礼地。",
+    ("empty", "en"): "No pilgrimage spots found.",
+    ("unclear", "ja"): "もう少し具体的に教えていただけますか？",
+    ("unclear", "zh"): "能再具体一些吗？",
+    ("unclear", "en"): "Could you be more specific?",
+}
+
+
+def _build_message(primary_tool: str, count: int, locale: str) -> str:
+    """Build a static response message from template."""
+    if count == 0:
+        return _MESSAGES.get(("empty", locale), "")
+    return _MESSAGES.get((primary_tool, locale), "").format(count=count)
+
+
+# ── Result types ─────────────────────────────────────────────────────────────
+
+
 @dataclass
 class StepResult:
-    """Result of executing a single plan step."""
-
-    step_type: str
+    tool: str
     success: bool
     data: Any = None
     error: str | None = None
@@ -37,8 +64,6 @@ class StepResult:
 
 @dataclass
 class PipelineResult:
-    """Aggregated result of executing a full plan."""
-
     intent: str
     plan: ExecutionPlan
     step_results: list[StepResult] = field(default_factory=list)
@@ -49,136 +74,163 @@ class PipelineResult:
         return all(r.success for r in self.step_results)
 
 
+# ── Executor ──────────────────────────────────────────────────────────────────
+
+
 class ExecutorAgent:
-    """Executes plan steps sequentially, passing data between steps."""
+    """Executes ExecutionPlan steps deterministically.
+
+    No LLM calls inside this class. Steps communicate via a shared context dict.
+    """
 
     def __init__(self, db: Any) -> None:
         self._retriever = Retriever(db)
+        self._db = db
 
-    async def execute(
-        self, plan: ExecutionPlan, intent: IntentOutput, *, locale: str = "ja"
-    ) -> PipelineResult:
-        """Execute all steps in the plan.
+    async def execute(self, plan: ExecutionPlan) -> PipelineResult:
+        """Execute all steps in the plan and return a PipelineResult.
 
         Args:
-            plan: The execution plan from PlannerAgent.
-            intent: The original IntentOutput (for parameter access).
-            locale: Response language — "ja" or "zh".
+            plan: ExecutionPlan from ReActPlannerAgent (includes locale).
 
         Returns:
-            PipelineResult with all step results and final output.
+            PipelineResult with step results and final output dict.
         """
-        result = PipelineResult(intent=plan.intent, plan=plan)
-        context: dict[str, Any] = {"intent": intent, "locale": locale}
+        primary_tool = _infer_primary_tool(plan)
+        result = PipelineResult(intent=primary_tool, plan=plan)
+        locale = getattr(plan, "locale", "ja")
+        context: dict[str, Any] = {"locale": locale}
 
-        for index, step in enumerate(plan.steps):
-            step_result = await self._execute_step(step, intent, context)
+        for step in plan.steps:
+            step_result = await self._execute_step(step, context)
             result.step_results.append(step_result)
 
+            tool = getattr(step, "tool", None)
             if not step_result.success:
-                context["failure"] = {
-                    "step_type": step.step_type.value,
-                    "error": step_result.error,
-                }
-                logger.warning(
-                    "step_failed",
-                    step=step.step_type,
-                    error=step_result.error,
-                )
+                logger.warning("step_failed", tool=tool, error=step_result.error)
+                break  # abort remaining steps on failure
 
-                if step.step_type != StepType.FORMAT_RESPONSE:
-                    format_step = _find_follow_up_format_step(plan.steps[index + 1 :])
-                    if format_step is not None:
-                        format_result = await self._execute_step(
-                            format_step, intent, context
-                        )
-                        result.step_results.append(format_result)
-                        if format_result.success:
-                            context[format_step.step_type.value] = format_result.data
-                break
+            if tool is not None:
+                context[tool.value] = step_result.data
 
-            # Pass step output to next step via context
-            context[step.step_type.value] = step_result.data
-
-        # Build final output from context
-        result.final_output = self._build_output(result, context)
+        result.final_output = self._build_output(result, context, primary_tool)
         return result
 
     async def _execute_step(
-        self,
-        step: ExecutionStep,
-        intent: IntentOutput,
-        context: dict[str, Any],
+        self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
-        """Dispatch a single step to its handler."""
+        tool = getattr(step, "tool", None)
+        tool_name = tool.value if tool is not None else str(getattr(step, "step_type", "unknown"))
         handler = {
-            StepType.QUERY_DB: self._execute_query_db,
-            StepType.PLAN_ROUTE: self._execute_plan_route,
-            StepType.FORMAT_RESPONSE: self._execute_format_response,
-        }.get(step.step_type)
+            ToolName.RESOLVE_ANIME: self._execute_resolve_anime,
+            ToolName.SEARCH_BANGUMI: self._execute_search_bangumi,
+            ToolName.SEARCH_NEARBY: self._execute_search_nearby,
+            ToolName.PLAN_ROUTE: self._execute_plan_route,
+            ToolName.ANSWER_QUESTION: self._execute_answer_question,
+        }.get(tool)
 
         if handler is None:
             return StepResult(
-                step_type=step.step_type.value,
+                tool=tool_name,
                 success=False,
-                error=f"No handler for step type: {step.step_type}",
+                error=f"No handler for tool: {tool_name}",
             )
-
         try:
-            return await handler(step, intent, context)
+            return await handler(step, context)
         except Exception as exc:
-            logger.error(
-                "step_execution_error",
-                step=step.step_type,
-                error=str(exc),
-            )
-            return StepResult(
-                step_type=step.step_type.value,
-                success=False,
-                error=str(exc),
-            )
+            logger.error("step_execution_error", tool=tool_name, error=str(exc))
+            return StepResult(tool=tool_name, success=False, error=str(exc))
 
-    # ── Step handlers ─────────────────────────────────────────────
+    # ── Step handlers ─────────────────────────────────────────────────────────
 
-    async def _execute_query_db(
-        self,
-        step: ExecutionStep,
-        intent: IntentOutput,
-        context: dict[str, Any],
+    async def _execute_resolve_anime(
+        self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
-        """Execute retrieval through the strategy layer."""
-        retrieval_result: RetrievalResult = await self._retriever.execute(intent)
-        query_payload = _build_query_payload(retrieval_result)
+        """Resolve anime title → bangumi_id. DB first, API on miss (write-through)."""
+        title = step.params.get("title", "")
+        if not title:
+            return StepResult(tool="resolve_anime", success=False, error="No title provided")
+
+        # 1. DB lookup
+        bangumi_id = await self._db.find_bangumi_by_title(title)
+        if bangumi_id:
+            logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
+            return StepResult(tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id})
+
+        # 2. Bangumi.tv API fallback
+        gateway = BangumiClientGateway()
+        bangumi_id = await gateway.search_by_title(title)
+        if bangumi_id:
+            await self._db.upsert_bangumi_title(title, bangumi_id)
+            logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
+            return StepResult(tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id})
+
         return StepResult(
-            step_type=step.step_type.value,
-            success=retrieval_result.success,
-            data=query_payload,
-            error=retrieval_result.error,
+            tool="resolve_anime",
+            success=False,
+            error=f"Could not resolve anime: '{title}'",
+        )
+
+    async def _execute_search_bangumi(
+        self, step: PlanStep, context: dict[str, Any]
+    ) -> StepResult:
+        """Search pilgrimage points for a specific bangumi."""
+        bangumi_id = step.params.get("bangumi_id")
+        if not bangumi_id:
+            resolved = context.get(ToolName.RESOLVE_ANIME.value, {})
+            bangumi_id = resolved.get("bangumi_id")
+        if not bangumi_id:
+            return StepResult(
+                tool="search_bangumi", success=False, error="No bangumi_id available"
+            )
+
+        req = RetrievalRequest(
+            tool="search_bangumi",
+            bangumi_id=bangumi_id,
+            episode=step.params.get("episode"),
+            origin=step.params.get("origin"),
+        )
+        retrieval = await self._retriever.execute(req)
+        return StepResult(
+            tool="search_bangumi",
+            success=retrieval.success,
+            data=_build_query_payload(retrieval),
+            error=retrieval.error,
+        )
+
+    async def _execute_search_nearby(
+        self, step: PlanStep, context: dict[str, Any]
+    ) -> StepResult:
+        """Search pilgrimage points near a location."""
+        location = step.params.get("location", "")
+        req = RetrievalRequest(
+            tool="search_nearby",
+            location=location,
+            radius=step.params.get("radius"),
+        )
+        retrieval = await self._retriever.execute(req)
+        return StepResult(
+            tool="search_nearby",
+            success=retrieval.success,
+            data=_build_query_payload(retrieval),
+            error=retrieval.error,
         )
 
     async def _execute_plan_route(
-        self,
-        step: ExecutionStep,
-        intent: IntentOutput,
-        context: dict[str, Any],
+        self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
-        """Compute route order using nearest-neighbor heuristic."""
-        db_data = context.get("query_db", {})
-        rows = db_data.get("rows", [])
-
+        """Sort search results into an optimised walking route."""
+        query_data = context.get(ToolName.SEARCH_BANGUMI.value) or context.get(
+            ToolName.SEARCH_NEARBY.value
+        )
+        rows = (query_data or {}).get("rows", [])
         if not rows:
-            return StepResult(
-                step_type=step.step_type.value,
-                success=False,
-                error="No points available for route planning",
-            )
+            return StepResult(tool="plan_route", success=False, error="No points to route")
 
         ordered = _nearest_neighbor_sort(rows)
-        rows_with_coordinates = [
-            row for row in rows if row.get("latitude") and row.get("longitude")
-        ]
+        with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
         return StepResult(
-            step_type=step.step_type.value,
+            tool="plan_route",
             success=True,
             data={
                 "ordered_points": ordered,
@@ -186,309 +238,122 @@ class ExecutorAgent:
                 "status": "ok",
                 "summary": {
                     "point_count": len(ordered),
-                    "with_coordinates": len(rows_with_coordinates),
-                    "without_coordinates": len(rows) - len(rows_with_coordinates),
+                    "with_coordinates": len(with_coords),
+                    "without_coordinates": len(rows) - len(with_coords),
                 },
             },
         )
 
-    async def _execute_format_response(
-        self,
-        step: ExecutionStep,
-        intent: IntentOutput,
-        context: dict[str, Any],
+    async def _execute_answer_question(
+        self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
-        """Format the final response from accumulated context."""
-        failure = context.get("failure")
-        query_data = context.get("query_db")
-        route_data = context.get("plan_route")
-
-        formatted = {
-            "intent": intent.intent,
-            "confidence": intent.confidence,
-            "status": _derive_response_status(intent, query_data, route_data, failure),
-        }
-
-        # Include DB results if available
-        if query_data is not None:
-            formatted["results"] = query_data
-
-        # Include route if available
-        if route_data is not None:
-            formatted["route"] = route_data
-
-        notices = _build_response_notices(query_data)
-        if notices:
-            formatted["_debug_notices"] = notices
-
-        locale = context.get("locale", "ja")
-        message = await _build_response_message_llm(
-            intent, query_data, route_data, failure, locale
-        )
-        if message:
-            formatted["message"] = message
-
-        if failure:
-            formatted["_debug_failure"] = failure
-
+        """Return a plain QA answer (no retrieval)."""
         return StepResult(
-            step_type=step.step_type.value,
+            tool="answer_question",
             success=True,
-            data=formatted,
+            data={
+                "message": step.params.get("answer", ""),
+                "status": "info",
+            },
         )
+
+    # ── Output builder ────────────────────────────────────────────────────────
 
     def _build_output(
-        self, result: PipelineResult, context: dict[str, Any]
+        self, result: PipelineResult, context: dict[str, Any], primary_tool: str
     ) -> dict[str, Any]:
-        """Build the final output dict from pipeline results."""
-        output: dict[str, Any] = {"intent": result.intent, "success": result.success}
+        locale = context.get("locale", "ja")
+        query_data = (
+            context.get(ToolName.SEARCH_BANGUMI.value)
+            or context.get(ToolName.SEARCH_NEARBY.value)
+        )
+        route_data = context.get(ToolName.PLAN_ROUTE.value)
+        qa_data = context.get(ToolName.ANSWER_QUESTION.value)
 
-        # Use the last successful step's data as the primary output
-        for sr in reversed(result.step_results):
-            if sr.success and sr.data:
-                output["data"] = sr.data
-                break
-
-        data = output.get("data")
-        if isinstance(data, dict):
-            if "status" in data:
-                output["status"] = data["status"]
-            if "message" in data:
-                output["message"] = data["message"]
-
+        count = (query_data or {}).get("row_count", 0)
+        is_empty = count == 0
+        status = "empty" if is_empty else "ok"
         if not result.success:
-            errors = [r.error for r in result.step_results if r.error]
-            output["errors"] = errors
+            status = "error"
 
+        message = _build_message(primary_tool, count, locale)
+
+        output: dict[str, Any] = {
+            "intent": primary_tool,
+            "success": result.success,
+            "status": status,
+            "message": message,
+        }
+        if query_data:
+            output["results"] = query_data
+        if route_data:
+            output["route"] = route_data
+        if qa_data:
+            output["message"] = qa_data.get("message", "")
+            output["status"] = qa_data.get("status", "info")
+        if not result.success:
+            output["errors"] = [r.error for r in result.step_results if r.error]
         return output
 
 
-def _build_query_payload(retrieval_result: RetrievalResult) -> dict[str, Any]:
-    metadata = dict(retrieval_result.metadata)
-    empty = retrieval_result.row_count == 0
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _infer_primary_tool(plan: ExecutionPlan) -> str:
+    """Return the primary tool name for intent labelling and message selection."""
+    tools = [getattr(s, "tool", None) for s in plan.steps]
+    tools = [t for t in tools if t is not None]
+    for priority in (
+        ToolName.PLAN_ROUTE,
+        ToolName.SEARCH_BANGUMI,
+        ToolName.SEARCH_NEARBY,
+        ToolName.ANSWER_QUESTION,
+    ):
+        if priority in tools:
+            return priority.value
+    return tools[0].value if tools else "unknown"
+
+
+def _build_query_payload(retrieval: RetrievalResult) -> dict[str, Any]:
+    metadata = dict(retrieval.metadata)
+    empty = retrieval.row_count == 0
     return {
-        "rows": retrieval_result.rows,
-        "items": retrieval_result.rows,
-        "row_count": retrieval_result.row_count,
-        "strategy": retrieval_result.strategy.value,
+        "rows": retrieval.rows,
+        "items": retrieval.rows,
+        "row_count": retrieval.row_count,
+        "strategy": retrieval.strategy.value,
         "metadata": metadata,
         "status": "empty" if empty else "ok",
         "empty": empty,
         "summary": {
-            "count": retrieval_result.row_count,
+            "count": retrieval.row_count,
             "source": metadata.get("data_origin", metadata.get("source", "db")),
             "cache": metadata.get("cache", "miss"),
         },
     }
 
 
-def _find_follow_up_format_step(
-    steps: list[ExecutionStep],
-) -> ExecutionStep | None:
-    for step in steps:
-        if step.step_type == StepType.FORMAT_RESPONSE:
-            return step
-    return None
-
-
-def _derive_response_status(
-    intent: IntentOutput,
-    query_data: dict[str, Any] | None,
-    route_data: dict[str, Any] | None,
-    failure: dict[str, Any] | None,
-) -> str:
-    if intent.intent == "unclear":
-        return "needs_clarification"
-    if intent.intent == "general_qa":
-        return "info"
-    if failure:
-        if query_data and query_data.get("empty"):
-            return "empty"
-        if route_data or query_data:
-            return "partial"
-        return "error"
-    if query_data and query_data.get("empty"):
-        return "empty"
-    return "ok"
-
-
-_LOCALE_NAMES: dict[str, str] = {"ja": "日本語", "zh": "中文"}
-
-_MESSAGE_SYSTEM_PROMPT = """\
-You are a concise response writer for an anime pilgrimage (聖地巡礼) travel assistant.
-Generate a short, friendly user-facing message in {language_name}.
-
-Rules:
-- One sentence only, keep it under 60 characters
-- Match the tone of a helpful travel assistant
-- If the intent is unclear: politely ask the user to be more specific
-- If no results were found: say nothing was found for the search
-- If results were found: briefly summarize what was found (mention count if available)
-- If a route was built: mention the number of stops
-- If there was a failure: briefly explain what went wrong
-- Do NOT include English — respond only in {language_name}
-"""
-
-_FALLBACK_MESSAGES: dict[str, dict[str, str]] = {
-    "unclear": {
-        "ja": "もう少し具体的に教えていただけますか？",
-        "zh": "能再具体一些吗？",
-    },
-    "general_qa": {
-        "ja": "アニメ聖地巡礼についてのご質問ですね。",
-        "zh": "这是关于动漫圣地巡礼的问题。",
-    },
-    "empty": {
-        "ja": "該当する巡礼地が見つかりませんでした。",
-        "zh": "没有找到相关的巡礼地。",
-    },
-    "failure": {
-        "ja": "データの取得に失敗しました。",
-        "zh": "数据获取失败。",
-    },
-    "default": {
-        "ja": "",
-        "zh": "",
-    },
-}
-
-
-def _build_message_context(
-    intent: IntentOutput,
-    query_data: dict[str, Any] | None,
-    route_data: dict[str, Any] | None,
-    failure: dict[str, Any] | None,
-) -> str:
-    """Build a concise context string for the LLM to generate a message from."""
-    parts: list[str] = [f"intent: {intent.intent}"]
-
-    if failure:
-        parts.append(f"failure at step: {failure.get('step_type', 'unknown')}")
-        parts.append(f"error: {failure.get('error', 'unknown')}")
-    elif query_data:
-        row_count = query_data.get("row_count", 0)
-        is_empty = query_data.get("empty", False)
-        parts.append(f"results: {row_count} points found, empty={is_empty}")
-        if query_data.get("metadata", {}).get("data_origin") == "fallback":
-            parts.append("note: data was fetched fresh from external source")
-
-    if route_data:
-        parts.append(f"route: {route_data.get('point_count', 0)} stops")
-
-    if intent.extracted_params.bangumi:
-        parts.append(f"bangumi_id: {intent.extracted_params.bangumi}")
-    if intent.extracted_params.location:
-        parts.append(f"location: {intent.extracted_params.location}")
-
-    return "\n".join(parts)
-
-
-def _get_fallback_message(
-    intent: IntentOutput,
-    query_data: dict[str, Any] | None,
-    failure: dict[str, Any] | None,
-    locale: str,
-) -> str:
-    """Return a static fallback message when LLM is unavailable."""
-    if intent.intent == "unclear":
-        return _FALLBACK_MESSAGES["unclear"].get(locale, "")
-    if intent.intent == "general_qa":
-        return _FALLBACK_MESSAGES["general_qa"].get(locale, "")
-    if failure:
-        return _FALLBACK_MESSAGES["failure"].get(locale, "")
-    if query_data and query_data.get("empty"):
-        return _FALLBACK_MESSAGES["empty"].get(locale, "")
-    return _FALLBACK_MESSAGES["default"].get(locale, "")
-
-
-async def _build_response_message_llm(
-    intent: IntentOutput,
-    query_data: dict[str, Any] | None,
-    route_data: dict[str, Any] | None,
-    failure: dict[str, Any] | None,
-    locale: str,
-) -> str:
-    """Generate a localized response message using an LLM call.
-
-    Falls back to static messages if the LLM call fails.
-    """
-    language_name = _LOCALE_NAMES.get(locale, "日本語")
-    context_str = _build_message_context(intent, query_data, route_data, failure)
-
-    try:
-        agent = create_agent(
-            get_default_model(),
-            system_prompt=_MESSAGE_SYSTEM_PROMPT.format(language_name=language_name),
-        )
-        result = await agent.run(context_str)
-        message = result.output.strip()
-        if message:
-            return message
-    except Exception as exc:
-        logger.warning("message_llm_fallback", error=str(exc), locale=locale)
-
-    return _get_fallback_message(intent, query_data, failure, locale)
-
-
-def _build_response_notices(query_data: dict[str, Any] | None) -> list[str]:
-    if query_data is None:
-        return []
-
-    metadata = query_data.get("metadata", {})
-    notices: list[str] = []
-
-    if metadata.get("cache") == "hit":
-        notices.append("Served from retrieval cache.")
-    elif metadata.get("cache") == "write":
-        notices.append("Stored this retrieval result in cache for reuse.")
-
-    if metadata.get("data_origin") == "fallback":
-        notices.append(
-            "Fetched fresh pilgrimage points from Anitabi and wrote them through to Supabase."
-        )
-
-    if metadata.get("mode") == "sql_fallback" and metadata.get("geo_error"):
-        notices.append("Used SQL-only results because geo refinement was unavailable.")
-
-    return notices
-
-
-# ── Route optimization ────────────────────────────────────────────
-
-
 def _nearest_neighbor_sort(rows: list[dict]) -> list[dict]:
-    """Sort points by nearest-neighbor heuristic.
-
-    Simple greedy algorithm: start from the first point, always visit
-    the nearest unvisited point next. O(n^2) but fine for <100 points.
-    """
+    """Sort points by nearest-neighbor heuristic. O(n²), fine for <100 points."""
     if len(rows) <= 1:
         return list(rows)
-
-    # Filter rows that have coordinates
     with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
     without_coords = [r for r in rows if not (r.get("latitude") and r.get("longitude"))]
-
     if not with_coords:
         return list(rows)
 
     ordered = [with_coords[0]]
     remaining = with_coords[1:]
-
     while remaining:
         last = ordered[-1]
         last_lat, last_lon = float(last["latitude"]), float(last["longitude"])
-
-        best_idx = 0
-        best_dist = float("inf")
-        for i, candidate in enumerate(remaining):
-            dlat = float(candidate["latitude"]) - last_lat
-            dlon = float(candidate["longitude"]) - last_lon
-            dist_sq = dlat * dlat + dlon * dlon
-            if dist_sq < best_dist:
-                best_dist = dist_sq
-                best_idx = i
-
+        best_idx, best_dist = 0, float("inf")
+        for i, c in enumerate(remaining):
+            d = (float(c["latitude"]) - last_lat) ** 2 + (
+                float(c["longitude"]) - last_lon
+            ) ** 2
+            if d < best_dist:
+                best_dist, best_idx = d, i
         ordered.append(remaining.pop(best_idx))
 
     return ordered + without_coords

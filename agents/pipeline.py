@@ -54,7 +54,7 @@ async def run_pipeline(
 
     # Step 3: Execute plan
     executor = ExecutorAgent(db)
-    result = await executor.execute(plan, intent, locale=locale)
+    result = await executor.execute(plan)
     logger.info(
         "pipeline_complete",
         intent=result.intent,

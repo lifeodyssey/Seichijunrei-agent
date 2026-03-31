@@ -6,17 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agents.executor_agent import _get_fallback_message
 from agents.pipeline import run_pipeline
-
-
-@pytest.fixture(autouse=True)
-def _mock_message_llm():
-    async def _fake(intent, query_data, route_data, failure, locale):
-        return _get_fallback_message(intent, query_data, failure, locale)
-
-    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
-        yield
 
 
 @pytest.fixture

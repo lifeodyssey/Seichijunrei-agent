@@ -7,19 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from agents.executor_agent import _get_fallback_message
 from application.errors import InvalidInputError
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.public_api import PublicAPIRequest, RuntimeAPI, handle_public_request
-
-
-@pytest.fixture(autouse=True)
-def _mock_message_llm():
-    async def _fake(intent, query_data, route_data, failure, locale):
-        return _get_fallback_message(intent, query_data, failure, locale)
-
-    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
-        yield
 
 
 class DummySpan:

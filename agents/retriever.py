@@ -220,8 +220,7 @@ class Retriever:
         self,
         request: RetrievalRequest,
     ) -> tuple[SQLResult, dict[str, Any]]:
-        sql_intent = _request_to_sql_intent(request)
-        sql_result = await self._sql_agent.execute(sql_intent)
+        sql_result = await self._sql_agent.execute(request)
         metadata: dict[str, Any] = {"data_origin": "db"}
 
         if not sql_result.success:
@@ -237,7 +236,7 @@ class Retriever:
         metadata.update(fallback_meta)
 
         if fallback_meta.get("write_through"):
-            rerun_result = await self._sql_agent.execute(sql_intent)
+            rerun_result = await self._sql_agent.execute(request)
             if rerun_result.success:
                 return rerun_result, metadata
 
