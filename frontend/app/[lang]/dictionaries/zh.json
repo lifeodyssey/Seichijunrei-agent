@@ -30,6 +30,9 @@
     "bot_icon": "圣",
     "feedback_sent": "✓ 反馈已提交",
     "feedback_placeholder": "有什么问题？（选填）",
+    "feedback_good_title": "回答不错",
+    "feedback_bad_title": "有问题",
+    "anchor_results": "{count} 条结果",
     "welcome_title": "圣地巡礼 AI",
     "welcome_subtitle": "搜索动漫取景地，规划巡礼路线"
   },

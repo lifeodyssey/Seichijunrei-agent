@@ -16,18 +16,22 @@ export default function ResultPanel({ activeResponse, onSuggest }: ResultPanelPr
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[var(--color-bg)]">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          className="pointer-events-none absolute inset-0 opacity-[0.18]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(212, 149, 74, 0.18), transparent 30%), linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px)",
-            backgroundSize: "auto, 48px 48px, 48px 48px",
-            backgroundPosition: "0 0, 0 0, 0 0",
+              "url(/empty-map.svg)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-100"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 18% 22%, rgba(212, 149, 74, 0.22), transparent 46%), radial-gradient(circle at 68% 56%, rgba(212, 149, 74, 0.10), transparent 52%), radial-gradient(circle at 50% 80%, rgba(0, 0, 0, 0.72), transparent 55%)",
           }}
         />
         <div className="relative flex flex-col items-center gap-3 px-8 text-center">
-          <div className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-1 text-[10px] uppercase tracking-[0.3em] text-[var(--color-muted-fg)]">
-            Result Panel
-          </div>
           <p className="font-[family-name:var(--app-font-display)] text-2xl text-[var(--color-fg)]">
             {chat.welcome_title}
           </p>

@@ -30,6 +30,9 @@
     "bot_icon": "聖",
     "feedback_sent": "✓ Feedback sent",
     "feedback_placeholder": "What went wrong? (optional)",
+    "feedback_good_title": "Good response",
+    "feedback_bad_title": "Bad response",
+    "anchor_results": "{count} results",
     "welcome_title": "Seichijunrei AI",
     "welcome_subtitle": "Find anime filming locations and plan pilgrimage routes"
   },

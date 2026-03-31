@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" fill="none">
+  <g opacity="0.9">
+    <path
+      d="M-60 240C120 120 260 340 420 250C580 160 680 190 820 290C960 390 1100 420 1260 260"
+      stroke="#272729"
+      stroke-width="3"
+      stroke-linecap="round"
+    />
+    <path
+      d="M-80 540C140 430 260 640 460 540C660 440 780 470 920 570C1060 670 1140 690 1280 560"
+      stroke="#1e1e22"
+      stroke-width="2"
+      stroke-linecap="round"
+    />
+    <path
+      d="M120 80C240 170 250 250 270 330C300 460 420 520 520 540C680 580 780 520 900 460C1040 390 1120 410 1220 500"
+      stroke="#272729"
+      stroke-width="2"
+      stroke-linecap="round"
+    />
+    <path
+      d="M60 700C240 620 300 560 360 500C420 440 520 420 620 440C720 460 780 430 840 380C900 330 1020 310 1200 360"
+      stroke="#1e1e22"
+      stroke-width="2"
+      stroke-linecap="round"
+    />
+    <path
+      d="M980 60C900 140 860 200 840 260C820 320 780 380 700 420C620 460 560 520 520 620C480 720 420 760 340 780"
+      stroke="#1e1e22"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-dasharray="6 10"
+    />
+    <path
+      d="M180 280C260 260 310 240 360 210C420 170 480 150 560 170C660 200 720 170 780 140C840 110 920 90 1040 120"
+      stroke="#272729"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-dasharray="8 12"
+    />
+  </g>
+
+  <g opacity="0.35">
+    <path
+      d="M160 620C260 560 340 530 420 520C520 510 590 480 650 430C720 370 800 340 920 360"
+      stroke="#d4954a"
+      stroke-width="1.5"
+      stroke-linecap="round"
+    />
+    <path
+      d="M460 260C560 240 640 250 720 290C800 330 900 350 1040 320"
+      stroke="#d4954a"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-dasharray="4 10"
+    />
+    <circle cx="360" cy="500" r="4.5" fill="#d4954a" opacity="0.55" />
+    <circle cx="520" cy="540" r="3.5" fill="#d4954a" opacity="0.45" />
+    <circle cx="700" cy="420" r="4" fill="#d4954a" opacity="0.5" />
+    <circle cx="820" cy="290" r="3.5" fill="#d4954a" opacity="0.4" />
+    <circle cx="920" cy="360" r="4.5" fill="#d4954a" opacity="0.55" />
+  </g>
+</svg>
+

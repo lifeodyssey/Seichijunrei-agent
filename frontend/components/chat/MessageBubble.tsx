@@ -46,7 +46,10 @@ export default function MessageBubble({
             )}
             {message.response && canShowAnchor(message.response) && (
               <ResultAnchor
-                response={message.response}
+                label={t.anchor_results.replace(
+                  "{count}",
+                  String(getResultCount(message.response)),
+                )}
                 messageId={message.id}
                 onActivate={onActivate}
                 isActive={isActive}
@@ -86,30 +89,29 @@ function canShowAnchor(response: RuntimeResponse): boolean {
   return response.intent !== "unclear" && response.ui?.component !== "Clarification";
 }
 
-function getAnchorLabel(response: RuntimeResponse): string {
-  if (response.message) return response.message;
+function getResultCount(response: RuntimeResponse): number {
+  const data = response.data;
 
-  switch (response.intent) {
-    case "plan_route":
-      return "ルートを見る";
-    case "search_by_location":
-      return "地図を見る";
-    case "search_by_bangumi":
-      return "結果を見る";
-    case "general_qa":
-      return "回答を見る";
-    default:
-      return "結果を見る";
+  if ("results" in data && !("route" in data)) {
+    return data.results.row_count ?? data.results.rows.length;
   }
+  if ("route" in data) {
+    return data.route.point_count ?? data.route.ordered_points.length;
+  }
+  if ("confidence" in data) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function ResultAnchor({
-  response,
+  label,
   messageId,
   onActivate,
   isActive,
 }: {
-  response: RuntimeResponse;
+  label: string;
   messageId: string;
   onActivate?: (messageId: string) => void;
   isActive: boolean;
@@ -127,7 +129,7 @@ function ResultAnchor({
     >
       <span className="flex min-w-0 items-center gap-2">
         <span className="text-[var(--color-primary)]">◈</span>
-        <span className="truncate">{getAnchorLabel(response)}</span>
+        <span className="truncate">{label}</span>
       </span>
       <span className="shrink-0 text-xs text-[var(--color-muted-fg)]">→</span>
     </button>
@@ -173,14 +175,14 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
         <button
           onClick={() => handleFeedback("good")}
           className="rounded px-2 py-1 text-xs text-[var(--color-muted-fg)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-fg)]"
-          title="Good response"
+          title={t.feedback_good_title}
         >
           👍
         </button>
         <button
           onClick={() => handleFeedback("bad")}
           className="rounded px-2 py-1 text-xs text-[var(--color-muted-fg)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-fg)]"
-          title="Bad response"
+          title={t.feedback_bad_title}
         >
           👎
         </button>

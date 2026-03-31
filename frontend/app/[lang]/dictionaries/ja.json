@@ -30,6 +30,9 @@
     "bot_icon": "聖",
     "feedback_sent": "✓ フィードバック送信済み",
     "feedback_placeholder": "何が問題でしたか？（任意）",
+    "feedback_good_title": "良い回答",
+    "feedback_bad_title": "悪い回答",
+    "anchor_results": "{count}件の結果",
     "welcome_title": "聖地巡礼 AI",
     "welcome_subtitle": "アニメの聖地を探したり、巡礼ルートを計画できます"
   },
