@@ -401,3 +401,40 @@ class SupabaseClient:
             latency_ms,
         )
         return str(row["id"])
+
+    async def fetch_bad_feedback(self, *, limit: int = 100) -> list[dict]:
+        """Return rows from feedback table where rating = 'bad'."""
+        rows = await self.pool.fetch(
+            """
+            SELECT id, query_text, intent, comment, created_at
+            FROM feedback
+            WHERE rating = 'bad'
+            ORDER BY created_at DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+        return [dict(r) for r in rows]
+
+    async def fetch_request_log_unscored(self, *, limit: int = 200) -> list[dict]:
+        """Return request_log rows that have not yet been scored."""
+        rows = await self.pool.fetch(
+            """
+            SELECT id, query_text, locale, plan_steps, intent
+            FROM request_log
+            WHERE plan_quality_score IS NULL
+              AND status = 'ok'
+            ORDER BY created_at DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+        return [dict(r) for r in rows]
+
+    async def update_request_log_score(self, *, log_id: str, score: float) -> None:
+        """Write the LLM-assigned quality score back to a request_log row."""
+        await self.pool.execute(
+            "UPDATE request_log SET plan_quality_score = $1 WHERE id = $2",
+            score,
+            log_id,
+        )
