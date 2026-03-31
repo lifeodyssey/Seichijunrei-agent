@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agents.intent_agent import ExtractedParams, IntentOutput
+from agents.models import RetrievalRequest
 from agents.retriever import RetrievalStrategy, Retriever, _merge_rows_preserving_order
 from domain.entities import Coordinates, Point
 from services.cache import ResponseCache
@@ -28,12 +28,8 @@ def mock_db():
     return db
 
 
-def _make_intent(intent: str, **kwargs) -> IntentOutput:
-    return IntentOutput(
-        intent=intent,
-        confidence=0.95,
-        extracted_params=ExtractedParams(**kwargs),
-    )
+def _make_req(tool: str, **kwargs) -> RetrievalRequest:
+    return RetrievalRequest(tool=tool, **kwargs)
 
 
 def _make_point(point_id: str = "p1", *, bangumi_id: str = "115908") -> Point:
@@ -54,31 +50,24 @@ def _make_point(point_id: str = "p1", *, bangumi_id: str = "115908") -> Point:
 
 
 class TestStrategySelection:
-    def test_location_uses_geo(self, mock_db):
+    def test_nearby_uses_geo(self, mock_db):
         retriever = Retriever(mock_db)
         strategy = retriever.choose_strategy(
-            _make_intent("search_by_location", location="宇治")
+            _make_req("search_nearby", location="宇治")
         )
         assert strategy == RetrievalStrategy.GEO
 
-    def test_bangumi_with_location_uses_hybrid(self, mock_db):
+    def test_bangumi_uses_sql(self, mock_db):
         retriever = Retriever(mock_db)
         strategy = retriever.choose_strategy(
-            _make_intent("search_by_bangumi", bangumi="115908", location="宇治")
-        )
-        assert strategy == RetrievalStrategy.HYBRID
-
-    def test_bangumi_without_location_uses_sql(self, mock_db):
-        retriever = Retriever(mock_db)
-        strategy = retriever.choose_strategy(
-            _make_intent("search_by_bangumi", bangumi="115908")
+            _make_req("search_bangumi", bangumi_id="115908")
         )
         assert strategy == RetrievalStrategy.SQL
 
-    def test_route_with_origin_uses_hybrid(self, mock_db):
+    def test_bangumi_with_origin_uses_hybrid(self, mock_db):
         retriever = Retriever(mock_db)
         strategy = retriever.choose_strategy(
-            _make_intent("plan_route", bangumi="115908", origin="京都站")
+            _make_req("search_bangumi", bangumi_id="115908", origin="宇治")
         )
         assert strategy == RetrievalStrategy.HYBRID
 
@@ -91,10 +80,10 @@ class TestRetrievalExecution:
         retriever = Retriever(mock_db, cache=cache)
 
         first = await retriever.execute(
-            _make_intent("search_by_bangumi", bangumi="115908")
+            _make_req("search_bangumi", bangumi_id="115908")
         )
         second = await retriever.execute(
-            _make_intent("search_by_bangumi", bangumi="115908")
+            _make_req("search_bangumi", bangumi_id="115908")
         )
 
         assert first.success
@@ -109,9 +98,7 @@ class TestRetrievalExecution:
         ]
         retriever = Retriever(mock_db)
 
-        result = await retriever.execute(
-            _make_intent("search_by_location", location="宇治")
-        )
+        result = await retriever.execute(_make_req("search_nearby", location="宇治"))
 
         assert result.success
         assert result.strategy == RetrievalStrategy.GEO
@@ -125,7 +112,7 @@ class TestRetrievalExecution:
         retriever = Retriever(mock_db)
 
         result = await retriever.execute(
-            _make_intent("search_by_bangumi", bangumi="115908")
+            _make_req("search_bangumi", bangumi_id="115908")
         )
 
         assert result.success
@@ -160,7 +147,7 @@ class TestRetrievalExecution:
         )
 
         result = await retriever.execute(
-            _make_intent("search_by_bangumi", bangumi="115908")
+            _make_req("search_bangumi", bangumi_id="115908")
         )
 
         assert result.success
@@ -189,7 +176,7 @@ class TestRetrievalExecution:
         retriever = Retriever(mock_db)
 
         result = await retriever.execute(
-            _make_intent("plan_route", bangumi="115908", origin="京都站")
+            _make_req("search_bangumi", bangumi_id="115908", origin="京都站")
         )
 
         assert result.success
@@ -222,7 +209,7 @@ class TestRetrievalExecution:
         )
 
         result = await retriever.execute(
-            _make_intent("plan_route", bangumi="115908", origin="京都站")
+            _make_req("search_bangumi", bangumi_id="115908", origin="京都站")
         )
 
         assert result.success
@@ -237,7 +224,7 @@ class TestRetrievalExecution:
         retriever = Retriever(mock_db)
 
         result = await retriever.execute(
-            _make_intent("search_by_bangumi", bangumi="115908", location="不存在")
+            _make_req("search_bangumi", bangumi_id="115908", location="不存在")
         )
 
         assert result.success

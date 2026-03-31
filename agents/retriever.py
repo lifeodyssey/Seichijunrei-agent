@@ -13,11 +13,12 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from types import SimpleNamespace
 from typing import Any
 
 import structlog
 
-from agents.intent_agent import IntentOutput
+from agents.models import RetrievalRequest
 from agents.sql_agent import SQLAgent, SQLResult, resolve_location
 from application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from application.use_cases.get_bangumi_subject import GetBangumiSubject
@@ -86,36 +87,33 @@ class Retriever:
                 bangumi=BangumiClientGateway()
             )
 
-    def choose_strategy(self, intent: IntentOutput) -> RetrievalStrategy:
+    def choose_strategy(self, request: RetrievalRequest) -> RetrievalStrategy:
         """Choose a retrieval strategy without an LLM."""
-        params = intent.extracted_params
-
-        if intent.intent == "search_by_location":
+        if request.tool == "search_nearby":
             return RetrievalStrategy.GEO
 
-        if intent.intent in {"search_by_bangumi", "plan_route"}:
-            if params.bangumi and (params.location or params.origin):
+        if request.tool == "search_bangumi":
+            if request.bangumi_id and (request.location or request.origin):
                 return RetrievalStrategy.HYBRID
             return RetrievalStrategy.SQL
 
         return RetrievalStrategy.SQL
 
-    async def execute(self, intent: IntentOutput) -> RetrievalResult:
+    async def execute(self, request: RetrievalRequest) -> RetrievalResult:
         """Execute the selected retrieval strategy."""
-        strategy = self.choose_strategy(intent)
+        strategy = self.choose_strategy(request)
         cache_key = self._cache.generate_key(
             "retrieval",
             {
                 "db_scope": id(self._db),
-                "intent": intent.intent,
+                "request": request.model_dump(mode="json"),
                 "strategy": strategy.value,
-                "params": intent.extracted_params.model_dump(mode="json"),
             },
         )
 
         logger.info(
             "retrieval_strategy_selected",
-            intent=intent.intent,
+            tool=request.tool,
             strategy=strategy.value,
         )
 
@@ -123,7 +121,7 @@ class Retriever:
         if cached is not _CACHE_MISS and isinstance(cached, RetrievalResult):
             logger.info(
                 "retrieval_cache_hit",
-                intent=intent.intent,
+                tool=request.tool,
                 strategy=strategy.value,
             )
             return _clone_result(cached, metadata_updates={"cache": "hit"})
@@ -133,7 +131,7 @@ class Retriever:
             RetrievalStrategy.GEO: self._execute_geo,
             RetrievalStrategy.HYBRID: self._execute_hybrid,
         }[strategy]
-        result = await handler(intent)
+        result = await handler(request)
 
         if result.success and result.row_count > 0:
             await self._cache.set(cache_key, result)
@@ -141,8 +139,8 @@ class Retriever:
 
         return _clone_result(result, metadata_updates={"cache": "miss"})
 
-    async def _execute_sql(self, intent: IntentOutput) -> RetrievalResult:
-        sql_result, metadata = await self._execute_sql_with_fallback(intent)
+    async def _execute_sql(self, request: RetrievalRequest) -> RetrievalResult:
+        sql_result, metadata = await self._execute_sql_with_fallback(request)
         return RetrievalResult(
             strategy=RetrievalStrategy.SQL,
             rows=sql_result.rows,
@@ -151,13 +149,11 @@ class Retriever:
             metadata={"source": "sql", **metadata},
         )
 
-    async def _execute_geo(self, intent: IntentOutput) -> RetrievalResult:
-        anchor = (
-            intent.extracted_params.location or intent.extracted_params.origin or ""
-        )
+    async def _execute_geo(self, request: RetrievalRequest) -> RetrievalResult:
+        anchor = request.location or request.origin or ""
         rows, error = await self._fetch_geo_rows(
             anchor,
-            radius_m=intent.extracted_params.radius or 5000,
+            radius_m=request.radius or 5000,
         )
         return RetrievalResult(
             strategy=RetrievalStrategy.GEO,
@@ -167,13 +163,12 @@ class Retriever:
             metadata={"source": "geo", "anchor": anchor},
         )
 
-    async def _execute_hybrid(self, intent: IntentOutput) -> RetrievalResult:
-        params = intent.extracted_params
-        anchor = params.location or params.origin or ""
+    async def _execute_hybrid(self, request: RetrievalRequest) -> RetrievalResult:
+        anchor = request.location or request.origin or ""
 
         (sql_result, sql_metadata), (geo_rows, geo_error) = await asyncio.gather(
-            self._execute_sql_with_fallback(intent),
-            self._fetch_geo_rows(anchor, radius_m=params.radius or 5000),
+            self._execute_sql_with_fallback(request),
+            self._fetch_geo_rows(anchor, radius_m=request.radius or 5000),
         )
 
         if not sql_result.success:
@@ -197,11 +192,11 @@ class Retriever:
                 },
             )
 
-        if params.bangumi:
+        if request.bangumi_id:
             geo_rows = [
                 row
                 for row in geo_rows
-                if str(row.get("bangumi_id", "")) == params.bangumi
+                if str(row.get("bangumi_id", "")) == request.bangumi_id
             ]
 
         merged_rows = _merge_rows_preserving_order(sql_result.rows, geo_rows)
@@ -223,25 +218,26 @@ class Retriever:
 
     async def _execute_sql_with_fallback(
         self,
-        intent: IntentOutput,
+        request: RetrievalRequest,
     ) -> tuple[SQLResult, dict[str, Any]]:
-        sql_result = await self._sql_agent.execute(intent)
+        sql_intent = _request_to_sql_intent(request)
+        sql_result = await self._sql_agent.execute(sql_intent)
         metadata: dict[str, Any] = {"data_origin": "db"}
 
         if not sql_result.success:
             return sql_result, metadata
 
-        if sql_result.row_count > 0 or not _should_try_db_miss_fallback(intent):
+        if sql_result.row_count > 0 or not _should_try_db_miss_fallback(request):
             return sql_result, metadata
 
-        bangumi_id = intent.extracted_params.bangumi
+        bangumi_id = request.bangumi_id
         assert bangumi_id is not None
 
         fallback_meta = await self._write_through_bangumi_points(bangumi_id)
         metadata.update(fallback_meta)
 
         if fallback_meta.get("write_through"):
-            rerun_result = await self._sql_agent.execute(intent)
+            rerun_result = await self._sql_agent.execute(sql_intent)
             if rerun_result.success:
                 return rerun_result, metadata
 
@@ -425,10 +421,23 @@ def _subject_to_bangumi_fields(
     }
 
 
-def _should_try_db_miss_fallback(intent: IntentOutput) -> bool:
-    return intent.intent in {"search_by_bangumi", "plan_route"} and bool(
-        intent.extracted_params.bangumi
+def _should_try_db_miss_fallback(request: RetrievalRequest) -> bool:
+    return request.tool == "search_bangumi" and bool(request.bangumi_id)
+
+
+def _request_to_sql_intent(request: RetrievalRequest) -> SimpleNamespace:
+    extracted_params = SimpleNamespace(
+        bangumi=request.bangumi_id,
+        location=request.location,
+        episode=request.episode,
+        origin=request.origin,
+        radius=request.radius,
     )
+    intent_name = {
+        "search_bangumi": "search_by_bangumi",
+        "search_nearby": "search_by_location",
+    }.get(request.tool, request.tool)
+    return SimpleNamespace(intent=intent_name, extracted_params=extracted_params)
 
 
 def _clone_result(
