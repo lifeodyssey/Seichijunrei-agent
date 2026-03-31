@@ -1,0 +1,370 @@
+[
+  {
+    "id": "bangumi-ja-01",
+    "locale": "ja",
+    "query": "吹響ユーフォニアムの聖地を教えて",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-ja-02",
+    "locale": "ja",
+    "query": "ヴァイオレット・エヴァーガーデンの取景地はどこ",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-ja-03",
+    "locale": "ja",
+    "query": "たまこまーけっとの聖地を全部見せて",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-ja-04",
+    "locale": "ja",
+    "query": "境界の彼方の聖地巡礼スポット",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-ja-05",
+    "locale": "ja",
+    "query": "涼宮ハルヒの憂鬱ロケ地",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+
+  {
+    "id": "bangumi-zh-01",
+    "locale": "zh",
+    "query": "吹响的圣地在哪",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-zh-02",
+    "locale": "zh",
+    "query": "紫罗兰永恒花园的取景地",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-zh-03",
+    "locale": "zh",
+    "query": "玉子市场圣地巡礼在哪",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-zh-04",
+    "locale": "zh",
+    "query": "境界的彼方拍摄地点",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-zh-05",
+    "locale": "zh",
+    "query": "凉宫春日的忧郁圣地",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+
+  {
+    "id": "bangumi-en-01",
+    "locale": "en",
+    "query": "where are the Hibike Euphonium filming locations",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-en-02",
+    "locale": "en",
+    "query": "show me Violet Evergarden real world spots",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-en-03",
+    "locale": "en",
+    "query": "Tamako Market pilgrimage sites",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-en-04",
+    "locale": "en",
+    "query": "Beyond the Boundary filming locations Japan",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "bangumi-en-05",
+    "locale": "en",
+    "query": "Haruhi Suzumiya real places",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+
+  {
+    "id": "route-ja-01",
+    "locale": "ja",
+    "query": "吹響の聖地を京都駅から回るルートを作って",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+  {
+    "id": "route-ja-02",
+    "locale": "ja",
+    "query": "ヴァイオレットの聖地を効率よく回りたい",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+  {
+    "id": "route-ja-03",
+    "locale": "ja",
+    "query": "境界の彼方 聖地 回るルート 京阪電車",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+  {
+    "id": "route-ja-04",
+    "locale": "ja",
+    "query": "たまこまーけっとを一日で全部回れる？",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+
+  {
+    "id": "route-zh-01",
+    "locale": "zh",
+    "query": "从京都站出发规划吹响圣地路线",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+  {
+    "id": "route-zh-02",
+    "locale": "zh",
+    "query": "紫罗兰圣地最优游览路线",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+
+  {
+    "id": "route-en-01",
+    "locale": "en",
+    "query": "plan a route to visit all Hibike Euphonium spots",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+  {
+    "id": "route-en-02",
+    "locale": "en",
+    "query": "optimize a walking tour of Violet Evergarden sites",
+    "expected_steps": ["resolve_anime", "search_bangumi", "plan_route"],
+    "expected_intent": "plan_route"
+  },
+
+  {
+    "id": "nearby-ja-01",
+    "locale": "ja",
+    "query": "宇治駅の近くにある聖地を教えて",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-ja-02",
+    "locale": "ja",
+    "query": "宇治市内のアニメ聖地一覧",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-ja-03",
+    "locale": "ja",
+    "query": "西宮周辺の聖地を探したい",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+
+  {
+    "id": "nearby-zh-01",
+    "locale": "zh",
+    "query": "宇治附近有什么动漫圣地",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-zh-02",
+    "locale": "zh",
+    "query": "京阪沿线的圣地巡礼地点",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+
+  {
+    "id": "nearby-en-01",
+    "locale": "en",
+    "query": "anime pilgrimage spots near Uji station",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-en-02",
+    "locale": "en",
+    "query": "what anime locations are close to Nishinomiya",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+
+  {
+    "id": "qa-ja-01",
+    "locale": "ja",
+    "query": "聖地巡礼のマナーを教えて",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+  {
+    "id": "qa-ja-02",
+    "locale": "ja",
+    "query": "聖地巡礼とは何ですか",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+  {
+    "id": "qa-ja-03",
+    "locale": "ja",
+    "query": "アニメの聖地はどうやって調べるの",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+
+  {
+    "id": "qa-zh-01",
+    "locale": "zh",
+    "query": "圣地巡礼应该注意什么礼仪",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+  {
+    "id": "qa-zh-02",
+    "locale": "zh",
+    "query": "什么是圣地巡礼",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+
+  {
+    "id": "qa-en-01",
+    "locale": "en",
+    "query": "what etiquette should I follow at anime pilgrimage sites",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+  {
+    "id": "qa-en-02",
+    "locale": "en",
+    "query": "what is anime pilgrimage",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "answer_question"
+  },
+
+  {
+    "id": "unknown-ja-01",
+    "locale": "ja",
+    "query": "進撃の巨人の聖地はどこ",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Not in original 17 — must resolve via API"
+  },
+  {
+    "id": "unknown-ja-02",
+    "locale": "ja",
+    "query": "鬼滅の刃の取景地を教えて",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Unknown anime"
+  },
+  {
+    "id": "unknown-ja-03",
+    "locale": "ja",
+    "query": "呪術廻戦の聖地巡礼",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Unknown anime"
+  },
+
+  {
+    "id": "unknown-zh-01",
+    "locale": "zh",
+    "query": "进击的巨人圣地在哪",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "unknown-zh-02",
+    "locale": "zh",
+    "query": "鬼灭之刃取景地",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+
+  {
+    "id": "unknown-en-01",
+    "locale": "en",
+    "query": "where is Attack on Titan filmed",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+  {
+    "id": "unknown-en-02",
+    "locale": "en",
+    "query": "Demon Slayer real world filming locations",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi"
+  },
+
+  {
+    "id": "episode-ja-01",
+    "locale": "ja",
+    "query": "吹響の第3話の聖地を調べて",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Episode-filtered query — episode should appear in params"
+  },
+  {
+    "id": "episode-zh-01",
+    "locale": "zh",
+    "query": "吹响第5集的圣地",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Episode-filtered query"
+  },
+  {
+    "id": "episode-en-01",
+    "locale": "en",
+    "query": "Hibike Euphonium episode 7 pilgrimage spots",
+    "expected_steps": ["resolve_anime", "search_bangumi"],
+    "expected_intent": "search_bangumi",
+    "notes": "Episode-filtered query"
+  },
+
+  {
+    "id": "multi-ja-01",
+    "locale": "ja",
+    "query": "吹響の聖地と付近の他のアニメ聖地も教えて",
+    "expected_steps": ["resolve_anime", "search_bangumi", "search_nearby"],
+    "expected_intent": "search_bangumi",
+    "notes": "Multi-step: bangumi + nearby"
+  },
+  {
+    "id": "multi-en-01",
+    "locale": "en",
+    "query": "show me Hibike spots and other anime sites nearby",
+    "expected_steps": ["resolve_anime", "search_bangumi", "search_nearby"],
+    "expected_intent": "search_bangumi",
+    "notes": "Multi-step: bangumi + nearby"
+  }
+]
+

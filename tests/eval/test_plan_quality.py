@@ -1,0 +1,225 @@
+"""Plan quality eval for ReActPlannerAgent.
+
+Runs plan_quality_v1 dataset through run_pipeline and checks:
+- planned steps match expected_steps
+- final intent matches expected_intent
+
+Usage:
+    # Local LM Studio (default)
+    uv run python tests/eval/test_plan_quality.py
+
+    # Any OpenAI-compatible endpoint
+    EVAL_MODEL=openai:gpt-4o-mini uv run python tests/eval/test_plan_quality.py
+
+    # pytest
+    uv run python -m pytest tests/eval/test_plan_quality.py -v -m integration --no-cov
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import pytest
+from pydantic_evals import Case, Dataset
+from pydantic_evals.evaluators import Evaluator, EvaluatorContext
+
+# ── Pluggable model ──────────────────────────────────────────────────
+
+_DEFAULT_MODEL = "openai:qwen3.5-9b@http://localhost:1234/v1"
+_EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL)
+
+
+def make_model(model_id: str | None = None) -> Any:
+    """Build a Pydantic AI model from a model string."""
+    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    mid = model_id or _EVAL_MODEL_ID
+    if "@" in mid:
+        name, base_url = mid.split("@", 1)
+        name = name.removeprefix("openai:")
+        return OpenAIModel(name, provider=OpenAIProvider(base_url=base_url))
+    # pydantic-ai resolves "openai:gpt-4o-mini" natively
+    return mid
+
+
+EVAL_MODEL = make_model()
+
+# ── Case types ───────────────────────────────────────────────────────
+
+
+@dataclass
+class PlanInput:
+    query: str
+    locale: str
+
+
+@dataclass
+class PlanOutput:
+    steps: list[str]  # tool/step names in execution order
+    intent: str | None  # response.intent
+
+
+@dataclass
+class ExpectedPlan:
+    expected_steps: list[str]
+    expected_intent: str
+
+
+# ── Task under test ──────────────────────────────────────────────────
+
+
+async def evaluate_plan(inp: PlanInput) -> PlanOutput:
+    """Run run_pipeline with a mock DB and capture the plan steps + intent."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from agents.pipeline import run_pipeline
+
+    db = MagicMock()
+    pool = AsyncMock()
+    pool.fetch = AsyncMock(return_value=[])
+    db.pool = pool
+    db.search_points_by_location = AsyncMock(return_value=[])
+
+    # Future-compat stubs for Iter 1+.
+    db.query_bangumi_points = AsyncMock(return_value=[])
+    db.query_nearby_points = AsyncMock(return_value=[])
+    db.find_bangumi_by_title = AsyncMock(return_value=None)
+    db.upsert_bangumi_title = AsyncMock(return_value=None)
+    db.save_route = AsyncMock(return_value=None)
+    db.load_route = AsyncMock(return_value=None)
+
+    result = await run_pipeline(inp.query, db, model=EVAL_MODEL, locale=inp.locale)
+
+    steps: list[str] = []
+    if hasattr(result, "plan") and result.plan is not None:
+        for step in getattr(result.plan, "steps", []) or []:
+            tool = getattr(step, "tool", None)
+            if tool is not None:
+                steps.append(tool if isinstance(tool, str) else tool.value)
+                continue
+
+            step_type = getattr(step, "step_type", None)
+            if step_type is not None:
+                steps.append(
+                    step_type if isinstance(step_type, str) else step_type.value
+                )
+
+    return PlanOutput(steps=steps, intent=getattr(result, "intent", None))
+
+
+# ── Evaluators ───────────────────────────────────────────────────────
+
+
+class StepsMatchEvaluator(Evaluator[PlanInput, PlanOutput]):
+    """Score 1.0 if actual steps == expected_steps, else 0.0."""
+
+    def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
+        expected = ctx.expected_output.expected_steps
+        actual = ctx.output.steps if ctx.output else []
+        return 1.0 if actual == expected else 0.0
+
+
+class IntentMatchEvaluator(Evaluator[PlanInput, PlanOutput]):
+    """Score 1.0 if actual intent == expected_intent."""
+
+    def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
+        expected = ctx.expected_output.expected_intent
+        actual = ctx.output.intent if ctx.output else None
+        return 1.0 if actual == expected else 0.0
+
+
+# ── Load dataset ─────────────────────────────────────────────────────
+
+
+_DATASET_PATH = Path(__file__).parent / "datasets" / "plan_quality_v1.json"
+
+CASES = [
+    Case(
+        name=row["id"],
+        inputs=PlanInput(query=row["query"], locale=row["locale"]),
+        expected_output=ExpectedPlan(
+            expected_steps=row["expected_steps"],
+            expected_intent=row["expected_intent"],
+        ),
+    )
+    for row in json.loads(_DATASET_PATH.read_text())
+]
+
+plan_dataset = Dataset(
+    name="plan_quality_v1",
+    cases=CASES,
+    evaluators=[StepsMatchEvaluator(), IntentMatchEvaluator()],
+)
+
+
+# ── Pytest integration ───────────────────────────────────────────────
+
+
+@pytest.mark.integration
+def test_plan_quality_eval():
+    """Run plan quality eval. Baseline pass rate is recorded for Iter 1 comparison."""
+    report = plan_dataset.evaluate_sync(
+        evaluate_plan,
+        name=f"plan_eval_{_EVAL_MODEL_ID}",
+        max_concurrency=1,
+    )
+    report.print(include_input=True, include_output=True)
+
+    avg = report.averages()
+    steps_score = avg.scores.get("StepsMatchEvaluator", 0)
+    intent_score = avg.scores.get("IntentMatchEvaluator", 0)
+
+    print(f"\n{'=' * 60}")
+    print(f"  Model:          {_EVAL_MODEL_ID}")
+    print(f"  Steps accuracy: {steps_score:.1%}   ← record as Iter 1 baseline")
+    print(f"  Intent accuracy:{intent_score:.1%}")
+    print(f"  Total cases:    {len(CASES)}")
+    print(f"{'=' * 60}")
+    # No assertion — this is a baseline measurement run, not a gate
+
+
+# ── Standalone runner ────────────────────────────────────────────────
+
+
+if __name__ == "__main__":
+    model_arg = None
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg == "--eval-model" and i < len(sys.argv):
+            model_arg = sys.argv[i + 1]
+            break
+        if arg.startswith("--eval-model="):
+            model_arg = arg.split("=", 1)[1]
+            break
+
+    async def main() -> None:
+        mid = model_arg or _EVAL_MODEL_ID
+        model = make_model(model_arg) if model_arg else EVAL_MODEL
+
+        async def _task(inp: PlanInput) -> PlanOutput:
+            # Keep evaluate_plan signature unchanged for Dataset.evaluate_sync.
+            global EVAL_MODEL
+            EVAL_MODEL = model
+            return await evaluate_plan(inp)
+
+        report = await plan_dataset.evaluate(
+            _task,
+            name=f"plan_eval_{mid}",
+            max_concurrency=1,
+        )
+        report.print(include_input=True, include_output=True)
+        avg = report.averages()
+        print(f"\n  Model: {mid}")
+        print(
+            f"  Steps: {avg.scores.get('StepsMatchEvaluator', 0):.1%}  "
+            f"Intent: {avg.scores.get('IntentMatchEvaluator', 0):.1%}  "
+            f"Cases: {len(CASES)}"
+        )
+
+    asyncio.run(main())
