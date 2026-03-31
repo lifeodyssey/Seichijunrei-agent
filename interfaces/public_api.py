@@ -11,6 +11,7 @@ from time import perf_counter
 from typing import Any, Literal
 from uuid import uuid4
 
+import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from agents.executor_agent import PipelineResult, StepResult
@@ -21,6 +22,8 @@ from infrastructure.observability import (
     record_runtime_request,
 )
 from infrastructure.session import SessionStore, create_session_store
+
+logger = structlog.get_logger(__name__)
 
 _MAX_INTERACTIONS = 20
 _MAX_ROUTE_HISTORY = 10
@@ -185,6 +188,21 @@ class RuntimeAPI:
                     status=status,
                     transport="public_api",
                 )
+
+                insert_request_log = getattr(self._db, "insert_request_log", None)
+                if insert_request_log is not None:
+                    try:
+                        await insert_request_log(
+                            session_id=session_id,
+                            query_text=request.text,
+                            locale=request.locale,
+                            plan_steps=_extract_plan_steps(result),
+                            intent=intent,
+                            status=status,
+                            latency_ms=int(elapsed_ms),
+                        )
+                    except Exception:
+                        logger.warning("request_log_failed", session_id=session_id)
 
     async def _load_session_state(self, session_id: str) -> dict[str, Any]:
         state = await self._session_store.get(session_id)
@@ -416,3 +434,24 @@ def _serialize_step_result(step: StepResult) -> dict[str, Any]:
         "error": step.error,
         "data": step.data,
     }
+
+
+def _extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
+    if result is None:
+        return None
+
+    steps: list[str] = []
+    for step in getattr(result.plan, "steps", []) or []:
+        tool = getattr(step, "tool", None)
+        if tool is not None:
+            steps.append(getattr(tool, "value", str(tool)))
+            continue
+
+        step_type = getattr(step, "step_type", None)
+        if step_type is not None:
+            steps.append(getattr(step_type, "value", str(step_type)))
+            continue
+
+        steps.append(str(step))
+
+    return steps

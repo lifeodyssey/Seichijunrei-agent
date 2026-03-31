@@ -133,6 +133,55 @@ class TestRuntimeAPI:
         assert response.route_history[0]["route_id"] == "route-1"
         mock_db.save_route.assert_awaited_once()
 
+    async def test_request_log_called_after_response(self, monkeypatch):
+        """insert_request_log is called once after a successful pipeline run."""
+
+        async def fake_run_pipeline(text, db, *, model=None, locale="ja"):
+            from agents.executor_agent import PipelineResult
+            from agents.planner_agent import ExecutionPlan, ExecutionStep, StepType
+
+            plan = ExecutionPlan(
+                intent="search_by_bangumi",
+                rationale="test",
+                steps=[
+                    ExecutionStep(
+                        step_type=StepType.QUERY_DB,
+                        description="Query points",
+                        params={},
+                    ),
+                    ExecutionStep(
+                        step_type=StepType.FORMAT_RESPONSE,
+                        description="Format response",
+                        params={},
+                    ),
+                ],
+            )
+            result = PipelineResult(intent=plan.intent, plan=plan)
+            result.final_output = {
+                "success": True,
+                "status": "ok",
+                "message": "Found 3 spots.",
+                "data": {},
+            }
+            return result
+
+        monkeypatch.setattr("interfaces.public_api.run_pipeline", fake_run_pipeline)
+
+        db = MagicMock()
+        db.upsert_session = AsyncMock()
+        db.insert_request_log = AsyncMock(return_value="log-1")
+        api = RuntimeAPI(db=db)
+
+        await api.handle(
+            PublicAPIRequest(text="吹響の聖地", locale="ja", session_id="s1")
+        )
+
+        db.insert_request_log.assert_awaited_once()
+        kwargs = db.insert_request_log.call_args.kwargs
+        assert kwargs["query_text"] == "吹響の聖地"
+        assert kwargs["locale"] == "ja"
+        assert kwargs["intent"] == "search_by_bangumi"
+
     async def test_handle_maps_pipeline_failure(self, mock_db):
         mock_db.pool.fetch.side_effect = Exception("db down")
         api = RuntimeAPI(mock_db)

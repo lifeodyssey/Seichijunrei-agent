@@ -339,3 +339,41 @@ class SupabaseClient:
             comment,
         )
         return str(row["id"])
+
+    async def insert_request_log(
+        self,
+        *,
+        session_id: str | None,
+        query_text: str,
+        locale: str,
+        plan_steps: list[str] | None,
+        intent: str | None,
+        status: str,
+        latency_ms: int | None,
+    ) -> str:
+        """Write one request log row for eval/monitoring (best-effort at call site)."""
+        import json
+
+        row = await self.pool.fetchrow(
+            """
+            INSERT INTO request_log (
+                session_id,
+                query_text,
+                locale,
+                plan_steps,
+                intent,
+                status,
+                latency_ms
+            )
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+            RETURNING id
+            """,
+            session_id,
+            query_text,
+            locale,
+            json.dumps(plan_steps) if plan_steps is not None else None,
+            intent,
+            status,
+            latency_ms,
+        )
+        return str(row["id"])
