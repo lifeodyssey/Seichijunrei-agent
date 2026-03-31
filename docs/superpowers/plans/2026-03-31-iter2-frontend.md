@@ -1238,6 +1238,161 @@ git tag iter2-frontend-complete
 
 ---
 
+## Task 13: Deploy — Fix CI/CD Frontend Pipeline + Full Deploy
+
+**Goal:** The current `deploy.yml` only builds the Python container. It never runs `npm run build`, so `frontend/out` is never generated. Fix the pipeline, then deploy both backend and frontend together.
+
+**Files:**
+- Modify: `frontend/next.config.ts` — add `output: 'export'`
+- Modify: `.github/workflows/deploy.yml` — add frontend build step
+- Modify: `.github/workflows/ci.yml` — add frontend lint + build check
+
+### Step 13.1: Enable static export in Next.js
+
+`wrangler.toml` expects `frontend/out` (static assets for Cloudflare ASSETS binding). Next.js must produce this with `output: 'export'`.
+
+In `frontend/next.config.ts`, add the `output` field:
+```typescript
+const nextConfig: NextConfig = {
+  output: "export",           // ← add this line
+  allowedDevOrigins: ["127.0.0.1"],
+  trailingSlash: true,
+  turbopack: {
+    root: frontendRoot,
+  },
+};
+```
+
+**Important:** `output: 'export'` disables Next.js server-side features. Before enabling it, verify nothing in the app uses `getServerSideProps`, `next/headers`, `cookies()`, or Route Handlers that return dynamic responses. If any server-only API routes exist in `app/`, they must be removed — the backend API is handled by the Python container, not Next.js.
+
+Verify the build produces the output directory:
+```bash
+cd frontend && npm run build
+ls out/
+# Expected: index.html and static asset folders
+```
+
+### Step 13.2: Add frontend build to `deploy.yml`
+
+Add a `build-frontend` job that runs in parallel with `build-and-push`, then make `deploy` depend on both.
+
+In `.github/workflows/deploy.yml`:
+```yaml
+  build-frontend:
+    name: Build Frontend (Next.js static export)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build static export
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ""   # relative URLs — Worker proxies /v1/*
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out/
+          retention-days: 1
+```
+
+Update the `deploy` job:
+```yaml
+  deploy:
+    needs: [build-and-push, build-frontend]    # ← was: [build-and-push]
+
+    steps:
+      # Add after checkout:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out/
+      # ... rest of deploy steps unchanged
+```
+
+### Step 13.3: Add frontend checks to `ci.yml`
+
+Add a `frontend` job to `ci.yml` (parallel with the existing `lint` job):
+```yaml
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Lint
+        run: cd frontend && npm run lint
+
+      - name: Type check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Build static export
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ""
+```
+
+### Step 13.4: Commit CI/CD changes
+```bash
+git add frontend/next.config.ts \
+        .github/workflows/deploy.yml \
+        .github/workflows/ci.yml
+git commit -m "ci: add frontend static export build to CI and deploy pipeline"
+```
+
+### Step 13.5: Trigger staging deploy
+```bash
+gh workflow run deploy.yml -f environment=staging
+gh run watch
+```
+
+### Step 13.6: Smoke test staging (full stack)
+```bash
+STAGING_URL="https://seichijunrei-staging.your-workers.dev"
+
+# Static frontend served from ASSETS
+curl -sI "$STAGING_URL/ja/" | grep "HTTP\|content-type"
+# Expected: 200 OK, text/html
+
+# API proxy to Python container
+curl -s -X POST "$STAGING_URL/v1/runtime" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"吹響の聖地","locale":"ja"}' | python -m json.tool
+# Expected: { "intent": "search_bangumi", "ui": {...}, "message": "..." }
+
+# English locale
+curl -sI "$STAGING_URL/en/" | grep "HTTP"
+# Expected: 200 OK
+```
+
+### Step 13.7: (When ready) Trigger production deploy
+```bash
+gh workflow run deploy.yml -f environment=production
+gh run watch
+```
+
+---
+
 ## Appendix: `PilgrimageMap` `height` prop fix (if needed)
 
 If `PilgrimageMap` currently requires `height: number`, update it to accept a string:

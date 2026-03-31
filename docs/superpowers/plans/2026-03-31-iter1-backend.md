@@ -1652,6 +1652,80 @@ git tag iter1-backend-complete
 
 ---
 
+## Task 12: Deploy — Apply Migrations + Staging Deploy
+
+**Goal:** Apply the two new Supabase migrations to production/staging, then trigger a Cloudflare Workers deploy via GitHub Actions. No code changes in this task — just ops.
+
+**Pre-condition:** `make test` and `make test-integration` both pass on main.
+
+**Why this is in Iter 1 and not Iter 2:** The backend container changes independently of the frontend. The CF Worker serves `frontend/out` as static assets; if `frontend/out` hasn't changed yet, the old frontend keeps running fine while the new backend is live. Iter 2 will update the frontend build.
+
+### Step 12.1: Apply migrations to production Supabase
+
+Run against the production `DATABASE_URL` (or via Supabase dashboard SQL editor):
+```bash
+# Apply in order — idempotent (CREATE TABLE IF NOT EXISTS)
+psql "$PRODUCTION_DATABASE_URL" -f infrastructure/supabase/migrations/001_feedback_table.sql
+psql "$PRODUCTION_DATABASE_URL" -f infrastructure/supabase/migrations/002_request_log.sql
+```
+
+Verify:
+```bash
+psql "$PRODUCTION_DATABASE_URL" -c "\dt request_log"
+# → should show the table
+```
+
+### Step 12.2: Verify required secrets exist in GitHub
+
+Go to GitHub repo → Settings → Secrets and Variables → Actions. Confirm all of these exist:
+
+| Secret | Used by |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | wrangler deploy |
+| `CLOUDFLARE_ACCOUNT_ID` | wrangler deploy |
+| `SUPABASE_DB_URL` | container env var |
+| `SUPABASE_URL` | container env var |
+| `SUPABASE_SERVICE_ROLE_KEY` | container env var |
+| `GEMINI_API_KEY` | container env var (fallback model) |
+
+The planner model is controlled by `DEFAULT_AGENT_MODEL` env var in `wrangler.toml`/container. If using a different model in production (e.g., Gemini), ensure `GEMINI_API_KEY` is set and `DEFAULT_AGENT_MODEL` is configured correctly.
+
+### Step 12.3: Trigger staging deploy
+
+```bash
+# Via GitHub CLI:
+gh workflow run deploy.yml -f environment=staging
+gh run watch   # watch progress
+```
+
+Or via GitHub UI: Actions → Deploy to Cloudflare Containers → Run workflow → staging.
+
+### Step 12.4: Smoke test staging
+
+```bash
+STAGING_URL="https://seichijunrei-staging.your-workers.dev"
+
+curl -s "$STAGING_URL/healthz"
+# Expected: {"status":"ok"}
+
+curl -s -X POST "$STAGING_URL/v1/runtime" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"吹響の聖地","locale":"ja"}' | python -m json.tool
+# Expected:
+#   "intent": "search_bangumi"
+#   "ui": {"component": "PilgrimageGrid", ...}
+#   "message": "N件の聖地が見つかりました。"
+```
+
+### Step 12.5: (When ready) Trigger production deploy
+
+```bash
+gh workflow run deploy.yml -f environment=production
+gh run watch
+```
+
+---
+
 ## Iter 0: Eval Infrastructure (can start in parallel with Iter 1 planning)
 
 > Run Iter 0 in parallel with Iter 1. It only adds new endpoints and logging — zero risk to existing code.
