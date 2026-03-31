@@ -9,12 +9,14 @@ interface MessageBubbleProps {
   message: ChatMessage;
   onActivate?: (messageId: string) => void;
   isActive?: boolean;
+  onOpenDrawer?: () => void;
 }
 
 export default function MessageBubble({
   message,
   onActivate,
   isActive = false,
+  onOpenDrawer,
 }: MessageBubbleProps) {
   const { chat: t } = useDict();
 
@@ -53,6 +55,7 @@ export default function MessageBubble({
                 messageId={message.id}
                 onActivate={onActivate}
                 isActive={isActive}
+                onOpenDrawer={onOpenDrawer}
               />
             )}
             {message.response && !message.loading && (
@@ -110,16 +113,21 @@ function ResultAnchor({
   messageId,
   onActivate,
   isActive,
+  onOpenDrawer,
 }: {
   label: string;
   messageId: string;
   onActivate?: (messageId: string) => void;
   isActive: boolean;
+  onOpenDrawer?: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={() => onActivate?.(messageId)}
+      onClick={() => {
+        onActivate?.(messageId);
+        onOpenDrawer?.();
+      }}
       className={[
         "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition",
         isActive

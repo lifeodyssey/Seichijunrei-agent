@@ -9,12 +9,14 @@ interface MessageListProps {
   messages: ChatMessage[];
   onActivate?: (messageId: string) => void;
   activeMessageId?: string | null;
+  onOpenDrawer?: () => void;
 }
 
 export default function MessageList({
   messages,
   onActivate,
   activeMessageId,
+  onOpenDrawer,
 }: MessageListProps) {
   const { chat: t } = useDict();
   const endRef = useRef<HTMLDivElement>(null);
@@ -42,6 +44,7 @@ export default function MessageList({
           message={msg}
           onActivate={onActivate}
           isActive={msg.id === activeMessageId}
+          onOpenDrawer={onOpenDrawer}
         />
       ))}
       <div ref={endRef} />

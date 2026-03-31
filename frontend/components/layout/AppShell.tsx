@@ -4,18 +4,22 @@ import { useCallback, useMemo, useState } from "react";
 import { useSession } from "../../hooks/useSession";
 import { useChat } from "../../hooks/useChat";
 import { useLocale } from "../../lib/i18n-context";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
 import ResultPanel from "./ResultPanel";
+import ResultDrawer from "./ResultDrawer";
 import type { RouteHistoryRecord } from "../../lib/types";
 
 export default function AppShell() {
   const locale = useLocale();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const { sessionId, setSessionId, clearSession } = useSession();
   const { messages, send, sending, clear } = useChat(sessionId, setSessionId, locale);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Extract route history from the latest response that has one
   const routeHistory: RouteHistoryRecord[] =
@@ -61,21 +65,35 @@ export default function AppShell() {
     [handleSend],
   );
 
+  const handleOpenDrawer = useCallback(() => {
+    setDrawerOpen(true);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
-      <Sidebar routeHistory={routeHistory} onNewChat={handleNewChat} />
+      {!isMobile && <Sidebar routeHistory={routeHistory} onNewChat={handleNewChat} />}
 
-      <main className="flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]">
+      <main className={`flex min-h-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)] ${isMobile ? "flex-1" : "w-[360px] shrink-0"}`}>
         <ChatHeader />
         <MessageList
           messages={messages}
           onActivate={handleActivate}
           activeMessageId={activeResultMessageId}
+          onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
         />
         <ChatInput onSend={handleSend} disabled={sending} prefill="" />
       </main>
 
-      <ResultPanel activeResponse={activeResponse} onSuggest={handleSuggest} />
+      {isMobile ? (
+        <ResultDrawer
+          response={activeResponse}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          onSuggest={handleSuggest}
+        />
+      ) : (
+        <ResultPanel activeResponse={activeResponse} onSuggest={handleSuggest} />
+      )}
     </div>
   );
 }
