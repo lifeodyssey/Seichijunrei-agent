@@ -13,7 +13,7 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
 
   if (results.status === "empty" || results.rows.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
+      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
         {t.no_results}
       </div>
     );
@@ -22,28 +22,25 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
   const animeTitle = results.rows[0]?.title_cn || results.rows[0]?.title || "";
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded bg-[var(--color-primary)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">
-          search_by_bangumi
-        </span>
+    <div className="space-y-4">
+      <div className="flex items-baseline gap-3">
         {animeTitle && (
-          <span className="text-sm font-medium text-[var(--color-fg)]">
+          <h2 className="font-[family-name:var(--app-font-display)] text-base font-semibold text-[var(--color-fg)]">
             {animeTitle}
-          </span>
+          </h2>
         )}
         <span className="text-xs text-[var(--color-muted-fg)]">
-          {t.count.replace("{count}", String(results.row_count))} · {results.strategy}
+          {t.count.replace("{count}", String(results.row_count))}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {results.rows.map((point) => (
           <div
             key={point.id}
             className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]"
           >
-            <div className="relative aspect-[16/10] bg-[var(--color-muted)]">
+            <div className="relative aspect-[4/3] bg-[var(--color-muted)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={point.screenshot_url}
@@ -52,17 +49,14 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
                 loading="lazy"
               />
             </div>
-            <div className="space-y-1 p-3">
-              <p className="text-sm font-medium text-[var(--color-fg)]">
+            <div className="space-y-0.5 p-2.5">
+              <p className="truncate text-xs font-medium text-[var(--color-fg)]">
                 {point.name_cn || point.name}
               </p>
-              <p className="text-xs text-[var(--color-muted-fg)]">
-                {point.title_cn || point.title}
-              </p>
               {point.episode != null && point.episode !== 0 && (
-                <span className="inline-block rounded bg-[var(--color-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-fg)]">
+                <p className="text-[10px] text-[var(--color-muted-fg)]">
                   {t.episode.replace("{ep}", String(point.episode))}
-                </span>
+                </p>
               )}
             </div>
           </div>

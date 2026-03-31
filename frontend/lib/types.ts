@@ -86,7 +86,7 @@ export interface QAData {
 export interface RuntimeRequest {
   text: string;
   session_id?: string | null;
-  locale?: string;
+  locale?: "ja" | "zh" | "en";
   model?: string | null;
   include_debug?: boolean;
 }
@@ -106,6 +106,11 @@ export interface RouteHistoryRecord {
   created_at: string; // ISO 8601
 }
 
+export interface UIDescriptor {
+  component: string;
+  props: Record<string, unknown>;
+}
+
 export interface RuntimeResponse {
   success: boolean;
   status: string;
@@ -123,6 +128,7 @@ export interface RuntimeResponse {
   route_history: RouteHistoryRecord[];
   errors: PublicAPIError[];
   debug?: Record<string, unknown> | null;
+  ui?: UIDescriptor;
 }
 
 // ── Frontend-only types ────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import type { ChatMessage, RuntimeResponse } from "../lib/types";
+import type { ChatMessage, RuntimeRequest, RuntimeResponse } from "../lib/types";
 import { sendMessage } from "../lib/api";
 
 let msgCounter = 0;
@@ -12,7 +12,7 @@ function nextId() {
 export function useChat(
   sessionId: string | null,
   onSessionId: (id: string) => void,
-  locale?: string,
+  locale?: RuntimeRequest["locale"],
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);

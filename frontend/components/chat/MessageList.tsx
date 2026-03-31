@@ -1,16 +1,21 @@
 "use client";
 
-import type { ChatMessage } from "../../lib/types";
-import MessageBubble from "./MessageBubble";
 import { useEffect, useRef } from "react";
+import type { ChatMessage } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import MessageBubble from "./MessageBubble";
 
 interface MessageListProps {
   messages: ChatMessage[];
-  onSuggest?: (text: string) => void;
+  onActivate?: (messageId: string) => void;
+  activeMessageId?: string | null;
 }
 
-export default function MessageList({ messages, onSuggest }: MessageListProps) {
+export default function MessageList({
+  messages,
+  onActivate,
+  activeMessageId,
+}: MessageListProps) {
   const { chat: t } = useDict();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -30,9 +35,14 @@ export default function MessageList({ messages, onSuggest }: MessageListProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+    <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
       {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} onSuggest={onSuggest} />
+        <MessageBubble
+          key={msg.id}
+          message={msg}
+          onActivate={onActivate}
+          isActive={msg.id === activeMessageId}
+        />
       ))}
       <div ref={endRef} />
     </div>

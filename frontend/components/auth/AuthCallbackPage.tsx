@@ -27,8 +27,8 @@ function getSupabaseClient() {
 }
 
 function buildRedirectPath(locale?: string) {
-  if (locale) return `/${locale}/design/`;
-  return `/${pickPreferredLocale(undefined)}/design/`;
+  if (locale) return `/${locale}/`;
+  return `/${pickPreferredLocale(undefined)}/`;
 }
 
 function getMessage(locale: string, key: "loading" | "error" | "notConfigured") {
@@ -43,9 +43,14 @@ function getMessage(locale: string, key: "loading" | "error" | "notConfigured") 
       error: "无法确认登录链接。",
       notConfigured: "登录配置尚未完成。",
     },
+    en: {
+      loading: "Completing sign-in...",
+      error: "Could not verify the sign-in link.",
+      notConfigured: "Sign-in is not configured yet.",
+    },
   } as const;
 
-  return messages[locale === "zh" ? "zh" : "ja"][key];
+  return messages[locale === "zh" ? "zh" : locale === "en" ? "en" : "ja"][key];
 }
 
 export function AuthCallbackPage({ locale }: { locale?: string }) {

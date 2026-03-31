@@ -39,7 +39,7 @@ function FitBounds({ points }: { points: PilgrimagePoint[] }) {
 interface PilgrimageMapProps {
   points: PilgrimagePoint[];
   route?: PilgrimagePoint[];
-  height?: number;
+  height?: number | string;
 }
 
 export default function PilgrimageMap({

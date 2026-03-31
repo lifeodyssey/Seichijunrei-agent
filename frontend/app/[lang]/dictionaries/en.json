@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "title": "Seichijunrei AI",
+    "description": "Find anime pilgrimage spots and plan your route"
+  },
+  "auth": {
+    "title": "Seichijunrei AI",
+    "subtitle": "Internal beta",
+    "tab_waitlist": "Join beta",
+    "tab_login": "Log in",
+    "email_label": "Email address",
+    "email_placeholder": "you@example.com",
+    "submitting": "Sending...",
+    "btn_waitlist": "Request access",
+    "btn_login": "Send login link",
+    "loading": "Loading...",
+    "already_registered": "This email is already registered.",
+    "not_configured": "Sign-in is not configured yet.",
+    "error": "Error: {message}",
+    "waitlist_success": "Registered! We'll send your login link once approved.",
+    "not_registered": "This email isn't registered for the beta. Please sign up first.",
+    "pending_review": "Your application is under review. Please wait.",
+    "magic_link_sent": "Login link sent — check your inbox."
+  },
+  "chat": {
+    "placeholder": "Find pilgrimage spots or plan a route…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "bot_name": "Seichijunrei AI",
+    "bot_icon": "聖",
+    "feedback_sent": "✓ Feedback sent",
+    "feedback_placeholder": "What went wrong? (optional)",
+    "welcome_title": "Seichijunrei AI",
+    "welcome_subtitle": "Find anime filming locations and plan pilgrimage routes"
+  },
+  "sidebar": {
+    "logo_icon": "聖",
+    "logo_text": "Seichijunrei",
+    "new_chat": "+ New chat",
+    "recent": "Recent searches",
+    "spots": "{count} spots",
+    "footer": "Pilgrim"
+  },
+  "header": {
+    "title": "Seichijunrei AI",
+    "subtitle": "Find anime locations · Plan your route",
+    "map_open": "Close map",
+    "map_closed": "Map"
+  },
+  "map": {
+    "no_results": "No pilgrimage spots found nearby.",
+    "count": "{count} spots",
+    "episode": "Ep. {ep}"
+  },
+  "grid": {
+    "no_results": "No results found. Try a different anime title.",
+    "count": "{count} spots",
+    "episode": "Ep. {ep}"
+  },
+  "route": {
+    "no_results": "Could not create a route.",
+    "spots": "{count} stops",
+    "no_coords": "⚠ {count} missing coordinates",
+    "episode": "Ep. {ep}"
+  },
+  "clarification": {
+    "examples_label": "For example:",
+    "suggestions": [
+      { "label": "Search by anime", "query": "Show me filming locations for Your Name" },
+      { "label": "Search by location", "query": "What anime spots are near Uji Station" },
+      { "label": "Plan a route", "query": "Plan a route for Hibike Euphonium spots from Kyoto" }
+    ]
+  }
+}

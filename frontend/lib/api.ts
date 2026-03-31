@@ -10,7 +10,7 @@ const RUNTIME_URL =
 export async function sendMessage(
   text: string,
   sessionId?: string | null,
-  locale?: string,
+  locale?: RuntimeRequest["locale"],
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
   if (sessionId) body.session_id = sessionId;

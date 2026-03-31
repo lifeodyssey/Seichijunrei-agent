@@ -12,7 +12,7 @@ export default function Sidebar({ routeHistory, onNewChat }: SidebarProps) {
   const { sidebar: t } = useDict();
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
+    <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-[var(--color-sidebar-border)] px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-sm font-bold text-[var(--color-primary-fg)]">

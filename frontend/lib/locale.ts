@@ -1,4 +1,4 @@
-export const SUPPORTED_LOCALES = ["ja", "zh"] as const;
+export const SUPPORTED_LOCALES = ["ja", "zh", "en"] as const;
 
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
@@ -11,6 +11,7 @@ export function pickPreferredLocale(
     const normalized = language.toLowerCase();
     if (normalized.startsWith("zh")) return "zh";
     if (normalized.startsWith("ja")) return "ja";
+    if (normalized.startsWith("en")) return "en";
   }
 
   return DEFAULT_LOCALE;

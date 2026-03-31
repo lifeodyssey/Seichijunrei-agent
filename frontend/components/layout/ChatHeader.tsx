@@ -1,44 +1,43 @@
 "use client";
 
-import { useDict } from "../../lib/i18n-context";
+import { useDict, useLocale } from "../../lib/i18n-context";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { SUPPORTED_LOCALES } from "../../lib/locale";
 
-interface ChatHeaderProps {
-  onToggleMap?: () => void;
-  mapOpen?: boolean;
-}
+const LOCALE_LABELS: Record<(typeof SUPPORTED_LOCALES)[number], string> = {
+  ja: "日本語",
+  zh: "中文",
+  en: "EN",
+};
 
-export default function ChatHeader({ onToggleMap, mapOpen }: ChatHeaderProps) {
+export default function ChatHeader() {
   const { header: t } = useDict();
-  const pathname = usePathname();
-  const currentLang = pathname.startsWith("/zh") ? "zh" : "ja";
-  const otherLang = currentLang === "ja" ? "zh" : "ja";
-  const otherPath = pathname.replace(`/${currentLang}`, `/${otherLang}`);
+  const locale = useLocale();
+  const currentLocale = SUPPORTED_LOCALES.includes(locale as (typeof SUPPORTED_LOCALES)[number])
+    ? (locale as (typeof SUPPORTED_LOCALES)[number])
+    : "ja";
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-6">
       <div>
-        <h1 className="text-sm font-semibold text-[var(--color-fg)]">{t.title}</h1>
-        <p className="text-xs text-[var(--color-muted-fg)]">
-          {t.subtitle}
-        </p>
+        <h1 className="font-[family-name:var(--app-font-display)] text-sm font-semibold text-[var(--color-fg)]">{t.title}</h1>
+        <p className="text-xs text-[var(--color-muted-fg)]">{t.subtitle}</p>
       </div>
-      <div className="flex items-center gap-2">
-        <Link
-          href={otherPath}
-          className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg)] transition hover:bg-[var(--color-secondary)]"
-        >
-          {otherLang === "zh" ? "中文" : "日本語"}
-        </Link>
-        {onToggleMap && (
-          <button
-            onClick={onToggleMap}
-            className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg)] transition hover:bg-[var(--color-secondary)]"
+      <div className="flex items-center gap-1.5">
+        {SUPPORTED_LOCALES.map((lang) => (
+          <Link
+            key={lang}
+            href={`/${lang}/`}
+            className={[
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition",
+              lang === currentLocale
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                : "border-[var(--color-border)] text-[var(--color-fg)] hover:bg-[var(--color-secondary)]",
+            ].join(" ")}
           >
-            {mapOpen ? t.map_open : t.map_closed}
-          </button>
-        )}
+            {LOCALE_LABELS[lang]}
+          </Link>
+        ))}
       </div>
     </header>
   );
