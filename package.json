@@ -1,0 +1,15 @@
+{
+  "name": "seichijunrei-cloudflare-worker",
+  "private": true,
+  "scripts": {
+    "build:frontend": "npm --prefix frontend run build",
+    "deploy": "npm run build:frontend && npx wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.0.25"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  }
+}

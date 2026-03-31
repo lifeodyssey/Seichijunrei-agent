@@ -46,6 +46,7 @@ def create_http_app(
     app[_SETTINGS_KEY] = resolved_settings
     app.cleanup_ctx.append(_observability_context(resolved_settings))
 
+    app.router.add_get("/", _handle_root)
     app.router.add_get("/healthz", _handle_health)
     app.router.add_post("/v1/runtime", _handle_runtime)
     app.router.add_post("/v1/feedback", _handle_feedback)
@@ -69,6 +70,21 @@ def main() -> None:
     settings = get_settings()
     app = create_http_app(settings=settings)
     web.run_app(app, host=settings.service_host, port=settings.service_port)
+
+
+async def _handle_root(request: web.Request) -> web.Response:
+    settings = request.app[_SETTINGS_KEY]
+    payload = {
+        "service": "seichijunrei-runtime",
+        "status": "ok",
+        "app_env": settings.app_env,
+        "endpoints": {
+            "healthz": "/healthz",
+            "runtime": "/v1/runtime",
+            "feedback": "/v1/feedback",
+        },
+    }
+    return web.json_response(payload)
 
 
 async def _handle_health(request: web.Request) -> web.Response:

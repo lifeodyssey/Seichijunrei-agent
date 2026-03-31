@@ -11,10 +11,15 @@ name = "seichijunrei"
 compatibility_date = "2025-03-01"
 main = "src/worker.js"
 
+[assets]
+directory = "./frontend/out"
+binding = "ASSETS"
+run_worker_first = ["/healthz", "/v1/*"]
+
 [[containers]]
 class_name = "RuntimeContainer"
-# Image is updated by deploy.yml via sed before wrangler deploy
-image = "ghcr.io/OWNER/seichijunrei-agent:latest"
+# Build the runtime image directly from the repository Dockerfile.
+image = "./Dockerfile"
 max_instances = 3
 
 [[durable_objects.bindings]]
@@ -23,4 +28,4 @@ class_name = "RuntimeContainer"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["RuntimeContainer"]
+new_sqlite_classes = ["RuntimeContainer"]
