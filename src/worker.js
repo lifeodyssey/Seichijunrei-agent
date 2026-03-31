@@ -69,6 +69,85 @@ function shouldProxyToContainer(pathname) {
   return pathname === "/healthz" || pathname.startsWith("/v1/");
 }
 
+// ── Auth helpers ─────────────────────────────────────────────────────
+
+async function validateJwt(token, env) {
+  try {
+    const resp = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: env.SUPABASE_ANON_KEY,
+      },
+    });
+    if (!resp.ok) return { ok: false };
+    const user = await resp.json();
+    return { ok: true, userId: user.id };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function validateApiKey(rawKey, env) {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(rawKey);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const keyHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+    const resp = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/api_keys?key_hash=eq.${keyHash}&revoked=eq.false&select=user_id`,
+      {
+        headers: {
+          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      }
+    );
+    if (!resp.ok) return { ok: false };
+    const rows = await resp.json();
+    if (!rows.length) return { ok: false };
+
+    // Update last_used_at best-effort
+    fetch(
+      `${env.SUPABASE_URL}/rest/v1/api_keys?key_hash=eq.${keyHash}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ last_used_at: new Date().toISOString() }),
+      }
+    );
+
+    return { ok: true, userId: rows[0].user_id };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function authenticate(request, env) {
+  const authHeader = request.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) return { ok: false };
+  const token = authHeader.slice(7).trim();
+  if (!token) return { ok: false };
+
+  if (token.startsWith("sk_")) {
+    const result = await validateApiKey(token, env);
+    return result.ok
+      ? { ok: true, userId: result.userId, userType: "agent" }
+      : { ok: false };
+  }
+
+  const result = await validateJwt(token, env);
+  return result.ok
+    ? { ok: true, userId: result.userId, userType: "human" }
+    : { ok: false };
+}
+
 export class RuntimeContainer extends Container {
   defaultPort = 8080;
   requiredPorts = [8080];
@@ -83,13 +162,38 @@ export class RuntimeContainer extends Container {
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
-    if (!shouldProxyToContainer(pathname)) {
+
+    // Static assets and health check pass through without auth.
+    if (pathname === "/healthz") {
+      const id = env.CONTAINER.idFromName("default");
+      return env.CONTAINER.get(id).fetch(request);
+    }
+
+    if (!pathname.startsWith("/v1/")) {
       return env.ASSETS.fetch(request);
     }
+
+    // All /v1/* routes require authentication.
+    const auth = await authenticate(request, env);
+    if (!auth.ok) {
+      return new Response(
+        JSON.stringify({ error: { code: "unauthorized", message: "Valid credentials required." } }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Forward with identity headers so the container can trust them.
+    const authedRequest = new Request(request, {
+      headers: new Headers({
+        ...Object.fromEntries(request.headers),
+        "X-User-Id": auth.userId,
+        "X-User-Type": auth.userType,
+      }),
+    });
 
     // All instances share the same container ("default") so the in-memory
     // session backend remains consistent across requests.
     const id = env.CONTAINER.idFromName("default");
-    return env.CONTAINER.get(id).fetch(request);
+    return env.CONTAINER.get(id).fetch(authedRequest);
   },
 };

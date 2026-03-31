@@ -1,7 +1,14 @@
 import type { RuntimeRequest, RuntimeResponse } from "./types";
+import { supabase } from "./supabase";
 
 const RUNTIME_URL =
   (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "").replace(/\/$/, "");
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return {};
+  return { Authorization: `Bearer ${session.access_token}` };
+}
 
 /**
  * Send a user message to the backend runtime and return the typed response.
@@ -18,7 +25,7 @@ export async function sendMessage(
 
   const res = await fetch(`${RUNTIME_URL}/v1/runtime`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
     body: JSON.stringify(body),
   });
 
@@ -44,7 +51,7 @@ export async function submitFeedback(params: {
 }): Promise<{ feedback_id: string }> {
   const res = await fetch(`${RUNTIME_URL}/v1/feedback`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
     body: JSON.stringify(params),
   });
 
