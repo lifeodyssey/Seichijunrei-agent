@@ -135,6 +135,30 @@ class SupabaseClient:
         )
         await self.pool.execute(sql, bangumi_id, *fields.values())
 
+    async def find_bangumi_by_title(self, title: str) -> str | None:
+        """Find a bangumi ID by matching title or title_cn."""
+        row = await self.pool.fetchrow(
+            """
+            SELECT id FROM bangumi
+            WHERE title ILIKE $1 OR title_cn ILIKE $1
+            LIMIT 1
+            """,
+            f"%{title}%",
+        )
+        return str(row["id"]) if row else None
+
+    async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
+        """Insert a bangumi title if the bangumi row does not already exist."""
+        await self.pool.execute(
+            """
+            INSERT INTO bangumi (id, title)
+            VALUES ($1, $2)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            bangumi_id,
+            title,
+        )
+
     # --- Points ---
 
     async def get_points_by_bangumi(self, bangumi_id: str) -> list[asyncpg.Record]:
