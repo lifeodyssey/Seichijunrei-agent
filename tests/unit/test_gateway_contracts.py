@@ -312,6 +312,30 @@ class TestBangumiGatewayContract:
         mock_bangumi_client.close.assert_called_once()
 
 
+class TestBangumiClientGatewaySearchByTitle:
+    @pytest.mark.asyncio
+    async def test_returns_bangumi_id_on_hit(self):
+        mock_client = AsyncMock()
+        mock_client.search_subject = AsyncMock(
+            return_value=[{"id": 6718, "name": "進撃の巨人"}]
+        )
+        gateway = BangumiClientGateway(client=mock_client)
+
+        result = await gateway.search_by_title("進撃の巨人")
+
+        assert result == "6718"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_empty_results(self):
+        mock_client = AsyncMock()
+        mock_client.search_subject = AsyncMock(return_value=[])
+        gateway = BangumiClientGateway(client=mock_client)
+
+        result = await gateway.search_by_title("completely unknown anime xyz")
+
+        assert result is None
+
+
 # --- RoutePlanner Contract Tests ---
 
 
