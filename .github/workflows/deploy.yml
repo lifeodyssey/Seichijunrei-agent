@@ -27,6 +27,9 @@ jobs:
       - name: Build static export
         run: npm run build
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
