@@ -38,10 +38,15 @@ export default function MessageList({
   return (
     <div className="flex-1 overflow-y-auto py-6">
       <div className="mx-auto w-full max-w-2xl space-y-5 px-5">
-        {messages.map((msg) => (
+        {messages.map((msg, idx) => (
           <MessageBubble
             key={msg.id}
             message={msg}
+            userQuery={
+              msg.role === "assistant"
+                ? (messages.slice(0, idx).findLast((m) => m.role === "user")?.text ?? "")
+                : undefined
+            }
             onActivate={onActivate}
             isActive={msg.id === activeMessageId}
             onOpenDrawer={onOpenDrawer}

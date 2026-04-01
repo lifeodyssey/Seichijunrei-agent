@@ -16,6 +16,7 @@ export default function ChatHeader({ onNewChat }: ChatHeaderProps) {
       </h1>
       {onNewChat && (
         <button
+          type="button"
           onClick={onNewChat}
           className="rounded-md px-3 py-1.5 text-xs font-light text-[var(--color-primary)] transition hover:bg-[var(--color-muted)]"
           style={{ transitionDuration: "var(--duration-fast)" }}

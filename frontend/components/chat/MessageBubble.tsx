@@ -7,6 +7,7 @@ import { useDict } from "../../lib/i18n-context";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  userQuery?: string;
   onActivate?: (messageId: string) => void;
   isActive?: boolean;
   onOpenDrawer?: () => void;
@@ -14,6 +15,7 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({
   message,
+  userQuery,
   onActivate,
   isActive = false,
   onOpenDrawer,
@@ -66,7 +68,7 @@ export default function MessageBubble({
             />
           )}
           {message.response && !message.loading && (
-            <FeedbackButtons message={message} />
+            <FeedbackButtons message={message} userQuery={userQuery ?? ""} />
           )}
         </>
       )}
@@ -147,7 +149,7 @@ function ResultAnchor({
   );
 }
 
-function FeedbackButtons({ message }: { message: ChatMessage }) {
+function FeedbackButtons({ message, userQuery }: { message: ChatMessage; userQuery: string }) {
   const { chat: t } = useDict();
   const [state, setState] = useState<"idle" | "commenting" | "submitted">("idle");
   const [comment, setComment] = useState("");
@@ -161,7 +163,7 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
     try {
       await submitFeedback({
         session_id: message.response?.session_id,
-        query_text: message.text,
+        query_text: userQuery,
         intent: message.response?.intent ?? "unknown",
         rating,
         comment: comment || undefined,

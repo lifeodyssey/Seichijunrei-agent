@@ -51,12 +51,15 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={point.screenshot_url}
-                alt={point.name_cn || point.name}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
+              {point.screenshot_url && (
+                <img
+                  src={point.screenshot_url}
+                  alt={point.name_cn || point.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              )}
             </div>
 
             {/* Episode overlay */}
