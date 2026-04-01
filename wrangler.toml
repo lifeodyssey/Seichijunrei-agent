@@ -1,11 +1,18 @@
 # Cloudflare Workers + Containers configuration
 # https://developers.cloudflare.com/workers/containers/
 #
-# Required GitHub Secrets for deploy.yml:
-#   CLOUDFLARE_API_TOKEN   — API token with Workers:Edit + Containers:Edit permissions
-#   CLOUDFLARE_ACCOUNT_ID  — Your Cloudflare account ID (visible in dashboard URL)
-#   SUPABASE_DB_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-#   GEMINI_API_KEY
+# Required GitHub Secrets (set in repo Settings → Secrets → Actions):
+#   CLOUDFLARE_API_TOKEN       — Workers:Edit + Containers:Edit + Account:Read
+#   CLOUDFLARE_ACCOUNT_ID      — Visible in dashboard URL
+#   SUPABASE_URL               — https://<project>.supabase.co
+#   SUPABASE_ANON_KEY          — Public anon key (used by worker for JWT validation)
+#   SUPABASE_SERVICE_ROLE_KEY  — Service role key (used by worker for api_key lookup)
+#   SUPABASE_DB_URL            — postgres://... (used by container)
+#   GEMINI_API_KEY             — Google Gemini API key
+#
+# Optional secrets (add when available):
+#   LOGFIRE_TOKEN              — From logfire.pydantic.dev (observability)
+#   BANGUMI_API_KEY            — Bangumi.tv personal token
 
 name = "seichijunrei"
 compatibility_date = "2025-03-01"
@@ -18,14 +25,51 @@ run_worker_first = ["/healthz", "/v1/*"]
 
 [[containers]]
 class_name = "RuntimeContainer"
-# Build the runtime image directly from the repository Dockerfile.
+# Local dev: wrangler builds from Dockerfile.
+# CI: replaced at deploy time with the GHCR digest via sed.
 image = "./Dockerfile"
-max_instances = 3
+max_instances = 1
 
 [[durable_objects.bindings]]
 name = "CONTAINER"
 class_name = "RuntimeContainer"
 
 [[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RuntimeContainer"]
+
+# ── Staging environment ───────────────────────────────────────────────────────
+
+[env.staging]
+name = "seichijunrei-staging"
+
+[[env.staging.containers]]
+class_name = "RuntimeContainer"
+image = "./Dockerfile"
+max_instances = 1
+
+[[env.staging.durable_objects.bindings]]
+name = "CONTAINER"
+class_name = "RuntimeContainer"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["RuntimeContainer"]
+
+# ── Production environment ────────────────────────────────────────────────────
+
+[env.production]
+name = "seichijunrei"
+
+[[env.production.containers]]
+class_name = "RuntimeContainer"
+image = "./Dockerfile"
+max_instances = 3
+
+[[env.production.durable_objects.bindings]]
+name = "CONTAINER"
+class_name = "RuntimeContainer"
+
+[[env.production.migrations]]
 tag = "v1"
 new_sqlite_classes = ["RuntimeContainer"]
