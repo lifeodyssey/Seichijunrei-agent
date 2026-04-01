@@ -18,7 +18,9 @@ function getSupabaseClient() {
     return supabaseClient;
   }
 
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { flowType: 'implicit' },
+  });
   return supabaseClient;
 }
 
@@ -31,31 +33,38 @@ export function AuthCallbackPage() {
     let cancelled = false;
 
     async function completeAuth() {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get("code");
-      const tokenHash = url.searchParams.get("token_hash");
-      const type = url.searchParams.get("type");
-
       try {
         const supabase = getSupabaseClient();
         if (!supabase) throw new Error(t.not_configured);
 
+        // Implicit flow: Supabase auto-extracts access_token from the URL hash
+        // on client init, so getSession() already returns the session.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          if (!cancelled) window.location.replace("/");
+          return;
+        }
+
+        // Fallback: PKCE code or OTP token_hash in query params
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        const tokenHash = url.searchParams.get("token_hash");
+        const type = url.searchParams.get("type");
+
         if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
         } else if (tokenHash && type) {
-          const { error: verifyError } = await supabase.auth.verifyOtp({
+          const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: type as EmailOtpType,
           });
-          if (verifyError) throw verifyError;
+          if (error) throw error;
         } else {
           throw new Error(t.callback_error);
         }
 
-        if (!cancelled) {
-          window.location.replace("/");
-        }
+        if (!cancelled) window.location.replace("/");
       } catch (authError) {
         if (cancelled) return;
         const message = authError instanceof Error ? authError.message : t.callback_error;

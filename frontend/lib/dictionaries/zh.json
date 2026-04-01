@@ -30,7 +30,10 @@
     "callback_error": "无法确认登录链接。",
     "callback_redirect_hint": "会话恢复后将自动跳转。",
     "callback_error_hint": "请重新申请登录链接后再试。",
-    "callback_open": "打开工作区"
+    "callback_open": "打开工作区",
+    "check_email_heading": "请查收邮件",
+    "check_email_body": "点击邮件中的链接即可登录。",
+    "back_to_login": "返回"
   },
   "chat": {
     "placeholder": "搜索取景地 · 规划巡礼路线…",

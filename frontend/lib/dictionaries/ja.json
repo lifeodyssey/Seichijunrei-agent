@@ -30,7 +30,10 @@
     "callback_error": "ログインリンクを確認できませんでした。",
     "callback_redirect_hint": "セッション復元後に自動的にリダイレクトされます。",
     "callback_error_hint": "新しいマジックリンクをリクエストして再試行してください。",
-    "callback_open": "ワークスペースを開く"
+    "callback_open": "ワークスペースを開く",
+    "check_email_heading": "メールをご確認ください",
+    "check_email_body": "送信されたリンクをクリックしてログインしてください。",
+    "back_to_login": "戻る"
   },
   "chat": {
     "placeholder": "聖地を探す・ルートを計画する…",

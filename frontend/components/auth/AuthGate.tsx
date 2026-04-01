@@ -20,7 +20,9 @@ function getSupabaseClient() {
     return supabaseClient;
   }
 
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { flowType: 'implicit' },
+  });
   return supabaseClient;
 }
 
@@ -38,6 +40,7 @@ export default function AuthGate() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
   const effectiveStatus = status ?? (!authConfigured ? t.not_configured : null);
 
   useEffect(() => {
@@ -86,7 +89,11 @@ export default function AuthGate() {
       email: normalizedEmail,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback/` },
     });
-    setStatus(error ? t.error.replace("{message}", error.message) : t.magic_link_sent);
+    if (error) {
+      setStatus(t.error.replace("{message}", error.message));
+    } else {
+      setSent(true);
+    }
     setSubmitting(false);
   }
 
@@ -181,37 +188,53 @@ export default function AuthGate() {
           ))}
         </div>
 
-        {/* Form */}
-        <form onSubmit={tab === "waitlist" ? handleWaitlist : handleLogin} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-medium text-[var(--color-muted-fg)]">
-              {t.email_label}
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t.email_placeholder}
-              className="w-full border-b border-[var(--color-border)] bg-transparent py-2 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-border)] focus:border-[var(--color-primary)] focus:outline-none"
-            />
+        {/* Form or success card */}
+        {sent ? (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-[var(--color-fg)]">{t.check_email_heading}</p>
+            <p className="text-xs leading-relaxed text-[var(--color-muted-fg)]">{t.check_email_body}</p>
+            <button
+              type="button"
+              onClick={() => { setSent(false); setStatus(null); }}
+              className="text-xs underline text-[var(--color-muted-fg)]"
+            >
+              {t.back_to_login}
+            </button>
           </div>
+        ) : (
+          <>
+            <form onSubmit={tab === "waitlist" ? handleWaitlist : handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="text-xs font-medium text-[var(--color-muted-fg)]">
+                  {t.email_label}
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t.email_placeholder}
+                  className="w-full border-b border-[var(--color-border)] bg-transparent py-2 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-border)] focus:border-[var(--color-primary)] focus:outline-none"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={submitting || !authConfigured}
-            className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-40"
-            style={{ transitionDuration: "var(--duration-fast)" }}
-          >
-            {submitting ? t.submitting : tab === "waitlist" ? t.btn_waitlist : t.btn_login}
-          </button>
-        </form>
+              <button
+                type="submit"
+                disabled={submitting || !authConfigured}
+                className="w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-40"
+                style={{ transitionDuration: "var(--duration-fast)" }}
+              >
+                {submitting ? t.submitting : tab === "waitlist" ? t.btn_waitlist : t.btn_login}
+              </button>
+            </form>
 
-        {effectiveStatus && (
-          <p className="mt-5 text-xs font-light leading-relaxed text-[var(--color-muted-fg)]">
-            {effectiveStatus}
-          </p>
+            {effectiveStatus && (
+              <p className="mt-5 text-xs font-light leading-relaxed text-[var(--color-muted-fg)]">
+                {effectiveStatus}
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
