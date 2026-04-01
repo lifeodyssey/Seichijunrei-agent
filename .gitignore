@@ -86,3 +86,5 @@ images/
 *.pen
 .next/
 .wrangler/
+.venv
+node_modules

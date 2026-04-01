@@ -135,6 +135,30 @@ class SupabaseClient:
         )
         await self.pool.execute(sql, bangumi_id, *fields.values())
 
+    async def find_bangumi_by_title(self, title: str) -> str | None:
+        """Find a bangumi ID by matching title or title_cn."""
+        row = await self.pool.fetchrow(
+            """
+            SELECT id FROM bangumi
+            WHERE title ILIKE $1 OR title_cn ILIKE $1
+            LIMIT 1
+            """,
+            f"%{title}%",
+        )
+        return str(row["id"]) if row else None
+
+    async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
+        """Insert a bangumi title if the bangumi row does not already exist."""
+        await self.pool.execute(
+            """
+            INSERT INTO bangumi (id, title)
+            VALUES ($1, $2)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            bangumi_id,
+            title,
+        )
+
     # --- Points ---
 
     async def get_points_by_bangumi(self, bangumi_id: str) -> list[asyncpg.Record]:
@@ -339,3 +363,78 @@ class SupabaseClient:
             comment,
         )
         return str(row["id"])
+
+    async def insert_request_log(
+        self,
+        *,
+        session_id: str | None,
+        query_text: str,
+        locale: str,
+        plan_steps: list[str] | None,
+        intent: str | None,
+        status: str,
+        latency_ms: int | None,
+    ) -> str:
+        """Write one request log row for eval/monitoring (best-effort at call site)."""
+        import json
+
+        row = await self.pool.fetchrow(
+            """
+            INSERT INTO request_log (
+                session_id,
+                query_text,
+                locale,
+                plan_steps,
+                intent,
+                status,
+                latency_ms
+            )
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+            RETURNING id
+            """,
+            session_id,
+            query_text,
+            locale,
+            json.dumps(plan_steps) if plan_steps is not None else None,
+            intent,
+            status,
+            latency_ms,
+        )
+        return str(row["id"])
+
+    async def fetch_bad_feedback(self, *, limit: int = 100) -> list[dict]:
+        """Return rows from feedback table where rating = 'bad'."""
+        rows = await self.pool.fetch(
+            """
+            SELECT id, query_text, intent, comment, created_at
+            FROM feedback
+            WHERE rating = 'bad'
+            ORDER BY created_at DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+        return [dict(r) for r in rows]
+
+    async def fetch_request_log_unscored(self, *, limit: int = 200) -> list[dict]:
+        """Return request_log rows that have not yet been scored."""
+        rows = await self.pool.fetch(
+            """
+            SELECT id, query_text, locale, plan_steps, intent
+            FROM request_log
+            WHERE plan_quality_score IS NULL
+              AND status = 'ok'
+            ORDER BY created_at DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+        return [dict(r) for r in rows]
+
+    async def update_request_log_score(self, *, log_id: str, score: float) -> None:
+        """Write the LLM-assigned quality score back to a request_log row."""
+        await self.pool.execute(
+            "UPDATE request_log SET plan_quality_score = $1 WHERE id = $2",
+            score,
+            log_id,
+        )

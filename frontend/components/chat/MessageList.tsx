@@ -1,16 +1,23 @@
 "use client";
 
-import type { ChatMessage } from "../../lib/types";
-import MessageBubble from "./MessageBubble";
 import { useEffect, useRef } from "react";
+import type { ChatMessage } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import MessageBubble from "./MessageBubble";
 
 interface MessageListProps {
   messages: ChatMessage[];
-  onSuggest?: (text: string) => void;
+  onActivate?: (messageId: string) => void;
+  activeMessageId?: string | null;
+  onOpenDrawer?: () => void;
 }
 
-export default function MessageList({ messages, onSuggest }: MessageListProps) {
+export default function MessageList({
+  messages,
+  onActivate,
+  activeMessageId,
+  onOpenDrawer,
+}: MessageListProps) {
   const { chat: t } = useDict();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -20,21 +27,33 @@ export default function MessageList({ messages, onSuggest }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-[var(--color-muted-fg)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">{t.welcome_title}</p>
-          <p className="mt-1 text-sm">{t.welcome_subtitle}</p>
-        </div>
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-xs font-light text-[var(--color-muted-fg)] opacity-50">
+          {t.placeholder}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-      {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} onSuggest={onSuggest} />
-      ))}
-      <div ref={endRef} />
+    <div className="flex-1 overflow-y-auto py-6">
+      <div className="mx-auto w-full max-w-2xl space-y-5 px-5">
+        {messages.map((msg, idx) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            userQuery={
+              msg.role === "assistant"
+                ? (messages.slice(0, idx).findLast((m) => m.role === "user")?.text ?? "")
+                : undefined
+            }
+            onActivate={onActivate}
+            isActive={msg.id === activeMessageId}
+            onOpenDrawer={onOpenDrawer}
+          />
+        ))}
+        <div ref={endRef} />
+      </div>
     </div>
   );
 }

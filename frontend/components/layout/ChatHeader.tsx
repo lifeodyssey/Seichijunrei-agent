@@ -1,45 +1,29 @@
 "use client";
 
 import { useDict } from "../../lib/i18n-context";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 interface ChatHeaderProps {
-  onToggleMap?: () => void;
-  mapOpen?: boolean;
+  onNewChat?: () => void;
 }
 
-export default function ChatHeader({ onToggleMap, mapOpen }: ChatHeaderProps) {
-  const { header: t } = useDict();
-  const pathname = usePathname();
-  const currentLang = pathname.startsWith("/zh") ? "zh" : "ja";
-  const otherLang = currentLang === "ja" ? "zh" : "ja";
-  const otherPath = pathname.replace(`/${currentLang}`, `/${otherLang}`);
+export default function ChatHeader({ onNewChat }: ChatHeaderProps) {
+  const { header: t, sidebar: s } = useDict();
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-6">
-      <div>
-        <h1 className="text-sm font-semibold text-[var(--color-fg)]">{t.title}</h1>
-        <p className="text-xs text-[var(--color-muted-fg)]">
-          {t.subtitle}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Link
-          href={otherPath}
-          className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg)] transition hover:bg-[var(--color-secondary)]"
+    <header className="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-5">
+      <h1 className="font-[family-name:var(--app-font-display)] text-sm font-semibold text-[var(--color-fg)]">
+        {t.title}
+      </h1>
+      {onNewChat && (
+        <button
+          type="button"
+          onClick={onNewChat}
+          className="rounded-md px-3 py-1.5 text-xs font-light text-[var(--color-primary)] transition hover:bg-[var(--color-muted)]"
+          style={{ transitionDuration: "var(--duration-fast)" }}
         >
-          {otherLang === "zh" ? "中文" : "日本語"}
-        </Link>
-        {onToggleMap && (
-          <button
-            onClick={onToggleMap}
-            className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-fg)] transition hover:bg-[var(--color-secondary)]"
-          >
-            {mapOpen ? t.map_open : t.map_closed}
-          </button>
-        )}
-      </div>
+          {s.new_chat}
+        </button>
+      )}
     </header>
   );
 }

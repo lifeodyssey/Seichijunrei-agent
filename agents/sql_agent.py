@@ -1,13 +1,13 @@
-"""SQLAgent — generates and executes parameterized SQL from IntentOutput.
+"""SQLAgent — generates and executes parameterized SQL from RetrievalRequest.
 
-Translates classified intents into safe, parameterized SQL queries against
-the Supabase PostgreSQL database (bangumi + points tables with PostGIS).
+Translates normalized retrieval requests into safe, parameterized SQL queries
+against the Supabase PostgreSQL database (bangumi + points tables with PostGIS).
 
 Usage:
     from agents.sql_agent import SQLAgent
 
     agent = SQLAgent(db_client)
-    result = await agent.execute(intent_output)
+    result = await agent.execute(retrieval_request)
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from agents.base import create_agent, get_default_model
-from agents.intent_agent import ExtractedParams, IntentOutput
+from agents.models import RetrievalRequest
 from infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
@@ -138,45 +138,47 @@ async def resolve_location(name: str) -> tuple[float, float] | None:
 
 
 class SQLAgent:
-    """Generates and executes parameterized SQL queries from intent output."""
+    """Generates and executes parameterized SQL queries from retrieval requests."""
 
     def __init__(self, db: SupabaseClient) -> None:
         self._db = db
 
-    async def execute(self, intent: IntentOutput) -> SQLResult:
-        """Execute a query based on the classified intent.
+    async def execute(self, request: RetrievalRequest) -> SQLResult:
+        """Execute a query based on the retrieval request.
 
         Args:
-            intent: Output from IntentAgent with intent + extracted_params.
+            request: Normalized retrieval request from planner/executor.
 
         Returns:
             SQLResult with query, params, rows, and metadata.
         """
-        handler = {
-            "search_by_bangumi": self._search_by_bangumi,
-            "search_by_location": self._search_by_location,
-            "plan_route": self._plan_route,
-        }.get(intent.intent)
+        if request.tool == "search_bangumi" and (request.origin or request.radius):
+            handler = self._plan_route
+        else:
+            handler = {
+                "search_bangumi": self._search_by_bangumi,
+                "search_nearby": self._search_by_location,
+            }.get(request.tool)
 
         if handler is None:
             return SQLResult(
                 query="",
                 params=[],
-                error=f"No SQL handler for intent: {intent.intent}",
+                error=f"No SQL handler for tool: {request.tool}",
             )
 
         try:
-            return await handler(intent.extracted_params)
+            return await handler(request)
         except Exception as exc:
-            logger.error("sql_agent_error", intent=intent.intent, error=str(exc))
+            logger.error("sql_agent_error", tool=request.tool, error=str(exc))
             return SQLResult(query="", params=[], error=str(exc))
 
     # ── Query builders ───────────────────────────────────────────────
 
-    async def _search_by_bangumi(self, params: ExtractedParams) -> SQLResult:
+    async def _search_by_bangumi(self, request: RetrievalRequest) -> SQLResult:
         """Search points by bangumi ID, optionally filtered by episode."""
-        bangumi_id = params.bangumi
-        episode = params.episode
+        bangumi_id = request.bangumi_id
+        episode = request.episode
 
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID")
@@ -206,10 +208,10 @@ class SQLAgent:
 
         return await self._run(sql, query_params)
 
-    async def _search_by_location(self, params: ExtractedParams) -> SQLResult:
+    async def _search_by_location(self, request: RetrievalRequest) -> SQLResult:
         """Search points near a location using PostGIS ST_DWithin."""
-        location_name = params.location or ""
-        radius_m = params.radius or 5000
+        location_name = request.location or ""
+        radius_m = request.radius or 5000
 
         coords = await resolve_location(location_name)
         if coords is None:
@@ -233,10 +235,10 @@ class SQLAgent:
         query_params: list[Any] = [lon, lat, radius_m]
         return await self._run(sql, query_params)
 
-    async def _plan_route(self, params: ExtractedParams) -> SQLResult:
+    async def _plan_route(self, request: RetrievalRequest) -> SQLResult:
         """Fetch points for route planning (sorted by distance from origin)."""
-        bangumi_id = params.bangumi
-        origin_name = params.origin or ""
+        bangumi_id = request.bangumi_id
+        origin_name = request.origin or ""
 
         if not bangumi_id:
             return SQLResult(query="", params=[], error="Missing bangumi ID for route")
@@ -245,7 +247,7 @@ class SQLAgent:
 
         if origin_coords:
             lat, lon = origin_coords
-            radius_m = params.radius or _DEFAULT_ROUTE_RADIUS_M
+            radius_m = request.radius or _DEFAULT_ROUTE_RADIUS_M
             sql = (
                 f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
                 f"p.image AS screenshot_url, {_GEO_COLUMNS}, "

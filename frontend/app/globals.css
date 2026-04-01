@@ -1,103 +1,104 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Shippori+Mincho+B1:wght@400;500;600;700;800&display=swap");
 @import "../node_modules/tailwindcss/index.css";
 
-/* ── Seichijunrei design tokens (matching lunaris design system) ── */
 :root {
-  --app-font-sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB",
-    "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK SC", sans-serif;
-  --app-font-mono: "SFMono-Regular", "IBM Plex Mono", "Menlo", monospace;
-  --app-font-display: "Iowan Old Style", "Songti SC", "Source Han Serif SC",
-    "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --app-font-body: "Outfit", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --app-font-mono: "SFMono-Regular", "IBM Plex Mono", monospace;
+  --app-font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", Georgia, serif;
 
-  /* Core */
-  --color-bg: #f4ede5;
-  --color-fg: #181511;
-  --color-card: #fdfaf5;
-  --color-card-fg: #181511;
-  --color-muted: #efe6d9;
-  --color-muted-fg: #6e6052;
-  --color-border: #d6c8b8;
-  --color-input: #d6c8b8;
+  /* Palette — 京吹夏季 · 白水手 × 天蓝裙 × 铜管金 */
+  --color-bg:      oklch(98% 0.008 218);
+  --color-fg:      oklch(20% 0.025 238);
+  --color-card:    oklch(95% 0.012 215);
+  --color-card-fg: oklch(20% 0.025 238);
+  --color-muted:   oklch(91% 0.016 218);
+  --color-muted-fg: oklch(54% 0.032 228);
+  --color-border:  oklch(85% 0.022 222);
+  --color-input:   oklch(85% 0.022 222);
 
-  /* Primary (orange) */
-  --color-primary: #d9863b;
-  --color-primary-fg: #181511;
+  --color-primary:    oklch(60% 0.148 240);
+  --color-primary-fg: oklch(99% 0.004 220);
 
-  /* Secondary */
-  --color-secondary: #ebe0d2;
-  --color-secondary-fg: #181511;
-
-  /* Semantic */
-  --color-info: #dee4e7;
-  --color-info-fg: #23445c;
-  --color-success: #dfe6de;
-  --color-success-fg: #214e2c;
-  --color-warning: #ebe1cf;
-  --color-warning-fg: #84511e;
-  --color-error: #ead9d2;
-  --color-error-fg: #8a2e1c;
+  --color-secondary:    oklch(91% 0.016 218);
+  --color-secondary-fg: oklch(20% 0.025 238);
 
   /* Sidebar */
-  --color-sidebar: #ece3d7;
-  --color-sidebar-fg: #6e6052;
-  --color-sidebar-border: #d6c8b8;
-  --color-sidebar-accent: #dfd2c3;
-  --color-sidebar-accent-fg: #181511;
-}
+  --color-sidebar:           oklch(96% 0.010 216);
+  --color-sidebar-fg:        oklch(54% 0.032 228);
+  --color-sidebar-border:    oklch(85% 0.022 222);
+  --color-sidebar-accent:    oklch(88% 0.028 230);
+  --color-sidebar-accent-fg: oklch(20% 0.025 238);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #12100d;
-    --color-fg: #f8f3ec;
-    --color-card: #1a1713;
-    --color-card-fg: #f8f3ec;
-    --color-muted: #26211c;
-    --color-muted-fg: #baa996;
-    --color-border: #2f2922;
-    --color-input: #2f2922;
+  /* Semantic */
+  --color-info:       oklch(88% 0.035 240);
+  --color-info-fg:    oklch(28% 0.080 240);
+  --color-success:    oklch(88% 0.035 145);
+  --color-success-fg: oklch(28% 0.090 145);
+  --color-warning:    oklch(90% 0.060 75);
+  --color-warning-fg: oklch(28% 0.090 75);
+  --color-error:      oklch(90% 0.040 20);
+  --color-error-fg:   oklch(28% 0.090 20);
 
-    --color-primary: #e5a166;
-    --color-primary-fg: #181511;
-
-    --color-secondary: #26211c;
-    --color-secondary-fg: #f8f3ec;
-
-    --color-info: #1d2327;
-    --color-info-fg: #bed9eb;
-    --color-success: #1f2721;
-    --color-success-fg: #bee2c5;
-    --color-warning: #2a1d11;
-    --color-warning-fg: #e5a166;
-    --color-error: #291813;
-    --color-error-fg: #f08b69;
-
-    --color-sidebar: #181511;
-    --color-sidebar-fg: #f2e8dc;
-    --color-sidebar-border: rgba(255, 255, 255, 0.08);
-    --color-sidebar-accent: #26211c;
-    --color-sidebar-accent-fg: #f8f3ec;
-  }
+  /* Motion */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast:  150ms;
+  --duration-base:  250ms;
+  --duration-slow:  400ms;
 }
 
 @theme inline {
   --color-background: var(--color-bg);
   --color-foreground: var(--color-fg);
-  --font-sans: var(--app-font-sans);
+  --font-sans: var(--app-font-body);
   --font-mono: var(--app-font-mono);
+  --font-display: var(--app-font-display);
 }
 
-body {
-  background:
-    radial-gradient(circle at top left, rgba(226, 181, 118, 0.16), transparent 28%),
-    radial-gradient(circle at top right, rgba(174, 189, 162, 0.18), transparent 24%),
-    var(--color-bg);
+/* Keyframes */
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.2; transform: scale(0.86); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: translateX(100%);  opacity: 0; }
+}
+
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Base */
+
+html, body {
+  background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--app-font-sans);
+  font-family: var(--app-font-body);
+  font-weight: 300;
+}
+
+body { min-height: 100%; }
+
+h1, h2, h3 {
+  font-family: var(--app-font-display);
+  font-weight: 700;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 32%, transparent);
 }
 
-a {
-  color: inherit;
+a { color: inherit; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

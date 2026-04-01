@@ -11,6 +11,7 @@ from time import perf_counter
 from typing import Any, Literal
 from uuid import uuid4
 
+import structlog
 from pydantic import BaseModel, Field, field_validator
 
 from agents.executor_agent import PipelineResult, StepResult
@@ -21,6 +22,8 @@ from infrastructure.observability import (
     record_runtime_request,
 )
 from infrastructure.session import SessionStore, create_session_store
+
+logger = structlog.get_logger(__name__)
 
 _MAX_INTERACTIONS = 20
 _MAX_ROUTE_HISTORY = 10
@@ -38,9 +41,9 @@ class PublicAPIRequest(BaseModel):
         default=None,
         description="Optional override for the runtime model used by the pipeline",
     )
-    locale: Literal["ja", "zh"] = Field(
+    locale: Literal["ja", "zh", "en"] = Field(
         default="ja",
-        description="Response locale: ja (Japanese) or zh (Chinese)",
+        description="Response locale: ja (Japanese), zh (Chinese), or en (English)",
     )
     include_debug: bool = Field(
         default=False,
@@ -76,6 +79,10 @@ class PublicAPIResponse(BaseModel):
     session: dict[str, Any] = Field(default_factory=dict)
     route_history: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[PublicAPIError] = Field(default_factory=list)
+    ui: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional Generative UI descriptor: {component, props}",
+    )
     debug: dict[str, Any] | None = None
 
 
@@ -186,6 +193,21 @@ class RuntimeAPI:
                     transport="public_api",
                 )
 
+                insert_request_log = getattr(self._db, "insert_request_log", None)
+                if insert_request_log is not None:
+                    try:
+                        await insert_request_log(
+                            session_id=session_id,
+                            query_text=request.text,
+                            locale=request.locale,
+                            plan_steps=_extract_plan_steps(result),
+                            intent=intent,
+                            status=status,
+                            latency_ms=int(elapsed_ms),
+                        )
+                    except Exception:
+                        logger.warning("request_log_failed", session_id=session_id)
+
     async def _load_session_state(self, session_id: str) -> dict[str, Any]:
         state = await self._session_store.get(session_id)
         return _normalize_session_state(state)
@@ -278,6 +300,16 @@ async def handle_public_request(
     return await api.handle(request)
 
 
+_UI_MAP: dict[str, str] = {
+    "search_bangumi": "PilgrimageGrid",
+    "search_nearby": "NearbyMap",
+    "plan_route": "RouteVisualization",
+    "general_qa": "GeneralAnswer",
+    "answer_question": "GeneralAnswer",
+    "unclear": "Clarification",
+}
+
+
 def _pipeline_result_to_public_response(
     result: PipelineResult,
     *,
@@ -292,6 +324,8 @@ def _pipeline_result_to_public_response(
         )
         for error in raw_errors
     ]
+    component = _UI_MAP.get(result.intent)
+    ui = {"component": component, "props": {}} if component else None
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
         status=str(final_output.get("status", "ok" if result.success else "error")),
@@ -299,14 +333,15 @@ def _pipeline_result_to_public_response(
         message=str(final_output.get("message") or ""),
         data=dict(final_output.get("data") or {}),
         errors=errors,
+        ui=ui,
     )
 
     if include_debug:
         response.debug = {
             "plan": {
-                "intent": result.plan.intent,
-                "rationale": result.plan.rationale,
-                "steps": [step.step_type.value for step in result.plan.steps],
+                "intent": result.intent,
+                "reasoning": result.plan.reasoning,
+                "steps": [step.tool.value for step in result.plan.steps],
             },
             "step_results": [
                 _serialize_step_result(step) for step in result.step_results
@@ -411,8 +446,29 @@ def _application_error_response(exc: ApplicationError) -> PublicAPIResponse:
 
 def _serialize_step_result(step: StepResult) -> dict[str, Any]:
     return {
-        "step_type": step.step_type,
+        "tool": step.tool,
         "success": step.success,
         "error": step.error,
         "data": step.data,
     }
+
+
+def _extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
+    if result is None:
+        return None
+
+    steps: list[str] = []
+    for step in getattr(result.plan, "steps", []) or []:
+        tool = getattr(step, "tool", None)
+        if tool is not None:
+            steps.append(getattr(tool, "value", str(tool)))
+            continue
+
+        step_type = getattr(step, "step_type", None)
+        if step_type is not None:
+            steps.append(getattr(step_type, "value", str(step_type)))
+            continue
+
+        steps.append(str(step))
+
+    return steps

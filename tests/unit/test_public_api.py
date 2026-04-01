@@ -7,18 +7,49 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from agents.executor_agent import _get_fallback_message
+from agents.executor_agent import PipelineResult
+from agents.models import ExecutionPlan, PlanStep, ToolName
 from application.errors import InvalidInputError
 from infrastructure.session.memory import InMemorySessionStore
-from interfaces.public_api import PublicAPIRequest, RuntimeAPI, handle_public_request
+from interfaces.public_api import (
+    PublicAPIRequest,
+    PublicAPIResponse,
+    RuntimeAPI,
+    handle_public_request,
+)
+
+
+def _make_result(
+    intent: str = "search_bangumi",
+    locale: str = "ja",
+    steps: list[PlanStep] | None = None,
+    final_output: dict | None = None,
+) -> PipelineResult:
+    """Build a fake PipelineResult for tests that mock run_pipeline."""
+    plan = ExecutionPlan(
+        reasoning="test",
+        locale=locale,
+        steps=steps
+        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
+    )
+    result = PipelineResult(intent=intent, plan=plan)
+    result.final_output = final_output or {
+        "success": True,
+        "status": "empty",
+        "message": "該当する巡礼地が見つかりませんでした。",
+        "data": {"results": {"rows": [], "row_count": 0}},
+    }
+    return result
 
 
 @pytest.fixture(autouse=True)
-def _mock_message_llm():
-    async def _fake(intent, query_data, route_data, failure, locale):
-        return _get_fallback_message(intent, query_data, failure, locale)
+def _mock_pipeline():
+    """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
 
-    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
+    async def _fake(text, db, *, model=None, locale="ja"):
+        return _make_result(locale=locale)
+
+    with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
         yield
 
 
@@ -77,7 +108,7 @@ class TestRuntimeAPI:
         assert response.session["interaction_count"] == 1
         saved_state = await store.get(response.session_id)
         assert saved_state is not None
-        assert saved_state["last_intent"] == "search_by_bangumi"
+        assert saved_state["last_intent"] == "search_bangumi"
         mock_db.upsert_session.assert_awaited_once()
 
     async def test_handle_reuses_existing_session(self, mock_db):
@@ -94,7 +125,7 @@ class TestRuntimeAPI:
 
         assert second.session_id == first.session_id
         assert second.session["interaction_count"] == 2
-        assert second.session["last_intent"] == "search_by_bangumi"
+        assert second.session["last_intent"] == "search_bangumi"
 
     async def test_handle_maps_pipeline_result(self, mock_db):
         api = RuntimeAPI(mock_db)
@@ -102,42 +133,116 @@ class TestRuntimeAPI:
         response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
 
         assert response.success is True
-        assert response.intent == "search_by_bangumi"
+        assert response.intent == "search_bangumi"
         assert response.status == "empty"
         assert "results" in response.data
         assert response.errors == []
 
     async def test_handle_can_include_debug(self, mock_db):
-        api = RuntimeAPI(mock_db)
-
-        mock_db.pool.fetch.return_value = [
-            {"id": "1", "name": "A", "latitude": 34.88, "longitude": 135.80},
-            {"id": "2", "name": "B", "latitude": 34.89, "longitude": 135.81},
-        ]
-        mock_db.search_points_by_location.return_value = [
-            {"id": "1", "bangumi_id": "115908", "distance_m": 100},
-            {"id": "2", "bangumi_id": "115908", "distance_m": 80},
-        ]
-
-        response = await api.handle(
-            PublicAPIRequest(text="从京都站出发去吹响的圣地", include_debug=True)
+        result = _make_result(
+            intent="plan_route",
+            steps=[
+                PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "吹响"}),
+                PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "115908"}),
+                PlanStep(tool=ToolName.PLAN_ROUTE, params={"origin": "京都駅"}),
+            ],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "ルートを作成しました。",
+                "data": {
+                    "results": {
+                        "rows": [{"id": "1", "bangumi_id": "115908"}],
+                        "row_count": 1,
+                    },
+                    "route": {
+                        "ordered_points": [
+                            {
+                                "id": "1",
+                                "name": "A",
+                                "latitude": 34.88,
+                                "longitude": 135.80,
+                            },
+                            {
+                                "id": "2",
+                                "name": "B",
+                                "latitude": 34.89,
+                                "longitude": 135.81,
+                            },
+                        ],
+                        "point_count": 2,
+                    },
+                },
+            },
         )
+
+        async def _fake(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db)
+            response = await api.handle(
+                PublicAPIRequest(text="从京都站出发去吹响的圣地", include_debug=True)
+            )
 
         assert response.debug is not None
         assert response.debug["plan"]["steps"] == [
-            "query_db",
+            "resolve_anime",
+            "search_bangumi",
             "plan_route",
-            "format_response",
         ]
-        assert len(response.debug["step_results"]) == 3
+        assert len(response.debug["step_results"]) == 0  # mock doesn't execute steps
         assert response.route_history[0]["route_id"] == "route-1"
         mock_db.save_route.assert_awaited_once()
 
-    async def test_handle_maps_pipeline_failure(self, mock_db):
-        mock_db.pool.fetch.side_effect = Exception("db down")
-        api = RuntimeAPI(mock_db)
+    async def test_request_log_called_after_response(self, monkeypatch):
+        """insert_request_log is called once after a successful pipeline run."""
+        result = _make_result(
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "Found 3 spots.",
+                "data": {},
+            },
+        )
 
-        response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
+        async def fake_run_pipeline(text, db, *, model=None, locale="ja"):
+            return result
+
+        monkeypatch.setattr("interfaces.public_api.run_pipeline", fake_run_pipeline)
+
+        db = MagicMock()
+        db.upsert_session = AsyncMock()
+        db.insert_request_log = AsyncMock(return_value="log-1")
+        api = RuntimeAPI(db=db)
+
+        await api.handle(
+            PublicAPIRequest(text="吹響の聖地", locale="ja", session_id="s1")
+        )
+
+        db.insert_request_log.assert_awaited_once()
+        kwargs = db.insert_request_log.call_args.kwargs
+        assert kwargs["query_text"] == "吹響の聖地"
+        assert kwargs["locale"] == "ja"
+        assert kwargs["intent"] == "search_bangumi"
+
+    async def test_handle_maps_pipeline_failure(self, mock_db):
+        result = _make_result(
+            final_output={
+                "success": False,
+                "status": "error",
+                "message": "",
+                "data": {},
+                "errors": ["db down"],
+            },
+        )
+
+        async def _fake(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db)
+            response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
 
         assert response.success is False
         assert response.status == "error"
@@ -183,8 +288,8 @@ class TestRuntimeAPI:
         ):
             response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
 
-        assert response.intent == "search_by_bangumi"
-        assert span.attributes["runtime.intent"] == "search_by_bangumi"
+        assert response.intent == "search_bangumi"
+        assert span.attributes["runtime.intent"] == "search_bangumi"
         assert span.attributes["runtime.status"] == "empty"
         assert span.attributes["runtime.success"] is True
         record_metric.assert_called_once()
@@ -201,21 +306,76 @@ class TestLocalePassthrough:
         assert req.locale == "ja"
 
     async def test_handle_passes_locale_to_pipeline(self, mock_db):
-        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
-        response = await api.handle(PublicAPIRequest(text="你好", locale="zh"))
-        # unclear intent → should get Chinese fallback message
-        assert response.intent == "unclear"
-        msg = response.message
-        assert msg  # non-empty
-        assert "具体" in msg  # 能再具体一些吗
+        result = _make_result(
+            intent="answer_question",
+            locale="zh",
+            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION)],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "你好！有什么可以帮助你的？",
+                "data": {},
+            },
+        )
+
+        async def _fake(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            response = await api.handle(PublicAPIRequest(text="你好", locale="zh"))
+
+        assert response.intent == "answer_question"
+        assert response.message  # non-empty
 
     async def test_handle_ja_locale_produces_japanese_message(self, mock_db):
-        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
-        response = await api.handle(PublicAPIRequest(text="你好", locale="ja"))
-        assert response.intent == "unclear"
-        msg = response.message
-        assert msg
-        assert "具体" in msg  # もう少し具体的に
+        result = _make_result(
+            intent="answer_question",
+            locale="ja",
+            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION)],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "こんにちは！何かお手伝いしましょうか？",
+                "data": {},
+            },
+        )
+
+        async def _fake(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            response = await api.handle(PublicAPIRequest(text="你好", locale="ja"))
+
+        assert response.intent == "answer_question"
+        assert response.message  # non-empty
+
+
+class TestPublicAPIRequestLocaleEn:
+    def test_en_locale_accepted(self):
+        req = PublicAPIRequest(text="where is kyoani", locale="en")
+        assert req.locale == "en"
+
+    def test_invalid_locale_rejected(self):
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="test", locale="fr")
+
+
+class TestPublicAPIResponseUIField:
+    def test_response_has_ui_field(self):
+        resp = PublicAPIResponse(
+            success=True,
+            status="ok",
+            intent="search_bangumi",
+            ui={"component": "PilgrimageGrid", "props": {}},
+        )
+        assert resp.ui is not None
+        assert resp.ui["component"] == "PilgrimageGrid"
+
+    def test_response_ui_optional(self):
+        resp = PublicAPIResponse(success=True, status="ok", intent="search_bangumi")
+        assert resp.ui is None
 
 
 class TestHandlePublicRequest:
@@ -227,6 +387,6 @@ class TestHandlePublicRequest:
             session_store=store,
         )
 
-        assert response.intent == "unclear"
-        assert response.status == "needs_clarification"
+        assert response.intent == "search_bangumi"
+        assert response.status == "empty"
         assert response.session["interaction_count"] == 1

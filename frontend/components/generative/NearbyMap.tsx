@@ -24,32 +24,27 @@ export default function NearbyMap({ data }: NearbyMapProps) {
 
   if (results.status === "empty" || sorted.length === 0) {
     return (
-      <div className="rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
+      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
         {t.no_results}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded bg-[var(--color-info)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-info-fg)]">
-          search_by_location
-        </span>
-        <span className="text-xs text-[var(--color-muted-fg)]">
-          {t.count.replace("{count}", String(results.row_count))} · {results.strategy}
-        </span>
+    <div className="flex h-full flex-col gap-3">
+      <p className="text-xs text-[var(--color-muted-fg)]">
+        {t.count.replace("{count}", String(results.row_count))}
+      </p>
+
+      <div className="overflow-hidden rounded-lg border border-[var(--color-border)]" style={{ flex: "0 0 60%" }}>
+        <PilgrimageMap points={sorted} height="100%" />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[var(--color-border)]">
-        <PilgrimageMap points={sorted} height={240} />
-      </div>
-
-      <div className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
+      <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
         {sorted.map((point: PilgrimagePoint) => (
           <div key={point.id} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--color-fg)]">
+              <p className="truncate text-sm font-medium text-[var(--color-fg)]">
                 {point.name_cn || point.name}
               </p>
               <p className="text-xs text-[var(--color-muted-fg)]">
@@ -57,7 +52,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
               </p>
             </div>
             {point.distance_m != null && (
-              <span className="shrink-0 rounded bg-[var(--color-secondary)] px-2 py-0.5 text-xs font-medium text-[var(--color-fg)]">
+              <span className="shrink-0 text-xs font-medium text-[var(--color-primary)]">
                 {formatDistance(point.distance_m)}
               </span>
             )}

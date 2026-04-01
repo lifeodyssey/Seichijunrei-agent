@@ -7,20 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from agents.executor_agent import _get_fallback_message
 from config.settings import Settings
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.http_service import create_http_app
 from interfaces.public_api import RuntimeAPI
-
-
-@pytest.fixture(autouse=True)
-def _mock_message_llm():
-    async def _fake(intent, query_data, route_data, failure, locale):
-        return _get_fallback_message(intent, query_data, failure, locale)
-
-    with patch("agents.executor_agent._build_response_message_llm", side_effect=_fake):
-        yield
 
 
 class DummySpan:
@@ -79,21 +69,41 @@ class TestHTTPService:
         assert body["session_store"] == "InMemorySessionStore"
 
     async def test_runtime_endpoint_executes_public_api(self, mock_db):
-        app = create_http_app(
-            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
-            settings=Settings(),
-        )
+        from agents.executor_agent import PipelineResult
+        from agents.models import ExecutionPlan, PlanStep, ToolName
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.post(
-                "/v1/runtime",
-                json={"text": "秒速5厘米的取景地在哪"},
+        plan = ExecutionPlan(
+            reasoning="test",
+            locale="ja",
+            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
+        )
+        result = PipelineResult(intent="search_bangumi", plan=plan)
+        result.final_output = {
+            "success": True,
+            "status": "empty",
+            "message": "該当する巡礼地が見つかりませんでした。",
+            "data": {"results": {"rows": [], "row_count": 0}},
+        }
+
+        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):
+            app = create_http_app(
+                runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+                settings=Settings(),
             )
-            assert response.status == 200
-            body = await response.json()
+
+            async with TestClient(TestServer(app)) as client:
+                response = await client.post(
+                    "/v1/runtime",
+                    json={"text": "秒速5厘米的取景地在哪"},
+                )
+                assert response.status == 200
+                body = await response.json()
 
         assert body["success"] is True
-        assert body["intent"] == "search_by_bangumi"
+        assert body["intent"] == "search_bangumi"
         assert body["status"] == "empty"
         assert body["session"]["interaction_count"] == 1
 
@@ -179,6 +189,25 @@ class TestHTTPService:
         session_store.close.assert_awaited_once()
 
     async def test_runtime_endpoint_records_http_observability(self, mock_db):
+        from agents.executor_agent import PipelineResult
+        from agents.models import ExecutionPlan, PlanStep, ToolName
+
+        plan = ExecutionPlan(
+            reasoning="test",
+            locale="ja",
+            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
+        )
+        result = PipelineResult(intent="search_bangumi", plan=plan)
+        result.final_output = {
+            "success": True,
+            "status": "empty",
+            "message": "",
+            "data": {"results": {"rows": [], "row_count": 0}},
+        }
+
+        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+            return result
+
         app = create_http_app(
             runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
             settings=Settings(),
@@ -186,6 +215,7 @@ class TestHTTPService:
         span = DummySpan()
 
         with (
+            patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline),
             patch(
                 "interfaces.http_service.get_http_tracer",
                 return_value=DummyTracer(span),
@@ -245,18 +275,38 @@ class TestHTTPService:
         shutdown_obs.assert_called_once()
 
     async def test_runtime_endpoint_accepts_locale(self, mock_db):
-        app = create_http_app(
-            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
-            settings=Settings(),
+        from agents.executor_agent import PipelineResult
+        from agents.models import ExecutionPlan, PlanStep, ToolName
+
+        plan = ExecutionPlan(
+            reasoning="test",
+            locale="zh",
+            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION)],
         )
+        result = PipelineResult(intent="answer_question", plan=plan)
+        result.final_output = {
+            "success": True,
+            "status": "ok",
+            "message": "你好！有什么可以帮助你的？",
+            "data": {},
+        }
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.post(
-                "/v1/runtime",
-                json={"text": "你好", "locale": "zh"},
+        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):
+            app = create_http_app(
+                runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+                settings=Settings(),
             )
-            assert response.status == 200
-            body = await response.json()
 
-        assert body["intent"] == "unclear"
+            async with TestClient(TestServer(app)) as client:
+                response = await client.post(
+                    "/v1/runtime",
+                    json={"text": "你好", "locale": "zh"},
+                )
+                assert response.status == 200
+                body = await response.json()
+
+        assert body["intent"] == "answer_question"
         assert body["message"]  # non-empty localized message

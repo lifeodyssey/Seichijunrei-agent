@@ -1,107 +1,79 @@
-"""PlannerAgent — deterministic intent-to-plan mapper.
+"""ReActPlannerAgent — LLM-driven plan generation.
 
-Maps IntentOutput to an ExecutionPlan (ordered list of steps).
-This is a rule-based planner; LLM-based planning comes in ITER-2.
-
-Usage:
-    from agents.planner_agent import create_plan
-
-    plan = create_plan(intent_output)
+Replaces the old dict-lookup PlannerAgent. Uses Pydantic AI structured output
+to produce an ExecutionPlan from free-text user input.
 """
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from agents.base import create_agent, get_default_model
+from agents.models import ExecutionPlan
 
-from agents.intent_agent import IntentOutput
+PLANNER_SYSTEM_PROMPT = """\
+You are a planning agent for an anime pilgrimage (聖地巡礼) search app.
 
+Your job: understand the user's request and output a structured execution plan.
 
-class StepType(str, Enum):
-    """Types of execution steps."""
+## Available tools
 
-    QUERY_DB = "query_db"
-    PLAN_ROUTE = "plan_route"
-    FORMAT_RESPONSE = "format_response"
+- resolve_anime(title: str)
+  Resolve an anime title to a bangumi_id (DB-first, then Bangumi.tv API).
+  Use this whenever the user mentions an anime by name.
+  Do NOT hardcode bangumi IDs in your plan.
 
+- search_bangumi(bangumi_id: str | None, episode: int | None)
+  Find pilgrimage filming locations for a specific anime.
+  Set bangumi_id to null if a resolve_anime step precedes this.
 
-class ExecutionStep(BaseModel):
-    """A single step in an execution plan."""
+- search_nearby(location: str, radius: int | None)
+  Find pilgrimage locations near a station, city, or area.
+  Use when the user asks about a geographic area rather than a specific anime.
 
-    step_type: StepType
-    description: str
-    params: dict[str, Any] = Field(default_factory=dict)
+- plan_route(params: {})
+  Sort the results of a preceding search_bangumi step into an optimal walking order.
+  Only include this after a search_bangumi step.
 
+- answer_question(answer: str)
+  For general QA about anime pilgrimage (etiquette, tips, etc.).
+  Fill the answer field with a short, helpful response.
 
-class ExecutionPlan(BaseModel):
-    """Ordered list of steps to execute for a user request."""
+## Rules
 
-    intent: str
-    steps: list[ExecutionStep]
-    rationale: str
+1. For any anime query: ALWAYS emit resolve_anime first, then search_bangumi.
+   Never hardcode bangumi IDs. The DB grows automatically.
+2. For location queries: use search_nearby only. No resolve_anime needed.
+3. plan_route is ONLY for explicit route/itinerary requests (ルート, 路线, route,
+   行程, 回る, plan a route, walking order). Merely asking for "spots" or
+   "locations" or "pilgrimage sites" does NOT need plan_route — that is search_bangumi.
+4. Set locale in the plan to match the user's language.
+5. Keep plans minimal — the fewest steps that satisfy the request.
+6. Fill reasoning with your chain-of-thought (for logging/debugging).
 
-
-# ── Plan templates ────────────────────────────────────────────────
-
-_PLAN_MAP: dict[str, list[tuple[StepType, str]]] = {
-    "search_by_bangumi": [
-        (StepType.QUERY_DB, "Query points by bangumi ID"),
-        (StepType.FORMAT_RESPONSE, "Format bangumi search results"),
-    ],
-    "search_by_location": [
-        (StepType.QUERY_DB, "Query points near location (PostGIS)"),
-        (StepType.FORMAT_RESPONSE, "Format location search results"),
-    ],
-    "plan_route": [
-        (StepType.QUERY_DB, "Fetch points for route planning"),
-        (StepType.PLAN_ROUTE, "Compute optimized walking route"),
-        (StepType.FORMAT_RESPONSE, "Format route with directions"),
-    ],
-    "general_qa": [
-        (StepType.FORMAT_RESPONSE, "Generate QA response"),
-    ],
-    "unclear": [
-        (StepType.FORMAT_RESPONSE, "Ask user for clarification"),
-    ],
-}
+## locale values
+- "ja" for Japanese queries
+- "zh" for Chinese queries
+- "en" for English queries
+"""
 
 
-def create_plan(intent: IntentOutput) -> ExecutionPlan:
-    """Create an execution plan from classified intent.
+class ReActPlannerAgent:
+    """LLM-driven planner: user text → ExecutionPlan.
 
-    Args:
-        intent: Output from IntentAgent.
-
-    Returns:
-        ExecutionPlan with ordered steps.
+    Uses Pydantic AI structured output with retries=2.
     """
-    template = _PLAN_MAP.get(intent.intent)
 
-    if template is None:
-        return ExecutionPlan(
-            intent=intent.intent,
-            steps=[
-                ExecutionStep(
-                    step_type=StepType.FORMAT_RESPONSE,
-                    description="Unknown intent — ask for clarification",
-                ),
-            ],
-            rationale=f"No plan template for intent: {intent.intent}",
+    def __init__(self, model: Any = None) -> None:
+        self._agent = create_agent(
+            model or get_default_model(),
+            system_prompt=PLANNER_SYSTEM_PROMPT,
+            output_type=ExecutionPlan,
+            retries=2,
         )
 
-    steps = [
-        ExecutionStep(
-            step_type=step_type,
-            description=desc,
-            params=intent.extracted_params.model_dump(exclude_none=True),
-        )
-        for step_type, desc in template
-    ]
-
-    return ExecutionPlan(
-        intent=intent.intent,
-        steps=steps,
-        rationale=f"Deterministic plan for {intent.intent} (confidence={intent.confidence})",
-    )
+    async def create_plan(self, text: str, locale: str = "ja") -> ExecutionPlan:
+        """Generate an ExecutionPlan from user text."""
+        prompt = f"[locale={locale}] {text}"
+        result = await self._agent.run(prompt)
+        return result.output

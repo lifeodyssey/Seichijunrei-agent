@@ -1,10 +1,5 @@
-import { LocaleRedirect } from "../../components/routing/LocaleRedirect";
+import AppShell from "../../components/layout/AppShell";
 
-export default async function Home({
-  params,
-}: {
-  params: Promise<{ lang: string }>;
-}) {
-  const { lang } = await params;
-  return <LocaleRedirect target={`/${lang}/design/`} />;
+export default function Home() {
+  return <AppShell />;
 }

@@ -124,7 +124,7 @@ Backend sets `ui.component` and `ui.props` based on intent. Frontend uses regist
 ```
 ┌─────────┬─────────────┬──────────────────────────────┐
 │ Sidebar │ Chat Panel  │ Result Panel                  │
-│ 240px   │ 360px fixed │ flex-1                        │
+│ 240px   │ 380px fixed │ flex-1                        │
 │         │             │                               │
 │ History │ text only:  │ GenerativeUIRenderer renders  │
 │ New chat│  user msgs  │ the active result here        │
@@ -176,22 +176,35 @@ Adding a new component = register it. No routing logic changes.
 
 **Note:** This is NOT a2ui. a2ui was a legacy agent-to-UI protocol layer (from an older architecture). This is a lightweight rendering pattern on top of the existing `RuntimeResponse` JSON — just a new optional field.
 
-### 2.3 Visual Design Tokens (Always Dark)
+### 2.3 Visual Design Tokens (Always Dark, Shinkai x KyoAni)
 
 ```css
---color-bg:          #0f0f11   /* 深夜黑 */
---color-fg:          #f0ece6   /* 和纸白 */
---color-card:        #17171a
---color-muted:       #1e1e22
---color-muted-fg:    #7a7270
---color-border:      #272729
---color-primary:     #d4954a   /* 琥珀橙 */
---font-display:      "Shippori Mincho B1", Georgia, serif
---font-body:         system-ui, sans-serif
+/* Base (Shinkai twilight) */
+--color-bg:          #060815   /* 暮色靛 */
+--color-bg-2:        #0b1028   /* 夜空蓝 (用于渐变/雾化) */
+--color-fg:          #f4f0ff   /* 淡薰衣草白 */
+
+/* Surfaces (glass) */
+--color-card:        rgba(255, 255, 255, 0.04)
+--color-muted:       rgba(255, 255, 255, 0.06)
+--color-muted-fg:    rgba(244, 240, 255, 0.72)
+--color-border:      rgba(255, 255, 255, 0.12)
+
+/* Accents (KyoAni pastel UI) */
+--color-primary:     #6ef7d8   /* 薄荷 */
+--color-secondary:   #ff79c6   /* 樱花 */
+--color-highlight:   #ffe08a   /* 柠檬 */
+--color-warm:        #d9a55b   /* 暖金 (重要动作/强调，克制使用) */
+
+/* Typography */
+--font-display:      "Shippori Mincho B1", "Hiragino Mincho ProN", "Songti SC", Georgia, serif
+--font-body:         "Zen Kaku Gothic New", "Hiragino Sans", "PingFang SC", system-ui, sans-serif
 ```
 
 - Remove `@media (prefers-color-scheme: dark)` — always dark
 - Add Shippori Mincho B1 (Google Fonts) for display text
+- Add Zen Kaku Gothic New (Google Fonts) for body text (rounded, anime-friendly)
+- Background uses subtle twilight haze (radial gradients) + optional grain, never flat single-color
 - `@keyframes breathe` for loading dots
 
 ### 2.4 Component Changes

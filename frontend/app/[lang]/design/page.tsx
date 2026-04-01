@@ -1,4 +1,4 @@
-import { EntryScreen } from "@/components/demo/DesignWorkbench";
+import { LocaleRedirect } from "../../../components/routing/LocaleRedirect";
 
 export default async function DesignHomePage({
   params,
@@ -6,5 +6,5 @@ export default async function DesignHomePage({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
-  return <EntryScreen lang={lang} />;
+  return <LocaleRedirect target={`/${lang}/`} />;
 }

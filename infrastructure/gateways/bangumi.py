@@ -54,6 +54,28 @@ class BangumiClientGateway(BangumiGateway):
         except APIError as exc:
             raise ExternalServiceError("bangumi", str(exc)) from exc
 
+    async def search_by_title(self, title: str) -> str | None:
+        try:
+            if self._client is not None:
+                results = await self._client.search_subject(
+                    keyword=title,
+                    subject_type=2,
+                    max_results=1,
+                )
+            else:
+                async with BangumiClient() as client:
+                    results = await client.search_subject(
+                        keyword=title,
+                        subject_type=2,
+                        max_results=1,
+                    )
+
+            if results:
+                return str(results[0]["id"])
+            return None
+        except (ValueError, APIError):
+            return None
+
     async def get_subject(self, subject_id: int) -> dict:
         try:
             if self._client is not None:

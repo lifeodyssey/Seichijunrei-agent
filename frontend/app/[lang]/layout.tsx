@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "../globals.css";
-import { getDictionary, hasLocale, type Locale } from "./dictionaries";
+import { getDictionary, hasLocale, locales, type Locale } from "./dictionaries";
 import { DictProvider } from "../../lib/i18n-context";
 
 export async function generateMetadata({
@@ -19,7 +19,7 @@ export async function generateMetadata({
 }
 
 export function generateStaticParams() {
-  return [{ lang: "ja" }, { lang: "zh" }];
+  return locales.map((lang) => ({ lang }));
 }
 
 export default async function RootLayout({
@@ -34,5 +34,5 @@ export default async function RootLayout({
 
   const dict = await getDictionary(lang as Locale);
 
-  return <DictProvider dict={dict} locale={lang}>{children}</DictProvider>;
+  return <DictProvider dict={dict} locale={lang as Locale}>{children}</DictProvider>;
 }
