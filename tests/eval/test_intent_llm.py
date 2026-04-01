@@ -26,11 +26,10 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from agents.intent_agent import IntentOutput, classify_intent
 from dotenv import load_dotenv
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
-
-from agents.intent_agent import IntentOutput, classify_intent
 
 load_dotenv()
 
