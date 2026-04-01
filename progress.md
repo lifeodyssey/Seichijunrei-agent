@@ -83,6 +83,16 @@
 - Compared `run_pipeline` output and `handle_public_request` output against the same baseline scenarios
 - Split stable acceptance runs from model-backed eval runs in the Makefile so CI-safe tests do not depend on external LLM availability
 
+## 2026-04-01 — Auth fixes + CI/deploy pipeline hardening
+
+- **Auth UX**: After "Send login link" the form now replaces with a success card (check_email_heading / check_email_body) rather than just adding a small status line. "Back" link restores the form.
+- **Cross-browser magic link**: Switched both `AuthGate` and `AuthCallbackPage` Supabase clients to `flowType: 'implicit'`. PKCE was failing when the email link opened in a different browser (no `code_verifier` in localStorage). Implicit flow embeds the session in the URL hash fragment — works from any browser.
+- **Cloudflare Containers**: Removed GHCR image push from CI (GHCR is not a supported Cloudflare registry). `wrangler deploy` now builds and pushes directly to Cloudflare's registry.
+- **Wrangler 4**: `cloudflare/wrangler-action@v3` defaults to wrangler 3 which silently ignores `[[containers]]`. Added `wranglerVersion: "4.79.0"` to the action.
+- **Orphaned DO namespace**: Deleted the `seichijunrei-runtimecontainer` application that wrangler 3 had created with the wrong namespace ID before re-deploying with wrangler 4.
+- **Observability**: Added `[observability]`, `[observability.logs]`, and `[observability.traces]` blocks to `wrangler.toml`.
+- **i18n routing**: Replaced URL-based `app/[lang]/` locale routing with `localStorage`-based detection (`lib/i18n.ts detectLocale()`). AuthGate now reads locale from `useLocale()` context.
+
 ## Current Status
 
 - Core runtime is in place
@@ -91,7 +101,8 @@
 - Executor output is normalized for ok, empty, partial, and error states
 - A thin public API layer now wraps `run_pipeline`
 - Session state and route history persist across public API calls
-- An HTTP service and container deployment path now exist
+- An HTTP service and Cloudflare Containers deployment path now exist (wrangler 4, auto-deploy on push to main)
 - OpenTelemetry tracing and metrics hooks are now wired into the runtime
 - Acceptance baselines now cover the main runtime flows end to end
+- Auth: implicit flow magic links, success-card UX after send
 - The current task plan is complete through Phase 5

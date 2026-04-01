@@ -84,21 +84,39 @@ curl -X POST http://127.0.0.1:8080/v1/runtime \
 
 ## Cloudflare Containers Path
 
-The Cloudflare path should reuse the same container image. Keep the runtime in
-this repository as a plain HTTP backend and add any Cloudflare-specific Worker
-or routing shim outside the core runtime.
+The production deployment runs on Cloudflare Containers (backed by Durable Objects).
+`wrangler deploy` builds the image from `Dockerfile`, pushes it to Cloudflare's own
+registry, and wires it to the `RuntimeContainer` Durable Object class.
 
-Operationally, the deployment path is:
+**Requirements:**
+- Wrangler 4+ (Containers support was added in v4; v3 silently ignores `[[containers]]`)
+- CI uses `cloudflare/wrangler-action@v3` with `wranglerVersion: "4.79.0"` (or newer)
+- Only Cloudflare Registry, Docker Hub, and Amazon ECR are supported — GHCR is not
 
-1. Build the container image from this repository
-2. Push/deploy that image through a Cloudflare Containers workflow
-3. Route external traffic to the containerized `/v1/runtime` endpoint
+**Deploy via GitHub Actions:**
+```bash
+gh workflow run deploy.yml -f environment=production
+```
 
-This keeps the backend architecture identical across local Docker runs and any
-future Cloudflare-hosted container deployment.
+CI automatically deploys on every push to `main`.
+
+**Manual one-shot deploy:**
+```bash
+npx wrangler@4 deploy
+```
+
+**CF Worker routing** (`src/worker.js`):
+- `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → aiohttp service on port 8080)
+- Everything else → `ASSETS` (Next.js static export from `frontend/out/`)
+
+**Frontend build env vars** required at build time:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+These are injected as `[vars]` in `wrangler.toml` for the Worker, and as `env:` in the
+GitHub Actions workflow for the Next.js static build step.
 
 ## Known Limitations
 
 - Default session storage is in-memory unless a distributed backend is configured
 - OpenTelemetry exporters are opt-in and disabled by default
-- Deployment automation is still manual

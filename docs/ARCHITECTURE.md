@@ -123,6 +123,16 @@ CF Worker validates credentials before proxying to the container:
 
 API keys: stored as SHA-256 hash in `api_keys` table. Raw key shown once at creation.
 
+## Frontend Auth — `components/auth/AuthGate.tsx` + `AuthCallbackPage.tsx`
+
+Both frontend Supabase clients use `flowType: 'implicit'`. This is intentional:
+
+- Magic links redirect to `/auth/callback/#access_token=...` (hash fragment)
+- `getSession()` on the callback page extracts the session from the hash automatically
+- Works regardless of which browser opens the magic link (no `code_verifier` in localStorage required)
+
+PKCE (`flowType: 'pkce'`) was the previous default but failed cross-browser: the verifier stored in browser A is not available when the email link opens in browser B.
+
 ## Frontend Architecture
 
 ### Three-Column Layout
@@ -153,6 +163,10 @@ export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
 ```
 
 Adding a new component: register in `COMPONENT_REGISTRY` only. No routing changes.
+
+### Locale Detection
+
+Locale is detected client-side from `localStorage` (key `locale`) via `lib/i18n.ts detectLocale()`. Supported values: `ja`, `zh`, `en` (default: `ja`). There is no URL-based locale routing (no `app/[lang]/` path segments).
 
 ### Design Tokens
 

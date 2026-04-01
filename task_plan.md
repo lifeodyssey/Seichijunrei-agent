@@ -46,7 +46,7 @@ Phase 5 — Platform hardening complete
 
 ## Key Decisions
 
-- Runtime orchestration stays `Intent -> Plan -> Execute`
+- Runtime orchestration is `ReActPlannerAgent -> ExecutorAgent` (no separate IntentAgent)
 - Retrieval stays deterministic and structured-first
 - UI/protocol layers are deferred until the runtime is stable
 - Any future interface must wrap the runtime, not replace it

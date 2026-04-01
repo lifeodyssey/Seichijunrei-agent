@@ -2,19 +2,20 @@
 
 ## Chosen Runtime
 
-The repository now converges on one execution model:
+The repository converges on a two-step Plan-and-Execute model:
 
-`IntentAgent -> PlannerAgent -> ExecutorAgent`
+`ReActPlannerAgent -> ExecutorAgent`
 
-This is the simplest shape that matches the implemented code and keeps the
-retrieval and route-planning logic inspectable.
+`ReActPlannerAgent` produces a structured `ExecutionPlan` (Pydantic AI, `output_type=ExecutionPlan`).
+`ExecutorAgent` dispatches it deterministically — no LLM calls during execution.
+Intent reasoning is fused into the planner's LLM pass; there is no separate `IntentAgent`.
 
 ## Why This Shape
 
-- Intent classification is a separate concern from execution
 - Planning should stay explicit, typed, and deterministic
 - Execution should call handlers and tools, not hide orchestration in prompts
 - Structured retrieval fits the current data and product scope better than a fuzzier policy layer
+- Eliminating a dedicated intent-classification step reduces latency and simplifies the call graph
 
 ## Retrieval Direction
 
