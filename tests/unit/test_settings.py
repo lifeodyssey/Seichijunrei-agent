@@ -75,24 +75,15 @@ class TestGCPConfiguration:
             google_maps_api_key="test_key",
             service_host="127.0.0.1",
             service_port=9000,
-            session_store_backend="redis",
             observability_enabled=True,
             observability_exporter_type="console",
         )
         config = settings.get_runtime_config()
         assert config["service_host"] == "127.0.0.1"
         assert config["service_port"] == 9000
-        assert config["session_store_backend"] == "redis"
         assert config["observability_enabled"] is True
         assert config["observability_exporter_type"] == "console"
 
-    def test_invalid_session_store_backend_is_rejected(self):
-        """Test that unsupported session store backends are rejected."""
-        with pytest.raises(ValidationError):
-            Settings(
-                google_maps_api_key="test_key",
-                session_store_backend="sqlite",  # type: ignore[arg-type]
-            )
 
 
 class TestAPIKeyValidation:

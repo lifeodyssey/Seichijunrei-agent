@@ -159,7 +159,7 @@ def _runtime_context(
 ):
     async def context(app: web.Application):
         runtime_db = db or _build_supabase_client(settings)
-        runtime_session_store = session_store or _build_session_store(settings)
+        runtime_session_store = session_store or _build_session_store()
 
         await _call_optional_async(runtime_db, "connect")
         app[_RUNTIME_API_KEY] = RuntimeAPI(
@@ -246,24 +246,8 @@ def _build_supabase_client(settings: Settings) -> SupabaseClient:
     return SupabaseClient(dsn)
 
 
-def _build_session_store(settings: Settings) -> SessionStore:
-    if settings.session_store_backend == "memory":
-        return create_session_store("memory")
-    if settings.session_store_backend == "redis":
-        return create_session_store(
-            "redis",
-            host=settings.redis_session_host,
-            port=settings.redis_session_port,
-            db=settings.redis_session_db,
-            password=settings.redis_session_password,
-            prefix=settings.redis_session_prefix,
-            ttl_seconds=settings.session_ttl_seconds,
-        )
-    return create_session_store(
-        "firestore",
-        project_id=settings.google_cloud_project,
-        collection_name=settings.firestore_session_collection,
-    )
+def _build_session_store() -> SessionStore:
+    return create_session_store()
 
 
 async def _call_optional_async(target: Any, method_name: str) -> None:

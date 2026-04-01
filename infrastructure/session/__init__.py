@@ -1,10 +1,6 @@
 """Session store implementations for infrastructure layer.
 
-This module provides various session store backends:
-- InMemorySessionStore: For local development and testing
-- RedisSessionStore: For distributed deployments with Redis
-- FirestoreSessionStore: For GCP deployments with Firestore
-
+This module provides the in-memory session store backend.
 Use the factory function to create the appropriate store based on configuration.
 """
 

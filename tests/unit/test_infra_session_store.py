@@ -108,15 +108,5 @@ class TestSessionStoreFactory:
 
     def test_create_memory_store(self):
         """Test creating in-memory store."""
-        store = create_session_store("memory")
-        assert isinstance(store, InMemorySessionStore)
-
-    def test_create_memory_store_default(self):
-        """Test that memory is the default store type."""
         store = create_session_store()
         assert isinstance(store, InMemorySessionStore)
-
-    def test_create_unknown_store_raises(self):
-        """Test that unknown store type raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown session store type"):
-            create_session_store("unknown")  # type: ignore

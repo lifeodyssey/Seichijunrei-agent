@@ -96,7 +96,7 @@ class RuntimeAPI:
         session_store: SessionStore | None = None,
     ) -> None:
         self._db = db
-        self._session_store = session_store or create_session_store("memory")
+        self._session_store = session_store or create_session_store()
 
     async def handle(self, request: PublicAPIRequest) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""

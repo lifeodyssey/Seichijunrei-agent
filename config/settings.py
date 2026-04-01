@@ -96,39 +96,7 @@ class Settings(BaseSettings):
         default="", description="Direct Postgres DSN for asyncpg"
     )
 
-    # Session storage
-    session_store_backend: Literal["memory", "redis", "firestore"] = Field(
-        default="memory",
-        description="Session persistence backend for the public runtime service",
-    )
-    session_ttl_seconds: int = Field(
-        default=86400,
-        description="TTL for session backends that support expiration",
-    )
-    redis_session_host: str = Field(
-        default="localhost",
-        description="Redis hostname for session storage",
-    )
-    redis_session_port: int = Field(
-        default=6379,
-        description="Redis port for session storage",
-    )
-    redis_session_db: int = Field(
-        default=0,
-        description="Redis database number for session storage",
-    )
-    redis_session_password: str | None = Field(
-        default=None,
-        description="Redis password for session storage",
-    )
-    redis_session_prefix: str = Field(
-        default="session:",
-        description="Redis key prefix for session storage",
-    )
-    firestore_session_collection: str = Field(
-        default="sessions",
-        description="Firestore collection used for session storage",
-    )
+    # Session storage (in-memory only)
 
     # Agent model
     default_agent_model: str = Field(
@@ -206,7 +174,6 @@ class Settings(BaseSettings):
             "observability_enabled": self.observability_enabled,
             "observability_exporter_type": self.observability_exporter_type,
             "enable_mcp_tools": self.enable_mcp_tools,
-            "session_store_backend": self.session_store_backend,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }
