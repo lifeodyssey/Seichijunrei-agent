@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
 from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
@@ -54,11 +53,12 @@ Be concrete. Output JSON matching the schema.
 async def mine(
     limit: int = 100, model_id: str | None = None
 ) -> list[_PromptSuggestion]:
+    import asyncpg
     from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
+
     from infrastructure.supabase.client import SupabaseClient
-    import asyncpg
 
     db_url = os.environ["DATABASE_URL"]
     pool = await asyncpg.create_pool(db_url, min_size=1, max_size=2)
