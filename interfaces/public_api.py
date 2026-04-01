@@ -339,9 +339,9 @@ def _pipeline_result_to_public_response(
     if include_debug:
         response.debug = {
             "plan": {
-                "intent": result.plan.intent,
-                "rationale": result.plan.rationale,
-                "steps": [step.step_type.value for step in result.plan.steps],
+                "intent": result.intent,
+                "reasoning": result.plan.reasoning,
+                "steps": [step.tool.value for step in result.plan.steps],
             },
             "step_results": [
                 _serialize_step_result(step) for step in result.step_results
@@ -446,7 +446,7 @@ def _application_error_response(exc: ApplicationError) -> PublicAPIResponse:
 
 def _serialize_step_result(step: StepResult) -> dict[str, Any]:
     return {
-        "step_type": step.step_type,
+        "tool": step.tool,
         "success": step.success,
         "error": step.error,
         "data": step.data,
