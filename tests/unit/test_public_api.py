@@ -11,7 +11,12 @@ from agents.executor_agent import PipelineResult
 from agents.models import ExecutionPlan, PlanStep, ToolName
 from application.errors import InvalidInputError
 from infrastructure.session.memory import InMemorySessionStore
-from interfaces.public_api import PublicAPIRequest, PublicAPIResponse, RuntimeAPI, handle_public_request
+from interfaces.public_api import (
+    PublicAPIRequest,
+    PublicAPIResponse,
+    RuntimeAPI,
+    handle_public_request,
+)
 
 
 def _make_result(
@@ -24,7 +29,8 @@ def _make_result(
     plan = ExecutionPlan(
         reasoning="test",
         locale=locale,
-        steps=steps or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
+        steps=steps
+        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
     )
     result = PipelineResult(intent=intent, plan=plan)
     result.final_output = final_output or {
@@ -39,6 +45,7 @@ def _make_result(
 @pytest.fixture(autouse=True)
 def _mock_pipeline():
     """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
+
     async def _fake(text, db, *, model=None, locale="ja"):
         return _make_result(locale=locale)
 
@@ -144,11 +151,24 @@ class TestRuntimeAPI:
                 "status": "ok",
                 "message": "ルートを作成しました。",
                 "data": {
-                    "results": {"rows": [{"id": "1", "bangumi_id": "115908"}], "row_count": 1},
+                    "results": {
+                        "rows": [{"id": "1", "bangumi_id": "115908"}],
+                        "row_count": 1,
+                    },
                     "route": {
                         "ordered_points": [
-                            {"id": "1", "name": "A", "latitude": 34.88, "longitude": 135.80},
-                            {"id": "2", "name": "B", "latitude": 34.89, "longitude": 135.81},
+                            {
+                                "id": "1",
+                                "name": "A",
+                                "latitude": 34.88,
+                                "longitude": 135.80,
+                            },
+                            {
+                                "id": "2",
+                                "name": "B",
+                                "latitude": 34.89,
+                                "longitude": 135.81,
+                            },
                         ],
                         "point_count": 2,
                     },

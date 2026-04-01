@@ -11,6 +11,7 @@ from agents.planner_agent import ReActPlannerAgent
 @pytest.fixture
 def mock_plan_bangumi() -> ExecutionPlan:
     from agents.models import PlanStep
+
     return ExecutionPlan(
         steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})],
         reasoning="user asked about a specific anime",

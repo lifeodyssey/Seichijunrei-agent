@@ -4,6 +4,7 @@ Usage:
     uv run python tools/eval_feedback_miner.py
     uv run python tools/eval_feedback_miner.py --limit 50 --output suggestions.md
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +16,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_DEFAULT_MODEL = os.environ.get("EVAL_MODEL", "openai:qwen3.5-9b@http://localhost:1234/v1")
+_DEFAULT_MODEL = os.environ.get(
+    "EVAL_MODEL", "openai:qwen3.5-9b@http://localhost:1234/v1"
+)
 
 
 @dataclass
@@ -48,7 +51,9 @@ Be concrete. Output JSON matching the schema.
 """.strip()
 
 
-async def mine(limit: int = 100, model_id: str | None = None) -> list[_PromptSuggestion]:
+async def mine(
+    limit: int = 100, model_id: str | None = None
+) -> list[_PromptSuggestion]:
     from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
@@ -87,7 +92,9 @@ async def mine(limit: int = 100, model_id: str | None = None) -> list[_PromptSug
     return result.output.suggestions
 
 
-async def run(limit: int = 100, model_id: str | None = None, output: str | None = None) -> None:
+async def run(
+    limit: int = 100, model_id: str | None = None, output: str | None = None
+) -> None:
     suggestions = await mine(limit=limit, model_id=model_id)
     lines: list[str] = ["# Planner Prompt Improvement Suggestions\n"]
     for i, s in enumerate(suggestions, 1):
@@ -96,7 +103,9 @@ async def run(limit: int = 100, model_id: str | None = None, output: str | None 
         lines.append("**Affected queries:**")
         for q in s.affected_queries:
             lines.append(f"- {q}")
-        lines.append(f"\n**Suggested prompt change:**\n```\n{s.suggested_prompt_change}\n```\n")
+        lines.append(
+            f"\n**Suggested prompt change:**\n```\n{s.suggested_prompt_change}\n```\n"
+        )
     text = "\n".join(lines)
     if output:
         with open(output, "w") as f:
@@ -108,6 +117,7 @@ async def run(limit: int = 100, model_id: str | None = None, output: str | None 
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--model", type=str, default=None)

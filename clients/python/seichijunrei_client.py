@@ -10,6 +10,7 @@ Usage:
 Or from CLI:
     SK=sk_xxx python clients/python/seichijunrei_client.py "吹響の聖地"
 """
+
 from __future__ import annotations
 
 import httpx
@@ -32,7 +33,9 @@ class SeichijunreiClient:
             "Content-Type": "application/json",
         }
 
-    def search(self, text: str, locale: str = "ja", session_id: str | None = None) -> dict:
+    def search(
+        self, text: str, locale: str = "ja", session_id: str | None = None
+    ) -> dict:
         body: dict = {"text": text, "locale": locale}
         if session_id:
             body["session_id"] = session_id
@@ -87,7 +90,9 @@ class AsyncSeichijunreiClient:
             "Content-Type": "application/json",
         }
 
-    async def search(self, text: str, locale: str = "ja", session_id: str | None = None) -> dict:
+    async def search(
+        self, text: str, locale: str = "ja", session_id: str | None = None
+    ) -> dict:
         body: dict = {"text": text, "locale": locale}
         if session_id:
             body["session_id"] = session_id

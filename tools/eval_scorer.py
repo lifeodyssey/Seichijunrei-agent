@@ -4,6 +4,7 @@ Usage:
     uv run python tools/eval_scorer.py
     uv run python tools/eval_scorer.py --limit 50 --model openai:gpt-4o-mini
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +16,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_DEFAULT_MODEL = os.environ.get("EVAL_MODEL", "openai:qwen3.5-9b@http://localhost:1234/v1")
+_DEFAULT_MODEL = os.environ.get(
+    "EVAL_MODEL", "openai:qwen3.5-9b@http://localhost:1234/v1"
+)
 
 
 @dataclass
@@ -61,6 +64,7 @@ async def score_row(row: dict, model: object) -> float:
     steps = row.get("plan_steps") or []
     if isinstance(steps, str):
         import json
+
         steps = json.loads(steps)
 
     prompt = (
@@ -91,7 +95,9 @@ async def run(limit: int = 200, model_id: str | None = None) -> None:
             score = await score_row(row, model)
             await client.update_request_log_score(log_id=str(row["id"]), score=score)
             scored += 1
-            print(f"  [{scored}/{len(rows)}] {row['query_text'][:50]:50s} → {score:.2f}")
+            print(
+                f"  [{scored}/{len(rows)}] {row['query_text'][:50]:50s} → {score:.2f}"
+            )
         except Exception as exc:
             print(f"  SKIP {row['id']}: {exc}", file=sys.stderr)
 
@@ -101,6 +107,7 @@ async def run(limit: int = 200, model_id: str | None = None) -> None:
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--model", type=str, default=None)

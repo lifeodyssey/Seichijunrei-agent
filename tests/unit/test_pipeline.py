@@ -24,7 +24,9 @@ def mock_db():
 class TestRunPipeline:
     async def test_bangumi_pipeline(self, mock_db):
         plan = ExecutionPlan(
-            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})],
+            steps=[
+                PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})
+            ],
             reasoning="test",
             locale="ja",
         )
@@ -38,7 +40,11 @@ class TestRunPipeline:
 
     async def test_pipeline_returns_pipeline_result(self, mock_db):
         plan = ExecutionPlan(
-            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION, params={"answer": "巡礼とは..."})],
+            steps=[
+                PlanStep(
+                    tool=ToolName.ANSWER_QUESTION, params={"answer": "巡礼とは..."}
+                )
+            ],
             reasoning="qa",
             locale="ja",
         )

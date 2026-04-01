@@ -4,6 +4,7 @@ Accepts an ExecutionPlan from ReActPlannerAgent and executes each step using
 the appropriate handler. No LLM calls — all responses use static message
 templates. Steps communicate via context dict (each step deposits its output).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -120,7 +121,11 @@ class ExecutorAgent:
         self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
         tool = getattr(step, "tool", None)
-        tool_name = tool.value if tool is not None else str(getattr(step, "step_type", "unknown"))
+        tool_name = (
+            tool.value
+            if tool is not None
+            else str(getattr(step, "step_type", "unknown"))
+        )
         handler = {
             ToolName.RESOLVE_ANIME: self._execute_resolve_anime,
             ToolName.SEARCH_BANGUMI: self._execute_search_bangumi,
@@ -149,13 +154,17 @@ class ExecutorAgent:
         """Resolve anime title → bangumi_id. DB first, API on miss (write-through)."""
         title = step.params.get("title", "")
         if not title:
-            return StepResult(tool="resolve_anime", success=False, error="No title provided")
+            return StepResult(
+                tool="resolve_anime", success=False, error="No title provided"
+            )
 
         # 1. DB lookup
         bangumi_id = await self._db.find_bangumi_by_title(title)
         if bangumi_id:
             logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
-            return StepResult(tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id})
+            return StepResult(
+                tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id}
+            )
 
         # 2. Bangumi.tv API fallback
         gateway = BangumiClientGateway()
@@ -163,7 +172,9 @@ class ExecutorAgent:
         if bangumi_id:
             await self._db.upsert_bangumi_title(title, bangumi_id)
             logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
-            return StepResult(tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id})
+            return StepResult(
+                tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id}
+            )
 
         return StepResult(
             tool="resolve_anime",
@@ -225,7 +236,9 @@ class ExecutorAgent:
         )
         rows = (query_data or {}).get("rows", [])
         if not rows:
-            return StepResult(tool="plan_route", success=False, error="No points to route")
+            return StepResult(
+                tool="plan_route", success=False, error="No points to route"
+            )
 
         ordered = _nearest_neighbor_sort(rows)
         with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
@@ -263,9 +276,8 @@ class ExecutorAgent:
         self, result: PipelineResult, context: dict[str, Any], primary_tool: str
     ) -> dict[str, Any]:
         locale = context.get("locale", "ja")
-        query_data = (
-            context.get(ToolName.SEARCH_BANGUMI.value)
-            or context.get(ToolName.SEARCH_NEARBY.value)
+        query_data = context.get(ToolName.SEARCH_BANGUMI.value) or context.get(
+            ToolName.SEARCH_NEARBY.value
         )
         route_data = context.get(ToolName.PLAN_ROUTE.value)
         qa_data = context.get(ToolName.ANSWER_QUESTION.value)

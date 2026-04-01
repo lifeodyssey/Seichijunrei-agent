@@ -26,7 +26,9 @@ def _plan(*steps: PlanStep, locale: str = "ja") -> ExecutionPlan:
 
 class TestExecutorAgentExecute:
     async def test_search_bangumi_empty(self, mock_db):
-        plan = _plan(PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"}))
+        plan = _plan(
+            PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})
+        )
         executor = ExecutorAgent(mock_db)
         result = await executor.execute(plan)
         assert result.intent == "search_bangumi"
@@ -72,7 +74,9 @@ class TestExecutorAgentExecute:
         mock_db.find_bangumi_by_title.assert_awaited_once_with("吹响")
 
     async def test_answer_question(self, mock_db):
-        plan = _plan(PlanStep(tool=ToolName.ANSWER_QUESTION, params={"answer": "おはよう"}))
+        plan = _plan(
+            PlanStep(tool=ToolName.ANSWER_QUESTION, params={"answer": "おはよう"})
+        )
         executor = ExecutorAgent(mock_db)
         result = await executor.execute(plan)
         assert result.intent == "answer_question"

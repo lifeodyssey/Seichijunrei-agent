@@ -1,4 +1,5 @@
 """Pipeline — top-level entry point: plan → execute."""
+
 from __future__ import annotations
 
 from typing import Any

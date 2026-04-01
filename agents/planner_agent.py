@@ -3,6 +3,7 @@
 Replaces the old dict-lookup PlannerAgent. Uses Pydantic AI structured output
 to produce an ExecutionPlan from free-text user input.
 """
+
 from __future__ import annotations
 
 from typing import Any
