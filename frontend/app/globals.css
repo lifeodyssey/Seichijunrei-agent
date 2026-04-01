@@ -1,79 +1,104 @@
-@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Shippori+Mincho+B1:wght@400;500;600;700;800&display=swap");
 @import "../node_modules/tailwindcss/index.css";
 
 :root {
-  --app-font-sans: "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK JP",
-    system-ui, sans-serif;
+  --app-font-body: "Outfit", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
   --app-font-mono: "SFMono-Regular", "IBM Plex Mono", monospace;
   --app-font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", Georgia, serif;
 
-  --color-bg: #0f0f11;
-  --color-fg: #f0ece6;
-  --color-card: #17171a;
-  --color-card-fg: #f0ece6;
-  --color-muted: #1e1e22;
-  --color-muted-fg: #7a7270;
-  --color-border: #272729;
-  --color-input: #272729;
+  /* Palette — 京吹夏季 · 白水手 × 天蓝裙 × 铜管金 */
+  --color-bg:      oklch(98% 0.008 218);
+  --color-fg:      oklch(20% 0.025 238);
+  --color-card:    oklch(95% 0.012 215);
+  --color-card-fg: oklch(20% 0.025 238);
+  --color-muted:   oklch(91% 0.016 218);
+  --color-muted-fg: oklch(54% 0.032 228);
+  --color-border:  oklch(85% 0.022 222);
+  --color-input:   oklch(85% 0.022 222);
 
-  --color-primary: #d4954a;
-  --color-primary-fg: #0f0f11;
+  --color-primary:    oklch(60% 0.148 240);
+  --color-primary-fg: oklch(99% 0.004 220);
 
-  --color-secondary: #272729;
-  --color-secondary-fg: #f0ece6;
+  --color-secondary:    oklch(91% 0.016 218);
+  --color-secondary-fg: oklch(20% 0.025 238);
 
-  --color-info: #1a2535;
-  --color-info-fg: #7dd3fc;
-  --color-success: #14331a;
-  --color-success-fg: #86efac;
-  --color-warning: #2a1f0a;
-  --color-warning-fg: #fbbf24;
-  --color-error: #2a0f0f;
-  --color-error-fg: #fca5a5;
+  /* Sidebar */
+  --color-sidebar:           oklch(96% 0.010 216);
+  --color-sidebar-fg:        oklch(54% 0.032 228);
+  --color-sidebar-border:    oklch(85% 0.022 222);
+  --color-sidebar-accent:    oklch(88% 0.028 230);
+  --color-sidebar-accent-fg: oklch(20% 0.025 238);
 
-  --color-sidebar: #0d0d0f;
-  --color-sidebar-fg: #7a7270;
-  --color-sidebar-border: #1e1e22;
-  --color-sidebar-accent: #17171a;
-  --color-sidebar-accent-fg: #f0ece6;
+  /* Semantic */
+  --color-info:       oklch(88% 0.035 240);
+  --color-info-fg:    oklch(28% 0.080 240);
+  --color-success:    oklch(88% 0.035 145);
+  --color-success-fg: oklch(28% 0.090 145);
+  --color-warning:    oklch(90% 0.060 75);
+  --color-warning-fg: oklch(28% 0.090 75);
+  --color-error:      oklch(90% 0.040 20);
+  --color-error-fg:   oklch(28% 0.090 20);
+
+  /* Motion */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast:  150ms;
+  --duration-base:  250ms;
+  --duration-slow:  400ms;
 }
 
 @theme inline {
   --color-background: var(--color-bg);
   --color-foreground: var(--color-fg);
-  --font-sans: var(--app-font-sans);
+  --font-sans: var(--app-font-body);
   --font-mono: var(--app-font-mono);
   --font-display: var(--app-font-display);
 }
 
-@keyframes breathe {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.86);
-  }
+/* Keyframes */
 
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
+@keyframes breathe {
+  0%, 100% { opacity: 0.2; transform: scale(0.86); }
+  50%       { opacity: 1;   transform: scale(1.08); }
 }
 
-html,
-body {
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: translateX(100%);  opacity: 0; }
+}
+
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Base */
+
+html, body {
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--app-font-sans);
+  font-family: var(--app-font-body);
+  font-weight: 300;
 }
 
-body {
-  min-height: 100%;
+body { min-height: 100%; }
+
+h1, h2, h3 {
+  font-family: var(--app-font-display);
+  font-weight: 700;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 32%, transparent);
 }
 
-a {
-  color: inherit;
+a { color: inherit; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

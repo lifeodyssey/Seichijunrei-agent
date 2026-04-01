@@ -22,8 +22,11 @@ export default function MessageBubble({
 
   if (message.role === "user") {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[70%] rounded-2xl rounded-br-sm bg-[var(--color-primary)] px-4 py-2.5 text-sm text-[var(--color-primary-fg)]">
+      <div
+        className="flex justify-end"
+        style={{ animation: "slide-up-fade 300ms var(--ease-out-quint) both" }}
+      >
+        <div className="max-w-[70%] rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-normal text-[var(--color-primary-fg)]">
           {message.text}
         </div>
       </div>
@@ -31,58 +34,56 @@ export default function MessageBubble({
   }
 
   return (
-    <div className="flex gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-medium text-[var(--color-primary-fg)]">
-        {t.bot_icon}
-      </div>
-      <div className="min-w-0 flex-1 space-y-3">
-        <p className="text-xs font-medium text-[var(--color-fg)]">{t.bot_name}</p>
-        {message.loading ? (
-          <ThinkingDots label={t.thinking} />
-        ) : (
-          <>
-            {message.text && (
-              <p className="text-sm leading-relaxed text-[var(--color-fg)]">
-                {message.text}
-              </p>
-            )}
-            {message.response && canShowAnchor(message.response) && (
-              <ResultAnchor
-                label={t.anchor_results.replace(
-                  "{count}",
-                  String(getResultCount(message.response)),
-                )}
-                messageId={message.id}
-                onActivate={onActivate}
-                isActive={isActive}
-                onOpenDrawer={onOpenDrawer}
-              />
-            )}
-            {message.response && !message.loading && (
-              <FeedbackButtons message={message} />
-            )}
-          </>
-        )}
-      </div>
+    <div
+      className="flex flex-col gap-2.5"
+      style={{ animation: "slide-up-fade 300ms var(--ease-out-quint) both" }}
+    >
+      {/* Bot label — editorial, no avatar circle */}
+      <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)]">
+        {t.bot_name}
+      </p>
+
+      {message.loading ? (
+        <ThinkingBar />
+      ) : (
+        <>
+          {message.text && (
+            <p className="text-sm font-light leading-loose text-[var(--color-fg)]">
+              {message.text}
+            </p>
+          )}
+          {message.response && canShowAnchor(message.response) && (
+            <ResultAnchor
+              label={t.anchor_results.replace(
+                "{count}",
+                String(getResultCount(message.response)),
+              )}
+              count={getResultCount(message.response)}
+              messageId={message.id}
+              onActivate={onActivate}
+              isActive={isActive}
+              onOpenDrawer={onOpenDrawer}
+            />
+          )}
+          {message.response && !message.loading && (
+            <FeedbackButtons message={message} />
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-function ThinkingDots({ label }: { label: string }) {
+function ThinkingBar() {
   return (
-    <div className="flex items-center gap-2 text-sm text-[var(--color-muted-fg)]">
-      <span className="sr-only">{label}</span>
-      <span
-        className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
-        style={{ animation: "breathe 1.2s ease-in-out infinite" }}
-      />
-      <span
-        className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
-        style={{ animation: "breathe 1.2s ease-in-out infinite 0.15s" }}
-      />
-      <span
-        className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
-        style={{ animation: "breathe 1.2s ease-in-out infinite 0.3s" }}
+    <div className="relative h-px w-16 overflow-hidden bg-[var(--color-border)]">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+          animation: "shimmer 1.4s ease-in-out infinite",
+        }}
       />
     </div>
   );
@@ -110,12 +111,14 @@ function getResultCount(response: RuntimeResponse): number {
 
 function ResultAnchor({
   label,
+  count,
   messageId,
   onActivate,
   isActive,
   onOpenDrawer,
 }: {
   label: string;
+  count: number;
   messageId: string;
   onActivate?: (messageId: string) => void;
   isActive: boolean;
@@ -129,17 +132,20 @@ function ResultAnchor({
         onOpenDrawer?.();
       }}
       className={[
-        "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition",
+        "flex w-fit items-center gap-2 border px-3 py-1.5 text-xs transition",
         isActive
-          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-          : "border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-fg)] hover:border-[var(--color-primary)]/60 hover:bg-[var(--color-muted)]",
+          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+          : "border-[var(--color-border)] bg-transparent text-[var(--color-muted-fg)] hover:border-[var(--color-primary)]/60 hover:text-[var(--color-fg)]",
       ].join(" ")}
+      style={{ transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quint)" }}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="text-[var(--color-primary)]">◈</span>
-        <span className="truncate">{label}</span>
+      <span className={isActive ? "text-[var(--color-primary-fg)]" : "text-[var(--color-primary)]"}>
+        ◈
       </span>
-      <span className="shrink-0 text-xs text-[var(--color-muted-fg)]">→</span>
+      <span>{label}</span>
+      {count > 0 && (
+        <span className={isActive ? "opacity-70" : "opacity-50"}>({count})</span>
+      )}
     </button>
   );
 }
@@ -171,7 +177,7 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
 
   if (state === "submitted") {
     return (
-      <p className="text-xs text-[var(--color-muted-fg)]">
+      <p className="text-[10px] text-[var(--color-muted-fg)] opacity-60">
         {t.feedback_sent}
       </p>
     );
@@ -179,17 +185,17 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-1">
+      <div className="flex gap-0.5 opacity-40 hover:opacity-100 transition-opacity" style={{ transitionDuration: "var(--duration-fast)" }}>
         <button
           onClick={() => handleFeedback("good")}
-          className="rounded px-2 py-1 text-xs text-[var(--color-muted-fg)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-fg)]"
+          className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_good_title}
         >
           👍
         </button>
         <button
           onClick={() => handleFeedback("bad")}
-          className="rounded px-2 py-1 text-xs text-[var(--color-muted-fg)] transition hover:bg-[var(--color-secondary)] hover:text-[var(--color-fg)]"
+          className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_bad_title}
         >
           👎
@@ -202,11 +208,11 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder={t.feedback_placeholder}
-            className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 text-xs outline-none"
+            className="flex-1 border-b border-[var(--color-border)] bg-transparent px-0 py-1 text-xs outline-none focus:border-[var(--color-primary)]"
           />
           <button
             onClick={() => handleFeedback("bad")}
-            className="rounded bg-[var(--color-secondary)] px-3 py-1 text-xs font-medium text-[var(--color-fg)]"
+            className="text-xs font-medium text-[var(--color-primary)]"
           >
             {t.send}
           </button>

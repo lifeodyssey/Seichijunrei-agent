@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "聖地巡礼 AI",
+    "title": "聖地巡礼",
     "description": "アニメ聖地を探す・ルートを計画する"
   },
   "auth": {
-    "title": "聖地巡礼 AI",
+    "title": "聖地巡礼",
     "subtitle": "内部テスト版",
     "tab_waitlist": "テスト申請",
     "tab_login": "ログイン",
@@ -26,14 +26,14 @@
     "placeholder": "聖地を探す・ルートを計画する…",
     "send": "送信",
     "thinking": "考え中…",
-    "bot_name": "聖地巡礼 AI",
+    "bot_name": "聖地巡礼",
     "bot_icon": "聖",
     "feedback_sent": "✓ フィードバック送信済み",
     "feedback_placeholder": "何が問題でしたか？（任意）",
     "feedback_good_title": "良い回答",
     "feedback_bad_title": "悪い回答",
     "anchor_results": "{count}件の結果",
-    "welcome_title": "聖地巡礼 AI",
+    "welcome_title": "聖地巡礼",
     "welcome_subtitle": "アニメの聖地を探したり、巡礼ルートを計画できます"
   },
   "sidebar": {
@@ -45,7 +45,7 @@
     "footer": "巡礼者"
   },
   "header": {
-    "title": "聖地巡礼 AI",
+    "title": "聖地巡礼",
     "subtitle": "動漫聖地を探す · ルートを計画する",
     "map_open": "地図を閉じる",
     "map_closed": "地図"

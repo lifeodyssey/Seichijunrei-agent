@@ -13,7 +13,7 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
 
   if (results.status === "empty" || results.rows.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
+      <div className="py-8 text-sm font-light text-[var(--color-muted-fg)]">
         {t.no_results}
       </div>
     );
@@ -22,25 +22,34 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
   const animeTitle = results.rows[0]?.title_cn || results.rows[0]?.title || "";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-baseline gap-3">
+    <div className="space-y-5">
+      {/* Editorial section header */}
+      <div className="flex items-baseline gap-4">
         {animeTitle && (
-          <h2 className="font-[family-name:var(--app-font-display)] text-base font-semibold text-[var(--color-fg)]">
+          <h2 className="font-[family-name:var(--app-font-display)] text-lg font-semibold text-[var(--color-fg)]">
             {animeTitle}
           </h2>
         )}
-        <span className="text-xs text-[var(--color-muted-fg)]">
+        <span className="text-xs font-light text-[var(--color-muted-fg)]">
           {t.count.replace("{count}", String(results.row_count))}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-        {results.rows.map((point) => (
+      {/* Photo spread — featured first card */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        {results.rows.map((point, idx) => (
           <div
             key={point.id}
-            className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]"
+            className={`relative overflow-hidden rounded-sm bg-[var(--color-muted)] ${
+              idx === 0 ? "col-span-2" : ""
+            }`}
           >
-            <div className="relative aspect-[4/3] bg-[var(--color-muted)]">
+            {/* Image */}
+            <div
+              className={`relative bg-[var(--color-muted)] ${
+                idx === 0 ? "aspect-video" : "aspect-[4/3]"
+              }`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={point.screenshot_url}
@@ -49,15 +58,19 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
                 loading="lazy"
               />
             </div>
-            <div className="space-y-0.5 p-2.5">
-              <p className="truncate text-xs font-medium text-[var(--color-fg)]">
+
+            {/* Episode overlay */}
+            {point.episode != null && point.episode !== 0 && (
+              <span className="absolute bottom-2 left-2 rounded-sm bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80">
+                {t.episode.replace("{ep}", String(point.episode))}
+              </span>
+            )}
+
+            {/* Caption below image */}
+            <div className="pb-2 pt-1.5">
+              <p className="truncate text-xs font-light text-[var(--color-fg)]">
                 {point.name_cn || point.name}
               </p>
-              {point.episode != null && point.episode !== 0 && (
-                <p className="text-[10px] text-[var(--color-muted-fg)]">
-                  {t.episode.replace("{ep}", String(point.episode))}
-                </p>
-              )}
             </div>
           </div>
         ))}

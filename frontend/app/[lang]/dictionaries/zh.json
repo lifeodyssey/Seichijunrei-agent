@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "圣地巡礼 AI",
+    "title": "圣地巡礼",
     "description": "搜索动漫取景地 · 规划巡礼路线"
   },
   "auth": {
-    "title": "圣地巡礼 AI",
+    "title": "圣地巡礼",
     "subtitle": "内测版",
     "tab_waitlist": "申请内测",
     "tab_login": "登录",
@@ -26,14 +26,14 @@
     "placeholder": "搜索取景地 · 规划巡礼路线…",
     "send": "发送",
     "thinking": "思考中…",
-    "bot_name": "圣地巡礼 AI",
+    "bot_name": "圣地巡礼",
     "bot_icon": "圣",
     "feedback_sent": "✓ 反馈已提交",
     "feedback_placeholder": "有什么问题？（选填）",
     "feedback_good_title": "回答不错",
     "feedback_bad_title": "有问题",
     "anchor_results": "{count} 条结果",
-    "welcome_title": "圣地巡礼 AI",
+    "welcome_title": "圣地巡礼",
     "welcome_subtitle": "搜索动漫取景地，规划巡礼路线"
   },
   "sidebar": {
@@ -45,7 +45,7 @@
     "footer": "巡礼者"
   },
   "header": {
-    "title": "圣地巡礼 AI",
+    "title": "圣地巡礼",
     "subtitle": "搜索动漫取景地 · 规划巡礼路线",
     "map_open": "关闭地图",
     "map_closed": "地图"

@@ -10,34 +10,66 @@ interface ResultPanelProps {
 }
 
 export default function ResultPanel({ activeResponse, onSuggest }: ResultPanelProps) {
-  const { chat } = useDict();
+  const { chat, clarification } = useDict();
 
   if (!activeResponse) {
     return (
-      <section className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[var(--color-bg)]">
+      <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--color-bg)]">
+        {/* Subtle map texture */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.18]"
+          className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{
-            backgroundImage:
-              "url(/empty-map.svg)",
+            backgroundImage: "url(/empty-map.svg)",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-100"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 18% 22%, rgba(212, 149, 74, 0.22), transparent 46%), radial-gradient(circle at 68% 56%, rgba(212, 149, 74, 0.10), transparent 52%), radial-gradient(circle at 50% 80%, rgba(0, 0, 0, 0.72), transparent 55%)",
-          }}
-        />
-        <div className="relative flex flex-col items-center gap-3 px-8 text-center">
-          <p className="font-[family-name:var(--app-font-display)] text-2xl text-[var(--color-fg)]">
-            {chat.welcome_title}
-          </p>
-          <p className="max-w-sm text-sm leading-7 text-[var(--color-muted-fg)]">
+
+        {/* Cinematic editorial composition — bottom-left anchored */}
+        <div className="relative flex h-full flex-col justify-end pb-16 pl-10 pr-8">
+          {/* Ghost title — the big typographic moment */}
+          <div className="relative mb-6 select-none leading-[0.85]">
+            {/* Dim layer — full text barely visible */}
+            <div
+              className="font-[family-name:var(--app-font-display)] font-bold"
+              style={{
+                fontSize: "clamp(5rem, 12vw, 9rem)",
+                color: "color-mix(in oklch, var(--color-fg) 9%, transparent)",
+              }}
+            >
+              <div>聖地</div>
+              <div>巡礼</div>
+            </div>
+            {/* Amber 聖 overlaid at full opacity */}
+            <div
+              className="absolute left-0 top-0 font-[family-name:var(--app-font-display)] font-bold text-[var(--color-primary)]"
+              style={{ fontSize: "clamp(5rem, 12vw, 9rem)", lineHeight: "0.85" }}
+            >
+              聖
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="mb-5 w-12 border-t border-[var(--color-border)]" />
+
+          {/* Subtitle */}
+          <p className="mb-8 max-w-xs text-sm font-light leading-relaxed text-[var(--color-muted-fg)]">
             {chat.welcome_subtitle}
           </p>
+
+          {/* Example query hints */}
+          <div className="flex flex-col gap-1.5">
+            {clarification.suggestions.map((s) => (
+              <button
+                key={s.label}
+                onClick={() => onSuggest?.(s.query)}
+                className="w-fit text-left text-xs font-light text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-primary)]"
+                style={{ transitionDuration: "var(--duration-fast)" }}
+              >
+                {s.label} →
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     );

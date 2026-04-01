@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "Seichijunrei AI",
+    "title": "Seichijunrei",
     "description": "Find anime pilgrimage spots and plan your route"
   },
   "auth": {
-    "title": "Seichijunrei AI",
+    "title": "Seichijunrei",
     "subtitle": "Internal beta",
     "tab_waitlist": "Join beta",
     "tab_login": "Log in",
@@ -26,14 +26,14 @@
     "placeholder": "Find pilgrimage spots or plan a route…",
     "send": "Send",
     "thinking": "Thinking…",
-    "bot_name": "Seichijunrei AI",
+    "bot_name": "Seichijunrei",
     "bot_icon": "聖",
     "feedback_sent": "✓ Feedback sent",
     "feedback_placeholder": "What went wrong? (optional)",
     "feedback_good_title": "Good response",
     "feedback_bad_title": "Bad response",
     "anchor_results": "{count} results",
-    "welcome_title": "Seichijunrei AI",
+    "welcome_title": "Seichijunrei",
     "welcome_subtitle": "Find anime filming locations and plan pilgrimage routes"
   },
   "sidebar": {
@@ -45,7 +45,7 @@
     "footer": "Pilgrim"
   },
   "header": {
-    "title": "Seichijunrei AI",
+    "title": "Seichijunrei",
     "subtitle": "Find anime locations · Plan your route",
     "map_open": "Close map",
     "map_closed": "Map"

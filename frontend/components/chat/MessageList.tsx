@@ -27,27 +27,28 @@ export default function MessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-[var(--color-muted-fg)]">
-        <div className="text-center">
-          <p className="text-lg font-medium">{t.welcome_title}</p>
-          <p className="mt-1 text-sm">{t.welcome_subtitle}</p>
-        </div>
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-xs font-light text-[var(--color-muted-fg)] opacity-50">
+          {t.placeholder}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-      {messages.map((msg) => (
-        <MessageBubble
-          key={msg.id}
-          message={msg}
-          onActivate={onActivate}
-          isActive={msg.id === activeMessageId}
-          onOpenDrawer={onOpenDrawer}
-        />
-      ))}
-      <div ref={endRef} />
+    <div className="flex-1 overflow-y-auto py-6">
+      <div className="mx-auto w-full max-w-2xl space-y-5 px-5">
+        {messages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onActivate={onActivate}
+            isActive={msg.id === activeMessageId}
+            onOpenDrawer={onOpenDrawer}
+          />
+        ))}
+        <div ref={endRef} />
+      </div>
     </div>
   );
 }
