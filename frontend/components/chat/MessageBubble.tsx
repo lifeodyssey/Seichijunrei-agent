@@ -143,9 +143,6 @@ function ResultAnchor({
         ◈
       </span>
       <span>{label}</span>
-      {count > 0 && (
-        <span className={isActive ? "opacity-70" : "opacity-50"}>({count})</span>
-      )}
     </button>
   );
 }
@@ -187,6 +184,7 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
     <div className="space-y-2">
       <div className="flex gap-0.5 opacity-40 hover:opacity-100 transition-opacity" style={{ transitionDuration: "var(--duration-fast)" }}>
         <button
+          aria-label={t.feedback_good_title}
           onClick={() => handleFeedback("good")}
           className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_good_title}
@@ -194,6 +192,7 @@ function FeedbackButtons({ message }: { message: ChatMessage }) {
           👍
         </button>
         <button
+          aria-label={t.feedback_bad_title}
           onClick={() => handleFeedback("bad")}
           className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_bad_title}

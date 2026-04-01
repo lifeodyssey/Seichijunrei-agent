@@ -32,6 +32,7 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
         style={{ transitionDuration: "var(--duration-fast)" }}
       >
         <textarea
+          aria-label={t.placeholder}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}

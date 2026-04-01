@@ -46,6 +46,7 @@ export default function AppShell() {
     clear();
     clearSession();
     setActiveMessageId(null);
+    setDrawerOpen(false);
   }, [clear, clearSession]);
 
   const handleActivate = useCallback((messageId: string) => {
@@ -55,6 +56,7 @@ export default function AppShell() {
   const handleSend = useCallback(
     (text: string) => {
       setActiveMessageId(null);
+      setDrawerOpen(false);
       send(text);
     },
     [send],
