@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "../../hooks/useSession";
 import { useChat } from "../../hooks/useChat";
 import { useLocale } from "../../lib/i18n-context";
@@ -21,19 +21,26 @@ export default function AppShell() {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(360);
+  const chatWidthRef = useRef(chatWidth);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
 
+  useEffect(() => { chatWidthRef.current = chatWidth; }, [chatWidth]);
+
   // Extract route history from the latest response that has one
-  const routeHistory: RouteHistoryRecord[] =
-    [...messages]
-      .reverse()
-      .find((m) => m.response?.route_history?.length)
-      ?.response?.route_history ?? [];
+  const routeHistory: RouteHistoryRecord[] = useMemo(
+    () =>
+      [...messages]
+        .reverse()
+        .find((m) => m.response?.route_history?.length)
+        ?.response?.route_history ?? [],
+    [messages],
+  );
 
   const latestResponseMessage = useMemo(
     () => [...messages].reverse().find((m) => m.response) ?? null,
     [messages],
   );
+  const hasResponse = latestResponseMessage !== null;
 
   const activeMessage = activeMessageId
     ? messages.find((message) => message.id === activeMessageId) ?? null
@@ -62,17 +69,10 @@ export default function AppShell() {
     [send],
   );
 
-  const handleSuggest = useCallback(
-    (text: string) => {
-      handleSend(text);
-    },
-    [handleSend],
-  );
-
   const handleDividerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    dragState.current = { startX: e.clientX, startWidth: chatWidth };
+    dragState.current = { startX: e.clientX, startWidth: chatWidthRef.current };
     e.currentTarget.setPointerCapture(e.pointerId);
-  }, [chatWidth]);
+  }, []);
 
   const handleDividerPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragState.current) return;
@@ -94,11 +94,11 @@ export default function AppShell() {
 
       <main
         className={`flex min-h-0 flex-col bg-[var(--color-bg)] ${
-          !isMobile && messages.some((m) => m.response)
+          !isMobile && hasResponse
             ? "shrink-0 border-r border-[var(--color-border)]"
             : "flex-1"
         }`}
-        style={!isMobile && messages.some((m) => m.response) ? { width: chatWidth } : undefined}
+        style={!isMobile && hasResponse ? { width: chatWidth } : undefined}
       >
         <ChatHeader onNewChat={isMobile ? handleNewChat : undefined} />
         <MessageList
@@ -115,9 +115,9 @@ export default function AppShell() {
           response={activeResponse}
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
-          onSuggest={handleSuggest}
+          onSuggest={handleSend}
         />
-      ) : messages.some((m) => m.response) && (
+      ) : hasResponse && (
         <>
           <div
             onPointerDown={handleDividerPointerDown}
@@ -126,7 +126,7 @@ export default function AppShell() {
             className="w-1 shrink-0 cursor-col-resize bg-[var(--color-border)] transition-colors hover:bg-[var(--color-primary)]"
             style={{ transitionDuration: "var(--duration-fast)" }}
           />
-          <ResultPanel activeResponse={activeResponse} onSuggest={handleSuggest} />
+          <ResultPanel activeResponse={activeResponse} onSuggest={handleSend} />
         </>
       )}
     </div>
