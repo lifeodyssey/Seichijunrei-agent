@@ -96,9 +96,9 @@ function canShowAnchor(response: RuntimeResponse): boolean {
 
 function getResultCount(response: RuntimeResponse): number {
   const data = response.data;
-  if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
-  if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
   if (isQAData(data)) return 1;
+  if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
+  if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
   return 0;
 }
 

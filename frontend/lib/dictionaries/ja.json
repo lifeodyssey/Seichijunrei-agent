@@ -3,6 +3,11 @@
     "title": "聖地巡礼",
     "description": "アニメ聖地を探す・ルートを計画する"
   },
+  "landing": {
+    "hero": "動漫聖地，",
+    "hero_accent": "巡礼の路",
+    "features": ["◈ 実写ロケ地検索", "◎ 最適ルート生成", "↗ 作品別一覧"]
+  },
   "auth": {
     "title": "聖地巡礼",
     "subtitle": "内部テスト版",
@@ -20,7 +25,12 @@
     "waitlist_success": "登録完了！審査通過後にログインリンクをお送りします。",
     "not_registered": "このメールアドレスは内部テストに登録されていません。先に申し込んでください。",
     "pending_review": "審査中です。しばらくお待ちください。",
-    "magic_link_sent": "ログインリンクをメールに送信しました。メールをご確認ください。"
+    "magic_link_sent": "ログインリンクをメールに送信しました。メールをご確認ください。",
+    "callback_loading": "ログインを完了しています...",
+    "callback_error": "ログインリンクを確認できませんでした。",
+    "callback_redirect_hint": "セッション復元後に自動的にリダイレクトされます。",
+    "callback_error_hint": "新しいマジックリンクをリクエストして再試行してください。",
+    "callback_open": "ワークスペースを開く"
   },
   "chat": {
     "placeholder": "聖地を探す・ルートを計画する…",

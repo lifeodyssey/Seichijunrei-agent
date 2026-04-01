@@ -1,13 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  createClient,
-  type EmailOtpType,
-  type SupabaseClient,
-} from "@supabase/supabase-js";
-import { pickPreferredLocale } from "../../lib/locale";
+import { useEffect, useState } from "react";
+import { createClient, type EmailOtpType, type SupabaseClient } from "@supabase/supabase-js";
+import { useDict } from "../../lib/i18n-context";
 
 let supabaseClient: SupabaseClient | null | undefined;
 
@@ -26,39 +22,9 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
-function buildRedirectPath(locale?: string) {
-  if (locale) return `/${locale}/`;
-  return `/${pickPreferredLocale(undefined)}/`;
-}
-
-function getMessage(locale: string, key: "loading" | "error" | "notConfigured") {
-  const messages = {
-    ja: {
-      loading: "ログインを完了しています...",
-      error: "ログインリンクを確認できませんでした。",
-      notConfigured: "ログイン設定がまだ完了していません。",
-    },
-    zh: {
-      loading: "正在完成登录...",
-      error: "无法确认登录链接。",
-      notConfigured: "登录配置尚未完成。",
-    },
-    en: {
-      loading: "Completing sign-in...",
-      error: "Could not verify the sign-in link.",
-      notConfigured: "Sign-in is not configured yet.",
-    },
-  } as const;
-
-  return messages[locale === "zh" ? "zh" : locale === "en" ? "en" : "ja"][key];
-}
-
-export function AuthCallbackPage({ locale }: { locale?: string }) {
-  const resolvedLocale = locale ?? pickPreferredLocale(undefined);
-  const redirectPath = useMemo(() => buildRedirectPath(locale), [locale]);
-  const [status, setStatus] = useState<string>(
-    getMessage(resolvedLocale, "loading"),
-  );
+export function AuthCallbackPage() {
+  const t = useDict().auth;
+  const [status, setStatus] = useState<string>(t.callback_loading);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,13 +38,10 @@ export function AuthCallbackPage({ locale }: { locale?: string }) {
 
       try {
         const supabase = getSupabaseClient();
-        if (!supabase) {
-          throw new Error(getMessage(resolvedLocale, "notConfigured"));
-        }
+        if (!supabase) throw new Error(t.not_configured);
 
         if (code) {
-          const { error: exchangeError } =
-            await supabase.auth.exchangeCodeForSession(code);
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
         } else if (tokenHash && type) {
           const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -87,31 +50,23 @@ export function AuthCallbackPage({ locale }: { locale?: string }) {
           });
           if (verifyError) throw verifyError;
         } else {
-          throw new Error(getMessage(resolvedLocale, "error"));
+          throw new Error(t.callback_error);
         }
 
         if (!cancelled) {
-          setStatus(getMessage(resolvedLocale, "loading"));
-          window.location.replace(redirectPath);
+          window.location.replace("/");
         }
       } catch (authError) {
         if (cancelled) return;
-
-        const message =
-          authError instanceof Error
-            ? authError.message
-            : getMessage(resolvedLocale, "error");
+        const message = authError instanceof Error ? authError.message : t.callback_error;
         setError(message);
         setStatus(message);
       }
     }
 
     completeAuth();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [redirectPath, resolvedLocale]);
+    return () => { cancelled = true; };
+  }, [t]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-6">
@@ -123,15 +78,13 @@ export function AuthCallbackPage({ locale }: { locale?: string }) {
           {status}
         </h1>
         <p className="mt-4 text-sm leading-7 text-[var(--color-muted-fg)]">
-          {error
-            ? "Please request a fresh magic link and try again."
-            : "You will be redirected automatically after the session is restored."}
+          {error ? t.callback_error_hint : t.callback_redirect_hint}
         </p>
         <Link
-          href={redirectPath}
+          href="/"
           className="mt-6 inline-flex rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-white"
         >
-          Open workspace
+          {t.callback_open}
         </Link>
       </div>
     </main>

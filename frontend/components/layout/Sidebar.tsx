@@ -1,15 +1,24 @@
 "use client";
 
 import type { RouteHistoryRecord } from "../../lib/types";
-import { useDict } from "../../lib/i18n-context";
+import { useDict, useLocale, useSetLocale } from "../../lib/i18n-context";
+import { LOCALES, type Locale } from "../../lib/i18n";
 
 interface SidebarProps {
   routeHistory: RouteHistoryRecord[];
   onNewChat: () => void;
 }
 
+const LOCALE_LABELS: Record<Locale, string> = {
+  ja: "日本語",
+  zh: "中文",
+  en: "EN",
+};
+
 export default function Sidebar({ routeHistory, onNewChat }: SidebarProps) {
   const { sidebar: t } = useDict();
+  const locale = useLocale();
+  const setLocale = useSetLocale();
 
   return (
     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
@@ -66,9 +75,27 @@ export default function Sidebar({ routeHistory, onNewChat }: SidebarProps) {
         )}
       </div>
 
-      {/* Footer — just a diamond mark */}
+      {/* Footer — language switcher + diamond mark */}
       <div className="border-t border-[var(--color-sidebar-border)] px-5 py-4">
-        <p className="text-sm text-[var(--color-primary)] opacity-30">◈</p>
+        <div className="flex items-center gap-3">
+          {LOCALES.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLocale(l)}
+              className={[
+                "text-[10px] font-light tracking-wide transition",
+                locale === l
+                  ? "text-[var(--color-primary)]"
+                  : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",
+              ].join(" ")}
+              style={{ transitionDuration: "var(--duration-fast)" }}
+            >
+              {LOCALE_LABELS[l]}
+            </button>
+          ))}
+          <span className="ml-auto text-sm text-[var(--color-primary)] opacity-30">◈</span>
+        </div>
       </div>
     </aside>
   );

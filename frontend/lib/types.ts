@@ -153,5 +153,5 @@ export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
 }
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
-  return "confidence" in data;
+  return data.status === "info" || data.status === "needs_clarification";
 }

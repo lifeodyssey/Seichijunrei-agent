@@ -3,6 +3,11 @@
     "title": "圣地巡礼",
     "description": "搜索动漫取景地 · 规划巡礼路线"
   },
+  "landing": {
+    "hero": "動漫聖地，",
+    "hero_accent": "巡禮之路",
+    "features": ["◈ 实拍取景地搜索", "◎ 最优路线规划", "↗ 作品取景总览"]
+  },
   "auth": {
     "title": "圣地巡礼",
     "subtitle": "内测版",
@@ -20,7 +25,12 @@
     "waitlist_success": "注册成功！审核通过后会发送登录链接。",
     "not_registered": "该邮箱未申请内测，请先提交申请。",
     "pending_review": "正在审核中，请耐心等待。",
-    "magic_link_sent": "登录链接已发送到您的邮箱，请查收。"
+    "magic_link_sent": "登录链接已发送到您的邮箱，请查收。",
+    "callback_loading": "正在完成登录...",
+    "callback_error": "无法确认登录链接。",
+    "callback_redirect_hint": "会话恢复后将自动跳转。",
+    "callback_error_hint": "请重新申请登录链接后再试。",
+    "callback_open": "打开工作区"
   },
   "chat": {
     "placeholder": "搜索取景地 · 规划巡礼路线…",

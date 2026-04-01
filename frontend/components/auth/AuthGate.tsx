@@ -28,6 +28,7 @@ export default function AuthGate() {
   const dict = useDict();
   const locale = useLocale();
   const t = dict.auth;
+  const land = dict.landing;
   const authClient = getSupabaseClient();
   const authConfigured = !!authClient;
 
@@ -83,7 +84,7 @@ export default function AuthGate() {
     if (data.status !== "approved") { setStatus(t.pending_review); setSubmitting(false); return; }
     const { error } = await authClient.auth.signInWithOtp({
       email: normalizedEmail,
-      options: { emailRedirectTo: `${window.location.origin}/${locale}/auth/callback/` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback/` },
     });
     setStatus(error ? t.error.replace("{message}", error.message) : t.magic_link_sent);
     setSubmitting(false);
@@ -118,8 +119,8 @@ export default function AuthGate() {
         {/* Hero copy */}
         <div className="space-y-6 py-12 lg:py-0">
           <h1 className="font-[family-name:var(--app-font-display)] text-4xl font-semibold leading-snug text-[var(--color-fg)] lg:text-5xl">
-            動漫聖地，<br />
-            <span className="text-[var(--color-primary)]">巡禮之路</span>
+            {land.hero}<br />
+            <span className="text-[var(--color-primary)]">{land.hero_accent}</span>
           </h1>
           <p className="max-w-sm text-sm font-light leading-relaxed text-[var(--color-muted-fg)]">
             {dict.chat.welcome_subtitle}
@@ -127,7 +128,7 @@ export default function AuthGate() {
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2 pt-2">
-            {["◈ 実写ロケ地検索", "◎ 最適ルート生成", "↗ 作品別一覧"].map((f) => (
+            {land.features.map((f) => (
               <span
                 key={f}
                 className="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-light text-[var(--color-muted-fg)]"
@@ -140,7 +141,7 @@ export default function AuthGate() {
 
         {/* Footer note */}
         <p className="text-[11px] font-light text-[var(--color-border)]">
-          Internal beta · {new Date().getFullYear()}
+          {t.subtitle} · {new Date().getFullYear()}
         </p>
       </div>
 
