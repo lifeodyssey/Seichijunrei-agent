@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ChatMessage, RuntimeResponse } from "../../lib/types";
+import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import { submitFeedback } from "../../lib/api";
 import { useDict } from "../../lib/i18n-context";
 
@@ -40,7 +41,6 @@ export default function MessageBubble({
       className="flex flex-col gap-2.5"
       style={{ animation: "slide-up-fade 300ms var(--ease-out-quint) both" }}
     >
-      {/* Bot label — editorial, no avatar circle */}
       <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)]">
         {t.bot_name}
       </p>
@@ -60,7 +60,6 @@ export default function MessageBubble({
                 "{count}",
                 String(getResultCount(message.response)),
               )}
-              count={getResultCount(message.response)}
               messageId={message.id}
               onActivate={onActivate}
               isActive={isActive}
@@ -97,30 +96,20 @@ function canShowAnchor(response: RuntimeResponse): boolean {
 
 function getResultCount(response: RuntimeResponse): number {
   const data = response.data;
-
-  if ("results" in data && !("route" in data)) {
-    return data.results.row_count ?? data.results.rows.length;
-  }
-  if ("route" in data) {
-    return data.route.point_count ?? data.route.ordered_points.length;
-  }
-  if ("confidence" in data) {
-    return 1;
-  }
-
+  if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
+  if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
+  if (isQAData(data)) return 1;
   return 0;
 }
 
 function ResultAnchor({
   label,
-  count,
   messageId,
   onActivate,
   isActive,
   onOpenDrawer,
 }: {
   label: string;
-  count: number;
   messageId: string;
   onActivate?: (messageId: string) => void;
   isActive: boolean;

@@ -35,6 +35,14 @@ export default function MessageList({
     );
   }
 
+  // Pre-pass: map each index to the text of the most recent preceding user message
+  const precedingUserText: string[] = [];
+  let lastUserText = "";
+  messages.forEach((m) => {
+    precedingUserText.push(lastUserText);
+    if (m.role === "user") lastUserText = m.text;
+  });
+
   return (
     <div className="flex-1 overflow-y-auto py-6">
       <div className="mx-auto w-full max-w-2xl space-y-5 px-5">
@@ -42,11 +50,7 @@ export default function MessageList({
           <MessageBubble
             key={msg.id}
             message={msg}
-            userQuery={
-              msg.role === "assistant"
-                ? (messages.slice(0, idx).findLast((m) => m.role === "user")?.text ?? "")
-                : undefined
-            }
+            userQuery={msg.role === "assistant" ? precedingUserText[idx] : undefined}
             onActivate={onActivate}
             isActive={msg.id === activeMessageId}
             onOpenDrawer={onOpenDrawer}
