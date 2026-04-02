@@ -58,6 +58,23 @@ Your job: understand the user's request and output a structured execution plan.
 """
 
 
+def _format_context_block(context: dict[str, Any]) -> str:
+    lines = ["[context]"]
+    if context.get("current_anime_title"):
+        bangumi_id = context.get("current_bangumi_id", "")
+        lines.append(
+            f"anime: {context['current_anime_title']} (bangumi_id: {bangumi_id})"
+        )
+    if context.get("last_location"):
+        lines.append(f"last_location: {context['last_location']}")
+    if context.get("last_intent"):
+        lines.append(f"last_intent: {context['last_intent']}")
+    visited_ids = context.get("visited_bangumi_ids") or []
+    if visited_ids:
+        lines.append(f"visited_ids: {', '.join(visited_ids)}")
+    return "\n".join(lines)
+
+
 class ReActPlannerAgent:
     """LLM-driven planner: user text → ExecutionPlan.
 
@@ -72,8 +89,14 @@ class ReActPlannerAgent:
             retries=2,
         )
 
-    async def create_plan(self, text: str, locale: str = "ja") -> ExecutionPlan:
+    async def create_plan(
+        self,
+        text: str,
+        locale: str = "ja",
+        context: dict[str, Any] | None = None,
+    ) -> ExecutionPlan:
         """Generate an ExecutionPlan from user text."""
-        prompt = f"[locale={locale}] {text}"
+        context_prefix = _format_context_block(context) + "\n" if context else ""
+        prompt = f"{context_prefix}[locale={locale}] {text}"
         result = await self._agent.run(prompt)
         return result.output

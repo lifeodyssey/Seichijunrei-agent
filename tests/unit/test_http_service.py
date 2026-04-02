@@ -85,7 +85,7 @@ class TestHTTPService:
             "data": {"results": {"rows": [], "row_count": 0}},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(text, db, *, model=None, locale="ja", context=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):
@@ -205,7 +205,7 @@ class TestHTTPService:
             "data": {"results": {"rows": [], "row_count": 0}},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(text, db, *, model=None, locale="ja", context=None):
             return result
 
         app = create_http_app(
@@ -291,7 +291,7 @@ class TestHTTPService:
             "data": {},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(text, db, *, model=None, locale="ja", context=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):

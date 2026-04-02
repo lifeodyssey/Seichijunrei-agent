@@ -20,6 +20,39 @@ def mock_plan_bangumi() -> ExecutionPlan:
 
 
 class TestReActPlannerAgent:
+    def test_format_context_block_full(self) -> None:
+        from agents.planner_agent import _format_context_block
+
+        block = {
+            "current_bangumi_id": "253",
+            "current_anime_title": "響け！ユーフォニアム",
+            "last_location": "宇治",
+            "last_intent": "search_bangumi",
+            "visited_bangumi_ids": ["253"],
+        }
+
+        result = _format_context_block(block)
+        assert "[context]" in result
+        assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in result
+        assert "last_location: 宇治" in result
+        assert "last_intent: search_bangumi" in result
+        assert "visited_ids: 253" in result
+
+    def test_format_context_block_minimal(self) -> None:
+        from agents.planner_agent import _format_context_block
+
+        block = {
+            "current_bangumi_id": None,
+            "current_anime_title": None,
+            "last_location": "京都",
+            "last_intent": None,
+            "visited_bangumi_ids": [],
+        }
+
+        result = _format_context_block(block)
+        assert "last_location: 京都" in result
+        assert "anime:" not in result
+
     async def test_create_plan_returns_execution_plan(self, mock_plan_bangumi):
         with patch("agents.planner_agent.create_agent") as mock_create:
             mock_agent = AsyncMock()
@@ -40,7 +73,19 @@ class TestReActPlannerAgent:
             mock_create.return_value = mock_agent
 
             planner = ReActPlannerAgent()
-            await planner.create_plan("where is kyoani", locale="en")
+            await planner.create_plan(
+                "where is kyoani",
+                locale="en",
+                context={
+                    "current_bangumi_id": "253",
+                    "current_anime_title": "響け！ユーフォニアム",
+                    "last_location": "宇治",
+                    "last_intent": "search_bangumi",
+                    "visited_bangumi_ids": ["253"],
+                },
+            )
 
             call_args = mock_agent.run.call_args[0][0]
             assert "en" in call_args
+            assert "[context]" in call_args
+            assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in call_args

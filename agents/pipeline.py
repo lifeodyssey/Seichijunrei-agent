@@ -18,9 +18,14 @@ async def run_pipeline(
     *,
     model: Any = None,
     locale: str = "ja",
+    context: dict[str, Any] | None = None,
 ) -> PipelineResult:
     """Run the full agent pipeline: plan → execute."""
-    plan = await ReActPlannerAgent(model).create_plan(text, locale=locale)
+    plan = await ReActPlannerAgent(model).create_plan(
+        text,
+        locale=locale,
+        context=context,
+    )
     logger.info(
         "plan_created",
         steps=[s.tool.value for s in plan.steps],
