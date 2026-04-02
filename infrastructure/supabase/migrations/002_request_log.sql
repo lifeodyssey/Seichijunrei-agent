@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS request_log (
     latency_ms  INTEGER
 );
 
+ALTER TABLE request_log ENABLE ROW LEVEL SECURITY;
+
 CREATE INDEX IF NOT EXISTS idx_request_log_created ON request_log (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_request_log_locale  ON request_log (locale);
 CREATE INDEX IF NOT EXISTS idx_request_log_intent  ON request_log (intent);
-

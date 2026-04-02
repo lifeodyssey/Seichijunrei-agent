@@ -37,7 +37,7 @@ def _make_result(
         "success": True,
         "status": "empty",
         "message": "該当する巡礼地が見つかりませんでした。",
-        "data": {"results": {"rows": [], "row_count": 0}},
+        "results": {"rows": [], "row_count": 0},
     }
     return result
 
@@ -150,28 +150,26 @@ class TestRuntimeAPI:
                 "success": True,
                 "status": "ok",
                 "message": "ルートを作成しました。",
-                "data": {
-                    "results": {
-                        "rows": [{"id": "1", "bangumi_id": "115908"}],
-                        "row_count": 1,
-                    },
-                    "route": {
-                        "ordered_points": [
-                            {
-                                "id": "1",
-                                "name": "A",
-                                "latitude": 34.88,
-                                "longitude": 135.80,
-                            },
-                            {
-                                "id": "2",
-                                "name": "B",
-                                "latitude": 34.89,
-                                "longitude": 135.81,
-                            },
-                        ],
-                        "point_count": 2,
-                    },
+                "results": {
+                    "rows": [{"id": "1", "bangumi_id": "115908"}],
+                    "row_count": 1,
+                },
+                "route": {
+                    "ordered_points": [
+                        {
+                            "id": "1",
+                            "name": "A",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        },
+                        {
+                            "id": "2",
+                            "name": "B",
+                            "latitude": 34.89,
+                            "longitude": 135.81,
+                        },
+                    ],
+                    "point_count": 2,
                 },
             },
         )

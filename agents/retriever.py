@@ -389,6 +389,8 @@ def _point_to_db_row(point: Point) -> dict[str, Any]:
         "bangumi_id": point.bangumi_id,
         "name": point.name,
         "name_cn": point.cn_name,
+        "latitude": point.coordinates.latitude,
+        "longitude": point.coordinates.longitude,
         "episode": point.episode,
         "time_seconds": point.time_seconds,
         "image": str(point.screenshot_url),

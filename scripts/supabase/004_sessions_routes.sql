@@ -16,6 +16,8 @@ CREATE TRIGGER trg_sessions_updated_at
     BEFORE UPDATE ON sessions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+
 CREATE TABLE IF NOT EXISTS routes (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id      TEXT REFERENCES sessions(id),
@@ -28,3 +30,5 @@ CREATE TABLE IF NOT EXISTS routes (
     route_data      JSONB,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE routes ENABLE ROW LEVEL SECURITY;

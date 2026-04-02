@@ -159,6 +159,8 @@ class TestRetrievalExecution:
         mock_db.upsert_bangumi.assert_awaited_once()
         mock_db.upsert_points_batch.assert_awaited_once()
         written_rows = mock_db.upsert_points_batch.await_args.args[0]
+        assert written_rows[0]["latitude"] == 34.8843
+        assert written_rows[0]["longitude"] == 135.7997
         assert written_rows[0]["location"] == "POINT(135.7997 34.8843)"
         assert mock_db.pool.fetch.await_count == 2
 

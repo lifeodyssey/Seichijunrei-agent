@@ -331,6 +331,23 @@ class TestSimpleRoutePlanner:
         # Should fallback to name
         assert plan["recommended_order"][0] == "English Name"
 
+    def test_points_support_name_cn_from_db_rows(self, planner):
+        """DB-shaped rows should work with name_cn as the localized field."""
+        points = [
+            {
+                "id": "point_1",
+                "name": "Uji Bridge",
+                "name_cn": "宇治桥",
+                "episode": 1,
+                "time_seconds": 100,
+            },
+        ]
+
+        plan = planner.generate_plan(origin="Tokyo", anime="Test", points=points)
+
+        assert plan["recommended_order"][0] == "Uji Bridge"
+        assert "1. 宇治桥 (Episode 1)" in plan["route_description"]
+
     def test_points_with_no_name_fields(self, planner):
         """Test handling points with neither name nor cn_name."""
         points = [

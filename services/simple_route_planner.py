@@ -1,6 +1,24 @@
 from typing import Any
 
 
+def _primary_point_name(point: dict[str, Any]) -> str:
+    return (
+        point.get("name")
+        or point.get("name_cn")
+        or point.get("cn_name")
+        or "unknown point"
+    )
+
+
+def _localized_point_name(point: dict[str, Any]) -> str:
+    return (
+        point.get("name_cn")
+        or point.get("cn_name")
+        or point.get("name")
+        or "unknown point"
+    )
+
+
 class SimpleRoutePlanner:
     """
     Simplified route planner used by the Capstone implementation.
@@ -31,7 +49,7 @@ class SimpleRoutePlanner:
             origin: User's starting location (free-form string).
             anime: Anime title for which the route is planned.
             points: List of point dicts that include at least
-                - name / cn_name
+                - name / name_cn / cn_name
                 - episode
                 - time_seconds
 
@@ -63,10 +81,8 @@ class SimpleRoutePlanner:
         # 2. Take the first N points to keep the route concise
         selected = sorted_points[: self.max_points]
 
-        # 3. Build recommended order (prefer name, fallback to cn_name)
-        recommended_order = [
-            p.get("name") or p.get("cn_name") or "unknown point" for p in selected
-        ]
+        # 3. Build recommended order (prefer primary JP/original name)
+        recommended_order = [_primary_point_name(point) for point in selected]
 
         # 4. Build a simple multiline textual description
         description_lines = [
@@ -76,7 +92,7 @@ class SimpleRoutePlanner:
         ]
 
         for idx, point in enumerate(selected, start=1):
-            name = point.get("cn_name") or point.get("name") or "unknown point"
+            name = _localized_point_name(point)
             episode = point.get("episode", "?")
             description_lines.append(f"{idx}. {name} (Episode {episode})")
 

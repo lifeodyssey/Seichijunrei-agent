@@ -19,17 +19,17 @@ export type Intent =
 export interface PilgrimagePoint {
   id: string;
   name: string;           // Japanese name
-  name_cn: string;        // Chinese name
-  episode: number;
-  time_seconds: number;
-  screenshot_url: string; // Anitabi public URL
-  address: string | null;
-  bangumi_id: string;
+  name_cn: string | null; // Chinese name
+  episode: number | null;
+  time_seconds: number | null;
+  screenshot_url: string | null; // Anitabi public URL
+  address?: string | null;       // legacy/demo-only field
+  bangumi_id: string | null;
   latitude: number;
   longitude: number;
-  title: string;          // anime title (JP)
-  title_cn: string;       // anime title (CN)
-  distance_m?: number;    // present only in geo searches
+  title?: string | null;     // anime title (JP)
+  title_cn?: string | null;  // anime title (CN)
+  distance_m?: number | null; // present only in geo searches
   origin?: string | null;
 }
 

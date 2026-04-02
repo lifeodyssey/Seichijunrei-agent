@@ -331,7 +331,11 @@ def _pipeline_result_to_public_response(
         status=str(final_output.get("status", "ok" if result.success else "error")),
         intent=result.intent,
         message=str(final_output.get("message") or ""),
-        data=dict(final_output.get("data") or {}),
+        data={
+            k: final_output[k]
+            for k in ("results", "route")
+            if final_output.get(k) is not None
+        },
         errors=errors,
         ui=ui,
     )

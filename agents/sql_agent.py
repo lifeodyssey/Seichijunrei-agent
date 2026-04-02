@@ -29,9 +29,22 @@ _DEFAULT_LIMIT = 20
 _DEFAULT_LOCATION_LIMIT = 20
 _DEFAULT_ROUTE_RADIUS_M = 50_000  # 50 km — typical day-trip transit radius in Japan
 
-# Reusable PostGIS column expressions for extracting lat/lon from geography columns
-_GEO_COLUMNS = (
-    "ST_Y(p.location::geometry) AS latitude, ST_X(p.location::geometry) AS longitude"
+# Reusable runtime projection for point rows returned to the executor/UI.
+_POINT_COORD_COLUMNS = (
+    "COALESCE(p.latitude, ST_Y(p.location::geometry)) AS latitude, "
+    "COALESCE(p.longitude, ST_X(p.location::geometry)) AS longitude"
+)
+_POINT_RUNTIME_COLUMNS = (
+    "p.id, p.bangumi_id, p.name, p.name_cn, p.episode, p.time_seconds, "
+    "p.image AS screenshot_url, p.origin, "
+    f"{_POINT_COORD_COLUMNS}, "
+    "b.title, b.title_cn"
+)
+_POINT_GEOGRAPHY = (
+    "COALESCE("
+    "p.location, "
+    "ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)::geography"
+    ")"
 )
 
 
@@ -185,9 +198,7 @@ class SQLAgent:
 
         if episode is not None:
             sql = (
-                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
-                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
-                f"b.title, b.title_cn "
+                f"SELECT {_POINT_RUNTIME_COLUMNS} "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 AND p.episode = $2 "
                 f"ORDER BY p.time_seconds "
@@ -196,9 +207,7 @@ class SQLAgent:
             query_params: list[Any] = [bangumi_id, episode]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
-                f"p.image AS screenshot_url, p.origin, {_GEO_COLUMNS}, "
-                f"b.title, b.title_cn "
+                f"SELECT {_POINT_RUNTIME_COLUMNS} "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "
                 f"ORDER BY p.episode, p.time_seconds "
@@ -223,12 +232,10 @@ class SQLAgent:
 
         lat, lon = coords
         sql = (
-            f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
-            f"p.image AS screenshot_url, p.bangumi_id, {_GEO_COLUMNS}, "
-            f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
-            f"b.title, b.title_cn "
+            f"SELECT {_POINT_RUNTIME_COLUMNS}, "
+            f"ST_Distance({_POINT_GEOGRAPHY}, ST_MakePoint($1, $2)::geography) AS distance_m "
             f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
-            f"WHERE ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $3) "
+            f"WHERE ST_DWithin({_POINT_GEOGRAPHY}, ST_MakePoint($1, $2)::geography, $3) "
             f"ORDER BY distance_m "
             f"LIMIT {_DEFAULT_LOCATION_LIMIT}"
         )
@@ -249,22 +256,18 @@ class SQLAgent:
             lat, lon = origin_coords
             radius_m = request.radius or _DEFAULT_ROUTE_RADIUS_M
             sql = (
-                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
-                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
-                f"ST_Distance(p.location, ST_MakePoint($1, $2)::geography) AS distance_m, "
-                f"b.title, b.title_cn "
+                f"SELECT {_POINT_RUNTIME_COLUMNS}, "
+                f"ST_Distance({_POINT_GEOGRAPHY}, ST_MakePoint($1, $2)::geography) AS distance_m "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $3 "
-                f"AND ST_DWithin(p.location, ST_MakePoint($1, $2)::geography, $4) "
+                f"AND ST_DWithin({_POINT_GEOGRAPHY}, ST_MakePoint($1, $2)::geography, $4) "
                 f"ORDER BY distance_m "
                 f"LIMIT {_DEFAULT_LIMIT}"
             )
             query_params: list[Any] = [lon, lat, bangumi_id, radius_m]
         else:
             sql = (
-                f"SELECT p.id, p.name, p.name_cn, p.episode, p.time_seconds, "
-                f"p.image AS screenshot_url, {_GEO_COLUMNS}, "
-                f"b.title, b.title_cn "
+                f"SELECT {_POINT_RUNTIME_COLUMNS} "
                 f"FROM points p JOIN bangumi b ON p.bangumi_id = b.id "
                 f"WHERE p.bangumi_id = $1 "
                 f"ORDER BY p.episode, p.time_seconds "

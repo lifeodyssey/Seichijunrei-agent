@@ -28,3 +28,5 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_bangumi_updated_at
     BEFORE UPDATE ON bangumi
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+ALTER TABLE bangumi ENABLE ROW LEVEL SECURITY;

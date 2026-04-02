@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
+
 CREATE INDEX IF NOT EXISTS idx_feedback_rating ON feedback (rating);
 CREATE INDEX IF NOT EXISTS idx_feedback_intent ON feedback (intent);
 CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback (created_at DESC);

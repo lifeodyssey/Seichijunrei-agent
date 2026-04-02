@@ -11,6 +11,9 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from numbers import Real
+
 import asyncpg
 import structlog
 
@@ -35,10 +38,13 @@ _POINT_COLUMNS = frozenset(
         "bangumi_id",
         "name",
         "name_cn",
+        "latitude",
+        "longitude",
         "episode",
         "time_seconds",
         "image",
         "scene_desc",
+        "embedding",
         "origin",
         "origin_url",
         "location",
@@ -51,6 +57,39 @@ def _validate_columns(columns: frozenset[str], fields: dict) -> None:
     bad = set(fields.keys()) - columns
     if bad:
         raise ValueError(f"Invalid column names: {bad}")
+
+
+def _vector_literal(value: object) -> str:
+    """Normalize a vector value into pgvector's text literal format."""
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        items: list[str] = []
+        for item in value:
+            if not isinstance(item, Real):
+                raise TypeError("Embedding values must be numeric")
+            items.append(f"{float(item):g}")
+        return f"[{','.join(items)}]"
+
+    raise TypeError("Embedding must be a vector literal string or numeric sequence")
+
+
+def _prepare_point_fields(fields: dict[str, object]) -> dict[str, object]:
+    """Normalize point payloads before building dynamic SQL."""
+    prepared = dict(fields)
+    if "embedding" in prepared and prepared["embedding"] is not None:
+        prepared["embedding"] = _vector_literal(prepared["embedding"])
+    return prepared
+
+
+def _point_placeholder(column: str, position: int) -> str:
+    """Return the SQL placeholder for a point column."""
+    if column == "location":
+        return f"ST_GeogFromText(${position})"
+    if column == "embedding":
+        return f"${position}::vector"
+    return f"${position}"
 
 
 class SupabaseClient:
@@ -179,9 +218,36 @@ class SupabaseClient:
         """Find points within radius of a location using PostGIS."""
         return await self.pool.fetch(
             """
-            SELECT *, ST_Distance(location, ST_MakePoint($1, $2)::geography) AS distance_m
-            FROM points
-            WHERE ST_DWithin(location, ST_MakePoint($1, $2)::geography, $3)
+            SELECT
+                p.id,
+                p.bangumi_id,
+                p.name,
+                p.name_cn,
+                p.episode,
+                p.time_seconds,
+                p.image AS screenshot_url,
+                p.origin,
+                COALESCE(p.latitude, ST_Y(p.location::geometry)) AS latitude,
+                COALESCE(p.longitude, ST_X(p.location::geometry)) AS longitude,
+                ST_Distance(
+                    COALESCE(
+                        p.location,
+                        ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)::geography
+                    ),
+                    ST_MakePoint($1, $2)::geography
+                ) AS distance_m,
+                b.title,
+                b.title_cn
+            FROM points p
+            LEFT JOIN bangumi b ON p.bangumi_id = b.id
+            WHERE ST_DWithin(
+                COALESCE(
+                    p.location,
+                    ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)::geography
+                ),
+                ST_MakePoint($1, $2)::geography,
+                $3
+            )
             ORDER BY distance_m
             LIMIT $4
             """,
@@ -197,25 +263,16 @@ class SupabaseClient:
         Column names are validated against an allowlist to prevent SQL injection.
         """
         _validate_columns(_POINT_COLUMNS, fields)
-        point_fields = dict(fields)
-        location_wkt = point_fields.pop("location", None)
+        point_fields = _prepare_point_fields(fields)
 
         columns = ["id"] + list(point_fields.keys())
         values: list[object] = [point_id] + list(point_fields.values())
-        placeholders = [f"${i + 1}" for i in range(len(values))]
-
-        if location_wkt is not None:
-            columns.append("location")
-            values.append(location_wkt)
-            placeholders.append(f"ST_GeogFromText(${len(values)})")
+        placeholders = [
+            _point_placeholder(column, i + 1) for i, column in enumerate(columns)
+        ]
 
         update_columns = list(point_fields.keys())
         update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in update_columns)
-        if location_wkt is not None:
-            if update_set:
-                update_set = f"{update_set}, location = EXCLUDED.location"
-            else:
-                update_set = "location = EXCLUDED.location"
 
         sql = (
             f"INSERT INTO points ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
@@ -233,36 +290,23 @@ class SupabaseClient:
         if not rows:
             return 0
 
-        first = rows[0]
+        prepared_rows = [_prepare_point_fields(row) for row in rows]
+        first = prepared_rows[0]
         fields_sample = {k: v for k, v in first.items() if k != "id"}
         _validate_columns(_POINT_COLUMNS, fields_sample)
 
-        location_present = "location" in fields_sample
-        point_fields = {k: v for k, v in fields_sample.items() if k != "location"}
-
-        columns = ["id"] + list(point_fields.keys())
-        placeholders = [f"${i + 1}" for i in range(len(columns))]
-        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in point_fields)
-
-        if location_present:
-            columns.append("location")
-            placeholders.append(f"ST_GeogFromText(${len(columns)})")
-            update_set = (
-                f"{update_set}, location = EXCLUDED.location"
-                if update_set
-                else "location = EXCLUDED.location"
-            )
+        columns = ["id"] + list(fields_sample.keys())
+        placeholders = [
+            _point_placeholder(column, i + 1) for i, column in enumerate(columns)
+        ]
+        update_set = ", ".join(f"{col} = EXCLUDED.{col}" for col in fields_sample)
 
         sql = (
             f"INSERT INTO points ({', '.join(columns)}) VALUES ({', '.join(placeholders)}) "
             f"ON CONFLICT (id) DO UPDATE SET {update_set}"
         )
 
-        col_order = ["id"] + list(point_fields.keys())
-        if location_present:
-            col_order.append("location")
-
-        args = [tuple(row.get(col) for col in col_order) for row in rows]
+        args = [tuple(row.get(col) for col in columns) for row in prepared_rows]
 
         async with self.pool.acquire() as conn:
             async with conn.transaction():

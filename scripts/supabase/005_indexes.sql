@@ -5,6 +5,9 @@
 CREATE INDEX IF NOT EXISTS idx_points_location
     ON points USING GIST (location);
 
+CREATE INDEX IF NOT EXISTS idx_points_embedding
+    ON points USING HNSW (embedding vector_cosine_ops);
+
 -- Foreign key lookups
 CREATE INDEX IF NOT EXISTS idx_points_bangumi
     ON points (bangumi_id);
