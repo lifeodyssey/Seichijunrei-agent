@@ -23,9 +23,11 @@ Your job: understand the user's request and output a structured execution plan.
   Use this whenever the user mentions an anime by name.
   Do NOT hardcode bangumi IDs in your plan.
 
-- search_bangumi(bangumi_id: str | None, episode: int | None)
+- search_bangumi(bangumi_id: str | None, episode: int | None, force_refresh: bool = false)
   Find pilgrimage filming locations for a specific anime.
   Set bangumi_id to null if a resolve_anime step precedes this.
+  Set force_refresh to true ONLY when the user explicitly asks to refresh or
+  re-fetch pilgrimage data.
 
 - search_nearby(location: str, radius: int | None)
   Find pilgrimage locations near a station, city, or area.
@@ -72,8 +74,47 @@ class ReActPlannerAgent:
             retries=2,
         )
 
-    async def create_plan(self, text: str, locale: str = "ja") -> ExecutionPlan:
+    async def create_plan(
+        self,
+        text: str,
+        locale: str = "ja",
+        context: dict[str, Any] | None = None,
+    ) -> ExecutionPlan:
         """Generate an ExecutionPlan from user text."""
-        prompt = f"[locale={locale}] {text}"
+        context_prefix = _format_context_block(context)
+        prompt = (
+            f"{context_prefix}\n[locale={locale}] {text}"
+            if context_prefix
+            else f"[locale={locale}] {text}"
+        )
         result = await self._agent.run(prompt)
         return result.output
+
+
+def _format_context_block(context: dict[str, Any] | None) -> str:
+    """Render a compact context block for planner prompt injection."""
+    if not context:
+        return ""
+
+    lines = ["[context]"]
+    current_title = context.get("current_anime_title")
+    current_bangumi_id = context.get("current_bangumi_id")
+    last_location = context.get("last_location")
+    last_intent = context.get("last_intent")
+    visited_ids = context.get("visited_bangumi_ids") or []
+
+    if current_title and current_bangumi_id:
+        lines.append(f"anime: {current_title} (bangumi_id: {current_bangumi_id})")
+    elif current_title:
+        lines.append(f"anime: {current_title}")
+    elif current_bangumi_id:
+        lines.append(f"bangumi_id: {current_bangumi_id}")
+
+    if last_location:
+        lines.append(f"last_location: {last_location}")
+    if last_intent:
+        lines.append(f"last_intent: {last_intent}")
+    if visited_ids:
+        lines.append(f"visited_ids: {', '.join(str(item) for item in visited_ids)}")
+
+    return "\n".join(lines) if len(lines) > 1 else ""

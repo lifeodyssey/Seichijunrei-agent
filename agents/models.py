@@ -49,3 +49,4 @@ class RetrievalRequest(BaseModel):
     location: str | None = None
     origin: str | None = None
     radius: int | None = None
+    force_refresh: bool = False

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
@@ -18,15 +19,21 @@ async def run_pipeline(
     *,
     model: Any = None,
     locale: str = "ja",
+    context: dict[str, Any] | None = None,
+    on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
 ) -> PipelineResult:
     """Run the full agent pipeline: plan → execute."""
-    plan = await ReActPlannerAgent(model).create_plan(text, locale=locale)
+    plan = await ReActPlannerAgent(model).create_plan(
+        text,
+        locale=locale,
+        context=context,
+    )
     logger.info(
         "plan_created",
         steps=[s.tool.value for s in plan.steps],
         reasoning=plan.reasoning[:120],
     )
-    result = await ExecutorAgent(db).execute(plan)
+    result = await ExecutorAgent(db).execute(plan, on_step=on_step)
     logger.info(
         "pipeline_complete",
         intent=result.intent,

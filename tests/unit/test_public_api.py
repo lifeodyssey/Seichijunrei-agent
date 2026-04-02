@@ -15,6 +15,7 @@ from interfaces.public_api import (
     PublicAPIRequest,
     PublicAPIResponse,
     RuntimeAPI,
+    _build_context_block,
     handle_public_request,
 )
 
@@ -46,7 +47,7 @@ def _make_result(
 def _mock_pipeline():
     """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
 
-    async def _fake(text, db, *, model=None, locale="ja"):
+    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
         return _make_result(locale=locale)
 
     with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -86,7 +87,10 @@ def mock_db():
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
     db.search_points_by_location = AsyncMock(return_value=[])
+    db.get_user_memory = AsyncMock(return_value=None)
     db.upsert_session = AsyncMock()
+    db.upsert_conversation = AsyncMock()
+    db.upsert_user_memory = AsyncMock()
     db.save_route = AsyncMock(return_value="route-1")
     return db
 
@@ -174,7 +178,7 @@ class TestRuntimeAPI:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja"):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -204,7 +208,15 @@ class TestRuntimeAPI:
             },
         )
 
-        async def fake_run_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_run_pipeline(
+            text,
+            db,
+            *,
+            model=None,
+            locale="ja",
+            context=None,
+            on_step=None,
+        ):
             return result
 
         monkeypatch.setattr("interfaces.public_api.run_pipeline", fake_run_pipeline)
@@ -235,7 +247,7 @@ class TestRuntimeAPI:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja"):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -316,7 +328,7 @@ class TestLocalePassthrough:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja"):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -339,7 +351,7 @@ class TestLocalePassthrough:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja"):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -388,3 +400,179 @@ class TestHandlePublicRequest:
         assert response.intent == "search_bangumi"
         assert response.status == "empty"
         assert response.session["interaction_count"] == 1
+
+
+class TestUserIdPropagation:
+    async def test_loads_user_memory_and_upserts_conversation_when_user_id_present(
+        self,
+        mock_db,
+    ):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+
+        await api.handle(PublicAPIRequest(text="京吹の聖地"), user_id="user-abc")
+
+        mock_db.get_user_memory.assert_awaited_once_with("user-abc")
+        mock_db.upsert_conversation.assert_awaited_once()
+        args = mock_db.upsert_conversation.await_args.args
+        assert args[1] == "user-abc"
+
+    async def test_skips_user_scoped_db_calls_when_user_id_absent(self, mock_db):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+
+        await api.handle(PublicAPIRequest(text="京吹の聖地"), user_id=None)
+
+        mock_db.get_user_memory.assert_not_awaited()
+        mock_db.upsert_conversation.assert_not_awaited()
+
+
+class TestConversationPersistence:
+    async def test_first_interaction_schedules_title_generation(self, mock_db):
+        scheduled: list[object] = []
+
+        def _capture_task(coro: object) -> MagicMock:
+            scheduled.append(coro)
+            close = getattr(coro, "close", None)
+            if callable(close):
+                close()
+            return MagicMock()
+
+        with patch(
+            "interfaces.public_api.asyncio.create_task",
+            side_effect=_capture_task,
+        ):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(PublicAPIRequest(text="京吹"), user_id="u1")
+
+        assert len(scheduled) == 1
+
+    async def test_does_not_schedule_title_generation_for_existing_session(
+        self,
+        mock_db,
+    ):
+        store = InMemorySessionStore()
+        session_id = "session-1"
+        await store.set(
+            session_id,
+            {
+                "interactions": [
+                    {
+                        "text": "以前の会話",
+                        "intent": "search_bangumi",
+                        "status": "ok",
+                        "success": True,
+                        "created_at": "2026-04-02T10:00:00+00:00",
+                        "context_delta": {},
+                    }
+                ],
+                "route_history": [],
+                "last_intent": "search_bangumi",
+                "last_status": "ok",
+                "last_message": "ok",
+                "updated_at": "2026-04-02T10:00:00+00:00",
+            },
+        )
+
+        with patch("interfaces.public_api.asyncio.create_task") as create_task:
+            api = RuntimeAPI(mock_db, session_store=store)
+            await api.handle(
+                PublicAPIRequest(text="京吹", session_id=session_id),
+                user_id="u1",
+            )
+
+        create_task.assert_not_called()
+
+
+class TestUserMemoryUpsert:
+    async def test_upserts_user_memory_when_bangumi_id_in_delta(self, mock_db):
+        from agents.executor_agent import StepResult
+
+        result = _make_result(
+            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "響け"})],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "ok",
+                "results": {"rows": [], "row_count": 0},
+            },
+        )
+        result.step_results = [
+            StepResult(
+                tool="resolve_anime",
+                success=True,
+                data={"bangumi_id": "253", "title": "響け！ユーフォニアム"},
+            )
+        ]
+
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
+            return result
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(PublicAPIRequest(text="響け"), user_id="u1")
+
+        mock_db.upsert_user_memory.assert_awaited_once()
+        kwargs = mock_db.upsert_user_memory.await_args.kwargs
+        assert kwargs["bangumi_id"] == "253"
+        assert kwargs["anime_title"] == "響け！ユーフォニアム"
+
+    async def test_skips_user_memory_when_no_bangumi_id(self, mock_db):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+
+        await api.handle(PublicAPIRequest(text="宇治の近く"), user_id="u1")
+
+        mock_db.upsert_user_memory.assert_not_awaited()
+
+
+class TestBuildContextBlockWithUserMemory:
+    def test_merges_cross_session_visited_ids(self):
+        session_state = {
+            "interactions": [
+                {
+                    "context_delta": {
+                        "bangumi_id": "253",
+                        "anime_title": "響け",
+                        "location": None,
+                    }
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        user_memory = {
+            "visited_anime": [
+                {"bangumi_id": "105", "title": "君の名は", "last_at": "2026-03-01"},
+                {"bangumi_id": "253", "title": "響け", "last_at": "2026-04-01"},
+            ]
+        }
+
+        block = _build_context_block(session_state, user_memory=user_memory)
+
+        assert block is not None
+        assert "105" in block["visited_bangumi_ids"]
+        assert block["visited_bangumi_ids"].count("253") == 1
+
+    def test_returns_none_when_no_context_and_no_user_memory(self):
+        assert _build_context_block({"interactions": []}, user_memory=None) is None
+
+    async def test_handle_passes_context_block_to_pipeline(self, mock_db):
+        mock_db.get_user_memory.return_value = {
+            "visited_anime": [
+                {"bangumi_id": "105", "title": "君の名は", "last_at": "2026-03-01"}
+            ]
+        }
+        captured: dict[str, object] = {}
+
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
+            captured["context"] = context
+            return _make_result(locale=locale)
+
+        with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(PublicAPIRequest(text="次は何がある？"), user_id="u1")
+
+        assert captured["context"] == {
+            "current_bangumi_id": "105",
+            "current_anime_title": "君の名は",
+            "last_location": None,
+            "last_intent": None,
+            "visited_bangumi_ids": ["105"],
+        }

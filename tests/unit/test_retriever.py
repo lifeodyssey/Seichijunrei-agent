@@ -249,3 +249,72 @@ class TestMergeRows:
         )
         assert [row["id"] for row in merged] == ["p2", "p1"]
         assert merged[0]["distance_m"] == 120
+
+
+class TestForceRefresh:
+    @pytest.mark.asyncio
+    async def test_force_refresh_bypasses_row_count_short_circuit(self, mock_db):
+        from agents.sql_agent import SQLResult
+
+        request = RetrievalRequest(
+            tool="search_bangumi",
+            bangumi_id="115908",
+            force_refresh=True,
+        )
+        sql_agent = MagicMock()
+        sql_agent.execute = AsyncMock(
+            side_effect=[
+                SQLResult(query="SELECT 1", params=[], rows=[{"id": "p1"}], row_count=1),
+                SQLResult(
+                    query="SELECT 1",
+                    params=[],
+                    rows=[{"id": "p1"}, {"id": "p2"}],
+                    row_count=2,
+                ),
+            ]
+        )
+        fetch_bangumi_points = AsyncMock(return_value=[_make_point(point_id="p2")])
+        get_bangumi_subject = AsyncMock(
+            return_value={
+                "name": "響け！ユーフォニアム",
+                "images": {"large": "https://example.com/cover.jpg"},
+            }
+        )
+        retriever = Retriever(
+            mock_db,
+            sql_agent=sql_agent,
+            cache=ResponseCache(default_ttl_seconds=60, cleanup_interval_seconds=0),
+            fetch_bangumi_points=fetch_bangumi_points,
+            get_bangumi_subject=get_bangumi_subject,
+        )
+
+        result, _ = await retriever._execute_sql_with_fallback(request)
+
+        fetch_bangumi_points.assert_awaited_once_with("115908")
+        assert result.row_count == 2
+
+    @pytest.mark.asyncio
+    async def test_no_force_refresh_returns_existing_rows_immediately(self, mock_db):
+        from agents.sql_agent import SQLResult
+
+        request = RetrievalRequest(tool="search_bangumi", bangumi_id="115908")
+        sql_agent = MagicMock()
+        sql_agent.execute = AsyncMock(
+            return_value=SQLResult(
+                query="SELECT 1",
+                params=[],
+                rows=[{"id": "p1"}],
+                row_count=1,
+            )
+        )
+        fetch_bangumi_points = AsyncMock()
+        retriever = Retriever(
+            mock_db,
+            sql_agent=sql_agent,
+            fetch_bangumi_points=fetch_bangumi_points,
+        )
+
+        result, _ = await retriever._execute_sql_with_fallback(request)
+
+        fetch_bangumi_points.assert_not_awaited()
+        assert result.row_count == 1

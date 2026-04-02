@@ -226,7 +226,12 @@ class Retriever:
         if not sql_result.success:
             return sql_result, metadata
 
-        if sql_result.row_count > 0 or not _should_try_db_miss_fallback(request):
+        has_rows = sql_result.row_count > 0
+        should_fallback = _should_try_db_miss_fallback(request)
+
+        if has_rows and not request.force_refresh:
+            return sql_result, metadata
+        if not has_rows and not should_fallback:
             return sql_result, metadata
 
         bangumi_id = request.bangumi_id
