@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 
 export interface ApiKey {
   id: string;
@@ -8,7 +8,16 @@ export interface ApiKey {
   revoked: boolean;
 }
 
+function requireSupabaseClient() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase public client is not configured.");
+  }
+  return supabase;
+}
+
 export async function createApiKey(name: string): Promise<{ rawKey: string; id: string }> {
+  const supabase = requireSupabaseClient();
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   const rawKey = "sk_" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -30,6 +39,7 @@ export async function createApiKey(name: string): Promise<{ rawKey: string; id: 
 }
 
 export async function listApiKeys(): Promise<ApiKey[]> {
+  const supabase = requireSupabaseClient();
   const { data, error } = await supabase
     .from("api_keys")
     .select("id, name, created_at, last_used_at, revoked")
@@ -40,6 +50,7 @@ export async function listApiKeys(): Promise<ApiKey[]> {
 }
 
 export async function revokeApiKey(id: string): Promise<void> {
+  const supabase = requireSupabaseClient();
   const { error } = await supabase.from("api_keys").update({ revoked: true }).eq("id", id);
   if (error) throw new Error(error.message);
 }

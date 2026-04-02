@@ -111,6 +111,14 @@ export interface RouteHistoryRecord {
   created_at: string; // ISO 8601
 }
 
+export interface ConversationRecord {
+  session_id: string;
+  title: string | null;
+  first_query: string;
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
+}
+
 export interface UIDescriptor {
   component: string;
   props: Record<string, unknown>;
