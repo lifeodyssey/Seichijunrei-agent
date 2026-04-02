@@ -97,6 +97,11 @@ export interface PublicAPIError {
   details: Record<string, unknown>;
 }
 
+export interface StepEvent {
+  tool: string;
+  status: "running" | "done";
+}
+
 export interface RouteHistoryRecord {
   route_id: string | null;
   bangumi_id: string;
@@ -140,6 +145,7 @@ export interface ChatMessage {
   response?: RuntimeResponse;
   loading?: boolean;
   timestamp: number;
+  steps?: StepEvent[];
 }
 
 // ── Type guards ────────────────────────────────────────────────────────────

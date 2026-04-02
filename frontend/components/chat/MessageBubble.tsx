@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ChatMessage, RuntimeResponse } from "../../lib/types";
+import type { ChatMessage, RuntimeResponse, StepEvent } from "../../lib/types";
 import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
 import { submitFeedback } from "../../lib/api";
@@ -47,7 +47,7 @@ export default function MessageBubble({
       </p>
 
       {message.loading ? (
-        <ThinkingBar />
+        <StepTrace steps={message.steps ?? []} />
       ) : (
         <>
           {message.text && (
@@ -76,17 +76,42 @@ export default function MessageBubble({
   );
 }
 
-function ThinkingBar() {
+const STEP_LABELS: Record<string, string> = {
+  resolve_anime: "动漫识别",
+  search_bangumi: "搜索取景地",
+  search_nearby: "搜索附近景点",
+  plan_route: "规划路线",
+  answer_question: "生成回答",
+};
+
+function StepTrace({ steps }: { steps: StepEvent[] }) {
+  if (steps.length === 0) {
+    return (
+      <div className="relative h-px w-16 overflow-hidden bg-[var(--color-border)]">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+            animation: "shimmer 1.4s ease-in-out infinite",
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative h-px w-16 overflow-hidden bg-[var(--color-border)]">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, var(--color-primary), transparent)",
-          animation: "shimmer 1.4s ease-in-out infinite",
-        }}
-      />
+    <div className="flex flex-col gap-1">
+      {steps.map((step) => (
+        <span
+          key={`${step.tool}-${step.status}`}
+          className="text-[10px] text-[var(--color-muted-fg)] transition-opacity"
+          style={{ opacity: step.status === "done" ? 0.6 : 1 }}
+        >
+          {step.status === "done" ? "✓" : "●"}{" "}
+          {STEP_LABELS[step.tool] ?? step.tool}
+        </span>
+      ))}
     </div>
   );
 }

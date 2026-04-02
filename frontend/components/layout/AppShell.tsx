@@ -77,8 +77,9 @@ export default function AppShell() {
         rows = ((data as unknown) as RouteData).route.ordered_points;
       }
       rows.forEach((r) => {
-        if (r.bangumi_id && (r.title_cn || r.title)) {
-          map.set(r.bangumi_id, r.title_cn || r.title);
+        const title = r.title_cn || r.title;
+        if (r.bangumi_id && title) {
+          map.set(r.bangumi_id, title);
         }
       });
     });

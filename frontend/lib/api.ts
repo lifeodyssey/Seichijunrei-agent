@@ -41,6 +41,72 @@ export async function sendMessage(
   return res.json() as Promise<RuntimeResponse>;
 }
 
+export async function sendMessageStream(
+  text: string,
+  sessionId?: string | null,
+  locale?: RuntimeRequest["locale"],
+  onStep?: (tool: string, status: "running" | "done") => void,
+  signal?: AbortSignal,
+): Promise<RuntimeResponse> {
+  const body: RuntimeRequest = { text };
+  if (sessionId) body.session_id = sessionId;
+  if (locale) body.locale = locale;
+
+  const res = await fetch(`${RUNTIME_URL}/v1/runtime/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const errBody = await res.json().catch(() => null);
+    throw new Error(
+      errBody?.error?.message ?? `Stream error (${res.status})`,
+    );
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const consume = (chunk: string): RuntimeResponse | null => {
+    const messages = chunk.split("\n\n");
+    buffer = messages.pop() ?? "";
+    for (const line of messages) {
+      if (!line.startsWith("data:")) continue;
+      const raw = line.slice("data:".length).trim();
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as { event?: string; tool?: string; status?: "running" | "done"; message?: string };
+      if (parsed.event === "step" && parsed.tool && parsed.status) {
+        onStep?.(parsed.tool, parsed.status);
+      }
+      if (parsed.event === "done") {
+        const { event: _event, ...response } = parsed;
+        return response as RuntimeResponse;
+      }
+      if (parsed.event === "error") {
+        throw new Error(parsed.message ?? "Stream error");
+      }
+    }
+    return null;
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parsed = consume(buffer);
+    if (parsed) return parsed;
+  }
+
+  buffer += decoder.decode();
+  const parsed = consume(buffer);
+  if (parsed) return parsed;
+
+  throw new Error("Stream ended without done event");
+}
+
 /**
  * Submit user feedback (thumbs up/down) for a response.
  */

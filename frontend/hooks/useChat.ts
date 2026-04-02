@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import type { ChatMessage, RuntimeRequest, RuntimeResponse } from "../lib/types";
-import { sendMessage } from "../lib/api";
+import { sendMessageStream } from "../lib/api";
 
 let msgCounter = 0;
 function nextId() {
@@ -35,6 +35,7 @@ export function useChat(
         role: "assistant",
         text: "",
         loading: true,
+        steps: [],
         timestamp: Date.now(),
       };
 
@@ -47,10 +48,27 @@ export function useChat(
       abortRef.current = controller;
 
       try {
-        const response: RuntimeResponse = await sendMessage(
+        const response: RuntimeResponse = await sendMessageStream(
           text.trim(),
           sessionId,
           locale,
+          (tool, status) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? {
+                      ...m,
+                      steps: [
+                        ...((m.steps ?? []).filter(
+                          (step) => step.tool !== tool || status === "running",
+                        )),
+                        { tool, status },
+                      ],
+                    }
+                  : m,
+              ),
+            );
+          },
           controller.signal,
         );
 
