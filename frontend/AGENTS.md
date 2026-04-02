@@ -21,19 +21,19 @@ Key components and their responsibilities:
 
 ## Design System
 
-Always dark — no light mode, no media query conditional.
+Light theme — no dark mode toggle. Palette is 京吹夏季 (Kyoto summer, KyoAni-inspired).
 
 CSS variables (defined in `app/globals.css`):
 ```css
---color-bg:          #0f0f11
---color-fg:          #f0ece6
---color-card:        #17171a
---color-muted:       #1e1e22
---color-muted-fg:    #7a7270
---color-border:      #272729
---color-primary:     #d4954a
---font-display:      "Shippori Mincho B1", Georgia, serif
---font-body:         system-ui, sans-serif
+--color-bg:        oklch(98% 0.008 218)   /* near-white */
+--color-fg:        oklch(20% 0.025 238)   /* near-black */
+--color-card:      oklch(95% 0.012 215)
+--color-muted:     oklch(91% 0.016 218)
+--color-muted-fg:  oklch(54% 0.032 228)
+--color-border:    oklch(85% 0.022 222)
+--color-primary:   oklch(60% 0.148 240)   /* cornflower blue */
+--font-display:    "Shippori Mincho B1", Georgia, serif
+--font-body:       "Outfit", system-ui, sans-serif
 ```
 
 Use CSS variables, not Tailwind color classes, for brand colors.

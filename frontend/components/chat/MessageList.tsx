@@ -10,6 +10,7 @@ interface MessageListProps {
   onActivate?: (messageId: string) => void;
   activeMessageId?: string | null;
   onOpenDrawer?: () => void;
+  onSuggest?: (text: string) => void;
 }
 
 export default function MessageList({
@@ -17,8 +18,9 @@ export default function MessageList({
   onActivate,
   activeMessageId,
   onOpenDrawer,
+  onSuggest,
 }: MessageListProps) {
-  const { chat: t } = useDict();
+  const { chat: t, clarification } = useDict();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,10 +29,22 @@ export default function MessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6">
         <p className="text-xs font-light text-[var(--color-muted-fg)] opacity-50">
           {t.placeholder}
         </p>
+        <div className="flex flex-col items-center gap-2">
+          {clarification.suggestions.map((s) => (
+            <button
+              key={s.label}
+              onClick={() => onSuggest?.(s.query)}
+              className="text-xs font-light text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-primary)]"
+              style={{ transitionDuration: "var(--duration-fast)" }}
+            >
+              {s.label} →
+            </button>
+          ))}
+        </div>
       </div>
     );
   }

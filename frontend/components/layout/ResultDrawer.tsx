@@ -9,6 +9,7 @@ interface ResultDrawerProps {
   open: boolean;
   onClose: () => void;
   onSuggest?: (text: string) => void;
+  loading?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export default function ResultDrawer({
   open,
   onClose,
   onSuggest,
+  loading,
 }: ResultDrawerProps) {
   return (
     <Drawer.Root open={open} onOpenChange={(o) => !o && onClose()}>
@@ -37,7 +39,7 @@ export default function ResultDrawer({
             <div className="w-10 h-1 rounded-full bg-[var(--color-muted-fg)] opacity-40" />
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            <ResultPanel activeResponse={response} onSuggest={onSuggest} />
+            <ResultPanel activeResponse={response} onSuggest={onSuggest} loading={loading} />
           </div>
         </Drawer.Content>
       </Drawer.Portal>

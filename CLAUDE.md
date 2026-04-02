@@ -97,13 +97,13 @@ Auth is enforced in the Cloudflare Worker (`src/worker.js`) before reaching the 
 
 ### Frontend
 
-Three-column layout (always dark):
+Three-column layout (light theme — 京吹夏季 palette, KyoAni-inspired):
 
 ```
 ┌─────────┬──────────────────┬──────────────────────┐
 │ Sidebar │ Chat Panel 360px │ Result Panel flex-1  │
 │ 240px   │ text-only        │ GenerativeUIRenderer │
-│ History │ + ◈ anchors      │ (empty: dark map bg) │
+│ History │ + ◈ anchors      │ (empty: map bg)      │
 └─────────┴──────────────────┴──────────────────────┘
 ```
 
@@ -116,8 +116,8 @@ Key components:
 - Mobile: `ResultDrawer` (vaul bottom sheet) activated by `◈` anchor tap
 
 Design tokens (`frontend/app/globals.css`):
-- `--color-bg: #0f0f11` · `--color-primary: #d4954a` · `--font-display: "Shippori Mincho B1"`
-- Always dark — no `@media (prefers-color-scheme: dark)` conditional
+- `--color-bg: oklch(98% 0.008 218)` · `--color-primary: oklch(60% 0.148 240)` · `--font-display: "Shippori Mincho B1"`
+- Light theme — no dark mode toggle, no `@media (prefers-color-scheme)` conditional
 
 ### Eval Infrastructure
 

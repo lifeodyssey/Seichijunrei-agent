@@ -5,6 +5,9 @@ import { useSession } from "../../hooks/useSession";
 import { useChat } from "../../hooks/useChat";
 import { useLocale } from "../../lib/i18n-context";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { isVisualResponse } from "../generative/registry";
+import { isSearchData } from "../../lib/types";
+import type { RouteData, PilgrimagePoint } from "../../lib/types";
 import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
@@ -36,15 +39,55 @@ export default function AppShell() {
     [messages],
   );
 
+  // The most recent message that has a backend response
   const latestResponseMessage = useMemo(
     () => [...messages].reverse().find((m) => m.response) ?? null,
     [messages],
   );
-  const hasResponse = latestResponseMessage !== null;
 
-  const activeMessage = activeMessageId
-    ? messages.find((message) => message.id === activeMessageId) ?? null
-    : latestResponseMessage;
+  // Panel opens only when the LATEST response is visual; closes on text replies
+  const latestVisualResponseMessage =
+    latestResponseMessage?.response && isVisualResponse(latestResponseMessage.response)
+      ? latestResponseMessage
+      : null;
+
+  // User may have explicitly pinned an older visual message via ◈
+  const selectedVisualMessage = useMemo(
+    () =>
+      activeMessageId
+        ? (messages.find(
+            (m) => m.id === activeMessageId && m.response && isVisualResponse(m.response),
+          ) ?? null)
+        : null,
+    [activeMessageId, messages],
+  );
+
+  const hasVisualResponse = selectedVisualMessage !== null || latestVisualResponseMessage !== null;
+
+  // Build bangumi_id → title map from all responses for sidebar display
+  const bangumiTitleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    messages.forEach((m) => {
+      if (!m.response) return;
+      const { data } = m.response;
+      let rows: PilgrimagePoint[] = [];
+      if (isSearchData(data)) {
+        rows = data.results.rows;
+      } else if ("route" in data) {
+        rows = ((data as unknown) as RouteData).route.ordered_points;
+      }
+      rows.forEach((r) => {
+        if (r.bangumi_id && (r.title_cn || r.title)) {
+          map.set(r.bangumi_id, r.title_cn || r.title);
+        }
+      });
+    });
+    return map;
+  }, [messages]);
+
+  // Suppress stale visual during loading (Bug 2); honour explicit pin otherwise
+  const activeMessage =
+    selectedVisualMessage ?? (sending ? null : latestVisualResponseMessage);
 
   const activeResponse = activeMessage?.response ?? null;
   const activeResultMessageId = activeMessage?.id ?? null;
@@ -90,15 +133,28 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
-      {!isMobile && <Sidebar routeHistory={routeHistory} onNewChat={handleNewChat} />}
+      {!isMobile && (
+        <Sidebar
+          routeHistory={routeHistory}
+          bangumiTitleMap={bangumiTitleMap}
+          onNewChat={handleNewChat}
+        />
+      )}
 
       <main
         className={`flex min-h-0 flex-col bg-[var(--color-bg)] ${
-          !isMobile && hasResponse
+          !isMobile && hasVisualResponse
             ? "shrink-0 border-r border-[var(--color-border)]"
             : "flex-1"
         }`}
-        style={!isMobile && hasResponse ? { width: chatWidth } : undefined}
+        style={
+          !isMobile && hasVisualResponse
+            ? {
+                width: chatWidth,
+                transition: "width var(--duration-base) var(--ease-out-expo)",
+              }
+            : undefined
+        }
       >
         <ChatHeader onNewChat={isMobile ? handleNewChat : undefined} />
         <MessageList
@@ -106,8 +162,9 @@ export default function AppShell() {
           onActivate={handleActivate}
           activeMessageId={activeResultMessageId}
           onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
+          onSuggest={handleSend}
         />
-        <ChatInput onSend={handleSend} disabled={sending} prefill="" />
+        <ChatInput onSend={handleSend} disabled={sending} />
       </main>
 
       {isMobile ? (
@@ -116,17 +173,21 @@ export default function AppShell() {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onSuggest={handleSend}
+          loading={sending}
         />
-      ) : hasResponse && (
+      ) : hasVisualResponse && (
         <>
           <div
             onPointerDown={handleDividerPointerDown}
             onPointerMove={handleDividerPointerMove}
             onPointerUp={handleDividerPointerUp}
             className="w-1 shrink-0 cursor-col-resize bg-[var(--color-border)] transition-colors hover:bg-[var(--color-primary)]"
-            style={{ transitionDuration: "var(--duration-fast)" }}
+            style={{
+              transitionDuration: "var(--duration-fast)",
+              animation: "panel-slide-in var(--duration-base) var(--ease-out-expo) both",
+            }}
           />
-          <ResultPanel activeResponse={activeResponse} onSuggest={handleSend} />
+          <ResultPanel activeResponse={activeResponse} onSuggest={handleSend} loading={sending} />
         </>
       )}
     </div>

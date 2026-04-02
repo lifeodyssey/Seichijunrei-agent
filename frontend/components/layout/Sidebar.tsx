@@ -6,6 +6,7 @@ import { LOCALES, type Locale } from "../../lib/i18n";
 
 interface SidebarProps {
   routeHistory: RouteHistoryRecord[];
+  bangumiTitleMap?: Map<string, string>;
   onNewChat: () => void;
 }
 
@@ -15,7 +16,7 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "EN",
 };
 
-export default function Sidebar({ routeHistory, onNewChat }: SidebarProps) {
+export default function Sidebar({ routeHistory, bangumiTitleMap, onNewChat }: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
   const setLocale = useSetLocale();
@@ -63,7 +64,7 @@ export default function Sidebar({ routeHistory, onNewChat }: SidebarProps) {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-light text-[var(--color-sidebar-accent-fg)]">
-                    {record.bangumi_id}
+                    {bangumiTitleMap?.get(record.bangumi_id) ?? record.bangumi_id}
                   </p>
                   <p className="text-[10px] text-[var(--color-sidebar-fg)]">
                     {t.spots.replace("{count}", String(record.point_count))}

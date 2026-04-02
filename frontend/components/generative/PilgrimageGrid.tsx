@@ -1,7 +1,68 @@
 "use client";
 
-import type { SearchResultData } from "../../lib/types";
+import { useState } from "react";
+import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+
+function PilgrimageCard({
+  point,
+  idx,
+  episodeLabel,
+}: {
+  point: PilgrimagePoint;
+  idx: number;
+  episodeLabel: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-sm bg-[var(--color-muted)] ${
+        idx === 0 ? "col-span-2" : ""
+      }`}
+    >
+      <div
+        className={`relative bg-[var(--color-muted)] ${
+          idx === 0 ? "aspect-video" : "aspect-[4/3]"
+        }`}
+      >
+        {point.screenshot_url && !imgError ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={point.screenshot_url}
+            alt={point.name_cn || point.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <span
+              className="select-none font-[family-name:var(--app-font-display)] text-2xl"
+              style={{
+                color: "color-mix(in oklch, var(--color-fg) 12%, transparent)",
+              }}
+            >
+              聖
+            </span>
+          </div>
+        )}
+      </div>
+
+      {point.episode != null && point.episode !== 0 && (
+        <span className="absolute bottom-2 left-2 rounded-sm bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80">
+          {episodeLabel.replace("{ep}", String(point.episode))}
+        </span>
+      )}
+
+      <div className="pb-2 pt-1.5">
+        <p className="truncate text-xs font-light text-[var(--color-fg)]">
+          {point.name_cn || point.name}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 interface PilgrimageGridProps {
   data: SearchResultData;
@@ -38,44 +99,12 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
       {/* Photo spread — featured first card */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {results.rows.map((point, idx) => (
-          <div
+          <PilgrimageCard
             key={point.id}
-            className={`relative overflow-hidden rounded-sm bg-[var(--color-muted)] ${
-              idx === 0 ? "col-span-2" : ""
-            }`}
-          >
-            {/* Image */}
-            <div
-              className={`relative bg-[var(--color-muted)] ${
-                idx === 0 ? "aspect-video" : "aspect-[4/3]"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {point.screenshot_url && (
-                <img
-                  src={point.screenshot_url}
-                  alt={point.name_cn || point.name}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-              )}
-            </div>
-
-            {/* Episode overlay */}
-            {point.episode != null && point.episode !== 0 && (
-              <span className="absolute bottom-2 left-2 rounded-sm bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80">
-                {t.episode.replace("{ep}", String(point.episode))}
-              </span>
-            )}
-
-            {/* Caption below image */}
-            <div className="pb-2 pt-1.5">
-              <p className="truncate text-xs font-light text-[var(--color-fg)]">
-                {point.name_cn || point.name}
-              </p>
-            </div>
-          </div>
+            point={point}
+            idx={idx}
+            episodeLabel={t.episode}
+          />
         ))}
       </div>
     </div>

@@ -18,6 +18,7 @@ export async function sendMessage(
   text: string,
   sessionId?: string | null,
   locale?: RuntimeRequest["locale"],
+  signal?: AbortSignal,
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
   if (sessionId) body.session_id = sessionId;
@@ -27,6 +28,7 @@ export async function sendMessage(
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!res.ok) {
