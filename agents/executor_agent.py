@@ -7,6 +7,7 @@ templates. Steps communicate via context dict (each step deposits its output).
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -93,6 +94,7 @@ class ExecutorAgent:
         self,
         plan: ExecutionPlan,
         context_block: dict[str, Any] | None = None,
+        on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
     ) -> PipelineResult:
         """Execute all steps in the plan and return a PipelineResult.
 
@@ -110,7 +112,11 @@ class ExecutorAgent:
             context["last_location"] = context_block["last_location"]
 
         for step in plan.steps:
+            if on_step is not None:
+                await on_step(step.tool.value, "running", {})
             step_result = await self._execute_step(step, context)
+            if on_step is not None:
+                await on_step(step.tool.value, "done", step_result.data or {})
             result.step_results.append(step_result)
 
             tool = getattr(step, "tool", None)

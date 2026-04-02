@@ -115,3 +115,18 @@ class TestExecutorAgentExecute:
         executor = ExecutorAgent(mock_db)
         result = await executor.execute(plan)
         assert "Found" in result.final_output.get("message", "")
+
+    async def test_execute_calls_on_step_for_each_tool(self, mock_db):
+        plan = _plan(
+            PlanStep(tool=ToolName.ANSWER_QUESTION, params={"answer": "hi"})
+        )
+        events: list[tuple[str, str]] = []
+
+        async def on_step(tool: str, status: str, data: dict[str, object]) -> None:
+            events.append((tool, status))
+
+        executor = ExecutorAgent(mock_db)
+        await executor.execute(plan, on_step=on_step)
+
+        assert ("answer_question", "running") in events
+        assert ("answer_question", "done") in events
