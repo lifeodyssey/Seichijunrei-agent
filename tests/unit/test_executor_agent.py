@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -61,6 +61,28 @@ class TestExecutorAgentExecute:
         assert result.success
         route = result.final_output.get("route", {})
         assert route.get("point_count", 0) == 2
+
+    async def test_plan_route_uses_context_last_location_as_origin(self, mock_db):
+        rows = [
+            {"id": "near", "latitude": 0.05, "longitude": 0.05},
+            {"id": "far", "latitude": 10.0, "longitude": 10.0},
+        ]
+        mock_db.pool.fetch.return_value = rows
+        plan = _plan(
+            PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"}),
+            PlanStep(tool=ToolName.PLAN_ROUTE, params={}),
+        )
+        executor = ExecutorAgent(mock_db)
+
+        with patch("agents.executor_agent.resolve_location", new=AsyncMock(return_value=(0.0, 0.0))):
+            result = await executor.execute(
+                plan,
+                context_block={"last_location": "京都駅"},
+            )
+
+        route = result.final_output.get("route", {})
+        ordered_points = route.get("ordered_points", [])
+        assert ordered_points and ordered_points[0]["id"] == "near"
 
     async def test_resolve_anime_db_hit(self, mock_db):
         mock_db.find_bangumi_by_title.return_value = "115908"

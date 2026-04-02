@@ -31,7 +31,10 @@ async def run_pipeline(
         steps=[s.tool.value for s in plan.steps],
         reasoning=plan.reasoning[:120],
     )
-    result = await ExecutorAgent(db).execute(plan)
+    result = await ExecutorAgent(db).execute(
+        plan,
+        context_block=context,
+    )
     logger.info(
         "pipeline_complete",
         intent=result.intent,
