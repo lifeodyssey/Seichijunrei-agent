@@ -174,7 +174,7 @@ function FeedbackButtons({ message, userQuery }: { message: ChatMessage; userQue
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-50 hover:!opacity-100" style={{ transitionDuration: "var(--duration-fast)" }}>
+      <div className="flex gap-0.5 opacity-50 transition-opacity md:opacity-0 md:group-hover:opacity-50 md:group-focus-within:opacity-50 hover:!opacity-100" style={{ transitionDuration: "var(--duration-fast)" }}>
         <button
           aria-label={t.feedback_good_title}
           onClick={() => handleFeedback("good")}

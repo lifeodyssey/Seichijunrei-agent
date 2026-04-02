@@ -13,12 +13,23 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  function adjustHeight() {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
+  }
+
+  useEffect(adjustHeight, [text]);
+
+  // Recalculate when the textarea width changes (panel open/close, divider drag)
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(adjustHeight);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   function handleSubmit() {
     if (!text.trim() || disabled) return;

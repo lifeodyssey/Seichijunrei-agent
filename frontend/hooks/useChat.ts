@@ -41,14 +41,24 @@ export function useChat(
       setMessages((prev) => [...prev, userMsg, placeholder]);
       setSending(true);
 
+      // Abort any previous in-flight request (safety net — normally guarded by `sending`)
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        abortRef.current = new AbortController();
         const response: RuntimeResponse = await sendMessage(
           text.trim(),
           sessionId,
           locale,
-          abortRef.current.signal,
+          controller.signal,
         );
+
+        // Guard: fetch resolved but session was cleared (abort fired after completion)
+        if (controller.signal.aborted) {
+          setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
+          return;
+        }
 
         if (response.session_id) {
           onSessionId(response.session_id);
@@ -77,13 +87,18 @@ export function useChat(
         );
       } finally {
         setSending(false);
-        abortRef.current = null;
+        // Only clear ref if we still own it (clear() may have nulled it)
+        if (abortRef.current === controller) abortRef.current = null;
       }
     },
     [sessionId, sending, onSessionId, locale],
   );
 
-  const clear = useCallback(() => setMessages([]), []);
+  const clear = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setMessages([]);
+  }, []);
 
   return { messages, send, sending, clear };
 }

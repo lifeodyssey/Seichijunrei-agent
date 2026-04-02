@@ -39,13 +39,30 @@ export default function AppShell() {
     [messages],
   );
 
-  // Only visual responses (PilgrimageGrid, NearbyMap, RouteVisualization) trigger the right panel
-  const latestVisualResponseMessage = useMemo(
-    () =>
-      [...messages].reverse().find((m) => m.response && isVisualResponse(m.response)) ?? null,
+  // The most recent message that has a backend response
+  const latestResponseMessage = useMemo(
+    () => [...messages].reverse().find((m) => m.response) ?? null,
     [messages],
   );
-  const hasVisualResponse = latestVisualResponseMessage !== null;
+
+  // Panel opens only when the LATEST response is visual; closes on text replies
+  const latestVisualResponseMessage =
+    latestResponseMessage?.response && isVisualResponse(latestResponseMessage.response)
+      ? latestResponseMessage
+      : null;
+
+  // User may have explicitly pinned an older visual message via ◈
+  const selectedVisualMessage = useMemo(
+    () =>
+      activeMessageId
+        ? (messages.find(
+            (m) => m.id === activeMessageId && m.response && isVisualResponse(m.response),
+          ) ?? null)
+        : null,
+    [activeMessageId, messages],
+  );
+
+  const hasVisualResponse = selectedVisualMessage !== null || latestVisualResponseMessage !== null;
 
   // Build bangumi_id → title map from all responses for sidebar display
   const bangumiTitleMap = useMemo(() => {
@@ -68,12 +85,9 @@ export default function AppShell() {
     return map;
   }, [messages]);
 
-  // Suppress stale visual during loading (Bug 2 fix)
-  const activeMessage = activeMessageId
-    ? messages.find((message) => message.id === activeMessageId) ?? null
-    : sending
-      ? null
-      : latestVisualResponseMessage;
+  // Suppress stale visual during loading (Bug 2); honour explicit pin otherwise
+  const activeMessage =
+    selectedVisualMessage ?? (sending ? null : latestVisualResponseMessage);
 
   const activeResponse = activeMessage?.response ?? null;
   const activeResultMessageId = activeMessage?.id ?? null;
@@ -162,19 +176,19 @@ export default function AppShell() {
           loading={sending}
         />
       ) : hasVisualResponse && (
-        <div
-          className="contents"
-          style={{ animation: "panel-slide-in var(--duration-base) var(--ease-out-expo) both" }}
-        >
+        <>
           <div
             onPointerDown={handleDividerPointerDown}
             onPointerMove={handleDividerPointerMove}
             onPointerUp={handleDividerPointerUp}
             className="w-1 shrink-0 cursor-col-resize bg-[var(--color-border)] transition-colors hover:bg-[var(--color-primary)]"
-            style={{ transitionDuration: "var(--duration-fast)" }}
+            style={{
+              transitionDuration: "var(--duration-fast)",
+              animation: "panel-slide-in var(--duration-base) var(--ease-out-expo) both",
+            }}
           />
           <ResultPanel activeResponse={activeResponse} onSuggest={handleSend} loading={sending} />
-        </div>
+        </>
       )}
     </div>
   );
