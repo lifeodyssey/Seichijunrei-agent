@@ -19,6 +19,8 @@ This layout has worked for direct SQL execution, but it has three recurring prob
 
 The project also does not currently use the standard `supabase/` directory or Supabase CLI commands such as `migration new`, `db diff`, `db push`, `migration list`, or `migration repair`.
 
+> Legacy path warning: `infrastructure/supabase/migrations/` and `scripts/supabase/` are transitional reference paths only. New authoritative migrations must land under `supabase/migrations/`.
+
 ## Decision
 
 Use Supabase CLI and `supabase/migrations/` as the canonical migration system.

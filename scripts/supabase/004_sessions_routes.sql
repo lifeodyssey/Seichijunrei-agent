@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- 004_sessions_routes.sql
 -- Session state and computed route history
 

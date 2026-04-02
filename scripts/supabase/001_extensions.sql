@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- 001_extensions.sql
 -- Enable required PostgreSQL extensions for geospatial queries and IDs
 

@@ -1,7 +1,3 @@
--- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
--- Canonical migrations now live under `supabase/migrations/`.
--- Do not add new schema changes here.
-
 -- Align the points table with the current runtime contract.
 -- Non-destructive on existing databases:
 -- - add runtime columns if missing

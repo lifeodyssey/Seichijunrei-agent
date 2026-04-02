@@ -53,6 +53,22 @@ make check             # lint + format + type check
 make serve             # run HTTP service locally
 ```
 
+## Database migrations
+
+This repo uses the Supabase CLI as the canonical migration workflow.
+
+Common commands:
+
+```bash
+make db-list
+make db-push-dry
+make db-push
+make db-diff NAME=my_change
+make db-pull NAME=remote_schema
+```
+
+Use `SUPABASE_DB_URL` for validation and deploy-time migration steps. Do not run schema migrations from application startup; apply them in a dedicated deployment step before the app ships.
+
 ## Environment
 
 Required:
