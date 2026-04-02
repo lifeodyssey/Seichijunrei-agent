@@ -45,13 +45,56 @@ def mock_db():
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
+    db.get_conversations = AsyncMock(return_value=[])
     db.search_points_by_location = AsyncMock(return_value=[])
     db.upsert_session = AsyncMock()
+    db.update_conversation_title = AsyncMock(return_value=True)
     db.save_route = AsyncMock(return_value="route-1")
     return db
 
 
 class TestHTTPService:
+    async def test_runtime_endpoint_passes_user_id_header(self, mock_db):
+        runtime_api = MagicMock()
+        runtime_api.handle = AsyncMock(
+            return_value=RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            and MagicMock(
+                model_dump=MagicMock(),
+            )
+        )
+        runtime_api.handle.return_value = MagicMock(
+            success=True,
+            status="ok",
+            intent="search_bangumi",
+            errors=[],
+            model_dump=MagicMock(
+                return_value={
+                    "success": True,
+                    "status": "ok",
+                    "intent": "search_bangumi",
+                    "message": "",
+                    "data": {},
+                    "session": {},
+                    "route_history": [],
+                    "errors": [],
+                    "ui": None,
+                    "debug": None,
+                    "session_id": "sess-1",
+                }
+            ),
+        )
+        app = create_http_app(runtime_api=runtime_api, settings=Settings())
+
+        async with TestClient(TestServer(app)) as client:
+            response = await client.post(
+                "/v1/runtime",
+                json={"text": "秒速5厘米的取景地在哪"},
+                headers={"X-User-Id": "user-1"},
+            )
+
+        assert response.status == 200
+        assert runtime_api.handle.await_args.kwargs["user_id"] == "user-1"
+
     async def test_healthz_returns_service_metadata(self, mock_db):
         app = create_http_app(
             runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
@@ -85,7 +128,15 @@ class TestHTTPService:
             "data": {"results": {"rows": [], "row_count": 0}},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(
+            text,
+            db,
+            *,
+            model=None,
+            locale="ja",
+            context=None,
+            on_step=None,
+        ):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):
@@ -205,7 +256,15 @@ class TestHTTPService:
             "data": {"results": {"rows": [], "row_count": 0}},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(
+            text,
+            db,
+            *,
+            model=None,
+            locale="ja",
+            context=None,
+            on_step=None,
+        ):
             return result
 
         app = create_http_app(
@@ -291,7 +350,15 @@ class TestHTTPService:
             "data": {},
         }
 
-        async def fake_pipeline(text, db, *, model=None, locale="ja"):
+        async def fake_pipeline(
+            text,
+            db,
+            *,
+            model=None,
+            locale="ja",
+            context=None,
+            on_step=None,
+        ):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=fake_pipeline):
@@ -310,3 +377,70 @@ class TestHTTPService:
 
         assert body["intent"] == "answer_question"
         assert body["message"]  # non-empty localized message
+
+    async def test_get_conversations_returns_list(self, mock_db):
+        mock_db.get_conversations.return_value = [
+            {
+                "session_id": "sess-1",
+                "title": "京吹の聖地",
+                "first_query": "京吹の聖地を探して",
+                "created_at": "2026-04-02T10:00:00Z",
+                "updated_at": "2026-04-02T10:00:00Z",
+            }
+        ]
+        app = create_http_app(
+            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+            settings=Settings(),
+        )
+
+        async with TestClient(TestServer(app)) as client:
+            response = await client.get(
+                "/v1/conversations",
+                headers={"X-User-Id": "user-1"},
+            )
+            body = await response.json()
+
+        assert response.status == 200
+        assert body[0]["session_id"] == "sess-1"
+
+    async def test_get_conversations_requires_user_id(self, mock_db):
+        app = create_http_app(
+            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+            settings=Settings(),
+        )
+
+        async with TestClient(TestServer(app)) as client:
+            response = await client.get("/v1/conversations")
+
+        assert response.status == 400
+
+    async def test_patch_conversation_title(self, mock_db):
+        app = create_http_app(
+            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+            settings=Settings(),
+        )
+
+        async with TestClient(TestServer(app)) as client:
+            response = await client.patch(
+                "/v1/conversations/sess-1",
+                json={"title": "New Title"},
+                headers={"X-User-Id": "user-1"},
+            )
+
+        assert response.status == 200
+        mock_db.update_conversation_title.assert_awaited_once()
+
+    async def test_patch_conversation_validates_title(self, mock_db):
+        app = create_http_app(
+            runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
+            settings=Settings(),
+        )
+
+        async with TestClient(TestServer(app)) as client:
+            response = await client.patch(
+                "/v1/conversations/sess-1",
+                json={"title": ""},
+                headers={"X-User-Id": "user-1"},
+            )
+
+        assert response.status == 422

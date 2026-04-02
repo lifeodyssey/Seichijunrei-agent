@@ -49,10 +49,13 @@ def create_http_app(
     app.router.add_get("/", _handle_root)
     app.router.add_get("/healthz", _handle_health)
     app.router.add_post("/v1/runtime", _handle_runtime)
+    app.router.add_get("/v1/conversations", _handle_get_conversations)
+    app.router.add_patch("/v1/conversations/{session_id}", _handle_patch_conversation)
     app.router.add_post("/v1/feedback", _handle_feedback)
 
     if runtime_api is not None:
         app[_RUNTIME_API_KEY] = runtime_api
+        app[_DB_KEY] = db or getattr(runtime_api, "_db", None)
     else:
         app.cleanup_ctx.append(
             _runtime_context(
@@ -103,6 +106,7 @@ async def _handle_health(request: web.Request) -> web.Response:
 
 async def _handle_runtime(request: web.Request) -> web.Response:
     runtime_api = request.app[_RUNTIME_API_KEY]
+    user_id = request.headers.get("X-User-Id") or None
 
     try:
         raw_payload = await request.json()
@@ -131,7 +135,7 @@ async def _handle_runtime(request: web.Request) -> web.Response:
             status=422,
         )
 
-    response = await runtime_api.handle(api_request)
+    response = await runtime_api.handle(api_request, user_id=user_id)
     return web.json_response(
         response.model_dump(mode="json"),
         status=_http_status_for_response(response),
@@ -203,7 +207,9 @@ async def _cors_middleware(
         resp = await handler(request)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Authorization, X-User-Id"
+    )
     return resp
 
 
@@ -278,6 +284,77 @@ def _http_status_for_response(response: PublicAPIResponse) -> int:
         return 429
     if codes & {"timeout"}:
         return 504
+
+    return 500
+
+
+async def _handle_get_conversations(request: web.Request) -> web.Response:
+    """Return conversation history for the authenticated user."""
+    user_id = request.headers.get("X-User-Id") or None
+    if not user_id:
+        return web.json_response(
+            {
+                "error": {
+                    "code": "missing_user_id",
+                    "message": "X-User-Id header required.",
+                }
+            },
+            status=400,
+        )
+
+    db = request.app.get(_DB_KEY)
+    get_conversations = getattr(db, "get_conversations", None)
+    if get_conversations is None:
+        return web.json_response([], dumps=_json_dumps)
+
+    conversations = await get_conversations(user_id)
+    return web.json_response(conversations, dumps=_json_dumps)
+
+
+async def _handle_patch_conversation(request: web.Request) -> web.Response:
+    """Rename a persisted conversation title."""
+    user_id = request.headers.get("X-User-Id") or None
+    if not user_id:
+        return web.json_response(
+            {
+                "error": {
+                    "code": "missing_user_id",
+                    "message": "X-User-Id header required.",
+                }
+            },
+            status=400,
+        )
+
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, ValueError):
+        return web.json_response(
+            {"error": {"code": "invalid_json", "message": "Invalid JSON."}},
+            status=400,
+        )
+
+    title = str(payload.get("title", "")).strip()
+    if not title:
+        return web.json_response(
+            {
+                "error": {
+                    "code": "invalid_request",
+                    "message": "title must be a non-empty string.",
+                }
+            },
+            status=422,
+        )
+
+    db = request.app.get(_DB_KEY)
+    update_conversation_title = getattr(db, "update_conversation_title", None)
+    if update_conversation_title is not None:
+        await update_conversation_title(
+            request.match_info["session_id"],
+            title,
+            user_id=user_id,
+        )
+
+    return web.json_response({"ok": True}, dumps=_json_dumps)
     if codes & {"service_unavailable", "external_service_error"}:
         return 503
     if codes & {
