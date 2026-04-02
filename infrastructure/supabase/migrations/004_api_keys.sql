@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- API keys for agent/CLI access.
 -- The raw key (sk_<hex>) is shown to the user exactly once.
 -- Only the SHA-256 hex-encoded hash is stored here.

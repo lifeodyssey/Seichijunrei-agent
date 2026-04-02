@@ -1,6 +1,6 @@
 # Seichijunrei Agent - Makefile
 
-.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format check clean build
+.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format check clean build db-diff db-list db-pull db-push db-push-dry db-reset
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -23,6 +23,11 @@ help:
 	@echo "  make lint        Run linters (ruff)"
 	@echo "  make format      Format code (black + ruff)"
 	@echo "  make check       Run all checks (lint + test)"
+	@echo ""
+	@echo "Database:"
+	@echo "  make db-list     Show Supabase migration status"
+	@echo "  make db-push-dry  Dry-run Supabase migrations"
+	@echo "  make db-push     Apply Supabase migrations"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean       Remove build artifacts and caches"
@@ -70,6 +75,24 @@ clean:
 
 build:
 	uv build
+
+db-diff:
+	supabase db diff -f $(NAME) --schema public
+
+db-list:
+	supabase migration list --db-url $$SUPABASE_DB_URL
+
+db-pull:
+	supabase db pull $(NAME) --schema public
+
+db-push-dry:
+	supabase db push --dry-run --db-url $$SUPABASE_DB_URL
+
+db-push:
+	supabase db push --db-url $$SUPABASE_DB_URL
+
+db-reset:
+	supabase db reset
 
 setup: dev
 	@echo ""

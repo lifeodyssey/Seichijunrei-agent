@@ -121,3 +121,23 @@ jobs:
       - name: Build package
         run: uv build
         continue-on-error: true
+
+  db-validate:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate migration history
+        if: env.SUPABASE_DB_URL != ''
+        run: |
+          supabase migration list --db-url "$SUPABASE_DB_URL"
+          supabase db push --dry-run --db-url "$SUPABASE_DB_URL"

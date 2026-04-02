@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- Request log for eval flywheel.
 -- Written after every /v1/runtime response. Never blocks the response.
 -- plan_steps JSONB stores the list of tool/step names in execution order.

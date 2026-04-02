@@ -1,8 +1,3 @@
--- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
--- Canonical migrations now live under `supabase/migrations/`.
--- Do not add new schema changes here.
-
--- 006_operational_tables.sql
 -- Operational / product tables not covered by the core bangumi + route bootstrap.
 
 CREATE TABLE IF NOT EXISTS feedback (

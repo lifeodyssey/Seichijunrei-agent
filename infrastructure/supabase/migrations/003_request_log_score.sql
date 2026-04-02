@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- Add LLM auto-score column to request_log.
 -- Populated by tools/eval_scorer.py (offline batch job).
 

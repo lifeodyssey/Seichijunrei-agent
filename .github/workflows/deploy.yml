@@ -36,10 +36,33 @@ jobs:
           path: frontend/out
           retention-days: 1
 
+  db-push:
+    name: Apply Database Migrations
+    runs-on: ubuntu-latest
+    needs: [build-frontend]
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Show migration list
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+
+      - name: Dry-run database push
+        run: supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
+
+      - name: Apply database migrations
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+
   deploy:
     name: Deploy to Cloudflare
     runs-on: ubuntu-latest
-    needs: [build-frontend]
+    needs: [build-frontend, db-push]
 
     steps:
       - uses: actions/checkout@v4
@@ -60,10 +83,10 @@ jobs:
           secrets: |
             SUPABASE_URL
             SUPABASE_ANON_KEY
-            SUPABASE_SERVICE_ROLE_KEY
-            SUPABASE_DB_URL
-            GEMINI_API_KEY
-            LOGFIRE_TOKEN
+          SUPABASE_SERVICE_ROLE_KEY
+          SUPABASE_DB_URL
+          GEMINI_API_KEY
+          LOGFIRE_TOKEN
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}

@@ -1,3 +1,7 @@
+-- DEPRECATED: Legacy SQL snapshot retained for reference/bootstrap only.
+-- Canonical migrations now live under `supabase/migrations/`.
+-- Do not add new schema changes here.
+
 -- Waitlist table used by the auth gate for beta signup and approval checks.
 
 CREATE TABLE IF NOT EXISTS waitlist (
