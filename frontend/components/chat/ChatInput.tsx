@@ -17,7 +17,17 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+
+    // Parse the CSS maxHeight to pixels
+    const computedMaxHeight = getComputedStyle(el).maxHeight;
+    const maxHeightPx = computedMaxHeight === "none" ? Infinity : parseFloat(computedMaxHeight);
+
+    // Clamp height to maxHeight
+    const clampedHeight = Math.min(el.scrollHeight, maxHeightPx);
+    el.style.height = `${clampedHeight}px`;
+
+    // Toggle overflow when content exceeds maxHeight
+    el.style.overflowY = el.scrollHeight > maxHeightPx ? "auto" : "hidden";
   }
 
   useEffect(adjustHeight, [text]);
