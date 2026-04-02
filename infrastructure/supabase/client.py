@@ -12,6 +12,8 @@ Usage:
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
+import json
 from numbers import Real
 
 import asyncpg
@@ -81,6 +83,17 @@ def _prepare_point_fields(fields: dict[str, object]) -> dict[str, object]:
     if "embedding" in prepared and prepared["embedding"] is not None:
         prepared["embedding"] = _vector_literal(prepared["embedding"])
     return prepared
+
+
+def _decode_json_list(raw: object) -> list[dict]:
+    """Decode a JSON/JSONB payload into a list of dicts."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        decoded = json.loads(raw)
+    else:
+        decoded = list(raw)
+    return [dict(item) for item in decoded]
 
 
 def _point_placeholder(column: str, position: int) -> str:
@@ -326,8 +339,6 @@ class SupabaseClient:
         self, session_id: str, state: dict, metadata: dict | None = None
     ) -> None:
         """Create or update a session."""
-        import json
-
         await self.pool.execute(
             """
             INSERT INTO sessions (id, state, metadata) VALUES ($1, $2::jsonb, $3::jsonb)
@@ -337,6 +348,139 @@ class SupabaseClient:
             json.dumps(state),
             json.dumps(metadata or {}),
         )
+
+    async def upsert_conversation(
+        self,
+        session_id: str,
+        user_id: str,
+        first_query: str,
+    ) -> None:
+        """Create a conversation row or touch its updated timestamp."""
+        await self.pool.execute(
+            """
+            INSERT INTO conversations (session_id, user_id, first_query)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (session_id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                updated_at = now()
+            """,
+            session_id,
+            user_id,
+            first_query,
+        )
+
+    async def update_conversation_title(
+        self,
+        session_id: str,
+        title: str,
+        *,
+        user_id: str | None = None,
+    ) -> None:
+        """Set the generated or user-supplied title for a conversation."""
+        if user_id is None:
+            await self.pool.execute(
+                """
+                UPDATE conversations
+                SET title = $1, updated_at = now()
+                WHERE session_id = $2
+                """,
+                title,
+                session_id,
+            )
+            return
+
+        await self.pool.execute(
+            """
+            UPDATE conversations
+            SET title = $1, updated_at = now()
+            WHERE session_id = $2 AND user_id = $3
+            """,
+            title,
+            session_id,
+            user_id,
+        )
+
+    async def get_conversations(
+        self,
+        user_id: str,
+        *,
+        limit: int = 30,
+    ) -> list[dict]:
+        """Return a user's conversations, most recent first."""
+        rows = await self.pool.fetch(
+            """
+            SELECT session_id, title, first_query, created_at, updated_at
+            FROM conversations
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT $2
+            """,
+            user_id,
+            limit,
+        )
+        return [dict(row) for row in rows]
+
+    async def upsert_user_memory(
+        self,
+        user_id: str,
+        *,
+        bangumi_id: str,
+        anime_title: str | None,
+    ) -> None:
+        """Merge one anime into the user's cross-session memory."""
+        row = await self.pool.fetchrow(
+            "SELECT visited_anime FROM user_memory WHERE user_id = $1",
+            user_id,
+        )
+        visited = _decode_json_list(row["visited_anime"]) if row is not None else []
+
+        now = datetime.now(UTC).isoformat()
+        existing = next(
+            (entry for entry in visited if entry.get("bangumi_id") == bangumi_id),
+            None,
+        )
+        if existing is not None:
+            existing["last_at"] = now
+            if anime_title:
+                existing["title"] = anime_title
+        else:
+            visited.append(
+                {
+                    "bangumi_id": bangumi_id,
+                    "title": anime_title or "",
+                    "last_at": now,
+                }
+            )
+
+        await self.pool.execute(
+            """
+            INSERT INTO user_memory (user_id, visited_anime, updated_at)
+            VALUES ($1, $2::jsonb, now())
+            ON CONFLICT (user_id) DO UPDATE SET
+                visited_anime = $2::jsonb,
+                updated_at = now()
+            """,
+            user_id,
+            json.dumps(visited),
+        )
+
+    async def get_user_memory(self, user_id: str) -> dict | None:
+        """Return parsed cross-session user memory."""
+        row = await self.pool.fetchrow(
+            """
+            SELECT visited_anime, visited_points
+            FROM user_memory
+            WHERE user_id = $1
+            """,
+            user_id,
+        )
+        if row is None:
+            return None
+
+        return {
+            "visited_anime": _decode_json_list(row["visited_anime"]),
+            "visited_points": _decode_json_list(row["visited_points"]),
+        }
 
     # --- Routes ---
 

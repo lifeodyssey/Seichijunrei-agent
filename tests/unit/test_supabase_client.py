@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -163,3 +164,128 @@ class TestUpsertBangumiTitle:
         mock_pool.execute.assert_awaited_once()
         sql, *args = mock_pool.execute.call_args[0]
         assert "6718" in args or "進撃の巨人" in args
+
+
+@pytest.fixture
+def persistence_db(mock_pool: AsyncMock) -> SupabaseClient:
+    client = SupabaseClient.__new__(SupabaseClient)
+    client._pool = mock_pool
+    return client
+
+
+class TestUpsertConversation:
+    async def test_inserts_or_touches_conversation(self, persistence_db, mock_pool):
+        await persistence_db.upsert_conversation(
+            session_id="sess-1",
+            user_id="user-1",
+            first_query="京吹の聖地を探して",
+        )
+
+        sql = mock_pool.execute.await_args.args[0]
+        assert "INSERT INTO conversations" in sql
+        assert "ON CONFLICT" in sql
+
+    async def test_does_not_overwrite_existing_first_query(
+        self,
+        persistence_db,
+        mock_pool,
+    ):
+        await persistence_db.upsert_conversation(
+            session_id="sess-1",
+            user_id="user-1",
+            first_query="京吹の聖地を探して",
+        )
+
+        sql = mock_pool.execute.await_args.args[0]
+        assert "first_query" not in sql.split("DO UPDATE SET", maxsplit=1)[1]
+
+
+class TestUpdateConversationTitle:
+    async def test_updates_conversation_title(self, persistence_db, mock_pool):
+        await persistence_db.update_conversation_title("sess-1", "京吹 宇治")
+
+        sql = mock_pool.execute.await_args.args[0]
+        assert "UPDATE conversations" in sql
+        assert "title" in sql
+
+
+class TestGetConversations:
+    async def test_returns_empty_list_when_no_rows(self, persistence_db, mock_pool):
+        mock_pool.fetch.return_value = []
+
+        result = await persistence_db.get_conversations("user-1")
+
+        assert result == []
+
+    async def test_returns_list_of_dicts(self, persistence_db, mock_pool):
+        mock_pool.fetch.return_value = [
+            {
+                "session_id": "sess-1",
+                "title": "京吹の聖地",
+                "first_query": "京吹の聖地を探して",
+                "created_at": "2026-04-02T10:00:00Z",
+                "updated_at": "2026-04-02T10:00:00Z",
+            }
+        ]
+
+        result = await persistence_db.get_conversations("user-1")
+
+        assert len(result) == 1
+        assert result[0]["session_id"] == "sess-1"
+
+
+class TestUserMemory:
+    async def test_upsert_inserts_first_entry(self, persistence_db, mock_pool):
+        mock_pool.fetchrow.return_value = None
+
+        await persistence_db.upsert_user_memory(
+            "user-1",
+            bangumi_id="253",
+            anime_title="響け！ユーフォニアム",
+        )
+
+        sql, *args = mock_pool.execute.await_args.args
+        stored = json.loads(args[1])
+
+        assert "INSERT INTO user_memory" in sql
+        assert stored[0]["bangumi_id"] == "253"
+
+    async def test_upsert_updates_existing_entry(self, persistence_db, mock_pool):
+        mock_pool.fetchrow.return_value = {
+            "visited_anime": json.dumps(
+                [{"bangumi_id": "253", "title": "old", "last_at": "2026-01-01"}]
+            )
+        }
+
+        await persistence_db.upsert_user_memory(
+            "user-1",
+            bangumi_id="253",
+            anime_title="響け！ユーフォニアム",
+        )
+
+        _, *args = mock_pool.execute.await_args.args
+        stored = json.loads(args[1])
+
+        assert len(stored) == 1
+        assert stored[0]["title"] == "響け！ユーフォニアム"
+
+    async def test_get_user_memory_returns_none_when_absent(
+        self,
+        persistence_db,
+        mock_pool,
+    ):
+        mock_pool.fetchrow.return_value = None
+
+        result = await persistence_db.get_user_memory("user-1")
+
+        assert result is None
+
+    async def test_get_user_memory_returns_parsed_data(self, persistence_db, mock_pool):
+        mock_pool.fetchrow.return_value = {
+            "visited_anime": json.dumps([{"bangumi_id": "253"}]),
+            "visited_points": "[]",
+        }
+
+        result = await persistence_db.get_user_memory("user-1")
+
+        assert result["visited_anime"][0]["bangumi_id"] == "253"
