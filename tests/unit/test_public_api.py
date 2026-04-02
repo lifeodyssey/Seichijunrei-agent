@@ -46,7 +46,7 @@ def _make_result(
 def _mock_pipeline():
     """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
 
-    async def _fake(text, db, *, model=None, locale="ja", context=None):
+    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
         return _make_result(locale=locale)
 
     with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -281,7 +281,7 @@ class TestRuntimeAPI:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja", context=None):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -311,7 +311,7 @@ class TestRuntimeAPI:
             },
         )
 
-        async def fake_run_pipeline(text, db, *, model=None, locale="ja", context=None):
+        async def fake_run_pipeline(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         monkeypatch.setattr("interfaces.public_api.run_pipeline", fake_run_pipeline)
@@ -342,7 +342,7 @@ class TestRuntimeAPI:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja", context=None):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -423,7 +423,7 @@ class TestLocalePassthrough:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja", context=None):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
@@ -446,7 +446,7 @@ class TestLocalePassthrough:
             },
         )
 
-        async def _fake(text, db, *, model=None, locale="ja", context=None):
+        async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
             return result
 
         with patch("interfaces.public_api.run_pipeline", side_effect=_fake):

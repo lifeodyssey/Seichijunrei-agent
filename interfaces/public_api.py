@@ -6,6 +6,7 @@ RPC adapters can wrap without depending directly on internal pipeline types.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import Any, Literal
@@ -98,7 +99,11 @@ class RuntimeAPI:
         self._db = db
         self._session_store = session_store or create_session_store()
 
-    async def handle(self, request: PublicAPIRequest) -> PublicAPIResponse:
+    async def handle(
+        self,
+        request: PublicAPIRequest,
+        on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
+    ) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
         session_id = request.session_id or uuid4().hex
         started_at = perf_counter()
@@ -123,6 +128,7 @@ class RuntimeAPI:
                         model=request.model,
                         locale=request.locale,
                         context=context_block,
+                        on_step=on_step,
                     )
                 except ApplicationError as exc:
                     span.record_exception(exc)
