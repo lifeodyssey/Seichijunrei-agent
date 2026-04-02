@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from agents.models import ExecutionPlan, ToolName
-from agents.planner_agent import ReActPlannerAgent
+from agents.planner_agent import PLANNER_SYSTEM_PROMPT, ReActPlannerAgent
 
 
 @pytest.fixture
@@ -20,6 +20,15 @@ def mock_plan_bangumi() -> ExecutionPlan:
 
 
 class TestReActPlannerAgent:
+    def test_planner_system_prompt_includes_greet_user_rules(self) -> None:
+        assert "greet_user(message: str)" in PLANNER_SYSTEM_PROMPT
+        assert "Use greet_user(message: str) for greetings" in PLANNER_SYSTEM_PROMPT
+        assert "Use greet_user(message: str) for identity questions" in PLANNER_SYSTEM_PROMPT
+
+    def test_planner_system_prompt_prioritizes_real_tasks_over_greetings(self) -> None:
+        assert "Do not use it for real pilgrimage queries" in PLANNER_SYSTEM_PROMPT
+        assert "hello, plan a route for Your Name in Tokyo" in PLANNER_SYSTEM_PROMPT
+
     def test_format_context_block_full(self) -> None:
         from agents.planner_agent import _format_context_block
 
@@ -89,3 +98,28 @@ class TestReActPlannerAgent:
             assert "en" in call_args
             assert "[context]" in call_args
             assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in call_args
+
+    async def test_create_plan_supports_greet_user_step(self):
+        from agents.models import PlanStep
+
+        greet_plan = ExecutionPlan(
+            steps=[
+                PlanStep(
+                    tool=ToolName.GREET_USER,
+                    params={"message": "我是圣地巡礼，可以帮你找动漫取景地。"},
+                )
+            ],
+            reasoning="pure greeting",
+            locale="zh",
+        )
+
+        with patch("agents.planner_agent.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run.return_value = AsyncMock(output=greet_plan)
+            mock_create.return_value = mock_agent
+
+            planner = ReActPlannerAgent()
+            plan = await planner.create_plan("你好", locale="zh")
+
+        assert plan.steps == greet_plan.steps
+        assert plan.steps[0].tool == ToolName.GREET_USER

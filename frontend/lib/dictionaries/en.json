@@ -47,7 +47,8 @@
     "feedback_bad_title": "Bad response",
     "anchor_results": "{count} results",
     "welcome_title": "Seichijunrei",
-    "welcome_subtitle": "Find anime filming locations and plan pilgrimage routes"
+    "welcome_subtitle": "Search by anime, explore spots near a place, or ask for a pilgrimage route that fits your trip.",
+    "welcome_helper": "You can also just say hi and ask what I can help with."
   },
   "sidebar": {
     "logo_icon": "聖",

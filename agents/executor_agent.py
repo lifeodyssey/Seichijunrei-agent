@@ -144,6 +144,7 @@ class ExecutorAgent:
             ToolName.SEARCH_BANGUMI: self._execute_search_bangumi,
             ToolName.SEARCH_NEARBY: self._execute_search_nearby,
             ToolName.PLAN_ROUTE: self._execute_plan_route,
+            ToolName.GREET_USER: self._execute_greet_user,
             ToolName.ANSWER_QUESTION: self._execute_answer_question,
         }.get(tool)
 
@@ -284,6 +285,19 @@ class ExecutorAgent:
             },
         )
 
+    async def _execute_greet_user(
+        self, step: PlanStep, context: dict[str, Any]
+    ) -> StepResult:
+        """Return an ephemeral greeting/identity response (no retrieval)."""
+        return StepResult(
+            tool="greet_user",
+            success=True,
+            data={
+                "message": step.params.get("message", ""),
+                "status": "info",
+            },
+        )
+
     # ── Output builder ────────────────────────────────────────────────────────
 
     def _build_output(
@@ -295,6 +309,7 @@ class ExecutorAgent:
         )
         route_data = context.get(ToolName.PLAN_ROUTE.value)
         qa_data = context.get(ToolName.ANSWER_QUESTION.value)
+        greet_data = context.get(ToolName.GREET_USER.value)
 
         count = (query_data or {}).get("row_count", 0)
         is_empty = count == 0
@@ -317,6 +332,9 @@ class ExecutorAgent:
         if qa_data:
             output["message"] = qa_data.get("message", "")
             output["status"] = qa_data.get("status", "info")
+        if greet_data:
+            output["message"] = greet_data.get("message", "")
+            output["status"] = greet_data.get("status", "info")
         if not result.success:
             output["errors"] = [r.error for r in result.step_results if r.error]
         return output
@@ -334,6 +352,7 @@ def _infer_primary_tool(plan: ExecutionPlan) -> str:
         ToolName.SEARCH_BANGUMI,
         ToolName.SEARCH_NEARBY,
         ToolName.ANSWER_QUESTION,
+        ToolName.GREET_USER,
     ):
         if priority in tools:
             return priority.value

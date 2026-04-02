@@ -19,6 +19,7 @@ class ToolName(str, Enum):
     SEARCH_NEARBY = "search_nearby"
     PLAN_ROUTE = "plan_route"
     ANSWER_QUESTION = "answer_question"
+    GREET_USER = "greet_user"
 
 
 class PlanStep(BaseModel):

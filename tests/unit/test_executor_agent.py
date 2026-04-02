@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agents.executor_agent import ExecutorAgent
+from agents.executor_agent import ExecutorAgent, _infer_primary_tool
 from agents.models import ExecutionPlan, PlanStep, ToolName
 
 
@@ -104,6 +104,24 @@ class TestExecutorAgentExecute:
         assert result.intent == "answer_question"
         assert result.success
 
+    async def test_greet_user_returns_info_message(self, mock_db):
+        plan = _plan(
+            PlanStep(
+                tool=ToolName.GREET_USER,
+                params={"message": "我是圣地巡礼，可以帮你找动漫取景地。"},
+            ),
+            locale="zh",
+        )
+        executor = ExecutorAgent(mock_db)
+        result = await executor.execute(plan)
+
+        assert result.intent == "greet_user"
+        assert result.success
+        assert result.final_output["message"] == "我是圣地巡礼，可以帮你找动漫取景地。"
+        assert result.final_output["status"] == "info"
+        assert "results" not in result.final_output
+        assert "route" not in result.final_output
+
     async def test_locale_en_message(self, mock_db):
         mock_db.pool.fetch.return_value = [
             {"id": "p1", "bangumi_id": "115908", "latitude": None, "longitude": None}
@@ -130,3 +148,18 @@ class TestExecutorAgentExecute:
 
         assert ("answer_question", "running") in events
         assert ("answer_question", "done") in events
+
+    def test_infer_primary_tool_includes_greet_user(self):
+        plan = _plan(
+            PlanStep(tool=ToolName.GREET_USER, params={"message": "Hello there"})
+        )
+
+        assert _infer_primary_tool(plan) == "greet_user"
+
+    def test_infer_primary_tool_prefers_real_task_over_greeting(self):
+        plan = _plan(
+            PlanStep(tool=ToolName.GREET_USER, params={"message": "Hello there"}),
+            PlanStep(tool=ToolName.SEARCH_NEARBY, params={"location": "宇治駅"}),
+        )
+
+        assert _infer_primary_tool(plan) == "search_nearby"
