@@ -7,8 +7,8 @@
 // ── Intent values ──────────────────────────────────────────────────────────
 
 export type Intent =
-  | "search_by_bangumi"
-  | "search_by_location"
+  | "search_bangumi"
+  | "search_nearby"
   | "plan_route"
   | "general_qa"
   | "unclear";

@@ -13,53 +13,24 @@ export type ComponentRenderer = (
 ) => ReactNode;
 
 export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
-  PilgrimageGrid: (response) => {
-    const uiData = (response.ui?.props as Record<string, unknown> | undefined)
-      ?.data as RuntimeResponse["data"] | undefined;
-    if (uiData && isSearchData(uiData)) {
-      return createElement(PilgrimageGrid, { data: uiData });
-    }
-
-    return isSearchData(response.data)
+  PilgrimageGrid: (response) =>
+    isSearchData(response.data)
       ? createElement(PilgrimageGrid, { data: response.data })
-      : null;
-  },
-  NearbyMap: (response) => {
-    const uiData = (response.ui?.props as Record<string, unknown> | undefined)
-      ?.data as RuntimeResponse["data"] | undefined;
-    if (uiData && isSearchData(uiData)) {
-      return createElement(NearbyMap, { data: uiData });
-    }
-
-    return isSearchData(response.data) ? createElement(NearbyMap, { data: response.data }) : null;
-  },
-  RouteVisualization: (response) => {
-    const uiData = (response.ui?.props as Record<string, unknown> | undefined)
-      ?.data as RuntimeResponse["data"] | undefined;
-    if (uiData && isRouteData(uiData)) {
-      return createElement(RouteVisualization, { data: uiData });
-    }
-
-    return isRouteData(response.data)
+      : null,
+  NearbyMap: (response) =>
+    isSearchData(response.data)
+      ? createElement(NearbyMap, { data: response.data })
+      : null,
+  RouteVisualization: (response) =>
+    isRouteData(response.data)
       ? createElement(RouteVisualization, { data: response.data })
-      : null;
-  },
-  GeneralAnswer: (response) => {
-    const uiData = (response.ui?.props as Record<string, unknown> | undefined)
-      ?.data as RuntimeResponse["data"] | undefined;
-    if (uiData && isQAData(uiData)) {
-      return createElement(GeneralAnswer, { data: uiData });
-    }
-
-    return isQAData(response.data)
+      : null,
+  GeneralAnswer: (response) =>
+    isQAData(response.data)
       ? createElement(GeneralAnswer, { data: response.data })
-      : null;
-  },
-  Clarification: (response, onSuggest) => {
-    const uiMessage = (response.ui?.props as Record<string, unknown> | undefined)?.message;
-    const message = typeof uiMessage === "string" && uiMessage.trim() ? uiMessage : response.message;
-    return createElement(Clarification, { message, onSuggest });
-  },
+      : null,
+  Clarification: (response, onSuggest) =>
+    createElement(Clarification, { message: response.message, onSuggest }),
 };
 
 export function intentToComponent(intent: string): string {
@@ -79,4 +50,17 @@ export function intentToComponent(intent: string): string {
     default:
       return "Clarification";
   }
+}
+
+export const VISUAL_COMPONENTS = new Set([
+  "PilgrimageGrid",
+  "NearbyMap",
+  "RouteVisualization",
+]);
+
+export function isVisualResponse(response: RuntimeResponse | null): boolean {
+  if (!response) return false;
+  return VISUAL_COMPONENTS.has(
+    response.ui?.component ?? intentToComponent(response.intent),
+  );
 }

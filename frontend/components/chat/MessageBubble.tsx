@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChatMessage, RuntimeResponse } from "../../lib/types";
 import { isQAData, isRouteData, isSearchData } from "../../lib/types";
+import { isVisualResponse } from "../generative/registry";
 import { submitFeedback } from "../../lib/api";
 import { useDict } from "../../lib/i18n-context";
 
@@ -38,7 +39,7 @@ export default function MessageBubble({
 
   return (
     <div
-      className="flex flex-col gap-2.5"
+      className="group flex flex-col gap-2.5"
       style={{ animation: "slide-up-fade 300ms var(--ease-out-quint) both" }}
     >
       <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)]">
@@ -91,7 +92,7 @@ function ThinkingBar() {
 }
 
 function canShowAnchor(response: RuntimeResponse): boolean {
-  return response.intent !== "unclear" && response.ui?.component !== "Clarification";
+  return isVisualResponse(response);
 }
 
 function getResultCount(response: RuntimeResponse): number {
@@ -173,7 +174,7 @@ function FeedbackButtons({ message, userQuery }: { message: ChatMessage; userQue
 
   return (
     <div className="space-y-2">
-      <div className="flex gap-0.5 opacity-40 hover:opacity-100 transition-opacity" style={{ transitionDuration: "var(--duration-fast)" }}>
+      <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-50 hover:!opacity-100" style={{ transitionDuration: "var(--duration-fast)" }}>
         <button
           aria-label={t.feedback_good_title}
           onClick={() => handleFeedback("good")}

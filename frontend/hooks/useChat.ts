@@ -47,6 +47,7 @@ export function useChat(
           text.trim(),
           sessionId,
           locale,
+          abortRef.current.signal,
         );
 
         if (response.session_id) {
@@ -61,6 +62,10 @@ export function useChat(
           ),
         );
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
+          return;
+        }
         const errorText =
           err instanceof Error ? err.message : "Unknown error";
         setMessages((prev) =>

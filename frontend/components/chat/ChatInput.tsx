@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import { useDict } from "../../lib/i18n-context";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
   disabled?: boolean;
-  prefill?: string;
 }
 
-export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   const { chat: t } = useDict();
-  const [text, setText] = useState(prefill ?? "");
+  const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
 
   function handleSubmit() {
     if (!text.trim() || disabled) return;
@@ -28,10 +35,12 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
 
   return (
     <div className="border-t border-[var(--color-border)] px-4 py-4">
-      <div className="mx-auto flex w-full max-w-2xl items-end gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
+      <div
+        className="mx-auto flex w-full max-w-2xl items-end gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
         style={{ transitionDuration: "var(--duration-fast)" }}
       >
         <textarea
+          ref={textareaRef}
           aria-label={t.placeholder}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -39,7 +48,8 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
           placeholder={t.placeholder}
           rows={1}
           disabled={disabled}
-          className="flex-1 resize-none bg-transparent text-sm font-light outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
+          className="flex-1 overflow-hidden resize-none bg-transparent text-sm font-light outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
+          style={{ maxHeight: "8rem" }}
         />
         <button
           onClick={handleSubmit}
@@ -47,7 +57,22 @@ export default function ChatInput({ onSend, disabled, prefill }: ChatInputProps)
           className="shrink-0 rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-30"
           style={{ transitionDuration: "var(--duration-fast)" }}
         >
-          {t.send}
+          {disabled ? (
+            <span className="flex items-center gap-0.5">
+              {([0, 0.2, 0.4] as const).map((delay) => (
+                <span
+                  key={delay}
+                  className="inline-block h-1 w-1 rounded-full bg-current"
+                  style={{
+                    animation: "breathe 1.2s ease-in-out infinite",
+                    animationDelay: `${delay}s`,
+                  }}
+                />
+              ))}
+            </span>
+          ) : (
+            t.send
+          )}
         </button>
       </div>
     </div>

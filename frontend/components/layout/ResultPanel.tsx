@@ -7,12 +7,36 @@ import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 interface ResultPanelProps {
   activeResponse: RuntimeResponse | null;
   onSuggest?: (text: string) => void;
+  loading?: boolean;
 }
 
-export default function ResultPanel({ activeResponse, onSuggest }: ResultPanelProps) {
+export default function ResultPanel({ activeResponse, onSuggest, loading }: ResultPanelProps) {
   const { chat, clarification } = useDict();
 
   if (!activeResponse) {
+    if (loading) {
+      return (
+        <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--color-bg)]">
+          <div className="flex w-full flex-col gap-4 p-6">
+            {[80, 55, 65].map((w) => (
+              <div
+                key={w}
+                className="h-3 rounded-sm bg-[var(--color-muted)]"
+                style={{
+                  width: `${w}%`,
+                  animation: "pulse-skeleton 1.6s ease-in-out infinite",
+                }}
+              />
+            ))}
+            <div
+              className="mt-2 h-32 w-full rounded-sm bg-[var(--color-muted)]"
+              style={{ animation: "pulse-skeleton 1.6s ease-in-out infinite 0.2s" }}
+            />
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--color-bg)]">
         {/* Subtle map texture */}
