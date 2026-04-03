@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConversationHistory } from "../../hooks/useConversationHistory";
 import { useSession } from "../../hooks/useSession";
-import { useChat } from "../../hooks/useChat";
+import { createMessageId, useChat } from "../../hooks/useChat";
+import { usePointSelection } from "../../hooks/usePointSelection";
 import { useLocale } from "../../lib/i18n-context";
+import { buildSelectedRouteActionText, sendSelectedRoute } from "../../lib/api";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { isVisualResponse } from "../generative/registry";
 import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
@@ -18,15 +21,31 @@ export default function AppShell() {
   const locale = useLocale();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const { sessionId, setSessionId, clearSession } = useSession();
-  const { messages, send, sending, clear } = useChat(sessionId, setSessionId, locale);
+  const {
+    messages,
+    send,
+    sending,
+    clear: clearChat,
+    appendMessages,
+    replaceMessage,
+    removeMessage,
+  } = useChat(sessionId, setSessionId, locale);
+  const {
+    selectedIds,
+    toggle,
+    clear: clearSelectedPoints,
+  } = usePointSelection();
   const { conversations, upsert: upsertConversation, rename: renameConversation } =
     useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(360);
+  const [routeSending, setRouteSending] = useState(false);
   const chatWidthRef = useRef(chatWidth);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
   const lastSyncedResponseIdRef = useRef<string | null>(null);
+  const routeAbortRef = useRef<AbortController | null>(null);
+  const isSending = sending || routeSending;
 
   useEffect(() => { chatWidthRef.current = chatWidth; }, [chatWidth]);
 
@@ -93,18 +112,33 @@ export default function AppShell() {
   const hasVisualResponse = selectedVisualMessage !== null || latestVisualResponseMessage !== null;
   // Suppress stale visual during loading (Bug 2); honour explicit pin otherwise
   const activeMessage =
-    selectedVisualMessage ?? (sending ? null : latestVisualResponseMessage);
+    selectedVisualMessage ?? (isSending ? null : latestVisualResponseMessage);
 
   const activeResponse = activeMessage?.response ?? null;
   const activeResultMessageId = activeMessage?.id ?? null;
 
+  const defaultOrigin = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const routeHistory = messages[index]?.response?.route_history ?? [];
+      const originStation = routeHistory.find((entry) => entry.origin_station)?.origin_station;
+      if (originStation) {
+        return originStation;
+      }
+    }
+    return "";
+  }, [messages]);
+
   const handleNewChat = useCallback(() => {
-    clear();
+    routeAbortRef.current?.abort();
+    routeAbortRef.current = null;
+    setRouteSending(false);
+    clearChat();
+    clearSelectedPoints();
     clearSession();
     lastSyncedResponseIdRef.current = null;
     setActiveMessageId(null);
     setDrawerOpen(false);
-  }, [clear, clearSession]);
+  }, [clearChat, clearSelectedPoints, clearSession]);
 
   const handleActivate = useCallback((messageId: string) => {
     setActiveMessageId((current) => (current === messageId ? null : messageId));
@@ -112,11 +146,101 @@ export default function AppShell() {
 
   const handleSend = useCallback(
     (text: string) => {
+      clearSelectedPoints();
       setActiveMessageId(null);
       setDrawerOpen(false);
       send(text);
     },
-    [send],
+    [clearSelectedPoints, send],
+  );
+
+  const handleRouteSelected = useCallback(
+    async (origin: string) => {
+      if (selectedIds.size === 0 || isSending) return;
+
+      const ids = Array.from(selectedIds);
+      const actionText = buildSelectedRouteActionText(ids.length, origin, locale);
+      const userMessage = {
+        id: createMessageId(),
+        role: "user" as const,
+        text: actionText,
+        timestamp: Date.now(),
+      };
+      const placeholderId = createMessageId();
+      const placeholder = {
+        id: placeholderId,
+        role: "assistant" as const,
+        text: "",
+        loading: true,
+        steps: [],
+        timestamp: Date.now(),
+      };
+
+      routeAbortRef.current?.abort();
+      const controller = new AbortController();
+      routeAbortRef.current = controller;
+
+      clearSelectedPoints();
+      setActiveMessageId(null);
+      setDrawerOpen(false);
+      appendMessages(userMessage, placeholder);
+      setRouteSending(true);
+
+      try {
+        const response = await sendSelectedRoute(
+          ids,
+          origin,
+          sessionId,
+          locale,
+          controller.signal,
+        );
+
+        if (controller.signal.aborted) {
+          removeMessage(placeholderId);
+          return;
+        }
+
+        if (response.session_id) {
+          setSessionId(response.session_id);
+        }
+
+        replaceMessage(placeholderId, (message) => ({
+          ...message,
+          text: response.message,
+          response,
+          loading: false,
+        }));
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          removeMessage(placeholderId);
+          return;
+        }
+
+        const errorText =
+          error instanceof Error ? error.message : "Unknown error";
+        replaceMessage(placeholderId, (message) => ({
+          ...message,
+          text: `Error: ${errorText}`,
+          loading: false,
+        }));
+      } finally {
+        if (routeAbortRef.current === controller) {
+          routeAbortRef.current = null;
+        }
+        setRouteSending(false);
+      }
+    },
+    [
+      appendMessages,
+      clearSelectedPoints,
+      isSending,
+      locale,
+      removeMessage,
+      replaceMessage,
+      selectedIds,
+      sessionId,
+      setSessionId,
+    ],
   );
 
   const handleDividerPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -139,65 +263,75 @@ export default function AppShell() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
-      {!isMobile && (
-        <Sidebar
-          conversations={conversations}
-          activeSessionId={sessionId}
-          onNewChat={handleNewChat}
-          onRenameConversation={renameConversation}
-        />
-      )}
-
-      <main
-        className={`flex min-h-0 flex-col bg-[var(--color-bg)] ${
-          !isMobile && hasVisualResponse
-            ? "shrink-0 border-r border-[var(--color-border)]"
-            : "flex-1"
-        }`}
-        style={
-          !isMobile && hasVisualResponse
-            ? {
-                width: chatWidth,
-                transition: "width var(--duration-base) var(--ease-out-expo)",
-              }
-            : undefined
-        }
-      >
-        <ChatHeader onNewChat={isMobile ? handleNewChat : undefined} />
-        <MessageList
-          messages={messages}
-          onActivate={handleActivate}
-          activeMessageId={activeResultMessageId}
-          onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
-          onSuggest={handleSend}
-        />
-        <ChatInput onSend={handleSend} disabled={sending} />
-      </main>
-
-      {isMobile ? (
-        <ResultDrawer
-          response={activeResponse}
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          onSuggest={handleSend}
-          loading={sending}
-        />
-      ) : hasVisualResponse && (
-        <>
-          <div
-            onPointerDown={handleDividerPointerDown}
-            onPointerMove={handleDividerPointerMove}
-            onPointerUp={handleDividerPointerUp}
-            className="w-1 shrink-0 cursor-col-resize bg-[var(--color-border)] transition-colors hover:bg-[var(--color-primary)]"
-            style={{
-              transitionDuration: "var(--duration-fast)",
-              animation: "panel-slide-in var(--duration-base) var(--ease-out-expo) both",
-            }}
+    <PointSelectionContext.Provider value={{ selectedIds, toggle, clear: clearSelectedPoints }}>
+      <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
+        {!isMobile && (
+          <Sidebar
+            conversations={conversations}
+            activeSessionId={sessionId}
+            onNewChat={handleNewChat}
+            onRenameConversation={renameConversation}
           />
-          <ResultPanel activeResponse={activeResponse} onSuggest={handleSend} loading={sending} />
-        </>
-      )}
-    </div>
+        )}
+
+        <main
+          className={`flex min-h-0 flex-col bg-[var(--color-bg)] ${
+            !isMobile && hasVisualResponse
+              ? "shrink-0 border-r border-[var(--color-border)]"
+              : "flex-1"
+          }`}
+          style={
+            !isMobile && hasVisualResponse
+              ? {
+                  width: chatWidth,
+                  transition: "width var(--duration-base) var(--ease-out-expo)",
+                }
+              : undefined
+          }
+        >
+          <ChatHeader onNewChat={isMobile ? handleNewChat : undefined} />
+          <MessageList
+            messages={messages}
+            onActivate={handleActivate}
+            activeMessageId={activeResultMessageId}
+            onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
+            onSuggest={handleSend}
+          />
+          <ChatInput onSend={handleSend} disabled={isSending} />
+        </main>
+
+        {isMobile ? (
+          <ResultDrawer
+            response={activeResponse}
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            onSuggest={handleSend}
+            onRouteSelected={handleRouteSelected}
+            defaultOrigin={defaultOrigin}
+            loading={isSending}
+          />
+        ) : hasVisualResponse && (
+          <>
+            <div
+              onPointerDown={handleDividerPointerDown}
+              onPointerMove={handleDividerPointerMove}
+              onPointerUp={handleDividerPointerUp}
+              className="w-1 shrink-0 cursor-col-resize bg-[var(--color-border)] transition-colors hover:bg-[var(--color-primary)]"
+              style={{
+                transitionDuration: "var(--duration-fast)",
+                animation: "panel-slide-in var(--duration-base) var(--ease-out-expo) both",
+              }}
+            />
+            <ResultPanel
+              activeResponse={activeResponse}
+              onSuggest={handleSend}
+              onRouteSelected={handleRouteSelected}
+              defaultOrigin={defaultOrigin}
+              loading={isSending}
+            />
+          </>
+        )}
+      </div>
+    </PointSelectionContext.Provider>
   );
 }

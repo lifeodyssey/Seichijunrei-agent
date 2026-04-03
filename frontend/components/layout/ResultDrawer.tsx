@@ -9,6 +9,8 @@ interface ResultDrawerProps {
   open: boolean;
   onClose: () => void;
   onSuggest?: (text: string) => void;
+  onRouteSelected?: (origin: string) => void;
+  defaultOrigin?: string;
   loading?: boolean;
 }
 
@@ -22,6 +24,8 @@ export default function ResultDrawer({
   open,
   onClose,
   onSuggest,
+  onRouteSelected,
+  defaultOrigin,
   loading,
 }: ResultDrawerProps) {
   return (
@@ -39,7 +43,13 @@ export default function ResultDrawer({
             <div className="w-10 h-1 rounded-full bg-[var(--color-muted-fg)] opacity-40" />
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            <ResultPanel activeResponse={response} onSuggest={onSuggest} loading={loading} />
+            <ResultPanel
+              activeResponse={response}
+              onSuggest={onSuggest}
+              onRouteSelected={onRouteSelected}
+              defaultOrigin={defaultOrigin}
+              loading={loading}
+            />
           </div>
         </Drawer.Content>
       </Drawer.Portal>

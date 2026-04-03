@@ -81,6 +81,12 @@
     "no_coords": "⚠ {count} missing coordinates",
     "episode": "Ep. {ep}"
   },
+  "selection": {
+    "count": "{count} selected",
+    "placeholder": "Departure…",
+    "route": "Route",
+    "clear": "Clear"
+  },
   "clarification": {
     "examples_label": "For example:",
     "suggestions": [

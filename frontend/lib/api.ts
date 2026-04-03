@@ -8,6 +8,21 @@ import { getSupabaseClient } from "./supabase";
 const RUNTIME_URL =
   (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "").replace(/\/$/, "");
 
+const SELECTED_ROUTE_ACTION_TEXT = {
+  ja: {
+    withOrigin: "{origin}から選択した{count}件のスポットでルートを作成して。",
+    withoutOrigin: "選択した{count}件のスポットでルートを作成して。",
+  },
+  zh: {
+    withOrigin: "请从{origin}出发，为我规划这{count}个已选取景地的路线。",
+    withoutOrigin: "请为我规划这{count}个已选取景地的路线。",
+  },
+  en: {
+    withOrigin: "Create a route with {count} selected stops from {origin}.",
+    withoutOrigin: "Create a route with {count} selected stops.",
+  },
+} as const;
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const supabase = getSupabaseClient();
   if (!supabase) return {};
@@ -48,6 +63,113 @@ export async function sendMessage(
   return res.json() as Promise<RuntimeResponse>;
 }
 
+export function buildSelectedRouteActionText(
+  pointCount: number,
+  origin?: string | null,
+  locale: RuntimeRequest["locale"] = "ja",
+): string {
+  const templates = SELECTED_ROUTE_ACTION_TEXT[locale ?? "ja"];
+  const normalizedOrigin = origin?.trim();
+  const template = normalizedOrigin
+    ? templates.withOrigin
+    : templates.withoutOrigin;
+
+  return template
+    .replace("{count}", String(pointCount))
+    .replace("{origin}", normalizedOrigin ?? "");
+}
+
+export async function sendSelectedRoute(
+  pointIds: string[],
+  origin?: string | null,
+  sessionId?: string | null,
+  locale?: RuntimeRequest["locale"],
+  signal?: AbortSignal,
+): Promise<RuntimeResponse> {
+  const normalizedOrigin = origin?.trim();
+  const effectiveLocale = locale ?? "ja";
+  const body: RuntimeRequest = {
+    text: buildSelectedRouteActionText(pointIds.length, normalizedOrigin, effectiveLocale),
+    locale: effectiveLocale,
+    selected_point_ids: pointIds,
+  };
+  if (sessionId) body.session_id = sessionId;
+  if (normalizedOrigin) body.origin = normalizedOrigin;
+
+  const res = await fetch(`${RUNTIME_URL}/v1/runtime`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => null);
+    throw new Error(
+      errBody?.error?.message ?? `Runtime error (${res.status})`,
+    );
+  }
+
+  return res.json() as Promise<RuntimeResponse>;
+}
+
+type StreamEventPayload = {
+  event?: string;
+  tool?: string;
+  status?: "running" | "done";
+  message?: string;
+} & Record<string, unknown>;
+
+function parseSSEChunk(chunk: string): {
+  buffer: string;
+  events: Array<{ event?: string; payload: StreamEventPayload }>;
+} {
+  const normalized = chunk.replace(/\r\n/g, "\n");
+  const messages = normalized.split("\n\n");
+  const buffer = messages.pop() ?? "";
+  const events: Array<{ event?: string; payload: StreamEventPayload }> = [];
+
+  for (const message of messages) {
+    const lines = message.split("\n");
+    let eventName: string | undefined;
+    const dataLines: string[] = [];
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      if (!line || line.startsWith(":")) continue;
+      if (line.startsWith("event:")) {
+        eventName = line.slice("event:".length).trim();
+        continue;
+      }
+      if (line.startsWith("data:")) {
+        dataLines.push(line.slice("data:".length).trimStart());
+      }
+    }
+
+    if (dataLines.length === 0) continue;
+
+    const rawData = dataLines.join("\n").trim();
+    if (!rawData) continue;
+
+    let payload: StreamEventPayload;
+    try {
+      payload = JSON.parse(rawData) as StreamEventPayload;
+    } catch (error) {
+      if (eventName === "error") {
+        throw new Error(rawData);
+      }
+      throw error;
+    }
+
+    events.push({
+      event: typeof payload.event === "string" ? payload.event : eventName,
+      payload,
+    });
+  }
+
+  return { buffer, events };
+}
+
 export async function sendMessageStream(
   text: string,
   sessionId?: string | null,
@@ -78,22 +200,24 @@ export async function sendMessageStream(
   let buffer = "";
 
   const consume = (chunk: string): RuntimeResponse | null => {
-    const messages = chunk.split("\n\n");
-    buffer = messages.pop() ?? "";
-    for (const line of messages) {
-      if (!line.startsWith("data:")) continue;
-      const raw = line.slice("data:".length).trim();
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as { event?: string; tool?: string; status?: "running" | "done"; message?: string };
-      if (parsed.event === "step" && parsed.tool && parsed.status) {
-        onStep?.(parsed.tool, parsed.status);
+    const parsedChunk = parseSSEChunk(chunk);
+    buffer = parsedChunk.buffer;
+
+    for (const { event, payload } of parsedChunk.events) {
+      if (event === "step" && payload.tool && payload.status) {
+        onStep?.(payload.tool, payload.status);
       }
-      if (parsed.event === "done") {
-        const { event: _event, ...response } = parsed;
-        return response as RuntimeResponse;
+      if (event === "done") {
+        if (typeof payload.event === "string") {
+          const { event: _event, ...response } = payload;
+          return response as unknown as RuntimeResponse;
+        }
+        return payload as unknown as RuntimeResponse;
       }
-      if (parsed.event === "error") {
-        throw new Error(parsed.message ?? "Stream error");
+      if (event === "error") {
+        throw new Error(
+          typeof payload.message === "string" ? payload.message : "Stream error",
+        );
       }
     }
     return null;

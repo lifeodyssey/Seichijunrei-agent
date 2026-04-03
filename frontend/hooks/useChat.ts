@@ -5,9 +5,11 @@ import type { ChatMessage, RuntimeRequest, RuntimeResponse } from "../lib/types"
 import { sendMessageStream } from "../lib/api";
 
 let msgCounter = 0;
-function nextId() {
+export function createMessageId() {
   return `msg-${Date.now()}-${++msgCounter}`;
 }
+
+type MessageUpdate = ChatMessage | ((message: ChatMessage) => ChatMessage);
 
 export function useChat(
   sessionId: string | null,
@@ -18,18 +20,36 @@ export function useChat(
   const [sending, setSending] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  const appendMessages = useCallback((...nextMessages: ChatMessage[]) => {
+    if (nextMessages.length === 0) return;
+    setMessages((prev) => [...prev, ...nextMessages]);
+  }, []);
+
+  const replaceMessage = useCallback((id: string, update: MessageUpdate) => {
+    setMessages((prev) =>
+      prev.map((message) => {
+        if (message.id !== id) return message;
+        return typeof update === "function" ? update(message) : update;
+      }),
+    );
+  }, []);
+
+  const removeMessage = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((message) => message.id !== id));
+  }, []);
+
   const send = useCallback(
     async (text: string) => {
       if (!text.trim() || sending) return;
 
       const userMsg: ChatMessage = {
-        id: nextId(),
+        id: createMessageId(),
         role: "user",
         text: text.trim(),
         timestamp: Date.now(),
       };
 
-      const placeholderId = nextId();
+      const placeholderId = createMessageId();
       const placeholder: ChatMessage = {
         id: placeholderId,
         role: "assistant",
@@ -118,5 +138,13 @@ export function useChat(
     setMessages([]);
   }, []);
 
-  return { messages, send, sending, clear };
+  return {
+    messages,
+    send,
+    sending,
+    clear,
+    appendMessages,
+    replaceMessage,
+    removeMessage,
+  };
 }

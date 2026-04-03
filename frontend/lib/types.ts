@@ -10,6 +10,7 @@ export type Intent =
   | "search_bangumi"
   | "search_nearby"
   | "plan_route"
+  | "plan_selected"
   | "general_qa"
   | "unclear";
 
@@ -89,6 +90,8 @@ export interface RuntimeRequest {
   locale?: "ja" | "zh" | "en";
   model?: string | null;
   include_debug?: boolean;
+  selected_point_ids?: string[];
+  origin?: string | null;
 }
 
 export interface PublicAPIError {
