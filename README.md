@@ -80,7 +80,7 @@ Required:
 - `ANITABI_API_URL`
 - `GEMINI_API_KEY` or `DEFAULT_AGENT_MODEL` pointing to another provider
 
-Optional: `SERVICE_HOST`, `SERVICE_PORT`, `SESSION_STORE_BACKEND`, `OBSERVABILITY_*`, `REDIS_*`
+Optional: `SERVICE_HOST`, `SERVICE_PORT`, `OBSERVABILITY_*`, `DEFAULT_AGENT_MODEL`
 
 See [config/settings.py](config/settings.py) for the full source of truth and [`.env.example`](.env.example) for defaults.
 

@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp.test_utils import TestClient, TestServer
+from aiohttp.test_utils import make_mocked_request
 
 from config.settings import Settings
 from infrastructure.session.memory import InMemorySessionStore
-from interfaces.http_service import create_http_app
+from interfaces.http_service import (
+    _handle_get_conversations,
+    _handle_health,
+    _handle_patch_conversation,
+    _handle_runtime,
+    _observability_middleware,
+    create_http_app,
+)
 from interfaces.public_api import RuntimeAPI
 
 
@@ -37,6 +45,10 @@ class DummyTracer:
 
     def start_as_current_span(self, name: str, **kwargs: object) -> DummySpan:
         return self.span
+
+
+def _load_json_response(response) -> object:  # noqa: ANN001
+    return json.loads(response.text)
 
 
 @pytest.fixture
@@ -85,12 +97,14 @@ class TestHTTPService:
         )
         app = create_http_app(runtime_api=runtime_api, settings=Settings())
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.post(
-                "/v1/runtime",
-                json={"text": "秒速5厘米的取景地在哪"},
-                headers={"X-User-Id": "user-1"},
-            )
+        request = make_mocked_request(
+            "POST",
+            "/v1/runtime",
+            app=app,
+            headers={"X-User-Id": "user-1"},
+        )
+        request.json = AsyncMock(return_value={"text": "秒速5厘米的取景地在哪"})
+        response = await _handle_runtime(request)
 
         assert response.status == 200
         assert runtime_api.handle.await_args.kwargs["user_id"] == "user-1"
@@ -101,10 +115,10 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.get("/healthz")
-            assert response.status == 200
-            body = await response.json()
+        request = make_mocked_request("GET", "/healthz", app=app)
+        response = await _handle_health(request)
+        assert response.status == 200
+        body = _load_json_response(response)
 
         assert body["status"] == "ok"
         assert body["service"] == "seichijunrei-runtime"
@@ -145,13 +159,11 @@ class TestHTTPService:
                 settings=Settings(),
             )
 
-            async with TestClient(TestServer(app)) as client:
-                response = await client.post(
-                    "/v1/runtime",
-                    json={"text": "秒速5厘米的取景地在哪"},
-                )
-                assert response.status == 200
-                body = await response.json()
+            request = make_mocked_request("POST", "/v1/runtime", app=app)
+            request.json = AsyncMock(return_value={"text": "秒速5厘米的取景地在哪"})
+            response = await _handle_runtime(request)
+            assert response.status == 200
+            body = _load_json_response(response)
 
         assert body["success"] is True
         assert body["intent"] == "search_bangumi"
@@ -164,10 +176,11 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.post("/v1/runtime", json={"text": "   "})
-            assert response.status == 422
-            body = await response.json()
+        request = make_mocked_request("POST", "/v1/runtime", app=app)
+        request.json = AsyncMock(return_value={"text": "   "})
+        response = await _handle_runtime(request)
+        assert response.status == 422
+        body = _load_json_response(response)
 
         assert body["error"]["code"] == "invalid_request"
 
@@ -177,14 +190,18 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.post(
-                "/v1/runtime",
-                data="{bad json",
-                headers={"Content-Type": "application/json"},
-            )
-            assert response.status == 400
-            body = await response.json()
+        request = make_mocked_request(
+            "POST",
+            "/v1/runtime",
+            app=app,
+            headers={"Content-Type": "application/json"},
+        )
+        request.json = AsyncMock(
+            side_effect=json.JSONDecodeError("Expecting value", "{bad json", 0)
+        )
+        response = await _handle_runtime(request)
+        assert response.status == 400
+        body = _load_json_response(response)
 
         assert body["error"]["code"] == "invalid_json"
 
@@ -198,13 +215,11 @@ class TestHTTPService:
             "interfaces.public_api.run_pipeline",
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ):
-            async with TestClient(TestServer(app)) as client:
-                response = await client.post(
-                    "/v1/runtime",
-                    json={"text": "秒速5厘米的取景地在哪"},
-                )
-                assert response.status == 500
-                body = await response.json()
+            request = make_mocked_request("POST", "/v1/runtime", app=app)
+            request.json = AsyncMock(return_value={"text": "秒速5厘米的取景地在哪"})
+            response = await _handle_runtime(request)
+            assert response.status == 500
+            body = _load_json_response(response)
 
         assert body["errors"][0]["code"] == "internal_error"
 
@@ -231,9 +246,13 @@ class TestHTTPService:
             session_store=session_store,
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.get("/healthz")
-            assert response.status == 200
+        app.freeze()
+        await app.startup()
+        request = make_mocked_request("GET", "/healthz", app=app)
+        response = await _handle_health(request)
+        assert response.status == 200
+        await app.shutdown()
+        await app.cleanup()
 
         db.connect.assert_awaited_once()
         db.close.assert_awaited_once()
@@ -281,12 +300,10 @@ class TestHTTPService:
             ),
             patch("interfaces.http_service.record_http_request") as record_metric,
         ):
-            async with TestClient(TestServer(app)) as client:
-                response = await client.post(
-                    "/v1/runtime",
-                    json={"text": "秒速5厘米的取景地在哪"},
-                )
-                assert response.status == 200
+            request = make_mocked_request("POST", "/v1/runtime", app=app)
+            request.json = AsyncMock(return_value={"text": "秒速5厘米的取景地在哪"})
+            response = await _observability_middleware(request, _handle_runtime)
+            assert response.status == 200
 
         assert span.attributes["http.method"] == "POST"
         assert span.attributes["http.route"] == "/v1/runtime"
@@ -326,9 +343,13 @@ class TestHTTPService:
                 session_store=session_store,
             )
 
-            async with TestClient(TestServer(app)) as client:
-                response = await client.get("/healthz")
-                assert response.status == 200
+            app.freeze()
+            await app.startup()
+            request = make_mocked_request("GET", "/healthz", app=app)
+            response = await _handle_health(request)
+            assert response.status == 200
+            await app.shutdown()
+            await app.cleanup()
 
         setup_obs.assert_called_once_with(settings)
         shutdown_obs.assert_called_once()
@@ -367,13 +388,11 @@ class TestHTTPService:
                 settings=Settings(),
             )
 
-            async with TestClient(TestServer(app)) as client:
-                response = await client.post(
-                    "/v1/runtime",
-                    json={"text": "你好", "locale": "zh"},
-                )
-                assert response.status == 200
-                body = await response.json()
+            request = make_mocked_request("POST", "/v1/runtime", app=app)
+            request.json = AsyncMock(return_value={"text": "你好", "locale": "zh"})
+            response = await _handle_runtime(request)
+            assert response.status == 200
+            body = _load_json_response(response)
 
         assert body["intent"] == "answer_question"
         assert body["message"]  # non-empty localized message
@@ -393,12 +412,14 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.get(
-                "/v1/conversations",
-                headers={"X-User-Id": "user-1"},
-            )
-            body = await response.json()
+        request = make_mocked_request(
+            "GET",
+            "/v1/conversations",
+            app=app,
+            headers={"X-User-Id": "user-1"},
+        )
+        response = await _handle_get_conversations(request)
+        body = _load_json_response(response)
 
         assert response.status == 200
         assert body[0]["session_id"] == "sess-1"
@@ -409,8 +430,8 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.get("/v1/conversations")
+        request = make_mocked_request("GET", "/v1/conversations", app=app)
+        response = await _handle_get_conversations(request)
 
         assert response.status == 400
 
@@ -420,12 +441,15 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.patch(
-                "/v1/conversations/sess-1",
-                json={"title": "New Title"},
-                headers={"X-User-Id": "user-1"},
-            )
+        request = make_mocked_request(
+            "PATCH",
+            "/v1/conversations/sess-1",
+            app=app,
+            headers={"X-User-Id": "user-1"},
+            match_info={"session_id": "sess-1"},
+        )
+        request.json = AsyncMock(return_value={"title": "New Title"})
+        response = await _handle_patch_conversation(request)
 
         assert response.status == 200
         mock_db.update_conversation_title.assert_awaited_once()
@@ -436,11 +460,14 @@ class TestHTTPService:
             settings=Settings(),
         )
 
-        async with TestClient(TestServer(app)) as client:
-            response = await client.patch(
-                "/v1/conversations/sess-1",
-                json={"title": ""},
-                headers={"X-User-Id": "user-1"},
-            )
+        request = make_mocked_request(
+            "PATCH",
+            "/v1/conversations/sess-1",
+            app=app,
+            headers={"X-User-Id": "user-1"},
+            match_info={"session_id": "sess-1"},
+        )
+        request.json = AsyncMock(return_value={"title": ""})
+        response = await _handle_patch_conversation(request)
 
         assert response.status == 422

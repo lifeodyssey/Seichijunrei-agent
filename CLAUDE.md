@@ -81,10 +81,10 @@ DB is source of truth. No hardcoded anime list in code.
 ### Infrastructure
 
 - `infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
-- `infrastructure/supabase/migrations/` — DDL migrations (apply in order before each deploy)
-- `infrastructure/session/` — memory, redis, firestore backends
+- `supabase/migrations/` — canonical DDL migrations (apply in order before each deploy)
+- `infrastructure/session/` — in-memory session backend
 - `infrastructure/observability/` — OpenTelemetry setup
-- `infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi, route-planner, translation
+- `infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi
 
 ### Auth
 
@@ -133,7 +133,7 @@ Design tokens (`frontend/app/globals.css`):
 - Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
 - Worker: `src/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
 - Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
-- DB migrations: apply `infrastructure/supabase/migrations/` in order before each deploy (see `DEPLOYMENT.md`)
+- DB migrations: apply `supabase/migrations/` in order before each deploy (see `DEPLOYMENT.md`)
 
 ## Working Expectations
 

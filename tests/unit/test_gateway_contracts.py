@@ -4,18 +4,17 @@ These tests verify that infrastructure adapters correctly implement
 application port interfaces and map errors appropriately.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from application.errors import ExternalServiceError, InvalidInputError
-from application.ports import AnitabiGateway, BangumiGateway, RoutePlanner
+from application.ports import AnitabiGateway, BangumiGateway
 from clients.errors import APIError, NotFoundError
 from domain.entities import Bangumi, Coordinates, Point, Station
 from domain.errors import InvalidStationError, NoBangumiFoundError
 from infrastructure.gateways.anitabi import AnitabiClientGateway
 from infrastructure.gateways.bangumi import BangumiClientGateway
-from infrastructure.gateways.route_planner import SimpleRoutePlannerGateway
 
 # --- Test Fixtures ---
 
@@ -32,13 +31,6 @@ def mock_bangumi_client():
     """Create a mock BangumiClient."""
     client = AsyncMock()
     return client
-
-
-@pytest.fixture
-def mock_route_planner():
-    """Create a mock SimpleRoutePlanner."""
-    planner = MagicMock()
-    return planner
 
 
 @pytest.fixture
@@ -334,77 +326,6 @@ class TestBangumiClientGatewaySearchByTitle:
         result = await gateway.search_by_title("completely unknown anime xyz")
 
         assert result is None
-
-
-# --- RoutePlanner Contract Tests ---
-
-
-class TestRoutePlannerContract:
-    """Tests for SimpleRoutePlannerGateway port implementation."""
-
-    def test_gateway_implements_port(self, mock_route_planner):
-        """Gateway class should implement RoutePlanner protocol."""
-        gateway = SimpleRoutePlannerGateway(planner=mock_route_planner)
-        # Protocol compliance: check required methods exist
-        assert hasattr(gateway, "generate_plan")
-
-    def test_generate_plan_returns_dict(self, mock_route_planner):
-        """generate_plan should return dict."""
-        mock_route_planner.generate_plan.return_value = {
-            "recommended_order": ["Point A", "Point B"],
-            "estimated_duration": "2-3h",
-        }
-        gateway = SimpleRoutePlannerGateway(planner=mock_route_planner)
-
-        result = gateway.generate_plan(
-            origin="Tokyo",
-            anime="Test Anime",
-            points=[{"name": "Point A"}, {"name": "Point B"}],
-        )
-
-        assert isinstance(result, dict)
-        assert "recommended_order" in result
-        mock_route_planner.generate_plan.assert_called_once_with(
-            origin="Tokyo",
-            anime="Test Anime",
-            points=[{"name": "Point A"}, {"name": "Point B"}],
-        )
-
-    def test_generate_plan_with_empty_points(self, mock_route_planner):
-        """generate_plan should handle empty points list."""
-        mock_route_planner.generate_plan.return_value = {
-            "recommended_order": [],
-            "estimated_duration": "0h",
-        }
-        gateway = SimpleRoutePlannerGateway(planner=mock_route_planner)
-
-        result = gateway.generate_plan(origin="Tokyo", anime="Test", points=[])
-
-        assert isinstance(result, dict)
-        assert result["recommended_order"] == []
-
-    def test_gateway_creates_planner_on_demand(self):
-        """Gateway should create SimpleRoutePlanner lazily when none provided."""
-        gateway = SimpleRoutePlannerGateway()
-
-        # Planner is None initially
-        assert gateway._planner is None
-
-        # Calling generate_plan creates the planner
-        result = gateway.generate_plan(
-            origin="Tokyo",
-            anime="Test Anime",
-            points=[{"name": "A", "lat": 35.0, "lng": 139.0}],
-        )
-
-        # Planner is now set
-        assert gateway._planner is not None
-        assert isinstance(result, dict)
-
-
-# --- Protocol Compliance Tests ---
-
-
 class TestProtocolCompliance:
     """Verify gateway classes satisfy Protocol type contracts."""
 
@@ -426,19 +347,6 @@ class TestProtocolCompliance:
 
         gateway = BangumiClientGateway()
         assert use_bangumi_gateway(gateway)
-
-    def test_route_planner_is_protocol_compliant(self):
-        """SimpleRoutePlannerGateway must be usable where RoutePlanner is expected."""
-
-        def use_route_planner(rp: RoutePlanner) -> bool:
-            return hasattr(rp, "generate_plan")
-
-        gateway = SimpleRoutePlannerGateway()
-        assert use_route_planner(gateway)
-
-
-# --- Error Mapping Completeness Tests ---
-
 
 class TestErrorMappingCompleteness:
     """Verify all expected error mappings are implemented."""

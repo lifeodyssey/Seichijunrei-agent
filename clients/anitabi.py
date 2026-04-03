@@ -9,7 +9,7 @@ Provides methods to:
 
 from clients.base import BaseHTTPClient
 from clients.errors import APIError, NotFoundError
-from config.settings import get_settings
+from config import get_settings
 from domain.entities import (
     Bangumi,
     Coordinates,

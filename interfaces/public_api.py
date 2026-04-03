@@ -128,6 +128,7 @@ class RuntimeAPI:
         self,
         request: PublicAPIRequest,
         *,
+        model: Any = None,
         user_id: str | None = None,
         on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
     ) -> PublicAPIResponse:
@@ -136,13 +137,15 @@ class RuntimeAPI:
         started_at = perf_counter()
         tracer = get_runtime_tracer()
         response: PublicAPIResponse | None = None
+        effective_model = model if model is not None else request.model
 
         with tracer.start_as_current_span("runtime.handle") as span:
             if session_id:
                 span.set_attribute("runtime.session_id", session_id)
             span.set_attribute("runtime.include_debug", request.include_debug)
-            if request.model:
-                span.set_attribute("runtime.model", request.model)
+            model_label = _runtime_model_label(effective_model)
+            if model_label:
+                span.set_attribute("runtime.model", model_label)
             if user_id:
                 span.set_attribute("runtime.user_id", user_id)
 
@@ -173,7 +176,7 @@ class RuntimeAPI:
                         result = await run_pipeline(
                             request.text,
                             self._db,
-                            model=request.model,
+                            model=effective_model,
                             locale=request.locale,
                             context=context,
                             on_step=on_step,
@@ -443,13 +446,14 @@ async def handle_public_request(
     request: PublicAPIRequest,
     db: Any,
     *,
+    model: Any = None,
     session_store: SessionStore | None = None,
     user_id: str | None = None,
     on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
 ) -> PublicAPIResponse:
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)
-    return await api.handle(request, user_id=user_id, on_step=on_step)
+    return await api.handle(request, model=model, user_id=user_id, on_step=on_step)
 
 
 _UI_MAP: dict[str, str] = {
@@ -528,6 +532,18 @@ def _normalize_session_state(state: dict[str, Any] | None) -> dict[str, Any]:
     normalized["route_history"] = list(normalized.get("route_history") or [])
     normalized["summary"] = _as_str_or_none(normalized.get("summary"))
     return normalized
+
+
+def _runtime_model_label(model: Any) -> str | None:
+    if model is None:
+        return None
+    if isinstance(model, str):
+        return model
+
+    label = getattr(model, "model_name", None)
+    if isinstance(label, str) and label:
+        return label
+    return type(model).__name__
 
 
 def _build_updated_session_state(

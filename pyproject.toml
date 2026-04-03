@@ -26,9 +26,6 @@ dependencies = [
     "aiohttp>=3.12.0",
     "httpx>=0.28.0",
 
-    # Google APIs (keep for Maps geocoding)
-    "googlemaps>=4.10.0",
-
     # Observability
     "structlog>=25.0.0",
     "rich>=14.0.0",
@@ -41,8 +38,7 @@ dependencies = [
     # v2: Agent Framework
     "pydantic-ai>=1.69.0",
 
-    # v2: Database (Supabase + PostGIS)
-    "supabase>=2.28.0",
+    # v2: Database (Postgres + PostGIS)
     "asyncpg>=0.31.0",
 ]
 
@@ -50,12 +46,6 @@ dependencies = [
 seichijunrei-api = "interfaces.http_service:main"
 
 [project.optional-dependencies]
-redis = [
-    "redis>=5.3.0",
-]
-firestore = [
-    "google-cloud-firestore>=2.22.0",
-]
 observability = [
     "opentelemetry-exporter-otlp>=1.39.0",
 ]
@@ -64,7 +54,6 @@ dev = [
     "pytest>=9.0.0",
     "pytest-asyncio>=0.26.0",
     "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.0",
 
     # Code Quality
     "black>=26.0.0",
@@ -78,7 +67,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agents", "application", "clients", "config", "contracts", "domain", "infrastructure", "interfaces", "services", "utils"]
+packages = ["agents", "application", "clients", "config", "domain", "infrastructure", "interfaces", "services", "utils"]
 
 [tool.ruff]
 line-length = 88
@@ -120,11 +109,6 @@ omit = [
     ".uv-cache/*",
     "*/.uv-cache/*",
     "*/site-packages/*",
-    # External service adapters (require actual services to test)
-    "infrastructure/session/redis.py",
-    "infrastructure/session/firestore.py",
-    # Translation gateway (requires external service)
-    "infrastructure/gateways/translation.py",
     # Observability (requires external exporters)
     "infrastructure/observability/exporters.py",
     "infrastructure/observability/metrics.py",

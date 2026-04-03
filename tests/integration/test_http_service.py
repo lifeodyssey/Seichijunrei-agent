@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp.test_utils import TestClient, TestServer, make_mocked_request
+from aiohttp.test_utils import make_mocked_request
 
 from config.settings import Settings
 from infrastructure.session.memory import InMemorySessionStore
-from interfaces.http_service import _handle_runtime_stream, create_http_app
+from interfaces.http_service import (
+    _handle_get_conversations,
+    _handle_patch_conversation,
+    _handle_runtime_stream,
+    create_http_app,
+)
 from interfaces.public_api import RuntimeAPI
 
 
@@ -129,12 +135,14 @@ async def test_get_conversations_smoke(mock_db) -> None:
         settings=Settings(),
     )
 
-    async with TestClient(TestServer(app)) as client:
-        response = await client.get(
-            "/v1/conversations",
-            headers={"X-User-Id": "user-1"},
-        )
-        body = await response.json()
+    request = make_mocked_request(
+        "GET",
+        "/v1/conversations",
+        app=app,
+        headers={"X-User-Id": "user-1"},
+    )
+    response = await _handle_get_conversations(request)
+    body = json.loads(response.text)
 
     assert response.status == 200
     assert body[0]["session_id"] == "sess-1"
@@ -146,13 +154,16 @@ async def test_patch_conversation_smoke(mock_db) -> None:
         settings=Settings(),
     )
 
-    async with TestClient(TestServer(app)) as client:
-        response = await client.patch(
-            "/v1/conversations/sess-1",
-            json={"title": "新的标题"},
-            headers={"X-User-Id": "user-1"},
-        )
-        body = await response.json()
+    request = make_mocked_request(
+        "PATCH",
+        "/v1/conversations/sess-1",
+        app=app,
+        headers={"X-User-Id": "user-1"},
+        match_info={"session_id": "sess-1"},
+    )
+    request.json = AsyncMock(return_value={"title": "新的标题"})
+    response = await _handle_patch_conversation(request)
+    body = json.loads(response.text)
 
     assert response.status == 200
     assert body == {"ok": True}

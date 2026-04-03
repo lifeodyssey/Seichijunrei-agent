@@ -27,11 +27,8 @@ def mock_settings():
     from config import Settings
 
     return Settings(
-        google_maps_api_key="test_google_maps_key",
         gemini_api_key="test_gemini_key",
-        weather_api_key="test_weather_key",
         anitabi_api_url="https://test.anitabi.com/api",
-        weather_api_url="https://test.weather.com/api",
         app_env="test",
         log_level="DEBUG",
         debug=True,
@@ -39,6 +36,7 @@ def mock_settings():
         timeout_seconds=5,
         cache_ttl_seconds=60,
         use_cache=False,
+        default_agent_model="google-gla:gemini-2.5-pro",
         output_dir=Path("/tmp/test_outputs"),
         template_dir=Path("/tmp/test_templates"),
     )

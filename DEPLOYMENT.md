@@ -36,16 +36,9 @@ Default bind settings:
 - `ANITABI_API_URL`
 - provider credentials for the configured model backend
 
-Optional session backend configuration:
+Session storage:
 
-- `SESSION_STORE_BACKEND=memory|redis|firestore`
-- `SESSION_TTL_SECONDS`
-- `REDIS_SESSION_HOST`
-- `REDIS_SESSION_PORT`
-- `REDIS_SESSION_DB`
-- `REDIS_SESSION_PASSWORD`
-- `REDIS_SESSION_PREFIX`
-- `FIRESTORE_SESSION_COLLECTION`
+- the backend currently uses the in-memory session store only
 
 Optional observability configuration:
 
@@ -71,7 +64,6 @@ docker run --rm -p 8080:8080 \
   -e SUPABASE_URL \
   -e SUPABASE_SERVICE_ROLE_KEY \
   -e ANITABI_API_URL \
-  -e GOOGLE_MAPS_API_KEY \
   -e GEMINI_API_KEY \
   seichijunrei-runtime
 ```

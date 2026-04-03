@@ -13,7 +13,7 @@ class SessionData:
     """Session data container.
 
     A simplified session data structure for the infrastructure layer.
-    Can be converted to/from the contracts SessionInfo as needed.
+    Kept intentionally minimal for the in-memory session backend.
     """
 
     session_id: str

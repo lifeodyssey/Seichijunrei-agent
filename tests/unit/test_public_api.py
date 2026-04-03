@@ -44,14 +44,13 @@ def _make_result(
 
 
 @pytest.fixture(autouse=True)
-def _mock_pipeline():
+def _mock_pipeline(monkeypatch):
     """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
 
     async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
         return _make_result(locale=locale)
 
-    with patch("interfaces.public_api.run_pipeline", side_effect=_fake):
-        yield
+    monkeypatch.setattr("interfaces.public_api.run_pipeline", _fake)
 
 
 class DummySpan:
@@ -774,6 +773,33 @@ class TestHandlePublicRequest:
         assert response.intent == "search_bangumi"
         assert response.status == "empty"
         assert response.session["interaction_count"] == 1
+
+    async def test_helper_forwards_explicit_model_override(self, mock_db, monkeypatch):
+        captured: dict[str, object] = {}
+
+        async def fake_run_pipeline(
+            text,
+            db,
+            *,
+            model=None,
+            locale="ja",
+            context=None,
+            on_step=None,
+        ):
+            captured["model"] = model
+            return _make_result(locale=locale)
+
+        explicit_model = object()
+        monkeypatch.setattr("interfaces.public_api.run_pipeline", fake_run_pipeline)
+
+        await handle_public_request(
+            PublicAPIRequest(text="你好"),
+            mock_db,
+            model=explicit_model,
+            session_store=InMemorySessionStore(),
+        )
+
+        assert captured["model"] is explicit_model
 
 
 class TestUserIdPropagation:

@@ -4,6 +4,8 @@
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
+PYTHON ?= .venv/bin/python
+PYTEST ?= $(PYTHON) -m pytest
 
 help:
 	@echo "Seichijunrei Agent - Available commands:"
@@ -42,19 +44,19 @@ serve:
 	uv run seichijunrei-api
 
 test:
-	uv run pytest tests/unit/ -v
+	$(PYTEST) tests/unit/ -v
 
 test-all:
-	uv run pytest tests/unit tests/integration -v
+	$(PYTEST) tests/unit tests/integration -v
 
 test-cov:
-	uv run pytest tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
+	$(PYTEST) tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
 
 test-integration:
-	uv run pytest tests/integration/ -v --no-cov
+	$(PYTEST) tests/integration/ -v --no-cov
 
 test-eval:
-	uv run pytest tests/eval/ -v -m integration --no-cov
+	$(PYTEST) tests/eval/ -v -m integration --no-cov
 
 lint:
 	uv run ruff check .

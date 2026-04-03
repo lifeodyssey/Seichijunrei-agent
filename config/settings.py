@@ -104,24 +104,6 @@ class Settings(BaseSettings):
         description="Default LLM model for pydantic-ai agents",
     )
 
-    # MCP (Model Context Protocol) - optional
-    enable_mcp_tools: bool = Field(
-        default=False,
-        description="Enable MCP toolsets (stdio/SSE/streamable HTTP) for service tools",
-    )
-    mcp_transport: str = Field(
-        default="stdio",
-        description='MCP transport: "stdio", "sse", or "streamable-http"',
-    )
-    mcp_bangumi_url: str | None = Field(
-        default=None,
-        description="Bangumi MCP server URL for sse/streamable-http transports",
-    )
-    mcp_anitabi_url: str | None = Field(
-        default=None,
-        description="Anitabi MCP server URL for sse/streamable-http transports",
-    )
-
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -130,19 +112,6 @@ class Settings(BaseSettings):
         v = v.upper()
         if v not in valid_levels:
             raise ValueError(f"Invalid log level: {v}. Must be one of {valid_levels}")
-        return v
-
-    @field_validator("mcp_transport")
-    @classmethod
-    def validate_mcp_transport(cls, v: str) -> str:
-        v = v.strip().lower()
-        if v in {"streamable_http", "streamablehttp"}:
-            v = "streamable-http"
-        valid = {"stdio", "sse", "streamable-http"}
-        if v not in valid:
-            raise ValueError(
-                f"Invalid MCP_TRANSPORT: {v}. Must be one of {sorted(valid)}"
-            )
         return v
 
     @property
@@ -173,7 +142,6 @@ class Settings(BaseSettings):
             "use_cache": self.use_cache,
             "observability_enabled": self.observability_enabled,
             "observability_exporter_type": self.observability_exporter_type,
-            "enable_mcp_tools": self.enable_mcp_tools,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
         }
@@ -187,7 +155,6 @@ class Settings(BaseSettings):
         return {
             "use_cache": self.use_cache,
             "debug": self.debug,
-            "enable_mcp_tools": self.enable_mcp_tools,
         }
 
     def get_secrets(self) -> dict[str, str]:

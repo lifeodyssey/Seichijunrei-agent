@@ -40,7 +40,7 @@ stable boundaries, current entry points, and active plans only.
 | SQL retrieval | `agents/sql_agent.py` |
 | Configuration | `config/settings.py` |
 | Auth middleware | `src/worker.js` |
-| DB schema | `infrastructure/supabase/migrations/` |
+| DB schema | `supabase/migrations/` |
 | Frontend component registry | `frontend/components/generative/registry.ts` |
 | Design tokens | `frontend/app/globals.css` |
 

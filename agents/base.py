@@ -30,7 +30,7 @@ _FALLBACK_MODEL = "gemini-2.5-pro"
 
 def get_default_model() -> str:
     """Get the default agent model from settings, with fallback."""
-    from config.settings import get_settings
+    from config import get_settings
 
     return get_settings().default_agent_model or _FALLBACK_MODEL
 

@@ -7,7 +7,9 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic_ai.models.test import TestModel
 
+from agents.models import ExecutionPlan, PlanStep, ToolName
 from agents.pipeline import run_pipeline
 from infrastructure.session.memory import InMemorySessionStore
 from interfaces.public_api import PublicAPIRequest, handle_public_request
@@ -21,6 +23,66 @@ def _load_cases() -> list[dict[str, object]]:
 
 
 _CASES = _load_cases()
+
+
+def _build_plan(scenario: str) -> ExecutionPlan:
+    if scenario == "empty_search":
+        return ExecutionPlan(
+            steps=[
+                PlanStep(
+                    tool=ToolName.SEARCH_BANGUMI,
+                    params={"bangumi_id": "160209"},
+                )
+            ],
+            reasoning="acceptance test bangumi search",
+            locale="zh",
+        )
+
+    if scenario == "geo_search":
+        return ExecutionPlan(
+            steps=[
+                PlanStep(
+                    tool=ToolName.SEARCH_NEARBY,
+                    params={"location": "宇治", "radius": 3000},
+                )
+            ],
+            reasoning="acceptance test nearby search",
+            locale="zh",
+        )
+
+    if scenario == "route_planning":
+        return ExecutionPlan(
+            steps=[
+                PlanStep(
+                    tool=ToolName.SEARCH_BANGUMI,
+                    params={"bangumi_id": "115908", "origin": "京都站"},
+                ),
+                PlanStep(
+                    tool=ToolName.PLAN_ROUTE,
+                    params={"origin": "京都站"},
+                ),
+            ],
+            reasoning="acceptance test route planning",
+            locale="zh",
+        )
+
+    if scenario == "unclear":
+        return ExecutionPlan(
+            steps=[
+                PlanStep(
+                    tool=ToolName.GREET_USER,
+                    params={"message": "你好！我是圣地巡礼，可以帮你找动漫取景地并规划路线。"},
+                )
+            ],
+            reasoning="acceptance test greeting",
+            locale="zh",
+        )
+
+    raise ValueError(f"Unknown acceptance scenario: {scenario}")
+
+
+def _build_model(scenario: str) -> TestModel:
+    return TestModel(custom_output_args=_build_plan(scenario))
 
 
 def _build_db(scenario: str) -> MagicMock:
@@ -52,8 +114,20 @@ def _build_db(scenario: str) -> MagicMock:
     if scenario == "route_planning":
         pool.fetch = AsyncMock(
             return_value=[
-                {"id": "1", "name": "A", "latitude": 34.88, "longitude": 135.80},
-                {"id": "2", "name": "B", "latitude": 34.89, "longitude": 135.81},
+                {
+                    "id": "1",
+                    "bangumi_id": "115908",
+                    "name": "A",
+                    "latitude": 34.88,
+                    "longitude": 135.80,
+                },
+                {
+                    "id": "2",
+                    "bangumi_id": "115908",
+                    "name": "B",
+                    "latitude": 34.89,
+                    "longitude": 135.81,
+                },
             ]
         )
         db.search_points_by_location = AsyncMock(
@@ -81,19 +155,26 @@ async def test_runtime_acceptance_baseline(case: dict[str, object]) -> None:
     scenario = str(case["scenario"])
     expected = dict(case["expected"])
     text = str(case["text"])
+    locale = "zh"
 
     db = _build_db(scenario)
-    pipeline_result = await run_pipeline(text, db)
-    public_response = await handle_public_request(
-        PublicAPIRequest(text=text),
+    pipeline_result = await run_pipeline(
+        text,
         db,
+        model=_build_model(scenario),
+        locale=locale,
+    )
+    public_response = await handle_public_request(
+        PublicAPIRequest(text=text, locale=locale),
+        db,
+        model=_build_model(scenario),
         session_store=InMemorySessionStore(),
     )
 
     assert pipeline_result.intent == expected["intent"]
     assert pipeline_result.final_output["status"] == expected["status"]
     assert pipeline_result.success is expected["success"]
-    assert [step.step_type.value for step in pipeline_result.plan.steps] == expected[
+    assert [step.tool.value for step in pipeline_result.plan.steps] == expected[
         "plan_steps"
     ]
 

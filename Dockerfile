@@ -11,20 +11,19 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md /app/
 
-RUN uv sync --frozen --extra redis --no-dev --no-install-project
+RUN uv sync --no-dev --no-install-project
 
 COPY agents /app/agents
 COPY application /app/application
 COPY clients /app/clients
 COPY config /app/config
-COPY contracts /app/contracts
 COPY domain /app/domain
 COPY infrastructure /app/infrastructure
 COPY interfaces /app/interfaces
 COPY services /app/services
 COPY utils /app/utils
 
-RUN uv sync --frozen --extra redis --no-dev
+RUN uv sync --no-dev
 
 FROM public.ecr.aws/docker/library/python:3.11-slim
 

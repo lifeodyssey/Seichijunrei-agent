@@ -203,7 +203,7 @@ Light theme — no dark mode toggle.
 
 | Path | Purpose |
 |---|---|
-| `infrastructure/supabase/migrations/002_request_log.sql` | Logs every request: plan_steps, intent, latency_ms |
+| `supabase/migrations/20260402124000_operational_tables.sql` | Logs every request: plan_steps, intent, latency_ms |
 | `tests/eval/datasets/plan_quality_v1.json` | 50+ cases × 3 locales |
 | `tests/eval/test_plan_quality.py` | pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp |
 | `tools/eval_scorer.py` | Batch LLM judge; writes `plan_quality_score` back to DB |

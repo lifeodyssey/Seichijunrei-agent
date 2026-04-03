@@ -3,9 +3,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from application.errors import ExternalServiceError, InvalidInputError
-from clients.anitabi_gateway import AnitabiClientGateway
-from clients.bangumi_gateway import BangumiClientGateway
 from clients.errors import APIError
+from infrastructure.gateways import AnitabiClientGateway, BangumiClientGateway
 
 
 async def test_anitabi_gateway_maps_api_error_to_external_service_error() -> None:

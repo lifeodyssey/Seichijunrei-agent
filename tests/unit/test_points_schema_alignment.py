@@ -9,15 +9,9 @@ from domain.entities import Coordinates, Point
 from scripts.seed_data import fetch_points
 
 
-_BASELINE_SCHEMA = Path("scripts/supabase/003_points.sql")
-_ALIGNMENT_MIGRATION = Path(
-    "infrastructure/supabase/migrations/005_points_schema_alignment.sql"
-)
-_EXTENSIONS_SCHEMA = Path("scripts/supabase/001_extensions.sql")
-_OPS_BASELINE_SCHEMA = Path("scripts/supabase/006_operational_tables.sql")
-_WAITLIST_MIGRATION = Path("infrastructure/supabase/migrations/006_waitlist.sql")
-_INDEXES_SCHEMA = Path("scripts/supabase/005_indexes.sql")
-_API_KEYS_MIGRATION = Path("infrastructure/supabase/migrations/004_api_keys.sql")
+_REMOTE_SCHEMA = Path("supabase/migrations/20260402120000_remote_schema.sql")
+_POINTS_ALIGNMENT_MIGRATION = Path("supabase/migrations/20260402123000_points_alignment.sql")
+_OPERATIONAL_TABLES_MIGRATION = Path("supabase/migrations/20260402124000_operational_tables.sql")
 
 
 def _sample_point() -> Point:
@@ -37,7 +31,7 @@ def _sample_point() -> Point:
 
 
 def test_points_baseline_schema_matches_runtime_column_names() -> None:
-    sql = _BASELINE_SCHEMA.read_text(encoding="utf-8")
+    sql = _REMOTE_SCHEMA.read_text(encoding="utf-8")
 
     assert "name_cn" in sql
     assert "latitude" in sql
@@ -56,9 +50,9 @@ def test_points_baseline_schema_matches_runtime_column_names() -> None:
 
 
 def test_points_alignment_migration_exists_and_handles_legacy_columns() -> None:
-    assert _ALIGNMENT_MIGRATION.exists()
+    assert _POINTS_ALIGNMENT_MIGRATION.exists()
 
-    sql = _ALIGNMENT_MIGRATION.read_text(encoding="utf-8")
+    sql = _POINTS_ALIGNMENT_MIGRATION.read_text(encoding="utf-8")
 
     assert "cn_name" in sql
     assert "name_cn" in sql
@@ -74,35 +68,29 @@ def test_points_alignment_migration_exists_and_handles_legacy_columns() -> None:
 
 
 def test_extensions_and_indexes_include_vector_support() -> None:
-    extensions_sql = _EXTENSIONS_SCHEMA.read_text(encoding="utf-8")
-    indexes_sql = _INDEXES_SCHEMA.read_text(encoding="utf-8")
+    remote_sql = _REMOTE_SCHEMA.read_text(encoding="utf-8")
+    alignment_sql = _POINTS_ALIGNMENT_MIGRATION.read_text(encoding="utf-8")
 
-    assert "CREATE EXTENSION IF NOT EXISTS vector" in extensions_sql
-    assert "idx_points_embedding" in indexes_sql
-    assert "vector_cosine_ops" in indexes_sql
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in remote_sql
+    assert "idx_points_embedding" in alignment_sql
+    assert "vector_cosine_ops" in alignment_sql
 
 
 def test_operational_schema_baseline_and_waitlist_migration_exist() -> None:
-    assert _OPS_BASELINE_SCHEMA.exists()
-    assert _WAITLIST_MIGRATION.exists()
+    assert _OPERATIONAL_TABLES_MIGRATION.exists()
 
-    baseline_sql = _OPS_BASELINE_SCHEMA.read_text(encoding="utf-8")
-    waitlist_sql = _WAITLIST_MIGRATION.read_text(encoding="utf-8")
+    sql = _OPERATIONAL_TABLES_MIGRATION.read_text(encoding="utf-8")
 
-    assert "CREATE TABLE IF NOT EXISTS feedback" in baseline_sql
-    assert "CREATE TABLE IF NOT EXISTS request_log" in baseline_sql
-    assert "CREATE TABLE IF NOT EXISTS api_keys" in baseline_sql
-    assert "CREATE TABLE IF NOT EXISTS waitlist" in baseline_sql
-    assert "ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY" in baseline_sql
-    assert "Anyone can join waitlist" in baseline_sql
-
-    assert "CREATE TABLE IF NOT EXISTS waitlist" in waitlist_sql
-    assert "ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY" in waitlist_sql
-    assert "Anyone can join waitlist" in waitlist_sql
+    assert "CREATE TABLE IF NOT EXISTS feedback" in sql
+    assert "CREATE TABLE IF NOT EXISTS request_log" in sql
+    assert "CREATE TABLE IF NOT EXISTS api_keys" in sql
+    assert "CREATE TABLE IF NOT EXISTS waitlist" in sql
+    assert "ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY" in sql
+    assert "Anyone can join waitlist" in sql
 
 
 def test_api_keys_migration_is_idempotent_for_policy_creation() -> None:
-    sql = _API_KEYS_MIGRATION.read_text(encoding="utf-8")
+    sql = _OPERATIONAL_TABLES_MIGRATION.read_text(encoding="utf-8")
 
     assert "ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY" in sql
     assert "DO $$" in sql

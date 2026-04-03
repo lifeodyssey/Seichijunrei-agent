@@ -4,10 +4,10 @@
     "text": "秒速5厘米的取景地在哪",
     "scenario": "empty_search",
     "expected": {
-      "intent": "search_by_bangumi",
+      "intent": "search_bangumi",
       "status": "empty",
       "success": true,
-      "plan_steps": ["query_db", "format_response"],
+      "plan_steps": ["search_bangumi"],
       "result_count": 0
     }
   },
@@ -16,10 +16,10 @@
     "text": "宇治附近有什么圣地",
     "scenario": "geo_search",
     "expected": {
-      "intent": "search_by_location",
+      "intent": "search_nearby",
       "status": "ok",
       "success": true,
-      "plan_steps": ["query_db", "format_response"],
+      "plan_steps": ["search_nearby"],
       "result_count": 1,
       "strategy": "geo"
     }
@@ -32,7 +32,7 @@
       "intent": "plan_route",
       "status": "ok",
       "success": true,
-      "plan_steps": ["query_db", "plan_route", "format_response"],
+      "plan_steps": ["search_bangumi", "plan_route"],
       "result_count": 2,
       "route_point_count": 2,
       "route_history_count": 1,
@@ -44,10 +44,10 @@
     "text": "你好",
     "scenario": "unclear",
     "expected": {
-      "intent": "unclear",
-      "status": "needs_clarification",
+      "intent": "greet_user",
+      "status": "info",
       "success": true,
-      "plan_steps": ["format_response"]
+      "plan_steps": ["greet_user"]
     }
   }
 ]
