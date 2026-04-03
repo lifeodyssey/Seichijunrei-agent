@@ -98,6 +98,7 @@ class TestReActPlannerAgent:
             assert "en" in call_args
             assert "[context]" in call_args
             assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in call_args
+            assert "visited_ids: 253" in call_args
 
     async def test_create_plan_supports_greet_user_step(self):
         from agents.models import PlanStep
@@ -123,3 +124,27 @@ class TestReActPlannerAgent:
 
         assert plan.steps == greet_plan.steps
         assert plan.steps[0].tool == ToolName.GREET_USER
+
+    async def test_create_plan_prefixes_context_block(self, mock_plan_bangumi):
+        with patch("agents.planner_agent.create_agent") as mock_create:
+            mock_agent = AsyncMock()
+            mock_agent.run.return_value = AsyncMock(output=mock_plan_bangumi)
+            mock_create.return_value = mock_agent
+
+            planner = ReActPlannerAgent()
+            await planner.create_plan(
+                "where is kyoani",
+                locale="en",
+                context={
+                    "current_bangumi_id": "253",
+                    "current_anime_title": "響け！ユーフォニアム",
+                    "last_location": "宇治",
+                    "last_intent": "search_bangumi",
+                    "visited_bangumi_ids": ["253", "105"],
+                },
+            )
+
+            call_args = mock_agent.run.call_args[0][0]
+            assert "[context]" in call_args
+            assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in call_args
+            assert "visited_ids: 253, 105" in call_args

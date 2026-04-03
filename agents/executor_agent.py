@@ -112,12 +112,15 @@ class ExecutorAgent:
             context["last_location"] = context_block["last_location"]
 
         for step in plan.steps:
+            tool_name = getattr(getattr(step, "tool", None), "value", "unknown")
             if on_step is not None:
-                await on_step(step.tool.value, "running", {})
+                await on_step(tool_name, "running", {})
             step_result = await self._execute_step(step, context)
-            if on_step is not None:
-                await on_step(step.tool.value, "done", step_result.data or {})
             result.step_results.append(step_result)
+
+            if on_step is not None:
+                payload = step_result.data if isinstance(step_result.data, dict) else {}
+                await on_step(tool_name, "done", payload)
 
             tool = getattr(step, "tool", None)
             if not step_result.success:
@@ -177,7 +180,9 @@ class ExecutorAgent:
         if bangumi_id:
             logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
             return StepResult(
-                tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id}
+                tool="resolve_anime",
+                success=True,
+                data={"bangumi_id": bangumi_id, "title": title},
             )
 
         # 2. Bangumi.tv API fallback
@@ -187,7 +192,9 @@ class ExecutorAgent:
             await self._db.upsert_bangumi_title(title, bangumi_id)
             logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
             return StepResult(
-                tool="resolve_anime", success=True, data={"bangumi_id": bangumi_id}
+                tool="resolve_anime",
+                success=True,
+                data={"bangumi_id": bangumi_id, "title": title},
             )
 
         return StepResult(
@@ -214,6 +221,7 @@ class ExecutorAgent:
             bangumi_id=bangumi_id,
             episode=step.params.get("episode"),
             origin=step.params.get("origin"),
+            force_refresh=bool(step.params.get("force_refresh", False)),
         )
         retrieval = await self._retriever.execute(req)
         return StepResult(

@@ -53,3 +53,40 @@ class TestRunPipeline:
             result = await run_pipeline("聖地巡礼とは", mock_db)
 
         assert result.intent == "answer_question"
+
+    async def test_pipeline_forwards_context_and_step_callback(self, mock_db):
+        plan = ExecutionPlan(
+            steps=[
+                PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})
+            ],
+            reasoning="test",
+            locale="ja",
+        )
+        pipeline_result = PipelineResult(intent="search_bangumi", plan=plan)
+        on_step = AsyncMock()
+        context = {"visited_bangumi_ids": ["253"]}
+
+        with (
+            patch("agents.pipeline.ReActPlannerAgent") as MockPlanner,
+            patch("agents.pipeline.ExecutorAgent") as MockExecutor,
+        ):
+            MockPlanner.return_value.create_plan = AsyncMock(return_value=plan)
+            MockExecutor.return_value.execute = AsyncMock(return_value=pipeline_result)
+
+            result = await run_pipeline(
+                "吹響の聖地",
+                mock_db,
+                context=context,
+                on_step=on_step,
+            )
+
+        MockPlanner.return_value.create_plan.assert_awaited_once_with(
+            "吹響の聖地",
+            locale="ja",
+            context=context,
+        )
+        MockExecutor.return_value.execute.assert_awaited_once_with(
+            plan,
+            on_step=on_step,
+        )
+        assert result is pipeline_result

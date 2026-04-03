@@ -6,6 +6,7 @@ import pytest
 
 from agents.executor_agent import ExecutorAgent, _infer_primary_tool
 from agents.models import ExecutionPlan, PlanStep, ToolName
+from agents.retriever import RetrievalResult, RetrievalStrategy
 
 
 @pytest.fixture
@@ -148,6 +149,39 @@ class TestExecutorAgentExecute:
 
         assert ("answer_question", "running") in events
         assert ("answer_question", "done") in events
+
+    async def test_search_bangumi_passes_force_refresh_to_retriever(self, mock_db):
+        plan = _plan(
+            PlanStep(
+                tool=ToolName.SEARCH_BANGUMI,
+                params={"bangumi_id": "115908", "force_refresh": True},
+            )
+        )
+        executor = ExecutorAgent(mock_db)
+        executor._retriever.execute = AsyncMock(
+            return_value=RetrievalResult(
+                strategy=RetrievalStrategy.SQL,
+                rows=[],
+                row_count=0,
+            )
+        )
+
+        await executor.execute(plan)
+
+        request = executor._retriever.execute.await_args.args[0]
+        assert request.force_refresh is True
+
+    async def test_execute_reports_step_progress(self, mock_db):
+        plan = _plan(
+            PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})
+        )
+        executor = ExecutorAgent(mock_db)
+        on_step = AsyncMock()
+
+        await executor.execute(plan, on_step=on_step)
+
+        assert on_step.await_args_list[0].args[:2] == ("search_bangumi", "running")
+        assert on_step.await_args_list[1].args[:2] == ("search_bangumi", "done")
 
     def test_infer_primary_tool_includes_greet_user(self):
         plan = _plan(

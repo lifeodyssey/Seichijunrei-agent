@@ -6,6 +6,7 @@ RPC adapters can wrap without depending directly on internal pipeline types.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from time import perf_counter
@@ -102,24 +103,35 @@ class RuntimeAPI:
     async def handle(
         self,
         request: PublicAPIRequest,
+        *,
+        user_id: str | None = None,
         on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
     ) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
-        session_id = request.session_id or uuid4().hex
+        session_id = request.session_id or None
         started_at = perf_counter()
         tracer = get_runtime_tracer()
         response: PublicAPIResponse | None = None
 
         with tracer.start_as_current_span("runtime.handle") as span:
-            span.set_attribute("runtime.session_id", session_id)
+            if session_id:
+                span.set_attribute("runtime.session_id", session_id)
             span.set_attribute("runtime.include_debug", request.include_debug)
             if request.model:
                 span.set_attribute("runtime.model", request.model)
+            if user_id:
+                span.set_attribute("runtime.user_id", user_id)
 
+            result: PipelineResult | None = None
             try:
-                previous_state = await self._load_session_state(session_id)
-                context_block = _build_context_block(previous_state)
-                result: PipelineResult | None = None
+                previous_state = (
+                    await self._load_session_state(session_id)
+                    if session_id
+                    else _normalize_session_state(None)
+                )
+                context_delta: dict[str, Any] = {}
+                user_memory = await self._load_user_memory(user_id)
+                context = _build_context_block(previous_state, user_memory=user_memory)
 
                 try:
                     result = await run_pipeline(
@@ -127,7 +139,7 @@ class RuntimeAPI:
                         self._db,
                         model=request.model,
                         locale=request.locale,
-                        context=context_block,
+                        context=context,
                         on_step=on_step,
                     )
                 except ApplicationError as exc:
@@ -152,6 +164,17 @@ class RuntimeAPI:
                         result,
                         include_debug=request.include_debug,
                     )
+                    context_delta = _extract_context_delta(result)
+
+                if response.intent == "greet_user":
+                    response.session_id = None
+                    response.session = {}
+                    response.route_history = []
+                    return response
+
+                if session_id is None:
+                    session_id = uuid4().hex
+                    span.set_attribute("runtime.session_id", session_id)
 
                 response.session_id = session_id
 
@@ -159,8 +182,7 @@ class RuntimeAPI:
                     previous_state,
                     request=request,
                     response=response,
-                    result_context_delta=
-                        _extract_context_delta(result) if result is not None else None,
+                    context_delta=context_delta,
                 )
 
                 route_record = None
@@ -177,6 +199,15 @@ class RuntimeAPI:
                     session_state["route_history"] = route_history[-_MAX_ROUTE_HISTORY:]
 
                 await self._persist_session(session_id, session_state, response)
+                await self._persist_user_state(
+                    session_id=session_id,
+                    user_id=user_id,
+                    request=request,
+                    response=response,
+                    result=result,
+                    context_delta=context_delta,
+                    previous_state=previous_state,
+                )
 
                 response.session = _build_session_summary(session_state)
                 response.route_history = list(session_state["route_history"])
@@ -204,7 +235,8 @@ class RuntimeAPI:
                 )
 
                 insert_request_log = getattr(self._db, "insert_request_log", None)
-                if insert_request_log is not None:
+                is_ephemeral = response is not None and response.intent == "greet_user"
+                if insert_request_log is not None and not is_ephemeral:
                     try:
                         await insert_request_log(
                             session_id=session_id,
@@ -217,6 +249,70 @@ class RuntimeAPI:
                         )
                     except Exception:
                         logger.warning("request_log_failed", session_id=session_id)
+
+    async def _load_user_memory(self, user_id: str | None) -> dict[str, Any] | None:
+        if not user_id:
+            return None
+
+        get_user_memory = getattr(self._db, "get_user_memory", None)
+        if get_user_memory is None:
+            return None
+
+        try:
+            return await get_user_memory(user_id)
+        except Exception:
+            logger.warning("get_user_memory_failed", user_id=user_id)
+            return None
+
+    async def _persist_user_state(
+        self,
+        *,
+        session_id: str,
+        user_id: str | None,
+        request: PublicAPIRequest,
+        response: PublicAPIResponse,
+        result: PipelineResult | None,
+        context_delta: dict[str, Any],
+        previous_state: dict[str, Any],
+    ) -> None:
+        if not user_id or result is None or not response.success:
+            return
+
+        upsert_conversation = getattr(self._db, "upsert_conversation", None)
+        if upsert_conversation is not None:
+            try:
+                await upsert_conversation(session_id, user_id, request.text)
+            except Exception:
+                logger.warning("upsert_conversation_failed", session_id=session_id)
+            else:
+                is_first_interaction = len(previous_state.get("interactions") or []) == 0
+                if is_first_interaction:
+                    asyncio.create_task(
+                        _generate_and_save_title(
+                            session_id=session_id,
+                            first_query=request.text,
+                            response_message=response.message,
+                            db=self._db,
+                            user_id=user_id,
+                        )
+                    )
+
+        bangumi_id = context_delta.get("bangumi_id")
+        if not bangumi_id:
+            return
+
+        upsert_user_memory = getattr(self._db, "upsert_user_memory", None)
+        if upsert_user_memory is None:
+            return
+
+        try:
+            await upsert_user_memory(
+                user_id,
+                bangumi_id=bangumi_id,
+                anime_title=context_delta.get("anime_title"),
+            )
+        except Exception:
+            logger.warning("upsert_user_memory_failed", user_id=user_id)
 
     async def _load_session_state(self, session_id: str) -> dict[str, Any]:
         state = await self._session_store.get(session_id)
@@ -304,10 +400,12 @@ async def handle_public_request(
     db: Any,
     *,
     session_store: SessionStore | None = None,
+    user_id: str | None = None,
+    on_step: Callable[[str, str, dict[str, Any]], Awaitable[None]] | None = None,
 ) -> PublicAPIResponse:
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)
-    return await api.handle(request)
+    return await api.handle(request, user_id=user_id, on_step=on_step)
 
 
 _UI_MAP: dict[str, str] = {
@@ -316,6 +414,7 @@ _UI_MAP: dict[str, str] = {
     "plan_route": "RouteVisualization",
     "general_qa": "GeneralAnswer",
     "answer_question": "GeneralAnswer",
+    "greet_user": "GeneralAnswer",
     "unclear": "Clarification",
 }
 
@@ -389,7 +488,7 @@ def _build_updated_session_state(
     *,
     request: PublicAPIRequest,
     response: PublicAPIResponse,
-    result_context_delta: dict[str, Any] | None = None,
+    context_delta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     interactions = list(previous_state["interactions"])
     interactions.append(
@@ -399,7 +498,7 @@ def _build_updated_session_state(
             "status": response.status,
             "success": response.success,
             "created_at": datetime.now(UTC).isoformat(),
-            "context_delta": result_context_delta or {},
+            "context_delta": context_delta or {},
         }
     )
     interactions = interactions[-_MAX_INTERACTIONS:]
@@ -469,61 +568,6 @@ def _serialize_step_result(step: StepResult) -> dict[str, Any]:
     }
 
 
-def _extract_context_delta(result: PipelineResult) -> dict[str, Any]:
-    delta: dict[str, Any] = {
-        "bangumi_id": None,
-        "anime_title": None,
-        "location": None,
-    }
-    for step in result.step_results:
-        if not step.success or not step.data:
-            continue
-        if step.tool == "resolve_anime":
-            delta["bangumi_id"] = step.data.get("bangumi_id")
-            delta["anime_title"] = step.data.get("title")
-        elif step.tool == "search_bangumi" and delta["bangumi_id"] is None:
-            delta["bangumi_id"] = step.data.get("bangumi_id")
-    for plan_step in result.plan.steps:
-        if plan_step.tool.value == "search_nearby" and plan_step.params.get("location"):
-            delta["location"] = plan_step.params["location"]
-            break
-    return delta
-
-
-def _build_context_block(session_state: dict[str, Any]) -> dict[str, Any] | None:
-    interactions = session_state.get("interactions") or []
-    if not interactions:
-        return None
-
-    current_bangumi_id = None
-    current_anime_title = None
-    last_location = None
-    visited_bangumi_ids: list[str] = []
-
-    for interaction in reversed(interactions):
-        delta = interaction.get("context_delta") or {}
-        bangumi_id = delta.get("bangumi_id")
-        if current_bangumi_id is None and bangumi_id:
-            current_bangumi_id = bangumi_id
-            current_anime_title = delta.get("anime_title")
-        location = delta.get("location")
-        if last_location is None and location:
-            last_location = location
-        if bangumi_id and bangumi_id not in visited_bangumi_ids:
-            visited_bangumi_ids.append(bangumi_id)
-
-    if not current_bangumi_id and not last_location and not visited_bangumi_ids:
-        return None
-
-    return {
-        "current_bangumi_id": current_bangumi_id,
-        "current_anime_title": current_anime_title,
-        "last_location": last_location,
-        "last_intent": session_state.get("last_intent"),
-        "visited_bangumi_ids": visited_bangumi_ids,
-    }
-
-
 def _extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
     if result is None:
         return None
@@ -543,3 +587,155 @@ def _extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
         steps.append(str(step))
 
     return steps
+
+
+def _build_context_block(
+    session_state: dict[str, Any],
+    user_memory: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    interactions = session_state.get("interactions") or []
+    current_bangumi_id: str | None = None
+    current_anime_title: str | None = None
+    last_location: str | None = None
+    visited_bangumi_ids: list[str] = []
+
+    for interaction in reversed(interactions):
+        delta = interaction.get("context_delta") or {}
+
+        bangumi_id = _as_str_or_none(delta.get("bangumi_id"))
+        anime_title = _as_str_or_none(delta.get("anime_title"))
+        location = _as_str_or_none(delta.get("location"))
+
+        if current_bangumi_id is None and bangumi_id:
+            current_bangumi_id = bangumi_id
+            current_anime_title = anime_title
+        if last_location is None and location:
+            last_location = location
+        if bangumi_id and bangumi_id not in visited_bangumi_ids:
+            visited_bangumi_ids.append(bangumi_id)
+
+        if current_bangumi_id and last_location:
+            break
+
+    if user_memory:
+        for entry in user_memory.get("visited_anime") or []:
+            bangumi_id = _as_str_or_none(entry.get("bangumi_id"))
+            if bangumi_id and bangumi_id not in visited_bangumi_ids:
+                visited_bangumi_ids.append(bangumi_id)
+
+        if current_bangumi_id is None and user_memory.get("visited_anime"):
+            most_recent = max(
+                user_memory.get("visited_anime") or [],
+                key=lambda entry: entry.get("last_at", ""),
+                default=None,
+            )
+            if most_recent is not None:
+                current_bangumi_id = _as_str_or_none(most_recent.get("bangumi_id"))
+                current_anime_title = _as_str_or_none(most_recent.get("title"))
+
+    if not current_bangumi_id and not last_location and not visited_bangumi_ids:
+        return None
+
+    return {
+        "current_bangumi_id": current_bangumi_id,
+        "current_anime_title": current_anime_title,
+        "last_location": last_location,
+        "last_intent": session_state.get("last_intent"),
+        "visited_bangumi_ids": visited_bangumi_ids,
+    }
+
+
+def _extract_context_delta(result: PipelineResult) -> dict[str, Any]:
+    bangumi_id: str | None = None
+    anime_title: str | None = None
+    location: str | None = None
+
+    for step_result in result.step_results:
+        if step_result.tool != "resolve_anime" or not step_result.success:
+            continue
+
+        data = step_result.data if isinstance(step_result.data, dict) else {}
+        bangumi_id = _as_str_or_none(data.get("bangumi_id"))
+        anime_title = _as_str_or_none(data.get("title") or data.get("anime_title"))
+        break
+
+    for plan_step, step_result in zip(result.plan.steps, result.step_results):
+        if not step_result.success:
+            continue
+
+        if step_result.tool == "search_nearby" and location is None:
+            location = _as_str_or_none(plan_step.params.get("location"))
+
+        if step_result.tool != "search_bangumi" or bangumi_id is not None:
+            continue
+
+        data = step_result.data if isinstance(step_result.data, dict) else {}
+        rows = data.get("rows")
+        if isinstance(rows, list) and rows:
+            first_row = rows[0] if isinstance(rows[0], dict) else {}
+            bangumi_id = _as_str_or_none(first_row.get("bangumi_id"))
+            anime_title = _as_str_or_none(
+                first_row.get("title") or first_row.get("title_cn")
+            )
+        if bangumi_id is None:
+            bangumi_id = _as_str_or_none(
+                plan_step.params.get("bangumi_id") or plan_step.params.get("bangumi")
+            )
+
+    context_delta: dict[str, Any] = {}
+    if bangumi_id is not None:
+        context_delta["bangumi_id"] = bangumi_id
+    if anime_title is not None:
+        context_delta["anime_title"] = anime_title
+    if location is not None:
+        context_delta["location"] = location
+    return context_delta
+
+
+async def _generate_and_save_title(
+    *,
+    session_id: str,
+    first_query: str,
+    response_message: str,
+    db: Any,
+    user_id: str | None = None,
+) -> None:
+    title = first_query.strip()[:20] or first_query[:20]
+
+    try:
+        from agents.base import create_agent, get_default_model
+
+        agent = create_agent(
+            get_default_model(),
+            system_prompt=(
+                "Generate a very short conversation title (<=15 characters) in the "
+                "same language as the query. Output only the title."
+            ),
+            retries=1,
+        )
+        result = await agent.run(
+            f"Query: {first_query}\nResponse summary: {response_message[:200]}"
+        )
+        candidate = str(result.output).strip()[:20]
+        if candidate:
+            title = candidate
+    except Exception:
+        logger.warning("conversation_title_generation_failed", session_id=session_id)
+
+    update_conversation_title = getattr(db, "update_conversation_title", None)
+    if update_conversation_title is None:
+        return
+
+    try:
+        await update_conversation_title(session_id, title, user_id=user_id)
+    except TypeError:
+        await update_conversation_title(session_id, title)
+    except Exception:
+        logger.warning("update_conversation_title_failed", session_id=session_id)
+
+
+def _as_str_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
