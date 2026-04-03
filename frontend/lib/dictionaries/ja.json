@@ -55,6 +55,7 @@
     "logo_text": "聖地巡礼",
     "new_chat": "+ 新しい会話",
     "recent": "最近の検索",
+    "rename_hint": "ダブルクリックで編集",
     "spots": "{count}スポット",
     "footer": "巡礼者"
   },

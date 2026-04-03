@@ -1,13 +1,23 @@
 "use client";
 
-import type { RouteHistoryRecord } from "../../lib/types";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import { getConversationDisplayTitle } from "../../lib/conversation-history";
+import type { ConversationRecord } from "../../lib/types";
 import { useDict, useLocale, useSetLocale } from "../../lib/i18n-context";
 import { LOCALES, type Locale } from "../../lib/i18n";
 
 interface SidebarProps {
-  routeHistory: RouteHistoryRecord[];
-  bangumiTitleMap?: Map<string, string>;
+  conversations: ConversationRecord[];
+  activeSessionId: string | null;
   onNewChat: () => void;
+  onRenameConversation: (sessionId: string, title: string) => void;
 }
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -16,7 +26,120 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "EN",
 };
 
-export default function Sidebar({ routeHistory, bangumiTitleMap, onNewChat }: SidebarProps) {
+function ConversationItem({
+  active,
+  record,
+  renameHint,
+  onRename,
+}: {
+  active: boolean;
+  record: ConversationRecord;
+  renameHint: string;
+  onRename: (sessionId: string, title: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(getConversationDisplayTitle(record));
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayTitle = getConversationDisplayTitle(record);
+
+  useEffect(() => {
+    if (!editing) {
+      setDraftTitle(displayTitle);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [displayTitle, editing]);
+
+  const cancelEditing = useCallback(() => {
+    setDraftTitle(displayTitle);
+    setEditing(false);
+  }, [displayTitle]);
+
+  const commitEditing = useCallback(() => {
+    const trimmedTitle = draftTitle.trim();
+    if (!trimmedTitle) {
+      cancelEditing();
+      return;
+    }
+
+    if (trimmedTitle !== displayTitle) {
+      onRename(record.session_id, trimmedTitle);
+    }
+    setEditing(false);
+  }, [cancelEditing, displayTitle, draftTitle, onRename, record.session_id]);
+
+  const handleDoubleClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setEditing(true);
+    },
+    [],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitEditing();
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelEditing();
+      }
+    },
+    [cancelEditing, commitEditing],
+  );
+
+  return (
+    <div
+      className={[
+        "group mb-0.5 border-l-2 py-2 pl-3 pr-2 transition",
+        active
+          ? "border-[var(--color-primary)] bg-[var(--color-sidebar-accent)]"
+          : "border-transparent hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-sidebar-accent)]",
+      ].join(" ")}
+      style={{ transitionDuration: "var(--duration-fast)" }}
+      onDoubleClick={editing ? undefined : handleDoubleClick}
+      title={editing ? undefined : renameHint}
+    >
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draftTitle}
+          onChange={(event) => setDraftTitle(event.target.value)}
+          onBlur={commitEditing}
+          onKeyDown={handleKeyDown}
+          className="w-full bg-transparent text-xs font-light text-[var(--color-sidebar-accent-fg)] outline-none"
+        />
+      ) : (
+        <>
+          <p className="truncate text-xs font-light text-[var(--color-sidebar-accent-fg)]">
+            {displayTitle}
+          </p>
+          <p className="mt-1 text-[10px] text-[var(--color-sidebar-fg)] opacity-0 transition group-hover:opacity-60">
+            {renameHint}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Sidebar({
+  conversations,
+  activeSessionId,
+  onNewChat,
+  onRenameConversation,
+}: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
   const setLocale = useSetLocale();
@@ -46,31 +169,21 @@ export default function Sidebar({ routeHistory, bangumiTitleMap, onNewChat }: Si
         </button>
       </div>
 
-      {/* Route history — numbered list */}
+      {/* Conversation history */}
       <div className="flex-1 overflow-y-auto px-4 pt-5">
-        {routeHistory.length > 0 && (
+        {conversations.length > 0 && (
           <>
             <p className="pb-3 text-[10px] font-medium uppercase tracking-widest text-[var(--color-sidebar-fg)] opacity-60">
               {t.recent}
             </p>
-            {routeHistory.map((record, idx) => (
-              <div
-                key={record.route_id ?? idx}
-                className="group mb-0.5 flex items-baseline gap-2.5 border-l-2 border-transparent py-2 pl-2 pr-1 transition hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-sidebar-accent)]"
-                style={{ transitionDuration: "var(--duration-fast)" }}
-              >
-                <span className="shrink-0 text-[10px] font-medium text-[var(--color-primary)]">
-                  {String(idx + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-light text-[var(--color-sidebar-accent-fg)]">
-                    {bangumiTitleMap?.get(record.bangumi_id) ?? record.bangumi_id}
-                  </p>
-                  <p className="text-[10px] text-[var(--color-sidebar-fg)]">
-                    {t.spots.replace("{count}", String(record.point_count))}
-                  </p>
-                </div>
-              </div>
+            {conversations.map((record) => (
+              <ConversationItem
+                key={record.session_id}
+                active={record.session_id === activeSessionId}
+                record={record}
+                renameHint={t.rename_hint}
+                onRename={onRenameConversation}
+              />
             ))}
           </>
         )}

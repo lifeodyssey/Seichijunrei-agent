@@ -1,43 +1,71 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useConversationHistory } from "../../hooks/useConversationHistory";
 import { useSession } from "../../hooks/useSession";
 import { useChat } from "../../hooks/useChat";
 import { useLocale } from "../../lib/i18n-context";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { isVisualResponse } from "../generative/registry";
-import { isSearchData } from "../../lib/types";
-import type { RouteData, PilgrimagePoint } from "../../lib/types";
 import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
 import ResultPanel from "./ResultPanel";
 import ResultDrawer from "./ResultDrawer";
-import type { RouteHistoryRecord } from "../../lib/types";
 
 export default function AppShell() {
   const locale = useLocale();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const { sessionId, setSessionId, clearSession } = useSession();
   const { messages, send, sending, clear } = useChat(sessionId, setSessionId, locale);
+  const { conversations, upsert: upsertConversation, rename: renameConversation } =
+    useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(360);
   const chatWidthRef = useRef(chatWidth);
   const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
+  const lastSyncedResponseIdRef = useRef<string | null>(null);
 
   useEffect(() => { chatWidthRef.current = chatWidth; }, [chatWidth]);
 
-  // Extract route history from the latest response that has one
-  const routeHistory: RouteHistoryRecord[] = useMemo(
-    () =>
-      [...messages]
-        .reverse()
-        .find((m) => m.response?.route_history?.length)
-        ?.response?.route_history ?? [],
+  const latestConversationResponse = useMemo(
+    () => {
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        const responseSessionId = message.response?.session_id;
+        if (!responseSessionId) continue;
+
+        const firstQuery =
+          index > 0 && messages[index - 1]?.role === "user"
+            ? messages[index - 1].text
+            : "";
+
+        return {
+          firstQuery,
+          responseId: message.id,
+          sessionId: responseSessionId,
+        };
+      }
+
+      return null;
+    },
     [messages],
   );
+
+  useEffect(() => {
+    if (!latestConversationResponse) return;
+    if (lastSyncedResponseIdRef.current === latestConversationResponse.responseId) {
+      return;
+    }
+
+    upsertConversation(
+      latestConversationResponse.sessionId,
+      latestConversationResponse.firstQuery,
+    );
+    lastSyncedResponseIdRef.current = latestConversationResponse.responseId;
+  }, [latestConversationResponse, upsertConversation]);
 
   // The most recent message that has a backend response
   const latestResponseMessage = useMemo(
@@ -63,29 +91,6 @@ export default function AppShell() {
   );
 
   const hasVisualResponse = selectedVisualMessage !== null || latestVisualResponseMessage !== null;
-
-  // Build bangumi_id → title map from all responses for sidebar display
-  const bangumiTitleMap = useMemo(() => {
-    const map = new Map<string, string>();
-    messages.forEach((m) => {
-      if (!m.response) return;
-      const { data } = m.response;
-      let rows: PilgrimagePoint[] = [];
-      if (isSearchData(data)) {
-        rows = data.results.rows;
-      } else if ("route" in data) {
-        rows = ((data as unknown) as RouteData).route.ordered_points;
-      }
-      rows.forEach((r) => {
-        const title = r.title_cn || r.title;
-        if (r.bangumi_id && title) {
-          map.set(r.bangumi_id, title);
-        }
-      });
-    });
-    return map;
-  }, [messages]);
-
   // Suppress stale visual during loading (Bug 2); honour explicit pin otherwise
   const activeMessage =
     selectedVisualMessage ?? (sending ? null : latestVisualResponseMessage);
@@ -96,6 +101,7 @@ export default function AppShell() {
   const handleNewChat = useCallback(() => {
     clear();
     clearSession();
+    lastSyncedResponseIdRef.current = null;
     setActiveMessageId(null);
     setDrawerOpen(false);
   }, [clear, clearSession]);
@@ -136,9 +142,10 @@ export default function AppShell() {
     <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
       {!isMobile && (
         <Sidebar
-          routeHistory={routeHistory}
-          bangumiTitleMap={bangumiTitleMap}
+          conversations={conversations}
+          activeSessionId={sessionId}
           onNewChat={handleNewChat}
+          onRenameConversation={renameConversation}
         />
       )}
 

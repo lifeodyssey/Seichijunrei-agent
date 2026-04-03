@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./.tmp-test-build",
+    "rootDir": ".",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "incremental": false,
+    "types": ["node"],
+    "plugins": []
+  },
+  "include": [
+    "tests/**/*.ts",
+    "lib/api.ts",
+    "lib/supabase.ts",
+    "lib/types.ts",
+    "lib/conversation-history.ts"
+  ],
+  "exclude": ["node_modules"]
+}

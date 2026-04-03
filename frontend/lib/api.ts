@@ -1,10 +1,17 @@
-import type { RuntimeRequest, RuntimeResponse } from "./types";
-import { supabase } from "./supabase";
+import type {
+  ConversationRecord,
+  RuntimeRequest,
+  RuntimeResponse,
+} from "./types";
+import { getSupabaseClient } from "./supabase";
 
 const RUNTIME_URL =
   (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "").replace(/\/$/, "");
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return {};
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return {};
   return { Authorization: `Bearer ${session.access_token}` };
@@ -128,4 +135,37 @@ export async function submitFeedback(params: {
   }
 
   return res.json();
+}
+
+export async function fetchConversations(): Promise<ConversationRecord[]> {
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders.Authorization) return [];
+
+  const res = await fetch(`${RUNTIME_URL}/v1/conversations`, {
+    headers: authHeaders,
+  });
+
+  if (!res.ok) return [];
+  return res.json() as Promise<ConversationRecord[]>;
+}
+
+export async function patchConversationTitle(
+  sessionId: string,
+  title: string,
+): Promise<void> {
+  const res = await fetch(
+    `${RUNTIME_URL}/v1/conversations/${encodeURIComponent(sessionId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeaders()),
+      },
+      body: JSON.stringify({ title }),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Rename failed (${res.status})`);
+  }
 }
