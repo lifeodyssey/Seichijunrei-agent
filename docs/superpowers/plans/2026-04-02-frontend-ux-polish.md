@@ -1,6 +1,6 @@
 # Frontend UX Polish Implementation Plan
 
-> **Status:** Plan only — not yet executed. Save to `docs/superpowers/plans/2026-04-02-frontend-ux-polish.md` and commit before starting implementation.
+> **Status (2026-04-03):** Historical plan — the intended fixes largely landed. Keep as a checklist/rationale; use `docs/ARCHITECTURE.md` and the `frontend/` code as the current source of truth.
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix two confirmed layout bugs (non-visual responses trigger right panel; stale data shown during loading) and address all UX issues found in systematic review: missing onboarding, raw database IDs in sidebar, intrusive feedback buttons, missing loading indicators, broken abort, vestigial dead code.

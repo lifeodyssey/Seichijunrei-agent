@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working in this repository.
 
 Seichijunrei is an anime pilgrimage search and route planning service.
 
-**Implementation status:** Iter 0.5–3 are in progress. See `docs/superpowers/plans/` for task-by-task steps. Docs here describe the TARGET architecture — check which files exist before assuming they are complete.
+**Implementation status:** Core runtime + Cloudflare deploy path are in place. Active work (and any remaining TODOs) lives in `task_plan.md` and `docs/superpowers/plans/`.
 
 ## Current Commands
 
@@ -116,7 +116,7 @@ Key components:
 - Mobile: `ResultDrawer` (vaul bottom sheet) activated by `◈` anchor tap
 
 Design tokens (`frontend/app/globals.css`):
-- `--color-bg: oklch(98% 0.008 218)` · `--color-primary: oklch(60% 0.148 240)` · `--font-display: "Shippori Mincho B1"`
+- `--color-bg: oklch(98% 0.008 218)` · `--color-primary: oklch(60% 0.148 240)` · `--app-font-display: "Shippori Mincho B1"`
 - Light theme — no dark mode toggle, no `@media (prefers-color-scheme)` conditional
 
 ### Eval Infrastructure
@@ -129,11 +129,11 @@ Design tokens (`frontend/app/globals.css`):
 
 ## Deployment
 
-- Container: Python aiohttp service via `Dockerfile` → GHCR → Cloudflare Containers
+- Container: Python aiohttp service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
 - Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
 - Worker: `src/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
-- Deploy: `gh workflow run deploy.yml -f environment=staging|production`
-- DB migrations: apply `infrastructure/supabase/migrations/` in order before each deploy
+- Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
+- DB migrations: apply `infrastructure/supabase/migrations/` in order before each deploy (see `DEPLOYMENT.md`)
 
 ## Working Expectations
 

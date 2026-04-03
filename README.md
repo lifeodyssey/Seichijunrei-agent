@@ -6,7 +6,7 @@ Anime pilgrimage search and route planning service.
 
 `ReActPlannerAgent -> ExecutorAgent -> tools/use cases`
 
-**Implementation status:** Iter 0.5–3 are in progress. See `docs/superpowers/plans/` for task-by-task steps.
+**Implementation status:** Core runtime + Cloudflare deploy path are in place. Active work (and any remaining TODOs) lives in `task_plan.md` and `docs/superpowers/plans/`.
 
 ## What This Builds
 
@@ -14,7 +14,7 @@ Anime pilgrimage search and route planning service.
 - `resolve_anime` self-evolving anime catalog — DB-first, Bangumi.tv API on miss, write-through
 - Parameterized SQL + geo retrieval against Supabase/Postgres + PostGIS
 - Deterministic `ExecutorAgent` — no LLM calls during execution; static message templates
-- Always-dark three-column frontend with Generative UI registry (chat + result panel)
+- Three-column frontend (京吹夏季 light palette) with Generative UI registry (chat + result panel)
 - JWT + API key auth enforced at Cloudflare Worker edge
 - `aiohttp` HTTP service: `/healthz`, `/v1/runtime`, `/v1/feedback`
 - Session-aware public API with persisted route history
@@ -84,6 +84,14 @@ Optional: `SERVICE_HOST`, `SERVICE_PORT`, `SESSION_STORE_BACKEND`, `OBSERVABILIT
 
 See [config/settings.py](config/settings.py) for the full source of truth and [`.env.example`](.env.example) for defaults.
 
+Frontend build/runtime (for `frontend/`, especially local dev):
+
+- `NEXT_PUBLIC_RUNTIME_URL` (optional; leave blank in Cloudflare so it calls the same Worker origin)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+See [`frontend/.env.local.example`](frontend/.env.local.example).
+
 ## Example Usage
 
 Python (direct):
@@ -134,3 +142,6 @@ tools/           Eval CLI tools: eval_scorer.py, eval_feedback_miner.py
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — full architecture reference
 - [docs/superpowers/plans/](docs/superpowers/plans/) — implementation plans (Iter 0–3 + Auth)
 - [docs/superpowers/specs/](docs/superpowers/specs/) — design spec
+- [DEPLOYMENT.md](DEPLOYMENT.md) — deployment notes (Cloudflare Workers + Containers)
+- [CLAUDE.md](CLAUDE.md) — repo guide for Claude Code (and other agents)
+- [AGENTS.md](AGENTS.md) — repo-wide guardrails for agentic coding tools

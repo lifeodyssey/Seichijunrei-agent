@@ -1,8 +1,10 @@
 # Seichijunrei — Frontend & Memory Architecture Spec
 
 **日期:** 2026-04-01
-**状态:** 设计确认，待实现
+**状态:** 设计确认，主要已实现（以 `docs/ARCHITECTURE.md` 与代码为准）
 **关联:** `2026-04-01-memory-compact-design.md`（保留，本文件扩展并取优先）
+
+> **更新说明（2026-04-03）：** 本 spec 里关于 context_block、route origin、SSE step trace、user_memory、compact 等核心能力已经落地；个别 UI/数据字段可能按实现做了调整。阅读时请以代码为准。
 
 ---
 

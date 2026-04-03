@@ -76,6 +76,7 @@ anitabi/
 .augment/
 .claude/
 .kiro/
+.playwright-mcp/
 .roo/
 .superpowers/
 .trae/

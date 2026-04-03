@@ -1,5 +1,7 @@
 # Supabase Migration Workflow Design
 
+> **Update (2026-04-03):** This workflow has landed (root `supabase/`, Makefile `db-*` helpers, CI validation, and deploy-time `db push` stage). Treat this doc as rationale; prefer `DEPLOYMENT.md`, `.github/workflows/`, and `supabase/` as the source of truth.
+
 ## Goal
 
 Adopt Supabase CLI as the single supported migration workflow for this repository so database schema changes are versioned, reviewable, and applied in a dedicated deployment step instead of through ad hoc SQL execution or application startup.

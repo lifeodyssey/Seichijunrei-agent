@@ -21,18 +21,13 @@ Intent reasoning is fused into the planner's LLM pass; there is no separate `Int
 
 Current baseline:
 
-- bangumi-id lookup
-- location lookup with PostGIS
-- route point fetch for planning
+- Deterministic retriever layer with `sql`, `geo`, and `hybrid` strategies
+- PostGIS-backed geo search + structured SQL retrieval (parameterized only)
+- DB-miss fallback flow (external source → write-through to Supabase) where appropriate
+- Optional `force_refresh` to bypass cached reads when freshness matters
 
-Next expansion:
-
-- `sql`
-- `geo`
-- `hybrid`
-
-These strategies should plug into the executor as capabilities, not as a second
-agent hierarchy.
+Strategy selection stays deterministic policy. The planner may choose which *tool*
+to call, but the retriever itself should not become a second LLM-driven agent hierarchy.
 
 ## What Was Removed
 
@@ -43,5 +38,5 @@ agent hierarchy.
 
 ## Open Question
 
-How much of the retriever should remain deterministic policy versus LLM-chosen
-strategy selection inside the executor?
+How far should "freshness" go (per-tool cache TTLs, user-controlled refresh) before
+it becomes a product UX surface instead of a runtime concern?

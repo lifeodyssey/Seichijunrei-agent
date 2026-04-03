@@ -1,5 +1,7 @@
 # Frontend Feature Dev Plan
 
+> **Archive note (2026-04-03):** This was an early plan. The current frontend is implemented under `frontend/` with a Generative UI registry + anchor-driven right panel. Use `docs/ARCHITECTURE.md` and `frontend/AGENTS.md` for the up-to-date shape.
+
 ## Scope
 
 Chat-first generative UI frontend for the Seichijunrei runtime.

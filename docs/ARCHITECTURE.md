@@ -22,11 +22,13 @@ class ToolName(str, Enum):
     SEARCH_BANGUMI = "search_bangumi"
     SEARCH_NEARBY = "search_nearby"
     PLAN_ROUTE = "plan_route"
+    PLAN_SELECTED = "plan_selected"
     ANSWER_QUESTION = "answer_question"
+    GREET_USER = "greet_user"
 
 class PlanStep(BaseModel):
     tool: ToolName
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
     parallel: bool = False
 
 class ExecutionPlan(BaseModel):
@@ -41,6 +43,7 @@ class RetrievalRequest(BaseModel):
     location: str | None = None
     origin: str | None = None
     radius: int | None = None
+    force_refresh: bool = False
 ```
 
 ## ReActPlannerAgent — `agents/planner_agent.py`
@@ -65,7 +68,9 @@ class RetrievalRequest(BaseModel):
 | `search_bangumi` | `_execute_search_bangumi` | Reads `context["resolve_anime"]["bangumi_id"]` when `params.bangumi_id` is None |
 | `search_nearby` | `_execute_search_nearby` | Geo query via Retriever |
 | `plan_route` | `_execute_plan_route` | Nearest-neighbor sort on bangumi points |
+| `plan_selected` | `_execute_plan_selected` | Deterministic route for selected point IDs (no planner pass) |
 | `answer_question` | `_execute_answer_question` | Static FAQ response |
+| `greet_user` | `_execute_greet_user` | Onboarding response (sessionless) |
 
 ## Retriever — `agents/retriever.py`
 
@@ -84,7 +89,7 @@ Accepts `RetrievalRequest` (replaces old `IntentOutput`). Parameterized queries 
 
 ## HTTP Service — `interfaces/http_service.py`
 
-aiohttp. Endpoints: `GET /healthz`, `POST /v1/runtime`, `POST /v1/feedback`. Auth is NOT enforced here — it is enforced upstream in the CF Worker.
+aiohttp. Endpoints: `GET /healthz`, `POST /v1/runtime`, `POST /v1/runtime/stream` (SSE), `POST /v1/feedback`. Auth is NOT enforced here — it is enforced upstream in the CF Worker.
 
 ## Response Contract
 
@@ -94,13 +99,24 @@ interface UIDescriptor {
   props: Record<string, unknown>
 }
 
-interface RuntimeResponse {
+interface PublicAPIError {
+  code: string
+  message: string
+  details: Record<string, unknown>
+}
+
+interface PublicAPIResponse {
+  success: boolean
+  status: string
   intent: string
-  message: string     // localized static template, no LLM latency
-  data: SearchData | RouteData | QAData | null
-  ui?: UIDescriptor   // additive field for Generative UI
-  session: string | null
-  route_history: RoutePoint[]
+  session_id: string | null
+  message: string
+  data: Record<string, unknown>
+  session: Record<string, unknown>
+  route_history: Array<Record<string, unknown>>
+  errors: PublicAPIError[]
+  ui?: UIDescriptor
+  debug?: Record<string, unknown>
 }
 ```
 
@@ -123,7 +139,7 @@ CF Worker validates credentials before proxying to the container:
 
 API keys: stored as SHA-256 hash in `api_keys` table. Raw key shown once at creation.
 
-## Frontend Auth — `components/auth/AuthGate.tsx` + `AuthCallbackPage.tsx`
+## Frontend Auth — `frontend/components/auth/AuthGate.tsx` + `frontend/app/auth/callback/page.tsx`
 
 Both frontend Supabase clients use `flowType: 'implicit'`. This is intentional:
 
@@ -144,7 +160,7 @@ PKCE (`flowType: 'pkce'`) was the previous default but failed cross-browser: the
 │ History │ user messages    │ GenerativeUIRenderer │
 │ New     │ bot: text only   │ (active result)      │
 │         │ + ◈ anchor cards │                      │
-│         │ [input]          │ empty: dark map bg   │
+│         │ [input]          │ empty: faint map bg  │
 └─────────┴──────────────────┴──────────────────────┘
 ```
 
@@ -170,14 +186,17 @@ Locale is detected client-side from `localStorage` (key `locale`) via `lib/i18n.
 
 ### Design Tokens
 
-Always dark — no media query conditional.
+Light theme — no dark mode toggle.
 
 ```css
---color-bg:       #0f0f11
---color-fg:       #f0ece6
---color-card:     #17171a
---color-primary:  #d4954a   /* 琥珀橙 */
---font-display:   "Shippori Mincho B1"
+--color-bg:      oklch(98% 0.008 218)
+--color-fg:      oklch(20% 0.025 238)
+--color-card:    oklch(95% 0.012 215)
+--color-muted:   oklch(91% 0.016 218)
+--color-primary: oklch(60% 0.148 240)
+
+--app-font-display: "Shippori Mincho B1"
+--app-font-body:    "Outfit"
 ```
 
 ## Eval Infrastructure

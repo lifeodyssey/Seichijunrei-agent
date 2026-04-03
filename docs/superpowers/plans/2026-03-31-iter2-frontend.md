@@ -1,6 +1,7 @@
 # Seichijunrei — Iter 2: Frontend Redesign Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status (2026-04-03):** Landed in the codebase, but design tokens/palette have since evolved. Treat this as historical rationale; use `docs/ARCHITECTURE.md` + `frontend/app/globals.css` for current behavior/tokens.
 
 **Goal:** Three-column layout (sidebar + chat-text-only + result panel). Generative UI renderer replaces hardcoded switch. Always-dark Shippori Mincho theme. Chat panel anchors results — clicking `◈` activates the corresponding result in the right panel. English locale added.
 

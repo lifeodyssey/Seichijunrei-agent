@@ -1,6 +1,7 @@
 # Iter 2: Persistence — Conversations, User Memory, Data Freshness
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status (2026-04-03):** Landed in the codebase. Keep as historical rationale/checklist; use `docs/ARCHITECTURE.md` and current migrations/code as the source of truth.
 
 **Goal:** Make conversations and user context persistent across page refreshes and sessions; let users see and rename their conversation history in the sidebar; add force-refresh to bust stale pilgrimage data.
 

@@ -101,8 +101,16 @@
 - Executor output is normalized for ok, empty, partial, and error states
 - A thin public API layer now wraps `run_pipeline`
 - Session state and route history persist across public API calls
+- Planner receives a structured context block derived from session + user memory
+- SSE streaming endpoint (`/v1/runtime/stream`) is available and wired to the frontend client
+- Onboarding + selected-point routing paths exist (`greet_user`, `plan_selected`)
 - An HTTP service and Cloudflare Containers deployment path now exist (wrangler 4, auto-deploy on push to main)
 - OpenTelemetry tracing and metrics hooks are now wired into the runtime
 - Acceptance baselines now cover the main runtime flows end to end
 - Auth: implicit flow magic links, success-card UX after send
-- The current task plan is complete through Phase 5
+- Docs are kept in sync in `README.md`, `docs/ARCHITECTURE.md`, `DEPLOYMENT.md`, `CLAUDE.md`
+
+## 2026-04-03 — Repo hygiene + docs sync
+
+- Ignored local Playwright MCP state (`.playwright-mcp/`) and moved scratch images under `images/`
+- Updated all Markdown docs to match the current runtime + frontend behavior

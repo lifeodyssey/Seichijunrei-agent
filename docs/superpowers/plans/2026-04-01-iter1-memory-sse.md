@@ -1,6 +1,7 @@
 # Iter 1: Memory Context + Route Origin + SSE Streaming
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status (2026-04-03):** Landed in the codebase. Keep as historical rationale/checklist; use `docs/ARCHITECTURE.md` + `interfaces/public_api.py` for the current shape.
 
 **Goal:** Make the planner session-aware, give route planning a real start point, and show users real-time step progress via SSE.
 

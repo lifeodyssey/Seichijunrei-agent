@@ -7,16 +7,15 @@ Pydantic AI, Supabase, and a Plan-and-Execute execution model.
 
 ## Current Phase
 
-Phase 5 — Platform hardening complete
+Documentation & repo hygiene (2026-04-03)
 
 ## Phases
 
 ### Phase 1 — Foundation
 
 - [x] STORY 1.1: Supabase client and schema foundation
-- [x] STORY 1.2: IntentAgent with regex fast-path and LLM fallback
-- [x] STORY 1.3: SQLAgent with parameterized retrieval
-- [x] STORY 1.4: PlannerAgent + ExecutorAgent core runtime
+- [x] STORY 1.2: ReActPlannerAgent structured plan output (Pydantic AI)
+- [x] STORY 1.3: Deterministic ExecutorAgent tool dispatch + static templates
 - Status: done
 
 ### Phase 2 — Convergence Cleanup
@@ -44,6 +43,22 @@ Phase 5 — Platform hardening complete
 - [x] STORY 5.3: End-to-end acceptance and baseline comparison
 - Status: done
 
+### Phase 6 — Memory + Streaming
+
+- [x] STORY 6.1: Session-aware context injection into planner prompt
+- [x] STORY 6.2: Route origin support (planner + executor)
+- [x] STORY 6.3: `POST /v1/runtime/stream` SSE endpoint + frontend client
+- [x] STORY 6.4: Session compaction (LLM-backed, best-effort)
+- Status: done
+
+### Phase 7 — Persistence + UX
+
+- [x] STORY 7.1: User memory persistence (Supabase `user_memory`)
+- [x] STORY 7.2: Onboarding greeting flow (`greet_user`)
+- [x] STORY 7.3: Selected-point routing without planner pass (`plan_selected`)
+- [x] STORY 7.4: Frontend UX polish (loading, onboarding prompts, sidebar titles)
+- Status: done
+
 ## Key Decisions
 
 - Runtime orchestration is `ReActPlannerAgent -> ExecutorAgent` (no separate IntentAgent)
@@ -53,4 +68,4 @@ Phase 5 — Platform hardening complete
 
 ## Next Story
 
-No active story queued
+No active story queued (keep docs in sync with code changes)

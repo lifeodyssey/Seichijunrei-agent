@@ -1,5 +1,7 @@
 # Frontend Zero Redesign
 
+> **Archive note (2026-04-03):** This is a product exploration snapshot. For the current shipped UI architecture and tokens, see `docs/ARCHITECTURE.md` + `frontend/app/globals.css`.
+
 ## Product Question
 
 This product is not a general AI chat app.

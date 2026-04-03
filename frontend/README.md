@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Seichijunrei Frontend
 
-## Getting Started
+Next.js App Router frontend for the Seichijunrei runtime.
 
-First, run the development server:
+UI model:
+
+- Three-column shell (`AppShell`): sidebar + chat + result panel
+- Bot responses stay text-first in chat; visual results render in the right panel via Generative UI registry
+- Mobile uses a bottom-sheet drawer (`vaul`) for the result panel
+
+See `frontend/AGENTS.md` and `docs/ARCHITECTURE.md` for the current architecture rules.
+
+## Environment
+
+Copy the example env file:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required (for auth + waitlist):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Optional (local dev only; leave blank on Cloudflare so it calls the same Worker origin):
 
-## Learn More
+- `NEXT_PUBLIC_RUNTIME_URL=http://localhost:8080`
 
-To learn more about Next.js, take a look at the following resources:
+## Local Development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run the backend runtime (from repo root):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+make dev
+make serve
+```
 
-## Deploy on Vercel
+Run the frontend dev server:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open `http://localhost:3000`.
+
+## Build (Static Export)
+
+This project uses `output: "export"` and builds to `frontend/out/`:
+
+```bash
+cd frontend
+npm run build
+```
+
+The Cloudflare Worker serves `frontend/out/` via the `ASSETS` binding (see `wrangler.toml` and `DEPLOYMENT.md`).

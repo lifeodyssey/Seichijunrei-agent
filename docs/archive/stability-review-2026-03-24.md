@@ -2,6 +2,8 @@
 
 日期：2026-03-24
 
+> **归档说明（2026-04-03）：** 本文记录的是 2026-03-24 当时的稳定性问题与风险点，其中不少已在后续迭代中修复（例如：deterministic message 模板、session context 注入、SSE step trace 等）。以 `docs/ARCHITECTURE.md` 和代码为准。
+
 ## 结论
 
 当前代码的核心链路并不算“乱”，主干也比较清晰：

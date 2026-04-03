@@ -6,6 +6,8 @@ The repository now ships a deployable backend service:
 
 - `interfaces/http_service.py` exposes `GET /healthz`
 - `interfaces/http_service.py` exposes `POST /v1/runtime`
+- `interfaces/http_service.py` exposes `POST /v1/runtime/stream` (SSE)
+- `interfaces/http_service.py` exposes `POST /v1/feedback`
 - `Dockerfile` packages the runtime into a single container image
 
 The deployment target is intentionally thin. The service wraps the existing
@@ -30,6 +32,7 @@ Default bind settings:
 - `SUPABASE_DB_URL`
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ANON_KEY` (required by the Worker for JWT validation)
 - `ANITABI_API_URL`
 - provider credentials for the configured model backend
 
