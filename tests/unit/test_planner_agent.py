@@ -62,6 +62,22 @@ class TestReActPlannerAgent:
         assert "last_location: 京都" in result
         assert "anime:" not in result
 
+    def test_format_context_block_renders_summary_first(self) -> None:
+        from agents.planner_agent import _format_context_block
+
+        block = {
+            "summary": "previous summary",
+            "current_bangumi_id": "253",
+            "current_anime_title": "響け！ユーフォニアム",
+            "last_location": "宇治",
+            "last_intent": "search_bangumi",
+            "visited_bangumi_ids": ["253"],
+        }
+
+        result = _format_context_block(block)
+        lines = result.splitlines()
+        assert lines[1] == "summary: previous summary"
+
     async def test_create_plan_returns_execution_plan(self, mock_plan_bangumi):
         with patch("agents.planner_agent.create_agent") as mock_create:
             mock_agent = AsyncMock()

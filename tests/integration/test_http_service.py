@@ -116,7 +116,10 @@ class TestHTTPServiceSSE:
         assert response is FakeStreamResponse.last_instance
         assert response.headers["Content-Type"] == "text/event-stream; charset=utf-8"
         body = "".join(response.chunks)
+        assert "event: step" in body
+        assert "event: done" in body
         assert '"event": "step"' in body
+        assert '"data": {"rows": []}' in body
         assert '"event": "done"' in body
 
 
@@ -158,4 +161,3 @@ async def test_patch_conversation_smoke(mock_db) -> None:
         "新的标题",
         user_id="user-1",
     )
-

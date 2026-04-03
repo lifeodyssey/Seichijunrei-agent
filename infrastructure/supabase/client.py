@@ -220,6 +220,23 @@ class SupabaseClient:
             bangumi_id,
         )
 
+    async def get_points_by_ids(self, point_ids: list[str]) -> list[dict]:
+        """Fetch specific points by ID, preserving the input order."""
+        if not point_ids:
+            return []
+
+        rows = await self.pool.fetch(
+            """
+            SELECT p.*
+            FROM points p
+            JOIN unnest($1::text[]) WITH ORDINALITY AS requested(id, ord)
+              ON p.id = requested.id
+            ORDER BY requested.ord
+            """,
+            point_ids,
+        )
+        return [dict(row) for row in rows]
+
     async def search_points_by_location(
         self,
         lat: float,

@@ -81,11 +81,15 @@ def _format_context_block(context: dict[str, Any] | None) -> str:
         return ""
 
     lines = ["[context]"]
+    summary = context.get("summary")
     current_title = context.get("current_anime_title")
     current_bangumi_id = context.get("current_bangumi_id")
     last_location = context.get("last_location")
     last_intent = context.get("last_intent")
     visited_ids = context.get("visited_bangumi_ids") or []
+
+    if summary:
+        lines.append(f"summary: {summary}")
 
     if current_title and current_bangumi_id:
         lines.append(f"anime: {current_title} (bangumi_id: {current_bangumi_id})")

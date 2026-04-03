@@ -189,10 +189,10 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
 
     async def emit(event: str, data: dict[str, Any]) -> None:
         payload = json.dumps({"event": event, **data}, ensure_ascii=False)
-        await resp.write(f"data: {payload}\n\n".encode("utf-8"))
+        await resp.write(f"event: {event}\ndata: {payload}\n\n".encode("utf-8"))
 
     async def on_step(tool: str, status: str, data: dict[str, Any]) -> None:
-        await emit("step", {"tool": tool, "status": status})
+        await emit("step", {"tool": tool, "status": status, "data": data})
 
     try:
         await emit("planning", {"status": "running"})

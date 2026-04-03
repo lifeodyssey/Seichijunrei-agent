@@ -197,3 +197,53 @@ class TestExecutorAgentExecute:
         )
 
         assert _infer_primary_tool(plan) == "search_nearby"
+
+
+class TestPlanSelected:
+    async def test_routes_provided_point_ids(self, mock_db):
+        mock_db.get_points_by_ids = AsyncMock(
+            return_value=[
+                {
+                    "id": "far",
+                    "latitude": 10.0,
+                    "longitude": 10.0,
+                    "name": "Far",
+                    "bangumi_id": "253",
+                },
+                {
+                    "id": "near",
+                    "latitude": 0.05,
+                    "longitude": 0.05,
+                    "name": "Near",
+                    "bangumi_id": "253",
+                },
+            ]
+        )
+        plan = _plan(
+            PlanStep(
+                tool=ToolName.PLAN_SELECTED,
+                params={"point_ids": ["far", "near"], "origin": "宇治駅"},
+            )
+        )
+        executor = ExecutorAgent(mock_db)
+
+        with patch(
+            "agents.executor_agent.resolve_location",
+            new=AsyncMock(return_value=(0.0, 0.0)),
+        ):
+            result = await executor.execute(plan)
+
+        assert result.intent == "plan_selected"
+        assert result.success
+        route = result.final_output.get("route", {})
+        assert route.get("point_count") == 2
+        assert route.get("ordered_points", [])[0]["id"] == "near"
+        mock_db.get_points_by_ids.assert_awaited_once_with(["far", "near"])
+
+    async def test_returns_error_when_no_point_ids(self, mock_db):
+        plan = _plan(PlanStep(tool=ToolName.PLAN_SELECTED, params={"point_ids": []}))
+
+        result = await ExecutorAgent(mock_db).execute(plan)
+
+        assert result.intent == "plan_selected"
+        assert not result.success

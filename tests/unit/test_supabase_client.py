@@ -155,6 +155,34 @@ class TestFindBangumiByTitle:
         assert result is None
 
 
+class TestGetPointsByIds:
+    async def test_returns_empty_for_empty_input(self, mock_pool):
+        client = SupabaseClient.__new__(SupabaseClient)
+        client._pool = mock_pool
+
+        result = await client.get_points_by_ids([])
+
+        assert result == []
+        mock_pool.fetch.assert_not_awaited()
+
+    async def test_fetches_points_preserving_input_order(self, mock_pool):
+        mock_pool.fetch.return_value = [
+            {"id": "p2", "name": "Byodoin"},
+            {"id": "p1", "name": "Uji Bridge"},
+        ]
+        client = SupabaseClient.__new__(SupabaseClient)
+        client._pool = mock_pool
+
+        result = await client.get_points_by_ids(["p2", "p1"])
+
+        assert result == [
+            {"id": "p2", "name": "Byodoin"},
+            {"id": "p1", "name": "Uji Bridge"},
+        ]
+        sql = mock_pool.fetch.await_args.args[0]
+        assert "WITH ORDINALITY" in sql
+
+
 class TestUpsertBangumiTitle:
     async def test_upserts_title(self, mock_pool):
         mock_pool.execute.return_value = None

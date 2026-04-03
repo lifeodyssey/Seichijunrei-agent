@@ -14,9 +14,11 @@ from typing import Any, Literal
 from uuid import uuid4
 
 import structlog
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
-from agents.executor_agent import PipelineResult, StepResult
+from agents.base import create_agent, get_default_model
+from agents.executor_agent import ExecutorAgent, PipelineResult, StepResult
+from agents.models import ExecutionPlan, PlanStep, ToolName
 from agents.pipeline import run_pipeline
 from application.errors import ApplicationError, ErrorCode
 from infrastructure.observability import (
@@ -27,6 +29,8 @@ from infrastructure.session import SessionStore, create_session_store
 
 logger = structlog.get_logger(__name__)
 
+_COMPACT_THRESHOLD = 8
+_COMPACT_KEEP_RECENT = 2
 _MAX_INTERACTIONS = 20
 _MAX_ROUTE_HISTORY = 10
 
@@ -34,7 +38,7 @@ _MAX_ROUTE_HISTORY = 10
 class PublicAPIRequest(BaseModel):
     """Public request contract for runtime execution."""
 
-    text: str = Field(..., min_length=1, description="User message to process")
+    text: str = Field(default="", description="User message to process")
     session_id: str | None = Field(
         default=None,
         description="Optional session identifier for persisting conversation state",
@@ -51,14 +55,34 @@ class PublicAPIRequest(BaseModel):
         default=False,
         description="Include plan and step-level details in the response",
     )
+    selected_point_ids: list[str] | None = Field(
+        default=None,
+        description="Optional point IDs to route directly without planner execution.",
+    )
+    origin: str | None = Field(
+        default=None,
+        description="Optional departure location for selected-point routing.",
+    )
 
-    @field_validator("text")
-    @classmethod
-    def validate_text(cls, value: str) -> str:
-        text = value.strip()
-        if not text:
-            raise ValueError("text cannot be blank")
-        return text
+    @model_validator(mode="after")
+    def validate_request(self) -> PublicAPIRequest:
+        self.text = self.text.strip()
+        if self.origin is not None:
+            self.origin = self.origin.strip() or None
+        if self.selected_point_ids is not None:
+            cleaned_ids = [
+                point_id
+                for point_id in (
+                    str(point_id).strip() for point_id in self.selected_point_ids
+                )
+                if point_id
+            ]
+            self.selected_point_ids = cleaned_ids or None
+        if not self.text and not self.selected_point_ids:
+            raise ValueError(
+                "text cannot be blank unless selected_point_ids is provided"
+            )
+        return self
 
 
 class PublicAPIError(BaseModel):
@@ -132,16 +156,28 @@ class RuntimeAPI:
                 context_delta: dict[str, Any] = {}
                 user_memory = await self._load_user_memory(user_id)
                 context = _build_context_block(previous_state, user_memory=user_memory)
+                synthetic_plan = (
+                    _build_selected_points_plan(request)
+                    if request.selected_point_ids
+                    else None
+                )
 
                 try:
-                    result = await run_pipeline(
-                        request.text,
-                        self._db,
-                        model=request.model,
-                        locale=request.locale,
-                        context=context,
-                        on_step=on_step,
-                    )
+                    if synthetic_plan is not None:
+                        result = await ExecutorAgent(self._db).execute(
+                            synthetic_plan,
+                            context_block=context,
+                            on_step=on_step,
+                        )
+                    else:
+                        result = await run_pipeline(
+                            request.text,
+                            self._db,
+                            model=request.model,
+                            locale=request.locale,
+                            context=context,
+                            on_step=on_step,
+                        )
                 except ApplicationError as exc:
                     span.record_exception(exc)
                     response = _application_error_response(exc)
@@ -208,6 +244,14 @@ class RuntimeAPI:
                     context_delta=context_delta,
                     previous_state=previous_state,
                 )
+                if len(session_state.get("interactions") or []) >= _COMPACT_THRESHOLD:
+                    asyncio.create_task(
+                        _compact_session_interactions(
+                            session_id,
+                            session_state,
+                            self._session_store,
+                        )
+                    )
 
                 response.session = _build_session_summary(session_state)
                 response.route_history = list(session_state["route_history"])
@@ -412,6 +456,7 @@ _UI_MAP: dict[str, str] = {
     "search_bangumi": "PilgrimageGrid",
     "search_nearby": "NearbyMap",
     "plan_route": "RouteVisualization",
+    "plan_selected": "RouteVisualization",
     "general_qa": "GeneralAnswer",
     "answer_question": "GeneralAnswer",
     "greet_user": "GeneralAnswer",
@@ -471,6 +516,7 @@ def _normalize_session_state(state: dict[str, Any] | None) -> dict[str, Any]:
         "last_intent": None,
         "last_status": None,
         "last_message": "",
+        "summary": None,
         "updated_at": datetime.now(UTC).isoformat(),
     }
     if state is None:
@@ -480,6 +526,7 @@ def _normalize_session_state(state: dict[str, Any] | None) -> dict[str, Any]:
     normalized.update(state)
     normalized["interactions"] = list(normalized.get("interactions") or [])
     normalized["route_history"] = list(normalized.get("route_history") or [])
+    normalized["summary"] = _as_str_or_none(normalized.get("summary"))
     return normalized
 
 
@@ -594,6 +641,7 @@ def _build_context_block(
     user_memory: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     interactions = session_state.get("interactions") or []
+    summary = _as_str_or_none(session_state.get("summary"))
     current_bangumi_id: str | None = None
     current_anime_title: str | None = None
     last_location: str | None = None
@@ -633,10 +681,16 @@ def _build_context_block(
                 current_bangumi_id = _as_str_or_none(most_recent.get("bangumi_id"))
                 current_anime_title = _as_str_or_none(most_recent.get("title"))
 
-    if not current_bangumi_id and not last_location and not visited_bangumi_ids:
+    if (
+        not current_bangumi_id
+        and not last_location
+        and not visited_bangumi_ids
+        and not summary
+    ):
         return None
 
     return {
+        "summary": summary,
         "current_bangumi_id": current_bangumi_id,
         "current_anime_title": current_anime_title,
         "last_location": last_location,
@@ -732,6 +786,87 @@ async def _generate_and_save_title(
         await update_conversation_title(session_id, title)
     except Exception:
         logger.warning("update_conversation_title_failed", session_id=session_id)
+
+
+def _build_selected_points_plan(request: PublicAPIRequest) -> ExecutionPlan:
+    point_ids = list(request.selected_point_ids or [])
+    return ExecutionPlan(
+        steps=[
+            PlanStep(
+                tool=ToolName.PLAN_SELECTED,
+                params={
+                    "point_ids": point_ids,
+                    "origin": request.origin,
+                },
+            )
+        ],
+        reasoning="User selected specific points for routing.",
+        locale=request.locale,
+    )
+
+
+async def _compact_session_interactions(
+    session_id: str,
+    session_state: dict[str, Any],
+    session_store: SessionStore,
+) -> None:
+    """Compress older interactions into a short summary in the background."""
+    latest_state = await session_store.get(session_id)
+    current_state = _normalize_session_state(latest_state or session_state)
+    interactions = current_state.get("interactions") or []
+    if len(interactions) < _COMPACT_THRESHOLD:
+        return
+
+    previous_summary = _as_str_or_none(current_state.get("summary"))
+    compacted = interactions[:-_COMPACT_KEEP_RECENT]
+    recent = interactions[-_COMPACT_KEEP_RECENT:]
+    if not compacted:
+        return
+
+    prompt_lines: list[str] = []
+    if previous_summary:
+        prompt_lines.append(f"Existing summary: {previous_summary}")
+    prompt_lines.append("Merge these interaction notes into a concise session summary:")
+    prompt_lines.extend(
+        f"- [{entry.get('intent') or 'unknown'}] {str(entry.get('text') or '').strip()[:120]}"
+        for entry in compacted
+    )
+
+    agent = create_agent(
+        get_default_model(),
+        system_prompt=(
+            "Summarize the session in 1-2 sentences. Capture what the user was "
+            "researching and keep the same language as the interaction text."
+        ),
+        retries=1,
+    )
+    try:
+        result = await agent.run("\n".join(prompt_lines))
+    except Exception:
+        logger.warning("compact_llm_failed", session_id=session_id)
+        return
+
+    summary = _as_str_or_none(getattr(result, "output", None))
+    if summary is None:
+        return
+
+    updated_state = {
+        **current_state,
+        "interactions": recent,
+        "summary": summary[:300],
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+    try:
+        await session_store.set(session_id, updated_state)
+    except Exception:
+        logger.warning("compact_write_failed", session_id=session_id)
+        return
+
+    logger.info(
+        "compact_complete",
+        session_id=session_id,
+        summary_length=len(updated_state["summary"]),
+    )
 
 
 def _as_str_or_none(value: Any) -> str | None:

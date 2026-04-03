@@ -7,6 +7,7 @@ class TestToolName:
         assert ToolName.SEARCH_BANGUMI == "search_bangumi"
         assert ToolName.SEARCH_NEARBY == "search_nearby"
         assert ToolName.PLAN_ROUTE == "plan_route"
+        assert ToolName.PLAN_SELECTED == "plan_selected"
         assert ToolName.ANSWER_QUESTION == "answer_question"
         assert ToolName.GREET_USER == "greet_user"
 

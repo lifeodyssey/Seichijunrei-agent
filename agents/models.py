@@ -18,6 +18,7 @@ class ToolName(str, Enum):
     SEARCH_BANGUMI = "search_bangumi"
     SEARCH_NEARBY = "search_nearby"
     PLAN_ROUTE = "plan_route"
+    PLAN_SELECTED = "plan_selected"
     ANSWER_QUESTION = "answer_question"
     GREET_USER = "greet_user"
 

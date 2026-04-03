@@ -35,6 +35,9 @@ _MESSAGES: dict[tuple[str, str], str] = {
     ("plan_route", "ja"): "{count}件のスポットで最適ルートを作成しました。",
     ("plan_route", "zh"): "已为{count}处圣地规划路线。",
     ("plan_route", "en"): "Created a route with {count} pilgrimage stops.",
+    ("plan_selected", "ja"): "{count}件の選択スポットでルートを作成しました。",
+    ("plan_selected", "zh"): "已为{count}处选定取景地规划路线。",
+    ("plan_selected", "en"): "Created a route with {count} selected stops.",
     ("answer_question", "ja"): "",
     ("answer_question", "zh"): "",
     ("answer_question", "en"): "",
@@ -147,6 +150,7 @@ class ExecutorAgent:
             ToolName.SEARCH_BANGUMI: self._execute_search_bangumi,
             ToolName.SEARCH_NEARBY: self._execute_search_nearby,
             ToolName.PLAN_ROUTE: self._execute_plan_route,
+            ToolName.PLAN_SELECTED: self._execute_plan_selected,
             ToolName.GREET_USER: self._execute_greet_user,
             ToolName.ANSWER_QUESTION: self._execute_answer_question,
         }.get(tool)
@@ -280,6 +284,50 @@ class ExecutorAgent:
             },
         )
 
+    async def _execute_plan_selected(
+        self, step: PlanStep, context: dict[str, Any]
+    ) -> StepResult:
+        """Route a user-selected list of point IDs."""
+        point_ids = [
+            str(point_id).strip()
+            for point_id in step.params.get("point_ids") or []
+            if str(point_id).strip()
+        ]
+        if not point_ids:
+            return StepResult(
+                tool="plan_selected",
+                success=False,
+                error="point_ids is required",
+            )
+
+        get_points_by_ids = getattr(self._db, "get_points_by_ids", None)
+        if get_points_by_ids is None:
+            return StepResult(
+                tool="plan_selected",
+                success=False,
+                error="get_points_by_ids not available",
+            )
+
+        rows = [dict(row) for row in await get_points_by_ids(point_ids)]
+        origin = step.params.get("origin") or context.get("last_location")
+        ordered = await _nearest_neighbor_sort(rows, origin=origin)
+        with_coords = [row for row in ordered if row.get("latitude") and row.get("longitude")]
+
+        return StepResult(
+            tool="plan_selected",
+            success=True,
+            data={
+                "ordered_points": ordered,
+                "point_count": len(ordered),
+                "status": "empty" if not ordered else "ok",
+                "summary": {
+                    "point_count": len(ordered),
+                    "with_coordinates": len(with_coords),
+                    "without_coordinates": len(ordered) - len(with_coords),
+                },
+            },
+        )
+
     async def _execute_answer_question(
         self, step: PlanStep, context: dict[str, Any]
     ) -> StepResult:
@@ -315,11 +363,15 @@ class ExecutorAgent:
         query_data = context.get(ToolName.SEARCH_BANGUMI.value) or context.get(
             ToolName.SEARCH_NEARBY.value
         )
-        route_data = context.get(ToolName.PLAN_ROUTE.value)
+        route_data = context.get(ToolName.PLAN_ROUTE.value) or context.get(
+            ToolName.PLAN_SELECTED.value
+        )
         qa_data = context.get(ToolName.ANSWER_QUESTION.value)
         greet_data = context.get(ToolName.GREET_USER.value)
 
         count = (query_data or {}).get("row_count", 0)
+        if count == 0 and route_data:
+            count = int(route_data.get("point_count", 0))
         is_empty = count == 0
         status = "empty" if is_empty else "ok"
         if not result.success:
@@ -357,6 +409,7 @@ def _infer_primary_tool(plan: ExecutionPlan) -> str:
     tools = [t for t in tools if t is not None]
     for priority in (
         ToolName.PLAN_ROUTE,
+        ToolName.PLAN_SELECTED,
         ToolName.SEARCH_BANGUMI,
         ToolName.SEARCH_NEARBY,
         ToolName.ANSWER_QUESTION,

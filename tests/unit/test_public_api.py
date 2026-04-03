@@ -91,6 +91,7 @@ def mock_db():
     db.upsert_session = AsyncMock()
     db.upsert_conversation = AsyncMock()
     db.upsert_user_memory = AsyncMock()
+    db.update_conversation_title = AsyncMock()
     db.save_route = AsyncMock(return_value="route-1")
     return db
 
@@ -206,6 +207,102 @@ class TestContextExtraction:
         from interfaces.public_api import _build_context_block
 
         assert _build_context_block({"interactions": [], "last_intent": None}) is None
+
+
+class TestCompact:
+    async def test_compact_replaces_old_interactions_with_summary(self) -> None:
+        from interfaces.public_api import _compact_session_interactions
+
+        store = InMemorySessionStore()
+        session_id = "sess-compact"
+        interactions = [
+            {
+                "text": f"query {index}",
+                "intent": "search_bangumi",
+                "status": "ok",
+                "success": True,
+                "created_at": "2026-04-01T00:00:00Z",
+                "context_delta": {},
+            }
+            for index in range(8)
+        ]
+        state = {
+            "interactions": interactions,
+            "route_history": [],
+            "last_intent": "search_bangumi",
+            "last_status": "ok",
+            "last_message": "",
+            "summary": None,
+            "updated_at": "2026-04-01T00:00:00Z",
+        }
+
+        mock_agent = MagicMock()
+        mock_agent.run = AsyncMock(
+            return_value=MagicMock(output="ユーザーは複数のアニメ聖地を検索しました。")
+        )
+
+        with patch("interfaces.public_api.create_agent", return_value=mock_agent):
+            await _compact_session_interactions(session_id, state, store)
+
+        saved = await store.get(session_id)
+        assert saved is not None
+        assert len(saved["interactions"]) == 2
+        assert saved["summary"] == "ユーザーは複数のアニメ聖地を検索しました。"
+
+    async def test_compact_skips_when_fewer_than_8(self) -> None:
+        from interfaces.public_api import _compact_session_interactions
+
+        store = InMemorySessionStore()
+        state = {
+            "interactions": [
+                {
+                    "text": "q",
+                    "intent": "search_bangumi",
+                    "status": "ok",
+                    "success": True,
+                    "created_at": "2026-04-01T00:00:00Z",
+                    "context_delta": {},
+                }
+            ]
+            * 5,
+            "summary": None,
+        }
+
+        with patch("interfaces.public_api.create_agent") as create_agent:
+            await _compact_session_interactions("sess-short", state, store)
+
+        create_agent.assert_not_called()
+
+    def test_build_context_block_includes_summary(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "context_delta": {
+                        "bangumi_id": "253",
+                        "anime_title": "響け",
+                        "location": "宇治",
+                    }
+                }
+            ],
+            "summary": "ユーザーは京吹の聖地を検索しました。",
+        }
+
+        block = _build_context_block(state)
+
+        assert block is not None
+        assert block["summary"] == "ユーザーは京吹の聖地を検索しました。"
+
+    def test_build_context_block_returns_summary_only_context(self) -> None:
+        block = _build_context_block({"interactions": [], "summary": "old summary"})
+
+        assert block == {
+            "current_bangumi_id": None,
+            "current_anime_title": None,
+            "last_location": None,
+            "last_intent": None,
+            "visited_bangumi_ids": [],
+            "summary": "old summary",
+        }
 
 
 class TestRuntimeAPI:
@@ -460,6 +557,118 @@ class TestRuntimeAPI:
         record_metric.assert_called_once()
         assert record_metric.call_args.kwargs["transport"] == "public_api"
 
+    async def test_handle_triggers_compact_when_session_reaches_threshold(
+        self,
+        mock_db,
+    ) -> None:
+        store = InMemorySessionStore()
+        session_id = "sess-trigger"
+        await store.set(
+            session_id,
+            {
+                "interactions": [
+                    {
+                        "text": f"q{index}",
+                        "intent": "search_bangumi",
+                        "status": "ok",
+                        "success": True,
+                        "created_at": "2026-04-01T00:00:00Z",
+                        "context_delta": {},
+                    }
+                    for index in range(7)
+                ],
+                "route_history": [],
+                "last_intent": "search_bangumi",
+                "last_status": "ok",
+                "last_message": "",
+                "summary": None,
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+        scheduled: list[object] = []
+
+        def _capture_task(coro: object) -> MagicMock:
+            scheduled.append(coro)
+            close = getattr(coro, "close", None)
+            if callable(close):
+                close()
+            return MagicMock()
+
+        with patch("interfaces.public_api.asyncio.create_task", side_effect=_capture_task):
+            api = RuntimeAPI(mock_db, session_store=store)
+            await api.handle(
+                PublicAPIRequest(text="京吹", session_id=session_id),
+                user_id=None,
+            )
+
+        assert len(scheduled) == 1
+
+    async def test_selected_point_ids_bypass_planner(self, mock_db) -> None:
+        captured: dict[str, object] = {}
+        executor = MagicMock()
+
+        async def _fake_execute(plan, *, context_block=None, on_step=None):
+            captured["plan"] = plan
+            captured["context_block"] = context_block
+            return _make_result(
+                intent="plan_selected",
+                steps=[
+                    PlanStep(
+                        tool=ToolName.PLAN_SELECTED,
+                        params={"point_ids": ["p1", "p2"], "origin": "宇治駅"},
+                    )
+                ],
+                final_output={
+                    "success": True,
+                    "status": "ok",
+                    "message": "已为2处选定取景地规划路线。",
+                    "route": {
+                        "ordered_points": [
+                            {
+                                "id": "p1",
+                                "latitude": 34.88,
+                                "longitude": 135.80,
+                            },
+                            {
+                                "id": "p2",
+                                "latitude": 34.89,
+                                "longitude": 135.81,
+                            },
+                        ],
+                        "point_count": 2,
+                    },
+                },
+            )
+
+        executor.execute = AsyncMock(side_effect=_fake_execute)
+
+        with (
+            patch(
+                "interfaces.public_api.run_pipeline",
+                new=AsyncMock(side_effect=AssertionError("planner should be bypassed")),
+            ),
+            patch("interfaces.public_api.ExecutorAgent", return_value=executor),
+        ):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            response = await api.handle(
+                PublicAPIRequest(
+                    text="",
+                    selected_point_ids=["p1", "p2"],
+                    origin="宇治駅",
+                    locale="zh",
+                )
+            )
+
+        plan = captured["plan"]
+        assert isinstance(plan, ExecutionPlan)
+        assert plan.steps[0].tool == ToolName.PLAN_SELECTED
+        assert plan.steps[0].params == {
+            "point_ids": ["p1", "p2"],
+            "origin": "宇治駅",
+        }
+        assert response.intent == "plan_selected"
+        assert response.ui == {"component": "RouteVisualization", "props": {}}
+
 
 class TestLocalePassthrough:
     async def test_locale_field_accepted_in_request(self):
@@ -525,6 +734,16 @@ class TestPublicAPIRequestLocaleEn:
     def test_invalid_locale_rejected(self):
         with pytest.raises(ValidationError):
             PublicAPIRequest(text="test", locale="fr")
+
+    def test_blank_text_allowed_when_selected_point_ids_present(self):
+        request = PublicAPIRequest(text="", selected_point_ids=["p1"])
+
+        assert request.text == ""
+        assert request.selected_point_ids == ["p1"]
+
+    def test_blank_text_rejected_without_selected_point_ids(self):
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="")
 
 
 class TestPublicAPIResponseUIField:
@@ -725,6 +944,7 @@ class TestBuildContextBlockWithUserMemory:
             await api.handle(PublicAPIRequest(text="次は何がある？"), user_id="u1")
 
         assert captured["context"] == {
+            "summary": None,
             "current_bangumi_id": "105",
             "current_anime_title": "君の名は",
             "last_location": None,
