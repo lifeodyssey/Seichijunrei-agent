@@ -124,7 +124,7 @@ class TestContextExtraction:
         delta = _extract_context_delta(result)
         assert delta["bangumi_id"] == "253"
         assert delta["anime_title"] == "響け！ユーフォニアム"
-        assert delta["location"] is None
+        assert delta.get("location") is None
 
     def test_extract_context_delta_from_search_nearby(self) -> None:
         plan = ExecutionPlan(
@@ -145,7 +145,7 @@ class TestContextExtraction:
 
         delta = _extract_context_delta(result)
         assert delta["location"] == "宇治"
-        assert delta["bangumi_id"] is None
+        assert delta.get("bangumi_id") is None
 
     def test_extract_context_delta_empty_on_failure(self) -> None:
         result = _make_result()
@@ -160,7 +160,7 @@ class TestContextExtraction:
         from interfaces.public_api import _extract_context_delta
 
         delta = _extract_context_delta(result)
-        assert delta == {"bangumi_id": None, "anime_title": None, "location": None}
+        assert delta == {}
 
     def test_build_context_block_from_interactions(self) -> None:
         state = {

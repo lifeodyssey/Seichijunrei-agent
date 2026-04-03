@@ -87,6 +87,7 @@ class TestRunPipeline:
         )
         MockExecutor.return_value.execute.assert_awaited_once_with(
             plan,
+            context_block=context,
             on_step=on_step,
         )
         assert result is pipeline_result
