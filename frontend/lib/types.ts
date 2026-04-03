@@ -11,8 +11,11 @@ export type Intent =
   | "search_nearby"
   | "plan_route"
   | "plan_selected"
+  | "answer_question"
+  | "greet_user"
   | "general_qa"
-  | "unclear";
+  | "unclear"
+  | "unknown";
 
 // ── Row-level types (SQL result rows) ──────────────────────────────────────
 
