@@ -81,6 +81,12 @@
     "no_coords": "⚠ {count}个缺少坐标",
     "episode": "第{ep}集"
   },
+  "selection": {
+    "count": "已选{count}个",
+    "placeholder": "出发地…",
+    "route": "规划路线",
+    "clear": "清除"
+  },
   "clarification": {
     "examples_label": "例如：",
     "suggestions": [
