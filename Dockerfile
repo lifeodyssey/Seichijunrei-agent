@@ -13,15 +13,7 @@ COPY pyproject.toml uv.lock README.md /app/
 
 RUN uv sync --no-dev --no-install-project
 
-COPY agents /app/agents
-COPY application /app/application
-COPY clients /app/clients
-COPY config /app/config
-COPY domain /app/domain
-COPY infrastructure /app/infrastructure
-COPY interfaces /app/interfaces
-COPY services /app/services
-COPY utils /app/utils
+COPY backend /app/backend
 
 RUN uv sync --no-dev
 
@@ -43,4 +35,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"SERVICE_PORT\", \"8080\")}/healthz', timeout=3)"
 
-CMD ["python", "-m", "interfaces.http_service"]
+CMD ["python", "-m", "backend.interfaces.http_service"]

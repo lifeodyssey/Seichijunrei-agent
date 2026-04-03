@@ -4,8 +4,8 @@ This file provides repo-wide guidance for agentic coding tools (Codex, Claude Co
 
 ## Source Of Truth
 
-- Runtime entry path: `interfaces/http_service.py` → `interfaces/public_api.py` → `agents/pipeline.py`
-- Shared plan + tool types: `agents/models.py`
+- Runtime entry path: `backend/interfaces/http_service.py` → `backend/interfaces/public_api.py` → `backend/agents/pipeline.py`
+- Shared plan + tool types: `backend/agents/models.py`
 - Frontend tokens: `frontend/app/globals.css`
 - Deployment wiring (Worker + Containers + assets): `wrangler.toml` + `DEPLOYMENT.md`
 
@@ -23,6 +23,8 @@ Canonical docs (keep these accurate; avoid duplicating architecture narratives e
 - `ExecutorAgent` must remain deterministic (no LLM calls during execution).
 - Auth is enforced at the Cloudflare Worker edge (`src/worker.js`); the container trusts forwarded headers.
 - Frontend is a Next.js static export (`output: "export"`); avoid server-only Next.js features.
+- **No `Any`** in Python source — use `object` + `isinstance()` narrowing at trust boundaries.
+- Pre-commit hooks enforce ruff lint/format + mypy on every commit.
 
 ## Commands
 
@@ -37,7 +39,12 @@ make serve
 make test
 make test-integration
 make test-all
-make check
+make check              # lint + typecheck + test
+
+# Code quality
+make lint               # ruff check + format check
+make format             # ruff auto-format + fix
+make typecheck          # mypy strict type check
 ```
 
 Frontend (local dev):
@@ -47,4 +54,23 @@ cd frontend
 npm ci
 cp .env.local.example .env.local
 npm run dev
+```
+
+## Directory Structure
+
+```
+backend/              # Python runtime
+  agents/             # AI agents (planner, executor, retriever)
+  application/        # Use cases + ports
+  clients/            # HTTP clients (anitabi, bangumi)
+  config/             # Settings
+  domain/             # Entities, value objects, LLM schemas
+  infrastructure/     # External adapters (DB, observability, gateways)
+  interfaces/         # API surface (http_service, public_api)
+  services/           # Cross-cutting (cache, retry)
+  utils/              # Logger
+  tests/              # unit, integration, eval
+frontend/             # Next.js static export
+supabase/migrations/  # DDL migrations (timestamp-ordered)
+src/worker.js         # Cloudflare Worker (auth + routing)
 ```

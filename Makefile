@@ -1,6 +1,6 @@
 # Seichijunrei Agent - Makefile
 
-.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format check clean build db-diff db-list db-pull db-push db-push-dry db-reset
+.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format typecheck check clean build db-diff db-list db-pull db-push db-push-dry db-reset
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -23,8 +23,9 @@ help:
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint        Run linters (ruff)"
-	@echo "  make format      Format code (black + ruff)"
-	@echo "  make check       Run all checks (lint + test)"
+	@echo "  make format      Format code (ruff)"
+	@echo "  make typecheck   Run mypy type checker"
+	@echo "  make check       Run all checks (lint + typecheck + test)"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-list     Show Supabase migration status"
@@ -44,29 +45,32 @@ serve:
 	uv run seichijunrei-api
 
 test:
-	$(PYTEST) tests/unit/ -v
+	$(PYTEST) backend/tests/unit/ -v
 
 test-all:
-	$(PYTEST) tests/unit tests/integration -v
+	$(PYTEST) backend/tests/unit backend/tests/integration -v
 
 test-cov:
-	$(PYTEST) tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
+	$(PYTEST) backend/tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
 
 test-integration:
-	$(PYTEST) tests/integration/ -v --no-cov
+	$(PYTEST) backend/tests/integration/ -v --no-cov
 
 test-eval:
-	$(PYTEST) tests/eval/ -v -m integration --no-cov
+	$(PYTEST) backend/tests/eval/ -v -m integration --no-cov
 
 lint:
-	uv run ruff check .
-	uv run black --check .
+	uv run ruff check backend/
+	uv run ruff format --check backend/
 
 format:
-	uv run black .
-	uv run ruff check --fix .
+	uv run ruff format backend/
+	uv run ruff check --fix backend/
 
-check: lint test
+typecheck:
+	uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
+
+check: lint typecheck test
 
 clean:
 	rm -rf __pycache__ .pytest_cache .coverage htmlcov coverage.xml

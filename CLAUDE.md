@@ -24,15 +24,17 @@ make test-all             # unit + integration
 make test-eval            # model-backed evals (separate from stable CI)
 
 # Code quality
-make lint
-make format
-make check
+make lint                 # ruff check + format check
+make format               # ruff auto-format + fix
+make typecheck            # mypy strict type check
+make check                # lint + typecheck + test
 ```
 
 Notes:
 - pytest is configured with `--asyncio-mode=auto`
-- stable test gates: `tests/unit` and `tests/integration`
-- `tests/eval` depends on external model availability — intentionally separate
+- stable test gates: `backend/tests/unit` and `backend/tests/integration`
+- `backend/tests/eval` depends on external model availability — intentionally separate
+- pre-commit hooks run ruff + mypy on every commit
 
 ## Architecture
 
@@ -50,12 +52,12 @@ No IntentAgent. Intent reasoning is part of the planner's LLM pass.
 
 ### Agents
 
-- `agents/models.py` — Shared types: `ToolName`, `PlanStep`, `ExecutionPlan`, `RetrievalRequest`
-- `agents/planner_agent.py` — `ReActPlannerAgent`: Pydantic AI agent, `output_type=ExecutionPlan`, `retries=2`
-- `agents/executor_agent.py` — Deterministic dispatch for 5 tools; static message templates; no LLM calls
-- `agents/retriever.py` — Unchanged: `sql`, `geo`, `hybrid` strategies; write-through on DB miss
-- `agents/sql_agent.py` — Structured SQL retrieval; accepts `RetrievalRequest` (not `IntentOutput`)
-- `agents/pipeline.py` — Two lines: `create_plan(text, locale)` → `execute(plan)`
+- `backend/agents/models.py` — Shared types: `ToolName`, `PlanStep`, `ExecutionPlan`, `RetrievalRequest`
+- `backend/agents/planner_agent.py` — `ReActPlannerAgent`: Pydantic AI agent, `output_type=ExecutionPlan`, `retries=2`
+- `backend/agents/executor_agent.py` — Deterministic dispatch for 7 tools; static message templates; no LLM calls
+- `backend/agents/retriever.py` — `sql`, `geo`, `hybrid` strategies; write-through on DB miss
+- `backend/agents/sql_agent.py` — Structured SQL retrieval; accepts `RetrievalRequest`
+- `backend/agents/pipeline.py` — Two lines: `create_plan(text, locale)` → `execute(plan)`
 
 ### Tools (ExecutorAgent dispatches these)
 
@@ -65,7 +67,9 @@ No IntentAgent. Intent reasoning is part of the planner's LLM pass.
 | `search_bangumi` | `_execute_search_bangumi` | Retriever → points by bangumi_id |
 | `search_nearby` | `_execute_search_nearby` | Geo retrieval by location + radius |
 | `plan_route` | `_execute_plan_route` | Nearest-neighbor route ordering |
-| `answer_question` | `_execute_answer_question` | Static FAQ / general QA |
+| `plan_selected` | `_execute_plan_selected` | Route user-selected point IDs |
+| `greet_user` | `_execute_greet_user` | Ephemeral greeting/identity response |
+| `answer_question` | `_execute_answer_question` | QA pass-through |
 
 ### Self-Evolve via `resolve_anime`
 
@@ -75,16 +79,16 @@ DB is source of truth. No hardcoded anime list in code.
 
 ### Interfaces
 
-- `interfaces/public_api.py` — Stable facade over `run_pipeline`; session persistence; route history; `ui` field in response; request logging
-- `interfaces/http_service.py` — aiohttp service: `/healthz`, `/v1/runtime`, `/v1/feedback`
+- `backend/interfaces/public_api.py` — Stable facade over `run_pipeline`; session persistence; route history; `ui` field in response; request logging
+- `backend/interfaces/http_service.py` — aiohttp service: `/healthz`, `/v1/runtime`, `/v1/feedback`
 
 ### Infrastructure
 
-- `infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
-- `supabase/migrations/` — canonical DDL migrations (apply in order before each deploy)
-- `infrastructure/session/` — in-memory session backend
-- `infrastructure/observability/` — OpenTelemetry setup
-- `infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi
+- `backend/infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
+- `supabase/migrations/` — DDL migrations (apply in order before each deploy)
+- `backend/infrastructure/session/` — in-memory session backend
+- `backend/infrastructure/observability/` — OpenTelemetry setup
+- `backend/infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi
 
 ### Auth
 
@@ -121,11 +125,19 @@ Design tokens (`frontend/app/globals.css`):
 
 ### Eval Infrastructure
 
-- `tests/eval/datasets/plan_quality_v1.json` — 50+ cases × 3 locales
-- `tests/eval/test_plan_quality.py` — pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp
-- `tools/eval_scorer.py` — batch LLM judge; writes `plan_quality_score` to `request_log`
-- `tools/eval_feedback_miner.py` — mines `feedback(rating='bad')` → prompt-improvement suggestions
-- `clients/python/seichijunrei_client.py` — sync/async Python client for agent/CLI use
+- `backend/tests/eval/datasets/plan_quality_v1.json` — 50+ cases × 3 locales
+- `backend/tests/eval/test_plan_quality.py` — pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp
+- `backend/tools/eval_scorer.py` — batch LLM judge; writes `plan_quality_score` to `request_log`
+- `backend/tools/eval_feedback_miner.py` — mines `feedback(rating='bad')` → prompt-improvement suggestions
+- `backend/clients/python/seichijunrei_client.py` — sync/async Python client for agent/CLI use
+
+## Typing Rules
+
+- **No `Any`** in source files — zero explicit `Any` across the codebase
+- Use `object` at trust boundaries (JSON parsing, external API responses), then narrow with `isinstance()`
+- Use `Protocol` types for duck-typing OTel and similar optional dependencies
+- Use `cast()` at library boundaries where the real type is known but stubs are imprecise
+- Pydantic `BaseModel` subclasses trigger false-positive `explicit-any` from metaclass stubs — suppressed via mypy overrides in `pyproject.toml`
 
 ## Deployment
 
@@ -141,4 +153,4 @@ Design tokens (`frontend/app/globals.css`):
 - Keep retrieval deterministic unless a task explicitly changes that rule
 - ExecutorAgent must not make LLM calls — use static `_MESSAGES` templates
 - Adding a new UI component = register in `frontend/components/generative/registry.ts` only
-- Run `make test` before and after any agent change
+- Run `make check` before and after any change
