@@ -18,19 +18,15 @@ const I18nContext = createContext<I18nCtx>({
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const [locale, setLocaleState] = useState<Locale>(() => detectLocale());
   const [dict, setDict] = useState<Dict>(defaultDict as Dict);
 
   useEffect(() => {
-    const detected = detectLocale();
-    document.documentElement.lang = detected;
-    if (detected === DEFAULT_LOCALE) {
-      setLocaleState(detected);
-      return;
+    document.documentElement.lang = locale;
+    if (locale !== DEFAULT_LOCALE) {
+      loadDict(locale).then((d) => setDict(d as Dict));
     }
-    setLocaleState(detected);
-    loadDict(detected).then((d) => setDict(d as Dict));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount with initial detected locale
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);

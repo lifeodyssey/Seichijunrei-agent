@@ -43,10 +43,7 @@ function ConversationItem({
   const displayTitle = getConversationDisplayTitle(record);
 
   useEffect(() => {
-    if (!editing) {
-      setDraftTitle(displayTitle);
-      return;
-    }
+    if (!editing) return;
 
     const timer = window.setTimeout(() => {
       inputRef.current?.focus();
@@ -56,7 +53,7 @@ function ConversationItem({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [displayTitle, editing]);
+  }, [editing]);
 
   const cancelEditing = useCallback(() => {
     setDraftTitle(displayTitle);
@@ -79,9 +76,10 @@ function ConversationItem({
   const handleDoubleClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
+      setDraftTitle(displayTitle);
       setEditing(true);
     },
-    [],
+    [displayTitle],
   );
 
   const handleKeyDown = useCallback(

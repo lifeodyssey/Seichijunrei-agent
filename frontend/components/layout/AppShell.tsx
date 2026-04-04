@@ -281,10 +281,10 @@ export default function AppShell() {
               : "flex-1"
           }`}
           style={
-            !isMobile && hasVisualResponse
+            !isMobile
               ? {
-                  width: chatWidth,
-                  transition: "width var(--duration-base) var(--ease-out-expo)",
+                  flexBasis: hasVisualResponse ? `${chatWidth}px` : "0px",
+                  transition: "flex-basis var(--duration-base) var(--ease-out-expo)",
                 }
               : undefined
           }
