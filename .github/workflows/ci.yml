@@ -10,25 +10,24 @@ env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
 
+# ── Stage 1: Quality Gates (all parallel) ────────────────────
+
 jobs:
-  backend-lint:
-    name: Backend Lint & Typecheck
+  backend-quality:
+    name: Backend Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
 
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: uv sync --all-extras
+      - run: uv sync --all-extras
 
-      - name: Check formatting
+      - name: Format check
         run: uv run ruff format --check backend/
 
       - name: Lint
@@ -37,61 +36,8 @@ jobs:
       - name: Type check
         run: uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
 
-  backend-test:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    needs: backend-lint
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Run tests with coverage
-        run: uv run pytest backend/tests/unit/ -v --cov --cov-report=xml --cov-fail-under=70
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
-        continue-on-error: true
-
-  backend-integration:
-    name: Backend Integration Tests
-    runs-on: ubuntu-latest
-    needs: backend-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Run integration tests
-        run: uv run pytest backend/tests/integration/ -v -m integration
-        continue-on-error: true
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-  frontend-lint:
-    name: Frontend Lint & Type Check
+  frontend-quality:
+    name: Frontend Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,8 +48,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
         working-directory: frontend
 
       - name: Lint
@@ -114,10 +59,68 @@ jobs:
         run: npx tsc --noEmit
         working-directory: frontend
 
+  db-validate:
+    name: DB Migrations (dry-run)
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v2
+        with:
+          version: latest
+
+      - name: Validate migrations
+        if: env.SUPABASE_DB_URL != ''
+        run: |
+          supabase migration list --db-url "$SUPABASE_DB_URL"
+          supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
+
+  # ── Stage 2: Tests + Build (parallel, gated by Stage 1) ───
+
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: backend-quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - run: uv sync --all-extras
+
+      - name: Unit tests (coverage ≥ 70%)
+        run: uv run pytest backend/tests/unit/ -v --cov --cov-report=xml --cov-fail-under=70
+
+      - name: Integration tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: uv run pytest backend/tests/integration/ -v --no-cov
+        continue-on-error: true
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Verify imports
+        run: |
+          uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
+          uv run python -c "from backend.interfaces.http_service import create_http_app; print('http OK')"
+          uv run python -c "from backend.domain.entities import Point; print('domain OK')"
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
-    needs: frontend-lint
+    needs: frontend-quality
     steps:
       - uses: actions/checkout@v4
 
@@ -127,61 +130,89 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
         working-directory: frontend
 
-      - name: Build
+      - name: Build static export
         run: npm run build
         working-directory: frontend
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
-  build:
-    name: Backend Build Check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+          retention-days: 1
+
+  eval:
+    name: Eval (Gemini)
     runs-on: ubuntu-latest
-    needs: backend-test
+    needs: backend-quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
 
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv python install ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: uv sync
+      - run: uv sync --all-extras
 
-      - name: Verify imports
-        run: |
-          uv run python -c "from backend.agents.pipeline import run_pipeline; print('v2 runtime OK')"
-          uv run python -c "from backend.interfaces.http_service import create_http_app; print('HTTP service OK')"
-          uv run python -c "from backend.domain.entities import Point; print('Domain OK')"
+      - name: Run all evals
+        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov
+        env:
+          EVAL_MODEL: gemini-2.5-flash-lite
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Build package
-        run: uv build
-        continue-on-error: true
+  # ── Stage 3: Deploy (auto on main, all tests green) ───────
 
-  db-validate:
-    name: Database Migrations
+  deploy:
+    name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: backend-lint
-    env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    needs: [backend-test, frontend-build, db-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+
+      - uses: supabase/setup-cli@v2
         with:
           version: latest
 
-      - name: Validate migration history
-        if: env.SUPABASE_DB_URL != ''
-        run: |
-          supabase migration list --db-url "$SUPABASE_DB_URL"
-          supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
+      - name: Apply database migrations
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Deploy via Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.79.0"
+          command: deploy
+          secrets: |
+            SUPABASE_URL
+            SUPABASE_ANON_KEY
+            SUPABASE_SERVICE_ROLE_KEY
+            SUPABASE_DB_URL
+            GEMINI_API_KEY
+            LOGFIRE_TOKEN
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
