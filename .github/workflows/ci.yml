@@ -175,6 +175,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Force IPv4 for Supabase connectivity
+        run: sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
