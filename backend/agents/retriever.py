@@ -30,7 +30,7 @@ from backend.services.cache import _CACHE_MISS, ResponseCache
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_GEO_LIMIT = 50
+_DEFAULT_GEO_LIMIT = 200
 _DEFAULT_CACHE_TTL_SECONDS = 900
 _SHARED_RETRIEVAL_CACHE = ResponseCache(
     default_ttl_seconds=_DEFAULT_CACHE_TTL_SECONDS,

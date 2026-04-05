@@ -290,6 +290,7 @@ class ExecutorAgent:
         origin_raw = params.get("origin") or context.get("last_location")
         origin = origin_raw if isinstance(origin_raw, str) else None
         ordered = await _nearest_neighbor_sort(rows, origin=origin)
+        _rewrite_image_urls(ordered)
         with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
         return StepResult(
             tool="plan_route",
@@ -336,6 +337,7 @@ class ExecutorAgent:
         origin_raw = params.get("origin") or context.get("last_location")
         origin = origin_raw if isinstance(origin_raw, str) else None
         ordered = await _nearest_neighbor_sort(rows, origin=origin)
+        _rewrite_image_urls(ordered)
         with_coords = [
             row for row in ordered if row.get("latitude") and row.get("longitude")
         ]
@@ -455,12 +457,26 @@ def _infer_primary_tool(plan: ExecutionPlan) -> str:
     return str(tools_filtered[0].value) if tools_filtered else "unknown"
 
 
+def _rewrite_image_urls(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Rewrite Anitabi image URLs to go through our CF proxy."""
+    for row in rows:
+        url = row.get("screenshot_url")
+        if not isinstance(url, str) or not url:
+            continue
+        if "image.anitabi.cn/" in url:
+            row["screenshot_url"] = url.replace("https://image.anitabi.cn/", "/img/")
+        elif url.startswith("screenshot/"):
+            row["screenshot_url"] = f"/img/{url}"
+    return rows
+
+
 def _build_query_payload(retrieval: RetrievalResult) -> dict[str, object]:
     metadata = dict(retrieval.metadata)
     empty = retrieval.row_count == 0
+    rows = _rewrite_image_urls(retrieval.rows)
     return {
-        "rows": retrieval.rows,
-        "items": retrieval.rows,
+        "rows": rows,
+        "items": rows,
         "row_count": retrieval.row_count,
         "strategy": retrieval.strategy.value,
         "metadata": metadata,
