@@ -1,0 +1,177 @@
+name: Dependabot Agent
+
+# ── Trigger: only on Dependabot PRs ─────────────────────────
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ── Stage 1: Quick verify (no AI cost) ────────────────────
+  verify:
+    name: Verify Upgrade
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      backend_ok: ${{ steps.backend.outcome }}
+      frontend_ok: ${{ steps.frontend.outcome }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+
+      # ── Python setup ──
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - run: uv sync --all-extras
+
+      # ── Backend checks ──
+      - name: Backend quality + tests
+        id: backend
+        continue-on-error: true
+        run: |
+          uv run ruff format --check backend/
+          uv run ruff check backend/
+          uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
+          uv run pytest backend/tests/unit/ -v --no-cov
+          uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
+          uv run python -c "from backend.interfaces.http_service import create_http_app; print('http OK')"
+
+      # ── Node setup ──
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      # ── Frontend checks ──
+      - name: Frontend quality + build
+        id: frontend
+        continue-on-error: true
+        run: |
+          cd frontend
+          npm run lint
+          npx tsc --noEmit
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+
+  # ── Stage 2: Auto-merge if everything passed ──────────────
+  auto-merge:
+    name: Auto Merge
+    needs: verify
+    if: needs.verify.outputs.backend_ok == 'success' && needs.verify.outputs.frontend_ok == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve and merge
+        run: |
+          gh pr review "$PR_URL" --approve --body "All checks passed — auto-approved by Dependabot Agent."
+          gh pr merge "$PR_URL" --squash --auto
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Stage 3: Claude Code fixes if verify failed ──────────
+  agent-fix:
+    name: Agent Fix
+    needs: verify
+    if: needs.verify.outputs.backend_ok == 'failure' || needs.verify.outputs.frontend_ok == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: "claude-sonnet-4-20250514"
+          prompt: |
+            A Dependabot PR has been opened but verification failed.
+            PR: ${{ github.event.pull_request.title }}
+
+            Failed checks:
+            - Backend: ${{ needs.verify.outputs.backend_ok }}
+            - Frontend: ${{ needs.verify.outputs.frontend_ok }}
+
+            Your task:
+            1. Run the failing checks to see the exact errors:
+               - Backend: uv run ruff check backend/ && uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/ && uv run pytest backend/tests/unit/ -v --no-cov
+               - Frontend: cd frontend && npm ci && npm run lint && npx tsc --noEmit
+            2. Analyze the errors — they are likely caused by breaking changes in the upgraded dependency
+            3. Fix the code to work with the new dependency version
+            4. Re-run the checks to verify your fixes work
+            5. Do NOT downgrade the dependency — the goal is to adapt our code to the new version
+            6. Commit your fixes with message: "fix: adapt to <package>@<version> breaking changes"
+          max_turns: 10
+          timeout_minutes: 15
+        env:
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+
+      # ── Re-verify after agent fix ──
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - run: uv python install ${{ env.PYTHON_VERSION }} && uv sync --all-extras
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Final verification
+        id: final-check
+        run: |
+          uv run ruff check backend/
+          uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
+          uv run pytest backend/tests/unit/ -v --no-cov
+          uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
+          cd frontend && npm ci && npm run lint && npx tsc --noEmit && npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+
+      - name: Report result
+        if: always()
+        run: |
+          if [ "${{ steps.final-check.outcome }}" == "success" ]; then
+            gh pr comment "$PR_URL" --body "$(cat <<'BODY'
+          ## ✅ Dependabot Agent — Fixed
+
+          The dependency upgrade initially broke checks, but Claude Code automatically adapted the code.
+          All checks now pass. Ready for human review.
+          BODY
+          )"
+            gh pr review "$PR_URL" --approve
+          else
+            gh pr comment "$PR_URL" --body "$(cat <<'BODY'
+          ## ⚠️ Dependabot Agent — Needs Manual Fix
+
+          Claude Code attempted to fix the breaking changes but could not fully resolve them.
+          Manual intervention required.
+          BODY
+          )"
+            gh pr add-labels "$PR_URL" --labels "needs-manual-fix"
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
