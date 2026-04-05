@@ -4,10 +4,15 @@
 
 **AI 驱动的动漫圣地搜索与路线规划**
 
-[![CI](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/deploy.yml)
 [![Deploy](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/deploy.yml/badge.svg)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/deploy.yml)
+[![codecov](https://codecov.io/gh/lifeodyssey/Seichijunrei-agent/graph/badge.svg)](https://codecov.io/gh/lifeodyssey/Seichijunrei-agent)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776ab.svg)](https://www.python.org)
-[![Cloudflare Workers](https://img.shields.io/badge/deploy-Cloudflare_Workers-f38020.svg)](https://developers.cloudflare.com/workers/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg?logo=nextdotjs)](https://nextjs.org)
+[![Cloudflare Workers](https://img.shields.io/badge/deploy-Cloudflare_Workers-f38020.svg?logo=cloudflare)](https://developers.cloudflare.com/workers/)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ecf8e.svg?logo=supabase)](https://supabase.com)
+[![GitHub last commit](https://img.shields.io/github/last-commit/lifeodyssey/Seichijunrei-agent)](https://github.com/lifeodyssey/Seichijunrei-agent/commits/main)
+[![GitHub stars](https://img.shields.io/github/stars/lifeodyssey/Seichijunrei-agent?style=flat)](https://github.com/lifeodyssey/Seichijunrei-agent)
 
 [**在线体验**](https://seichijunrei.zhenjia.org) | [架构文档](docs/ARCHITECTURE.md) | [部署指南](DEPLOYMENT.md)
 

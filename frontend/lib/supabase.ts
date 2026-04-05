@@ -13,7 +13,11 @@ export function getSupabaseClient(): SupabaseClient | null {
     return supabaseClient;
   }
 
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  } catch {
+    supabaseClient = null;
+  }
   return supabaseClient;
 }
 

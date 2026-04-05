@@ -20,9 +20,13 @@ function getSupabaseClient() {
     return supabaseClient;
   }
 
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { flowType: 'implicit' },
-  });
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { flowType: 'implicit' },
+    });
+  } catch {
+    supabaseClient = null;
+  }
   return supabaseClient;
 }
 
