@@ -5,6 +5,7 @@ import { Container } from "@cloudflare/containers";
 const CONTAINER_ENV_KEYS = [
   "ANITABI_API_URL",
   "APP_ENV",
+  "CORS_ALLOWED_ORIGIN",
   "CACHE_TTL_SECONDS",
   "DEBUG",
   "DEFAULT_AGENT_MODEL",
