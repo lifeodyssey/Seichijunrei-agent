@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 env:
   PYTHON_VERSION: "3.11"
@@ -79,9 +80,9 @@ jobs:
     if: needs.verify.outputs.backend_ok == 'success' && needs.verify.outputs.frontend_ok == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Approve and merge
+      - name: Comment and auto-merge
         run: |
-          gh pr review "$PR_URL" --approve --body "All checks passed — auto-approved by Dependabot Agent."
+          gh pr comment "$PR_URL" --body "All checks passed — auto-approved by Dependabot Agent."
           gh pr merge "$PR_URL" --squash --auto
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -161,7 +162,7 @@ jobs:
           All checks now pass. Ready for human review.
           BODY
           )"
-            gh pr review "$PR_URL" --approve
+            gh pr comment "$PR_URL" --body "Ready for human review."
           else
             gh pr comment "$PR_URL" --body "$(cat <<'BODY'
           ## ⚠️ Dependabot Agent — Needs Manual Fix
@@ -170,7 +171,7 @@ jobs:
           Manual intervention required.
           BODY
           )"
-            gh pr add-labels "$PR_URL" --labels "needs-manual-fix"
+            gh pr edit "$PR_URL" --add-label "needs-manual-fix"
           fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
