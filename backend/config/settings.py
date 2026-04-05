@@ -104,6 +104,12 @@ class Settings(BaseSettings):
         description="Default LLM model for pydantic-ai agents",
     )
 
+    # CORS
+    cors_allowed_origin: str = Field(
+        default="*",
+        description="Allowed CORS origin. Set to actual domain in production.",
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:

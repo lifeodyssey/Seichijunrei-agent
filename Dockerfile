@@ -30,6 +30,9 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
+RUN useradd -r -s /bin/false appuser
+USER appuser
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
