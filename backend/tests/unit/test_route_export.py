@@ -1,8 +1,7 @@
 """Unit tests for route_export module — Google Maps URL builder and .ics generator."""
 
-import pytest
+from backend.agents.models import TimedItinerary, TimedStop
 from backend.agents.route_export import build_google_maps_url, build_ics_calendar
-from backend.agents.models import TimedStop, TimedItinerary
 
 
 def _make_stop(
@@ -56,7 +55,9 @@ def test_ics_contains_vcalendar() -> None:
 
 
 def test_ics_event_count() -> None:
-    stops = [_make_stop(f"s{i}", 34.89 + i * 0.01, 135.80, f"spot{i}") for i in range(3)]
+    stops = [
+        _make_stop(f"s{i}", 34.89 + i * 0.01, 135.80, f"spot{i}") for i in range(3)
+    ]
     itinerary = TimedItinerary(stops=stops, spot_count=3)
     ics = build_ics_calendar(itinerary, date="20260405")
     assert ics.count("BEGIN:VEVENT") == 3
