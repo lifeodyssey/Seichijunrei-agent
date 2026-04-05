@@ -42,8 +42,12 @@ function findLeg(
 }
 
 function handleExportGoogleMaps(itinerary: TimedItinerary) {
-  const urls = itinerary.export_google_maps_url;
-  if (urls.length > 0) window.open(urls[0], "_blank");
+  const url = itinerary.export_google_maps_url;
+  if (Array.isArray(url)) {
+    if (url.length > 0) window.open(url[0], "_blank");
+  } else if (typeof url === "string") {
+    window.open(url, "_blank");
+  }
 }
 
 function handleExportIcs(itinerary: TimedItinerary) {

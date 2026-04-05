@@ -119,7 +119,7 @@ export interface TimedItinerary {
   spot_count: number;
   pacing: "chill" | "normal" | "packed";
   start_time: string;
-  export_google_maps_url: string[];
+  export_google_maps_url: string | string[];
   export_ics: string;
 }
 

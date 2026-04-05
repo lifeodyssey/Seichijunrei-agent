@@ -13,19 +13,19 @@ _MAPS_BASE = "https://www.google.com/maps/dir/"
 _CHUNK_SIZE = 10
 
 
-def build_google_maps_url(stops: list[TimedStop]) -> list[str]:
+def build_google_maps_url(stops: list[TimedStop]) -> str | list[str]:
     """Build Google Maps directions URL(s) from an ordered list of stops.
 
-    Always returns a list for consistent downstream handling:
-    - Empty list  → []
-    - 1–10 stops  → [single URL]
-    - >10 stops   → [URL1, URL2, ...]; chunks of 10 with 1-stop overlap
+    - Empty list  → ""
+    - 1–10 stops  → single URL string
+    - >10 stops   → list of URLs; chunks of 10 with 1-stop overlap so routes
+                    connect (last stop of chunk N = first stop of chunk N+1)
     """
     if not stops:
-        return []
+        return ""
 
     if len(stops) <= _CHUNK_SIZE:
-        return [_url_from_stops(stops)]
+        return _url_from_stops(stops)
 
     # Split with overlap of 1
     chunks: list[list[TimedStop]] = []

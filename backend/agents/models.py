@@ -107,5 +107,5 @@ class TimedItinerary(BaseModel):
     spot_count: int = 0
     pacing: Literal["chill", "normal", "packed"] = "normal"
     start_time: str = "09:00"
-    export_google_maps_url: list[str] = Field(default_factory=list)
+    export_google_maps_url: str | list[str] = ""
     export_ics: str = ""
