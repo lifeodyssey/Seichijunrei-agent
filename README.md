@@ -107,7 +107,7 @@ async def main() -> None:
 
 HTTP (with API key):
 ```bash
-curl -X POST https://seichijunrei.dev/v1/runtime \
+curl -X POST https://seichijunrei.zhenjia.org/v1/runtime \
   -H 'Authorization: Bearer sk_your_key_here' \
   -H 'Content-Type: application/json' \
   -d '{"text":"吹響の聖地","locale":"ja"}'

@@ -9,6 +9,9 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 export const metadata: Metadata = {
   title: "聖地巡礼",
   description: "アニメ聖地を探す・ルートを計画する",
+  metadataBase: new URL("https://seichijunrei.zhenjia.org"),
+  alternates: { canonical: "/" },
+  openGraph: { url: "https://seichijunrei.zhenjia.org" },
 };
 
 export default function RootLayout({
