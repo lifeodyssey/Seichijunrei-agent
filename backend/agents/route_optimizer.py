@@ -19,7 +19,10 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     rlat1, rlon1, rlat2, rlon2 = map(math.radians, (lat1, lon1, lat2, lon2))
     dlat = rlat2 - rlat1
     dlon = rlon2 - rlon1
-    a = math.sin(dlat / 2) ** 2 + math.cos(rlat1) * math.cos(rlat2) * math.sin(dlon / 2) ** 2
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(rlat1) * math.cos(rlat2) * math.sin(dlon / 2) ** 2
+    )
     return 2 * _EARTH_RADIUS_M * math.asin(math.sqrt(a))
 
 
@@ -45,7 +48,9 @@ def validate_coordinates(
         lng_raw = row.get("longitude")
 
         # Must be present and numeric
-        if not isinstance(lat_raw, (int, float)) or not isinstance(lng_raw, (int, float)):
+        if not isinstance(lat_raw, (int, float)) or not isinstance(
+            lng_raw, (int, float)
+        ):
             invalid.append(row)
             continue
 
@@ -114,7 +119,12 @@ def cluster_by_location(
     # Build unions
     for i in range(n):
         for j in range(i + 1, n):
-            if haversine_distance(coords[i][0], coords[i][1], coords[j][0], coords[j][1]) < threshold_m:
+            if (
+                haversine_distance(
+                    coords[i][0], coords[i][1], coords[j][0], coords[j][1]
+                )
+                < threshold_m
+            ):
                 _union(parent, rank, i, j)
 
     # Group indices by root

@@ -116,7 +116,12 @@ def test_validate_mixed_rows() -> None:
 def test_cluster_groups_nearby() -> None:
     """5 points all within 30m of each other → 1 cluster."""
     rows: list[dict[str, object]] = [
-        {"id": f"p{i}", "latitude": 34.890 + i * 0.0001, "longitude": 135.800, "name": f"spot{i}"}
+        {
+            "id": f"p{i}",
+            "latitude": 34.890 + i * 0.0001,
+            "longitude": 135.800,
+            "name": f"spot{i}",
+        }
         for i in range(5)
     ]
     clusters = cluster_by_location(rows, threshold_m=50.0)

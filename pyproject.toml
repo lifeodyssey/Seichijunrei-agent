@@ -23,7 +23,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
 
     # Async/HTTP
-    "aiohttp>=3.12.0",
+    "aiohttp>=3.13.4",
     "httpx>=0.28.0",
 
     # Observability
