@@ -4,6 +4,7 @@ import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import PilgrimageGrid from "./PilgrimageGrid";
 import NearbyMap from "./NearbyMap";
 import RouteVisualization from "./RouteVisualization";
+import RoutePlannerWizard from "./RoutePlannerWizard";
 import GeneralAnswer from "./GeneralAnswer";
 import Clarification from "./Clarification";
 
@@ -24,6 +25,10 @@ export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
   RouteVisualization: (response) =>
     isRouteData(response.data)
       ? createElement(RouteVisualization, { data: response.data })
+      : null,
+  RoutePlannerWizard: (response) =>
+    isRouteData(response.data)
+      ? createElement(RoutePlannerWizard, { data: response.data })
       : null,
   GeneralAnswer: (response) =>
     isQAData(response.data)
@@ -66,6 +71,7 @@ export const VISUAL_COMPONENTS = new Set([
   "PilgrimageGrid",
   "NearbyMap",
   "RouteVisualization",
+  "RoutePlannerWizard",
 ]);
 
 export function isVisualResponse(response: RuntimeResponse | null): boolean {

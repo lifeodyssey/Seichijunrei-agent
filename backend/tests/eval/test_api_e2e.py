@@ -14,8 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from dotenv import load_dotenv
 
@@ -32,13 +30,6 @@ pytestmark = [
     pytest.mark.skipif(not _dsn, reason="SUPABASE_DB_URL not set"),
     pytest.mark.integration,
 ]
-
-
-def _make_model():
-    """Reuse the model factory from intent eval."""
-    from tests.eval.test_intent_llm import make_model
-
-    return make_model(os.environ.get("EVAL_MODEL"))
 
 
 @pytest.fixture

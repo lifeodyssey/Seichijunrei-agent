@@ -188,7 +188,8 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
     resp.headers["Content-Type"] = "text/event-stream; charset=utf-8"
     resp.headers["Cache-Control"] = "no-cache"
     resp.headers["X-Accel-Buffering"] = "no"
-    resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+    cors_origin = request.app[_SETTINGS_KEY].cors_allowed_origin
+    resp.headers["Access-Control-Allow-Origin"] = cors_origin
     resp.headers["Access-Control-Allow-Credentials"] = "true"
     resp.headers["Access-Control-Allow-Headers"] = (
         "Content-Type, Authorization, X-User-Id"
@@ -285,7 +286,8 @@ async def _cors_middleware(
         resp = web.Response(status=204)
     else:
         resp = await handler(request)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
+    origin = request.app[_SETTINGS_KEY].cors_allowed_origin
+    resp.headers["Access-Control-Allow-Origin"] = origin
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = (
         "Content-Type, Authorization, X-User-Id"

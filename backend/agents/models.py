@@ -61,3 +61,51 @@ class ResolvedLocation(BaseModel):
     matched_key: str | None = Field(
         description="Exact key from KNOWN_LOCATIONS, or null if no match"
     )
+
+
+class LocationCluster(BaseModel):
+    """A physical location grouping multiple anime screenshot points."""
+
+    center_lat: float
+    center_lng: float
+    points: list[dict[str, object]] = Field(default_factory=list)
+    photo_count: int = 0
+    cluster_id: str = ""
+
+
+class TimedStop(BaseModel):
+    """A stop on the route with arrival/departure times and dwell duration."""
+
+    cluster_id: str
+    name: str
+    arrive: str  # "HH:MM"
+    depart: str  # "HH:MM"
+    dwell_minutes: int
+    lat: float
+    lng: float
+    photo_count: int
+    points: list[dict[str, object]] = Field(default_factory=list)
+
+
+class TransitLeg(BaseModel):
+    """A walking segment between two stops."""
+
+    from_id: str
+    to_id: str
+    mode: Literal["walk"]
+    duration_minutes: int
+    distance_m: float
+
+
+class TimedItinerary(BaseModel):
+    """Complete timed route with stops, transit legs, and export data."""
+
+    stops: list[TimedStop] = Field(default_factory=list)
+    legs: list[TransitLeg] = Field(default_factory=list)
+    total_minutes: int = 0
+    total_distance_m: float = 0.0
+    spot_count: int = 0
+    pacing: Literal["chill", "normal", "packed"] = "normal"
+    start_time: str = "09:00"
+    export_google_maps_url: str | list[str] = ""
+    export_ics: str = ""

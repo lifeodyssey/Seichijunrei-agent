@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
-import { useDict, useLocale } from "../../lib/i18n-context";
+import { useDict } from "../../lib/i18n-context";
 import AppShell from "../layout/AppShell";
 
 type Tab = "waitlist" | "login";
@@ -28,7 +28,6 @@ function getSupabaseClient() {
 
 export default function AuthGate() {
   const dict = useDict();
-  const locale = useLocale();
   const t = dict.auth;
   const land = dict.landing;
   const authClient = getSupabaseClient();
