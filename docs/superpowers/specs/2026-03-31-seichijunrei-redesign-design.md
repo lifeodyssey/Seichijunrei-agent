@@ -178,7 +178,9 @@ Adding a new component = register it. No routing logic changes.
 
 **Note:** This is NOT a2ui. a2ui was a legacy agent-to-UI protocol layer (from an older architecture). This is a lightweight rendering pattern on top of the existing `RuntimeResponse` JSON — just a new optional field.
 
-### 2.3 Visual Design Tokens (Always Dark, Shinkai x KyoAni)
+### 2.3 Visual Design Tokens ~~(Always Dark, Shinkai x KyoAni)~~ *(SUPERSEDED — shipped as light theme)*
+
+> **SUPERSEDED:** The dark theme tokens below were an early design proposal. The shipped frontend uses a **light theme** (京吹夏季 / KyoAni summer palette). See `frontend/app/globals.css` for current values.
 
 ```css
 /* Base (Shinkai twilight) */

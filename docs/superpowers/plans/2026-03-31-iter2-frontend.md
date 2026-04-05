@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 > **Status (2026-04-03):** Landed in the codebase, but design tokens/palette have since evolved. Treat this as historical rationale; use `docs/ARCHITECTURE.md` + `frontend/app/globals.css` for current behavior/tokens.
 
-**Goal:** Three-column layout (sidebar + chat-text-only + result panel). Generative UI renderer replaces hardcoded switch. Always-dark Shippori Mincho theme. Chat panel anchors results — clicking `◈` activates the corresponding result in the right panel. English locale added.
+**Goal:** Three-column layout (sidebar + chat-text-only + result panel). Generative UI renderer replaces hardcoded switch. ~~Always-dark Shippori Mincho theme.~~ *(SUPERSEDED: shipped as light theme — 京吹夏季 palette. See `frontend/app/globals.css` for current tokens.)* Chat panel anchors results — clicking `◈` activates the corresponding result in the right panel. English locale added.
 
 **Architecture:** `AppShell` gains `activeMessageId` state + `ResultPanel` column. `MessageBubble` drops `IntentRenderer`; bot messages get a `◈ anchor card`. `GenerativeUIRenderer` (registry) replaces `IntentRenderer` (switch). Three generative components adapted for the large result panel. New `en.json` dictionary.
 
@@ -43,12 +43,14 @@ Task 11 (en.json) is independent throughout.
 
 ---
 
-## Task 1: Dark Theme — `frontend/app/globals.css`
+## Task 1: ~~Dark Theme~~ Theme Tokens — `frontend/app/globals.css`
+
+> **SUPERSEDED:** This task originally specified a dark theme (`#0f0f11` bg, `#d4954a` primary). The shipped design uses a **light theme** (京吹夏季 / KyoAni summer palette: `oklch(98% 0.008 218)` bg, `oklch(60% 0.148 240)` primary). The tokens below are **historical** — see `frontend/app/globals.css` for current values.
 
 **Files:**
 - Modify: `frontend/app/globals.css`
 
-- [ ] **Step 1.1: Replace `:root` tokens and remove light/dark split**
+- [x] **Step 1.1: Replace `:root` tokens and remove light/dark split** *(completed — shipped as light theme)*
 
 Replace the entire `:root` block and `@media (prefers-color-scheme: dark)` block:
 
