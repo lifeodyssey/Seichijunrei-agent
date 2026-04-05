@@ -26,11 +26,12 @@ def _make_stop(
 
 def test_google_maps_url_3_stops() -> None:
     stops = [_make_stop(f"s{i}", 34.89 + i * 0.01, 135.80) for i in range(3)]
-    url = build_google_maps_url(stops)
-    assert isinstance(url, str)
-    assert url.startswith("https://www.google.com/maps/dir/")
-    assert "34.89" in url
-    assert "34.91" in url
+    urls = build_google_maps_url(stops)
+    assert isinstance(urls, list)
+    assert len(urls) == 1
+    assert urls[0].startswith("https://www.google.com/maps/dir/")
+    assert "34.89" in urls[0]
+    assert "34.91" in urls[0]
 
 
 def test_google_maps_url_12_stops() -> None:
@@ -42,7 +43,7 @@ def test_google_maps_url_12_stops() -> None:
 
 def test_google_maps_url_empty() -> None:
     result = build_google_maps_url([])
-    assert result == ""
+    assert result == []
 
 
 def test_ics_contains_vcalendar() -> None:
