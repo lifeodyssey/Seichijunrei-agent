@@ -66,6 +66,7 @@ test_results.json
 # Secrets
 .env
 .env.local
+.env.test
 .env.production
 secrets/
 credentials/
@@ -89,3 +90,4 @@ images/
 .wrangler/
 .venv
 node_modules
+.gstack/
