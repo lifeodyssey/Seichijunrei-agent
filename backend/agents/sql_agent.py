@@ -19,7 +19,10 @@ import structlog
 
 from backend.agents.base import create_agent, get_default_model
 from backend.agents.models import ResolvedLocation, RetrievalRequest
-from backend.infrastructure.gateways.geocoding import GoogleGeocodingGateway
+from backend.infrastructure.gateways.geocoding import (
+    GeocodingCandidate,
+    GoogleGeocodingGateway,
+)
 from backend.infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
@@ -113,11 +116,18 @@ Rules:
 """
 
 
-async def resolve_location(name: str) -> tuple[float, float] | None:
+async def resolve_location(
+    name: str,
+) -> tuple[float, float] | list[GeocodingCandidate] | None:
     """Resolve a location name to coordinates.
 
-    First tries exact match in KNOWN_LOCATIONS, then falls back to LLM
-    for fuzzy matching (e.g. 宇治站 → 宇治, 东京站 → 東京駅).
+    Returns:
+        - ``(lat, lng)`` when a single unambiguous match is found
+        - ``list[GeocodingCandidate]`` (len > 1) when multiple candidates exist
+          and the caller should ask the user to choose
+        - ``None`` when nothing matches
+
+    Resolution order: exact dict → LLM fuzzy → Google Geocoding (candidates).
     """
     # Exact match
     coords = KNOWN_LOCATIONS.get(name)
@@ -141,12 +151,21 @@ async def resolve_location(name: str) -> tuple[float, float] | None:
     except Exception as exc:
         logger.warning("location_resolve_llm_failed", input=name, error=str(exc))
 
-    # Google Geocoding API fallback
+    # Google Geocoding API fallback — may return multiple candidates
     try:
-        geocoded = await GoogleGeocodingGateway().geocode(name)
-        if geocoded is not None:
-            logger.info("location_resolved_by_geocoding", input=name, coords=geocoded)
-            return geocoded
+        candidates = await GoogleGeocodingGateway().geocode_candidates(name)
+        if len(candidates) == 1:
+            c = candidates[0]
+            logger.info("location_resolved_by_geocoding", input=name, label=c.label)
+            return (c.lat, c.lng)
+        if len(candidates) > 1:
+            logger.info(
+                "location_ambiguous",
+                input=name,
+                count=len(candidates),
+                labels=[c.label for c in candidates],
+            )
+            return list(candidates)
     except Exception as exc:
         logger.warning("location_geocoding_failed", input=name, error=str(exc))
 

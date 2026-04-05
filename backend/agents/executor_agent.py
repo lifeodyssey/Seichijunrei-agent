@@ -17,6 +17,7 @@ from backend.agents.models import ExecutionPlan, PlanStep, RetrievalRequest, Too
 from backend.agents.retriever import RetrievalResult, Retriever
 from backend.agents.sql_agent import resolve_location
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
+from backend.infrastructure.gateways.geocoding import GeocodingCandidate
 from backend.infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
@@ -293,7 +294,22 @@ class ExecutorAgent:
         params = step.params or {}
         origin_raw = params.get("origin") or context.get("last_location")
         origin = origin_raw if isinstance(origin_raw, str) else None
-        ordered = await _nearest_neighbor_sort(rows, origin=origin)
+        sort_result = await _nearest_neighbor_sort(rows, origin=origin)
+
+        # Ambiguous origin location — return clarification
+        if sort_result and isinstance(sort_result[0], GeocodingCandidate):
+            candidates = cast(list[GeocodingCandidate], sort_result)
+            return StepResult(
+                tool="clarify",
+                success=True,
+                data={
+                    "question": f"「{origin}」に複数の候補があります。どちらですか？",
+                    "options": [c.label for c in candidates],
+                    "status": "needs_clarification",
+                },
+            )
+
+        ordered = cast(list[dict[str, object]], sort_result)
         _rewrite_image_urls(ordered)
         with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
         return StepResult(
@@ -537,7 +553,11 @@ async def _nearest_neighbor_sort(
     if not with_coords:
         return list(rows)
 
-    origin_coords = await resolve_location(origin) if origin else None
+    resolved = await resolve_location(origin) if origin else None
+    # Ambiguous location → bubble up candidates for clarification
+    if isinstance(resolved, list):
+        return resolved  # type: ignore[return-value]
+    origin_coords = resolved
     remaining = list(with_coords)
     ordered: list[dict] = []
 
