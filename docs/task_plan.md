@@ -1,71 +1,106 @@
-# Task Plan
+# Seichijunrei — Task Plan
 
-## Goal
+Comprehensive plan from full project review (2026-04-05).
+Source: /office-hours + /plan-eng-review + /plan-design-review + /health + /cso + /qa + /investigate
 
-Ship a single v2 backend runtime for anime pilgrimage planning based on
-Pydantic AI, Supabase, and a Plan-and-Execute execution model.
+---
 
-## Current Phase
+## Active: feat/smart-route-planner (PR to main)
 
-Documentation & repo hygiene (2026-04-03)
+### Iter 1: Backend — route_optimizer + route_export + models
+- [ ] `backend/agents/route_optimizer.py` (NEW): cluster_by_location, nearest_neighbor_sort, compute_dwell, build_timed_itinerary, validate_coordinates, haversine_distance
+- [ ] `backend/agents/route_export.py` (NEW): build_google_maps_url, build_ics_calendar
+- [ ] `backend/agents/models.py`: add TimedStop, TransitLeg, TimedItinerary, LocationCluster
+- [ ] `backend/agents/executor_agent.py`: update _execute_plan_route + _execute_plan_selected
 
-## Phases
+### Iter 2: Backend tests — full coverage
+- [ ] `backend/tests/unit/test_route_optimizer.py` (NEW): property tests + golden cases + edge cases
+- [ ] `backend/tests/unit/test_route_export.py` (NEW): URL format, .ics format, UTF-8
 
-### Phase 1 — Foundation
+### Iter 3: Frontend — RoutePlannerWizard
+- [ ] `frontend/components/generative/RoutePlannerWizard.tsx` (NEW): map hero + collapsible spot drawer + timeline + export
+- [ ] `frontend/components/generative/registry.ts`: register wizard
+- [ ] `frontend/lib/types.ts`: add TypeScript interfaces
+- [ ] Mobile: vaul bottom sheet for timeline
 
-- [x] STORY 1.1: Supabase client and schema foundation
-- [x] STORY 1.2: ReActPlannerAgent structured plan output (Pydantic AI)
-- [x] STORY 1.3: Deterministic ExecutorAgent tool dispatch + static templates
-- Status: done
+### Iter 4: Integration + polish
+- [ ] RouteVisualization.tsx backward compat
+- [ ] Entrance animation (slide-up-fade)
+- [ ] Re-optimization fade + spinner UX
 
-### Phase 2 — Convergence Cleanup
+### Iter 5: PR
+- [ ] `make check` passes
+- [ ] QA smoke test via scripts/qa_auth.py
+- [ ] Create PR, CI passes
 
-- [x] STORY 2.1: Remove legacy interface branches and converge docs to v2
-- Status: done
+---
 
-### Phase 3 — Retrieval And Execution
+## Bundled fixes (same PR)
 
-- [x] STORY 3.1: Deterministic retriever with `sql`, `geo`, and `hybrid` strategies
-- [x] STORY 3.2: Write-through cache and DB-miss fallback flow
-- [x] STORY 3.3: Richer executor handler surface on top of retriever output
-- Status: done
+From /cso security audit:
+- [ ] CORS: replace `*` with configurable origin in http_service.py:288
+- [ ] Dockerfile: add `USER appuser` directive
 
-### Phase 4 — Public Interface
+From /qa:
+- [x] DB: conversations + user_memory tables applied to production
+- [x] .gitignore: add .env.test and .gstack/
 
-- [x] STORY 4.1: Add a thin public API surface over `run_pipeline`
-- [x] STORY 4.2: Session persistence and route history
-- Status: done
+---
 
-### Phase 5 — Platform
+## Backlog (separate PRs, after route planner ships)
 
-- [x] STORY 5.1: Cloudflare/Container deployment path
-- [x] STORY 5.2: OpenTelemetry tracing and metrics
-- [x] STORY 5.3: End-to-end acceptance and baseline comparison
-- Status: done
+### P2 — UX improvements
+- [ ] Mobile responsive on auth page (landing page doesn't stack on narrow screens)
+- [ ] Landing page headline: consider Japanese instead of "Anime Pilgrimage, The Journey"
+- [ ] Remove "Internal beta · 2026" footer or replace with warmer text
 
-### Phase 6 — Memory + Streaming
+### P2 — Testing infrastructure
+- [ ] Encapsulate QA flow into `scripts/qa_smoke.sh` (magic link → login → test queries → screenshots)
+- [ ] Add geocoding.py unit tests (24% coverage)
 
-- [x] STORY 6.1: Session-aware context injection into planner prompt
-- [x] STORY 6.2: Route origin support (planner + executor)
-- [x] STORY 6.3: `POST /v1/runtime/stream` SSE endpoint + frontend client
-- [x] STORY 6.4: Session compaction (LLM-backed, best-effort)
-- Status: done
+### P3 — Phase A.5 upgrades (post-validation)
+- [ ] Google Maps Directions API for real walking times (replace Haversine when insufficient)
+- [ ] Apple Maps export URL (`maps://` scheme for iOS)
 
-### Phase 7 — Persistence + UX
+### P3 — Phase B features (after real usage feedback)
+- [ ] OR-Tools integration for TSP with time windows
+- [ ] Sun position calculation (latitude + date → optimal photo timing)
+- [ ] Multi-day trip support
+- [ ] Transit API (Japan GTFS or Jorudan)
+- [ ] Route variant comparison (2-3 alternatives)
+- [ ] Last-train constraint
 
-- [x] STORY 7.1: User memory persistence (Supabase `user_memory`)
-- [x] STORY 7.2: Onboarding greeting flow (`greet_user`)
-- [x] STORY 7.3: Selected-point routing without planner pass (`plan_selected`)
-- [x] STORY 7.4: Frontend UX polish (loading, onboarding prompts, sidebar titles)
-- Status: done
+### P4 — Future
+- [ ] Photo overlay / camera tool (native app, Phase 2)
+- [ ] Agent API for B2B (Ctrip integration)
+- [ ] Observability: enable OTel exporters in production
 
-## Key Decisions
+---
 
-- Runtime orchestration is `ReActPlannerAgent -> ExecutorAgent` (no separate IntentAgent)
-- Retrieval stays deterministic and structured-first
-- UI/protocol layers are deferred until the runtime is stable
-- Any future interface must wrap the runtime, not replace it
+## Architecture reference
 
-## Next Story
-
-No active story queued (keep docs in sync with code changes)
+```
+User: "響け 宇治 半日"
+       │
+       ▼
+ReActPlannerAgent (LLM)
+       │ → ExecutionPlan { steps: [resolve_anime, search_bangumi, plan_route] }
+       ▼
+ExecutorAgent._execute_plan_route()
+       │
+       ├── validate_coordinates(rows) → filter out (0,0)
+       ├── cluster_by_location(rows, 50m) → LocationCluster[]
+       ├── compute_dwell(cluster.photo_count, pacing) per cluster
+       ├── nearest_neighbor_sort(clusters, origin)
+       ├── build_timed_itinerary(clusters, start_datetime, pacing)
+       ├── build_google_maps_url(itinerary.stops)
+       ├── build_ics_calendar(itinerary)
+       └── Return { ordered_points (compat), timed_itinerary (new), exports }
+       ▼
+Frontend: registry.ts → RoutePlannerWizard.tsx
+       │
+       ├── Map (hero, Leaflet)
+       ├── Timeline sidebar (240px)
+       ├── Spot drawer (shadcn Sheet, collapsible)
+       └── Export buttons (Google Maps, Calendar)
+```

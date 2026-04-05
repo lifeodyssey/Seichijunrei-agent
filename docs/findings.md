@@ -1,42 +1,48 @@
-# V2 Findings
+# Seichijunrei — Findings
 
-## Chosen Runtime
+Collected from full project review (2026-04-05).
 
-The repository converges on a two-step Plan-and-Execute model:
+## Product (/office-hours)
+- User's pain: 4 tools (Anitabi + Google Maps + blogs + spreadsheet)
+- Wedge: route optimization. Dream: photo overlay (native app)
+- No community features. Tool, not platform.
+- Cultural identity: 聖地巡礼 not "Pilgrimage"
+- Competitors (Seichi app, JapanAnimeMaps, AnimeTrips): all databases, none intelligent
+- Eureka: competitive advantage is intelligence on top of existing data, not more data
 
-`ReActPlannerAgent -> ExecutorAgent`
+## Engineering (/plan-eng-review)
+- Points table = 1 row per screenshot → cluster before routing
+- 2-opt on Haversine is premature (Codex validated)
+- test_executor_agent.py empty (0 bytes), 31 test gaps
+- executor_agent.py at 44% coverage, geocoding.py at 24%
+- route_optimizer + route_export should be separate modules
+- Coordinate validation needed (0,0 / null island)
+- Parallel lanes: backend + frontend independent
 
-`ReActPlannerAgent` produces a structured `ExecutionPlan` (Pydantic AI, `output_type=ExecutionPlan`).
-`ExecutorAgent` dispatches it deterministically — no LLM calls during execution.
-Intent reasoning is fused into the planner's LLM pass; there is no separate `IntentAgent`.
+## Design (/plan-design-review)
+- Initial: 4/10 → Final: 8/10 (7 decisions made)
+- Map is hero, spot list collapsible
+- shadcn Tabs for pacing, Sheet for spot drawer
+- Mobile: vaul bottom sheet
+- Re-optimize UX: fade + spinner
+- slide-up-fade entrance animation
 
-## Why This Shape
+## Security (/cso)
+- 0 CRITICAL, 0 HIGH, 3 MEDIUM
+- CORS wildcard * (should be configurable)
+- Dockerfile root user (add USER)
+- .gstack/ not gitignored (fixed)
+- SQL injection: safe (parameterized queries)
+- No XSS vectors, no secret leaks
 
-- Planning should stay explicit, typed, and deterministic
-- Execution should call handlers and tools, not hide orchestration in prompts
-- Structured retrieval fits the current data and product scope better than a fuzzier policy layer
-- Eliminating a dedicated intent-classification step reduces latency and simplifies the call graph
+## Code Health (/health)
+- 10/10 composite (lint + typecheck + tests all green)
+- 281 tests, 73% coverage, 0 failures
+- Missing: knip (dead code), shellcheck
 
-## Retrieval Direction
-
-Current baseline:
-
-- Deterministic retriever layer with `sql`, `geo`, and `hybrid` strategies
-- PostGIS-backed geo search + structured SQL retrieval (parameterized only)
-- DB-miss fallback flow (external source → write-through to Supabase) where appropriate
-- Optional `force_refresh` to bypass cached reads when freshness matters
-
-Strategy selection stays deterministic policy. The planner may choose which *tool*
-to call, but the retriever itself should not become a second LLM-driven agent hierarchy.
-
-## What Was Removed
-
-- legacy architecture narrative
-- legacy interface protocol and renderer layer
-- legacy interface server prototype
-- Separate stage-workflow step-agent path
-
-## Open Question
-
-How far should "freshness" go (per-tool cache TTLs, user-controlled refresh) before
-it becomes a product UX surface instead of a runtime concern?
+## QA (/qa + /investigate)
+- P1 BUG FIXED: /v1/conversations → 500 (conversations table missing)
+  Root cause: migrations not applied to production DB
+- Magic link auth works for headless browser QA
+- Mobile layout not responsive on auth page
+- English headline on Japanese-identity product
