@@ -61,3 +61,13 @@ class ResolvedLocation(BaseModel):
     matched_key: str | None = Field(
         description="Exact key from KNOWN_LOCATIONS, or null if no match"
     )
+
+
+class LocationCluster(BaseModel):
+    """A physical location grouping multiple anime screenshot points."""
+
+    center_lat: float
+    center_lng: float
+    points: list[dict[str, object]] = Field(default_factory=list)
+    photo_count: int = 0
+    cluster_id: str = ""
