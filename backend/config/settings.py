@@ -110,6 +110,24 @@ class Settings(BaseSettings):
         description="Allowed CORS origin. Set to actual domain in production.",
     )
 
+    @field_validator("cors_allowed_origin")
+    @classmethod
+    def validate_cors_origin(cls, v: str, info: object) -> str:
+        """Reject wildcard CORS in production."""
+        # info.data is available during model validation with all prior fields
+        data = getattr(info, "data", {})
+        app_env = (
+            data.get("app_env", "development")
+            if isinstance(data, dict)
+            else "development"
+        )
+        if v == "*" and str(app_env).lower() == "production":
+            raise ValueError(
+                "cors_allowed_origin must not be '*' in production. "
+                "Set CORS_ALLOWED_ORIGIN to your actual domain."
+            )
+        return v
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:

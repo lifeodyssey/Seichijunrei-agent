@@ -222,6 +222,10 @@ export function isQAData(data: RuntimeResponse["data"]): data is QAData {
   return data.status === "info" || data.status === "needs_clarification";
 }
 
-export function isTimedRouteData(data: RuntimeResponse["data"]): data is RouteData {
+export type TimedRouteData = RouteData & {
+  route: { timed_itinerary: TimedItinerary };
+};
+
+export function isTimedRouteData(data: RuntimeResponse["data"]): data is TimedRouteData {
   return "route" in data && "timed_itinerary" in (data as RouteData).route;
 }

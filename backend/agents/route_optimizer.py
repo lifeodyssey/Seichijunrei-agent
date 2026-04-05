@@ -6,6 +6,7 @@ All functions are deterministic and make no I/O or LLM calls.
 from __future__ import annotations
 
 import math
+from typing import Literal
 
 from backend.agents.models import (
     LocationCluster,
@@ -295,11 +296,19 @@ def build_timed_itinerary(
         msg = "Too many locations to route (max 50)"
         raise ValueError(msg)
 
+    # Normalize pacing to a valid Literal value
+    _VALID_PACING: dict[str, Literal["chill", "normal", "packed"]] = {
+        "chill": "chill",
+        "normal": "normal",
+        "packed": "packed",
+    }
+    safe_pacing = _VALID_PACING.get(pacing, "normal")
+
     if not clusters:
-        return TimedItinerary(pacing=pacing, start_time=start_time)
+        return TimedItinerary(pacing=safe_pacing, start_time=start_time)
 
     sorted_clusters = nearest_neighbor_sort(clusters)
-    transit_buffer = _TRANSIT_BUFFERS.get(pacing, 1.0)
+    transit_buffer = _TRANSIT_BUFFERS.get(safe_pacing, 1.0)
 
     stops: list[TimedStop] = []
     legs: list[TransitLeg] = []
@@ -307,7 +316,7 @@ def build_timed_itinerary(
     current_time = start_time
 
     for idx, cluster in enumerate(sorted_clusters):
-        dwell = compute_dwell_minutes(cluster.photo_count, pacing)
+        dwell = compute_dwell_minutes(cluster.photo_count, safe_pacing)
         arrive = current_time
         depart = _add_minutes(arrive, dwell)
 
@@ -368,6 +377,6 @@ def build_timed_itinerary(
         total_minutes=total_minutes,
         total_distance_m=round(total_distance, 1),
         spot_count=len(stops),
-        pacing=pacing,
+        pacing=safe_pacing,
         start_time=start_time,
     )
