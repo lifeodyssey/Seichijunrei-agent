@@ -140,3 +140,8 @@ module = [
     "backend.interfaces.public_api",
 ]
 disallow_any_explicit = false
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+]

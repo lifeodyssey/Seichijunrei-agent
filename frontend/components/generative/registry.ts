@@ -29,8 +29,16 @@ export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
     isQAData(response.data)
       ? createElement(GeneralAnswer, { data: response.data })
       : null,
-  Clarification: (response, onSuggest) =>
-    createElement(Clarification, { message: response.message, onSuggest }),
+  Clarification: (response, onSuggest) => {
+    const data = response.data as unknown as Record<string, unknown>;
+    const options =
+      Array.isArray(data?.options) ? (data.options as string[]) : undefined;
+    return createElement(Clarification, {
+      message: response.message,
+      options,
+      onSuggest,
+    });
+  },
 };
 
 export function intentToComponent(intent: string): string {
@@ -47,6 +55,7 @@ export function intentToComponent(intent: string): string {
     case "general_qa":
     case "answer_question":
       return "GeneralAnswer";
+    case "clarify":
     case "unclear":
     default:
       return "Clarification";

@@ -48,6 +48,9 @@ _MESSAGES: dict[tuple[str, str], str] = {
     ("unclear", "ja"): "もう少し具体的に教えていただけますか？",
     ("unclear", "zh"): "能再具体一些吗？",
     ("unclear", "en"): "Could you be more specific?",
+    ("clarify", "ja"): "",
+    ("clarify", "zh"): "",
+    ("clarify", "en"): "",
 }
 
 
@@ -157,6 +160,7 @@ class ExecutorAgent:
                 ToolName.PLAN_SELECTED: self._execute_plan_selected,
                 ToolName.GREET_USER: self._execute_greet_user,
                 ToolName.ANSWER_QUESTION: self._execute_answer_question,
+                ToolName.CLARIFY: self._execute_clarify,
             }.get(tool)
 
         if handler is None:
@@ -371,6 +375,30 @@ class ExecutorAgent:
             },
         )
 
+    async def _execute_clarify(
+        self, step: PlanStep, context: dict[str, object]
+    ) -> StepResult:
+        """Return a clarification question to the user (no retrieval)."""
+        params = step.params or {}
+        question = params.get("question")
+        if not isinstance(question, str):
+            question = ""
+        raw_options = params.get("options")
+        options: list[str] = (
+            [str(o) for o in raw_options if isinstance(o, str)]
+            if isinstance(raw_options, list)
+            else []
+        )
+        return StepResult(
+            tool="clarify",
+            success=True,
+            data={
+                "question": question,
+                "options": options,
+                "status": "needs_clarification",
+            },
+        )
+
     async def _execute_greet_user(
         self, step: PlanStep, context: dict[str, object]
     ) -> StepResult:
@@ -400,11 +428,13 @@ class ExecutorAgent:
         )
         qa_data = context.get(ToolName.ANSWER_QUESTION.value)
         greet_data = context.get(ToolName.GREET_USER.value)
+        clarify_data = context.get(ToolName.CLARIFY.value)
 
         query_payload = query_data if isinstance(query_data, dict) else {}
         route_payload = route_data if isinstance(route_data, dict) else {}
         qa_payload = qa_data if isinstance(qa_data, dict) else {}
         greet_payload = greet_data if isinstance(greet_data, dict) else {}
+        clarify_payload = clarify_data if isinstance(clarify_data, dict) else {}
 
         count = int(query_payload.get("row_count", 0) or 0)
         if count == 0 and route_payload:
@@ -432,6 +462,11 @@ class ExecutorAgent:
         if greet_payload:
             output["message"] = greet_payload.get("message", "")
             output["status"] = greet_payload.get("status", "info")
+        if clarify_payload:
+            output["intent"] = "clarify"
+            output["message"] = clarify_payload.get("question", "")
+            output["status"] = "needs_clarification"
+            output["options"] = clarify_payload.get("options", [])
         if not result.success:
             output["errors"] = [r.error for r in result.step_results if r.error]
         return output
@@ -445,6 +480,7 @@ def _infer_primary_tool(plan: ExecutionPlan) -> str:
     raw_tools = [getattr(s, "tool", None) for s in plan.steps]
     tools_filtered: list[ToolName] = [t for t in raw_tools if isinstance(t, ToolName)]
     for priority in (
+        ToolName.CLARIFY,
         ToolName.PLAN_ROUTE,
         ToolName.PLAN_SELECTED,
         ToolName.SEARCH_BANGUMI,

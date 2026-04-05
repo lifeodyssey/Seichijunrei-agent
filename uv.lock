@@ -3102,6 +3102,11 @@ observability = [
     { name = "opentelemetry-exporter-otlp" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0" },
@@ -3125,6 +3130,9 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.0.0" },
 ]
 provides-extras = ["observability", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "mypy", specifier = ">=1.19.1" }]
 
 [[package]]
 name = "shellingham"

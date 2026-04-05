@@ -21,6 +21,7 @@ class ToolName(str, Enum):
     PLAN_SELECTED = "plan_selected"
     ANSWER_QUESTION = "answer_question"
     GREET_USER = "greet_user"
+    CLARIFY = "clarify"
 
 
 class PlanStep(BaseModel):

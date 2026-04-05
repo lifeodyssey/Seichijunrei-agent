@@ -14,6 +14,7 @@ export type Intent =
   | "answer_question"
   | "greet_user"
   | "general_qa"
+  | "clarify"
   | "unclear"
   | "unknown";
 

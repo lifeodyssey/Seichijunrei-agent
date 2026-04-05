@@ -480,6 +480,7 @@ _UI_MAP: dict[str, str] = {
     "answer_question": "GeneralAnswer",
     "greet_user": "GeneralAnswer",
     "unclear": "Clarification",
+    "clarify": "Clarification",
 }
 
 
