@@ -286,12 +286,15 @@ async def _cors_middleware(
         resp = web.Response(status=204)
     else:
         resp = await handler(request)
-    origin = request.app[_SETTINGS_KEY].cors_allowed_origin
-    resp.headers["Access-Control-Allow-Origin"] = origin
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = (
-        "Content-Type, Authorization, X-User-Id"
-    )
+    # Only set CORS headers if the handler didn't already set them
+    # (e.g., _handle_runtime_stream sets its own for credentialed SSE)
+    if "Access-Control-Allow-Origin" not in resp.headers:
+        origin = request.app[_SETTINGS_KEY].cors_allowed_origin
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-User-Id"
+        )
     return resp
 
 
