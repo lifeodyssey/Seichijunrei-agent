@@ -1000,7 +1000,7 @@ Open app, send "帮我规划一下京吹的取景地". Verify:
 
 - [ ] **Step 7.3: Check Cloudflare Worker SSE passthrough**
 
-SSE requires the Worker not to buffer the response. Verify in `src/worker.js` that the Container fetch result is returned directly without buffering (it is — `return env.CONTAINER.get(id).fetch(authedRequest)` at line 197 passes through transparently).
+SSE requires the Worker not to buffer the response. Verify in `worker/worker.js` that the Container fetch result is returned directly without buffering (it is — `return env.CONTAINER.get(id).fetch(authedRequest)` at line 197 passes through transparently).
 
 - [ ] **Step 7.4: Final commit**
 

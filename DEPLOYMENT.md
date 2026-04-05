@@ -100,7 +100,7 @@ CI automatically deploys on every push to `main`.
 npx wrangler@4 deploy
 ```
 
-**CF Worker routing** (`src/worker.js`):
+**CF Worker routing** (`worker/worker.js`):
 - `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → aiohttp service on port 8080)
 - Everything else → `ASSETS` (Next.js static export from `frontend/out/`)
 

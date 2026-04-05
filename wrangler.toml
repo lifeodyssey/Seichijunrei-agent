@@ -13,12 +13,12 @@
 
 name = "seichijunrei"
 compatibility_date = "2025-03-01"
-main = "src/worker.js"
+main = "worker/worker.js"
 
 [assets]
 directory = "./frontend/out"
 binding = "ASSETS"
-run_worker_first = ["/healthz", "/v1/*"]
+run_worker_first = ["/healthz", "/v1/*", "/img/*"]
 
 [[containers]]
 class_name = "RuntimeContainer"

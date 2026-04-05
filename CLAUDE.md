@@ -92,7 +92,7 @@ DB is source of truth. No hardcoded anime list in code.
 
 ### Auth
 
-Auth is enforced in the Cloudflare Worker (`src/worker.js`) before reaching the container.
+Auth is enforced in the Cloudflare Worker (`worker/worker.js`) before reaching the container.
 
 - Human users: `Authorization: Bearer <supabase_jwt>` (magic-link session)
 - Agent/CLI users: `Authorization: Bearer sk_<hex>` (API key — stored as SHA-256 hash in `api_keys` table)
@@ -143,7 +143,7 @@ Design tokens (`frontend/app/globals.css`):
 
 - Container: Python aiohttp service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
 - Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
-- Worker: `src/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
+- Worker: `worker/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
 - Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
 - DB migrations: apply `supabase/migrations/` in order before each deploy (see `DEPLOYMENT.md`)
 

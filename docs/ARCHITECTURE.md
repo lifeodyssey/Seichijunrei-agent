@@ -128,7 +128,7 @@ Every anime query triggers `resolve_anime` first:
 
 DB grows automatically. No hardcoded list in code.
 
-## Auth Layer — `src/worker.js`
+## Auth Layer — `worker/worker.js`
 
 CF Worker validates credentials before proxying to the container:
 

@@ -21,7 +21,7 @@ Canonical docs (keep these accurate; avoid duplicating architecture narratives e
 
 - Orchestration stays `ReActPlannerAgent → ExecutorAgent`; do not reintroduce an IntentAgent split.
 - `ExecutorAgent` must remain deterministic (no LLM calls during execution).
-- Auth is enforced at the Cloudflare Worker edge (`src/worker.js`); the container trusts forwarded headers.
+- Auth is enforced at the Cloudflare Worker edge (`worker/worker.js`); the container trusts forwarded headers.
 - Frontend is a Next.js static export (`output: "export"`); avoid server-only Next.js features.
 - **No `Any`** in Python source — use `object` + `isinstance()` narrowing at trust boundaries.
 - Pre-commit hooks enforce ruff lint/format + mypy on every commit.
@@ -72,5 +72,5 @@ backend/              # Python runtime
   tests/              # unit, integration, eval
 frontend/             # Next.js static export
 supabase/migrations/  # DDL migrations (timestamp-ordered)
-src/worker.js         # Cloudflare Worker (auth + routing)
+worker/worker.js         # Cloudflare Worker (auth + routing)
 ```
