@@ -1,34 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 import { useDict } from "../../lib/i18n-context";
+import { getSupabaseClient } from "../../lib/supabase";
 import AppShell from "../layout/AppShell";
 
 type Tab = "waitlist" | "login";
-
-let supabaseClient: SupabaseClient | null | undefined;
-
-function getSupabaseClient() {
-  if (supabaseClient !== undefined) return supabaseClient;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    supabaseClient = null;
-    return supabaseClient;
-  }
-
-  try {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { flowType: 'implicit' },
-    });
-  } catch {
-    supabaseClient = null;
-  }
-  return supabaseClient;
-}
 
 export default function AuthGate() {
   const dict = useDict();

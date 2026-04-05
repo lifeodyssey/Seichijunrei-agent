@@ -2,31 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient, type EmailOtpType, type SupabaseClient } from "@supabase/supabase-js";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { useDict } from "../../lib/i18n-context";
-
-let supabaseClient: SupabaseClient | null | undefined;
-
-function getSupabaseClient() {
-  if (supabaseClient !== undefined) return supabaseClient;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    supabaseClient = null;
-    return supabaseClient;
-  }
-
-  try {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { flowType: 'implicit' },
-    });
-  } catch {
-    supabaseClient = null;
-  }
-  return supabaseClient;
-}
+import { getSupabaseClient } from "../../lib/supabase";
 
 export function AuthCallbackPage() {
   const t = useDict().auth;

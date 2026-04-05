@@ -14,7 +14,9 @@ export function getSupabaseClient(): SupabaseClient | null {
   }
 
   try {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { flowType: "implicit" },
+    });
   } catch {
     supabaseClient = null;
   }
