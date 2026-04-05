@@ -73,9 +73,54 @@ export interface RouteData {
       with_coordinates: number;
       without_coordinates: number;
     };
+    timed_itinerary?: TimedItinerary;
   };
   message: string;
   status: "ok" | "empty" | "partial";
+}
+
+/** A physical location cluster with multiple anime screenshot points. */
+export interface LocationCluster {
+  center_lat: number;
+  center_lng: number;
+  points: PilgrimagePoint[];
+  photo_count: number;
+  cluster_id: string;
+}
+
+/** A stop on the route with arrival/departure times. */
+export interface TimedStop {
+  cluster_id: string;
+  name: string;
+  arrive: string;  // "HH:MM"
+  depart: string;  // "HH:MM"
+  dwell_minutes: number;
+  lat: number;
+  lng: number;
+  photo_count: number;
+  points: PilgrimagePoint[];
+}
+
+/** A walking segment between two stops. */
+export interface TransitLeg {
+  from_id: string;
+  to_id: string;
+  mode: "walk";
+  duration_minutes: number;
+  distance_m: number;
+}
+
+/** Complete timed route with stops, transit legs, and export data. */
+export interface TimedItinerary {
+  stops: TimedStop[];
+  legs: TransitLeg[];
+  total_minutes: number;
+  total_distance_m: number;
+  spot_count: number;
+  pacing: "chill" | "normal" | "packed";
+  start_time: string;
+  export_google_maps_url: string | string[];
+  export_ics: string;
 }
 
 /** data shape when intent = general_qa | unclear */
@@ -175,4 +220,8 @@ export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
   return data.status === "info" || data.status === "needs_clarification";
+}
+
+export function isTimedRouteData(data: RuntimeResponse["data"]): data is RouteData {
+  return "route" in data && "timed_itinerary" in (data as RouteData).route;
 }
