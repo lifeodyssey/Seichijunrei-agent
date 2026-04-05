@@ -197,9 +197,15 @@ def test_nearest_neighbor_reduces_backtracking() -> None:
     # 3 clusters in a line: A(0), B(100m away), C(50m from A)
     # Naive order: A,B,C backtracks. NN from A: A→C→B
     clusters = [
-        LocationCluster(center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=1),
-        LocationCluster(center_lat=34.891, center_lng=135.800, cluster_id="b", photo_count=1),
-        LocationCluster(center_lat=34.8905, center_lng=135.800, cluster_id="c", photo_count=1),
+        LocationCluster(
+            center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=1
+        ),
+        LocationCluster(
+            center_lat=34.891, center_lng=135.800, cluster_id="b", photo_count=1
+        ),
+        LocationCluster(
+            center_lat=34.8905, center_lng=135.800, cluster_id="c", photo_count=1
+        ),
     ]
     result = nearest_neighbor_sort(clusters)
     ids = [c.cluster_id for c in result]
@@ -208,8 +214,12 @@ def test_nearest_neighbor_reduces_backtracking() -> None:
 
 def test_nearest_neighbor_with_origin() -> None:
     clusters = [
-        LocationCluster(center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=1),
-        LocationCluster(center_lat=34.900, center_lng=135.800, cluster_id="b", photo_count=1),
+        LocationCluster(
+            center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=1
+        ),
+        LocationCluster(
+            center_lat=34.900, center_lng=135.800, cluster_id="b", photo_count=1
+        ),
     ]
     # Origin near b
     result = nearest_neighbor_sort(clusters, origin=(34.899, 135.800))
@@ -222,10 +232,16 @@ def test_nearest_neighbor_empty() -> None:
 
 def test_nearest_neighbor_deterministic() -> None:
     clusters = [
-        LocationCluster(center_lat=34.890, center_lng=135.800, cluster_id="x", photo_count=1),
-        LocationCluster(center_lat=34.891, center_lng=135.801, cluster_id="y", photo_count=1),
+        LocationCluster(
+            center_lat=34.890, center_lng=135.800, cluster_id="x", photo_count=1
+        ),
+        LocationCluster(
+            center_lat=34.891, center_lng=135.801, cluster_id="y", photo_count=1
+        ),
     ]
-    results = [tuple(c.cluster_id for c in nearest_neighbor_sort(clusters)) for _ in range(10)]
+    results = [
+        tuple(c.cluster_id for c in nearest_neighbor_sort(clusters)) for _ in range(10)
+    ]
     assert len(set(results)) == 1  # always same order
 
 
@@ -253,9 +269,27 @@ def test_dwell_zero_photos() -> None:
 
 def test_itinerary_monotonic_times() -> None:
     clusters = [
-        LocationCluster(center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=3, points=[{"id": "1"}, {"id": "2"}, {"id": "3"}]),
-        LocationCluster(center_lat=34.891, center_lng=135.801, cluster_id="b", photo_count=2, points=[{"id": "4"}, {"id": "5"}]),
-        LocationCluster(center_lat=34.892, center_lng=135.802, cluster_id="c", photo_count=1, points=[{"id": "6"}]),
+        LocationCluster(
+            center_lat=34.890,
+            center_lng=135.800,
+            cluster_id="a",
+            photo_count=3,
+            points=[{"id": "1"}, {"id": "2"}, {"id": "3"}],
+        ),
+        LocationCluster(
+            center_lat=34.891,
+            center_lng=135.801,
+            cluster_id="b",
+            photo_count=2,
+            points=[{"id": "4"}, {"id": "5"}],
+        ),
+        LocationCluster(
+            center_lat=34.892,
+            center_lng=135.802,
+            cluster_id="c",
+            photo_count=1,
+            points=[{"id": "6"}],
+        ),
     ]
     itinerary = build_timed_itinerary(clusters, start_time="09:00", pacing="normal")
     for i in range(1, len(itinerary.stops)):
@@ -263,13 +297,29 @@ def test_itinerary_monotonic_times() -> None:
 
 
 def test_itinerary_exceeds_50_clusters() -> None:
-    clusters = [LocationCluster(center_lat=34.0 + i * 0.01, center_lng=135.0, cluster_id=f"c{i}", photo_count=1) for i in range(51)]
+    clusters = [
+        LocationCluster(
+            center_lat=34.0 + i * 0.01,
+            center_lng=135.0,
+            cluster_id=f"c{i}",
+            photo_count=1,
+        )
+        for i in range(51)
+    ]
     with pytest.raises(ValueError, match="Too many"):
         build_timed_itinerary(clusters)
 
 
 def test_itinerary_single_cluster() -> None:
-    clusters = [LocationCluster(center_lat=34.890, center_lng=135.800, cluster_id="a", photo_count=2, points=[{"id": "1"}, {"id": "2"}])]
+    clusters = [
+        LocationCluster(
+            center_lat=34.890,
+            center_lng=135.800,
+            cluster_id="a",
+            photo_count=2,
+            points=[{"id": "1"}, {"id": "2"}],
+        )
+    ]
     itinerary = build_timed_itinerary(clusters, start_time="10:00", pacing="normal")
     assert len(itinerary.stops) == 1
     assert len(itinerary.legs) == 0

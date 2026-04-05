@@ -210,13 +210,17 @@ def nearest_neighbor_sort(
         cur_lat, cur_lng = current.center_lat, current.center_lng
         remaining.sort(
             key=lambda c: (
-                round(haversine_distance(cur_lat, cur_lng, c.center_lat, c.center_lng), 2),
+                round(
+                    haversine_distance(cur_lat, cur_lng, c.center_lat, c.center_lng), 2
+                ),
                 c.cluster_id,
             )
         )
         # Check tiebreaker threshold: within 0.01m
         best = remaining[0]
-        best_dist = haversine_distance(cur_lat, cur_lng, best.center_lat, best.center_lng)
+        best_dist = haversine_distance(
+            cur_lat, cur_lng, best.center_lat, best.center_lng
+        )
         # Among all within 0.01m of best, pick by cluster_id
         tied = [
             c
@@ -339,7 +343,9 @@ def build_timed_itinerary(
                 next_cluster.center_lng,
             )
             total_distance += dist
-            walk_minutes = max(1, round(dist / _WALKING_SPEED_M_PER_MIN * transit_buffer))
+            walk_minutes = max(
+                1, round(dist / _WALKING_SPEED_M_PER_MIN * transit_buffer)
+            )
             legs.append(
                 TransitLeg(
                     from_id=cluster.cluster_id,

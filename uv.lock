@@ -3107,7 +3107,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.13.4" },
+    { name = "aiohttp", specifier = ">=3.13.5" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "google-genai", specifier = ">=1.16.0" },
     { name = "httpx", specifier = ">=0.28.0" },
