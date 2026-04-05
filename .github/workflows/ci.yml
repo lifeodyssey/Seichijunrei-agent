@@ -9,6 +9,7 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # ── Stage 1: Quality Gates (all parallel) ────────────────────
 
@@ -113,7 +114,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v6
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           fail_ci_if_error: false
         continue-on-error: true
 
