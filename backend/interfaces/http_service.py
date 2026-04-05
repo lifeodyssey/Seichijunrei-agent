@@ -192,7 +192,7 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
     resp.headers["Access-Control-Allow-Origin"] = cors_origin
     resp.headers["Access-Control-Allow-Credentials"] = "true"
     resp.headers["Access-Control-Allow-Headers"] = (
-        "Content-Type, Authorization, X-User-Id"
+        "Content-Type, Authorization, X-User-Id, X-User-Type"
     )
 
     await resp.prepare(request)
@@ -291,7 +291,7 @@ async def _cors_middleware(
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = (
-            "Content-Type, Authorization, X-User-Id"
+            "Content-Type, Authorization, X-User-Id, X-User-Type"
         )
     return resp
 
