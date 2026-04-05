@@ -9,6 +9,8 @@ import type {
   TransitLeg,
 } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { Drawer } from "vaul";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -177,9 +179,11 @@ interface RoutePlannerWizardProps {
 
 export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
   const _dict = useDict();
+  const isMobile = useMediaQuery("(max-width: 1023px)");
   const [_pacing, setPacing] = useState<"chill" | "normal" | "packed">(
     data.route.timed_itinerary?.pacing ?? "normal",
   );
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const itinerary = data.route.timed_itinerary;
   const points = data.route.ordered_points;
@@ -187,7 +191,9 @@ export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--color-border)]">
       {/* ── Toolbar ─────────────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+      <div
+        className={`flex shrink-0 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg)] ${isMobile ? "px-2 py-1.5" : "px-3 py-2"}`}
+      >
         {/* Pacing tabs */}
         <Tabs
           defaultValue="normal"
@@ -216,8 +222,8 @@ export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Export buttons */}
-        {itinerary && (
+        {/* Export buttons — desktop only; on mobile they live in the drawer */}
+        {itinerary && !isMobile && (
           <>
             <Button
               variant="outline"
@@ -239,7 +245,7 @@ export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
 
       {/* ── Content ─────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Map area */}
+        {/* Map area — full width on mobile */}
         <div className="relative flex-1">
           <PilgrimageMap points={points} route={points} height="100%" />
 
@@ -282,13 +288,144 @@ export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
           )}
         </div>
 
-        {/* Timeline sidebar (desktop) */}
-        {itinerary ? (
-          <TimelineSidebar itinerary={itinerary} />
-        ) : (
-          <FallbackList data={data} />
+        {/* Timeline sidebar — desktop only */}
+        {!isMobile && (
+          itinerary ? (
+            <TimelineSidebar itinerary={itinerary} />
+          ) : (
+            <FallbackList data={data} />
+          )
         )}
       </div>
+
+      {/* ── Mobile bottom-sheet (vaul Drawer) ───────────────────────── */}
+      {isMobile && (
+        <Drawer.Root
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          snapPoints={[0.4, 0.9]}
+          fadeFromIndex={1}
+        >
+          {/* Persistent handle bar that always peeks at the bottom */}
+          <Drawer.Trigger asChild>
+            <button
+              className="shrink-0 w-full flex items-center justify-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-card)] py-2 text-xs text-[var(--color-muted-fg)]"
+              aria-label="タイムラインを開く"
+            >
+              <span className="font-medium text-[var(--color-fg)]">
+                {itinerary ? `タイムライン · ${itinerary.spot_count}スポット` : "スポット一覧"}
+              </span>
+              <span className="opacity-50">▲</span>
+            </button>
+          </Drawer.Trigger>
+
+          <Drawer.Portal>
+            <Drawer.Overlay className="fixed inset-0 z-40 bg-black/40" />
+            <Drawer.Content
+              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-[var(--color-card)] border-t border-[var(--color-border)] max-h-[90vh] outline-none"
+              aria-label="タイムライン"
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-10 h-1 rounded-full bg-[var(--color-muted-fg)] opacity-40" />
+              </div>
+
+              {/* Timeline content */}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {itinerary ? (
+                  <>
+                    <h3 className="px-4 py-2 text-xs font-semibold tracking-wide text-[var(--color-muted-fg)] font-[family-name:var(--app-font-display)]">
+                      タイムライン
+                    </h3>
+                    <ol className="relative px-4 pb-2">
+                      {itinerary.stops.map((stop, idx) => {
+                        const nextStop =
+                          idx < itinerary.stops.length - 1
+                            ? itinerary.stops[idx + 1]
+                            : null;
+                        const leg = nextStop
+                          ? findLeg(itinerary.legs, stop, nextStop)
+                          : null;
+
+                        return (
+                          <li key={stop.cluster_id} className="relative">
+                            <div className="flex items-start gap-2 py-1.5">
+                              <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" />
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[11px] tabular-nums text-[var(--color-muted-fg)]">
+                                  {stop.arrive}
+                                </span>
+                                <p className="truncate text-sm font-medium text-[var(--color-fg)]">
+                                  {stop.name}
+                                </p>
+                                <p className="text-[10px] text-[var(--color-muted-fg)]">
+                                  {stop.photo_count} scenes · 滞在 {stop.dwell_minutes}min
+                                </p>
+                              </div>
+                            </div>
+                            {leg && (
+                              <div className="flex items-start gap-2 py-1">
+                                <div className="flex w-2 shrink-0 justify-center">
+                                  <div className="h-6 w-px bg-[var(--color-border)]" />
+                                </div>
+                                <span className="rounded bg-[var(--color-muted)] px-2 py-0.5 text-[10px] text-[var(--color-muted-fg)]">
+                                  🚶 {leg.duration_minutes}min
+                                </span>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
+
+                    {/* Summary */}
+                    <div className="mx-4 border-t border-[var(--color-border)] pt-3 pb-2">
+                      <dl className="space-y-0.5 text-[11px] text-[var(--color-fg)]">
+                        <div className="flex justify-between">
+                          <dt className="text-[var(--color-muted-fg)]">スポット</dt>
+                          <dd>{itinerary.spot_count}</dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-[var(--color-muted-fg)]">所要時間</dt>
+                          <dd>{itinerary.total_minutes}min</dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-[var(--color-muted-fg)]">移動距離</dt>
+                          <dd>{(itinerary.total_distance_m / 1000).toFixed(1)} km</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </>
+                ) : (
+                  <FallbackList data={data} />
+                )}
+              </div>
+
+              {/* Export buttons pinned at the bottom of the drawer */}
+              {itinerary && (
+                <div className="shrink-0 flex gap-2 px-4 py-3 border-t border-[var(--color-border)]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleExportGoogleMaps(itinerary)}
+                  >
+                    📍 Maps
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleExportIcs(itinerary)}
+                  >
+                    📅 Cal
+                  </Button>
+                </div>
+              )}
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
+      )}
     </div>
   );
 }
