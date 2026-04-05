@@ -4,9 +4,7 @@
 
 **アニメ聖地の検索・ルート計画を支援する AI エージェント**
 
-[![CI](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml)
-[![Deploy](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/deploy.yml/badge.svg)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/deploy.yml)
-[![codecov](https://codecov.io/gh/lifeodyssey/Seichijunrei-agent/graph/badge.svg)](https://codecov.io/gh/lifeodyssey/Seichijunrei-agent)
+[![CI](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lifeodyssey/Seichijunrei-agent/actions/workflows/ci.yml?query=branch%3Amain)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776ab.svg)](https://www.python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg?logo=nextdotjs)](https://nextjs.org)
 [![Cloudflare Workers](https://img.shields.io/badge/deploy-Cloudflare_Workers-f38020.svg?logo=cloudflare)](https://developers.cloudflare.com/workers/)
