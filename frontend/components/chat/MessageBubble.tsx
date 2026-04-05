@@ -6,6 +6,8 @@ import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
 import { submitFeedback } from "../../lib/api";
 import { useDict } from "../../lib/i18n-context";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -56,16 +58,24 @@ export default function MessageBubble({
             </p>
           )}
           {message.response && canShowAnchor(message.response) && (
-            <ResultAnchor
-              label={t.anchor_results.replace(
-                "{count}",
-                String(getResultCount(message.response)),
-              )}
-              messageId={message.id}
-              onActivate={onActivate}
-              isActive={isActive}
-              onOpenDrawer={onOpenDrawer}
-            />
+            <>
+              <InlineSummaryCard
+                response={message.response}
+                messageId={message.id}
+                onActivate={onActivate}
+                onOpenDrawer={onOpenDrawer}
+              />
+              <ResultAnchor
+                label={t.anchor_results.replace(
+                  "{count}",
+                  String(getResultCount(message.response)),
+                )}
+                messageId={message.id}
+                onActivate={onActivate}
+                isActive={isActive}
+                onOpenDrawer={onOpenDrawer}
+              />
+            </>
           )}
           {message.response && !message.loading && (
             <FeedbackButtons message={message} userQuery={userQuery ?? ""} />
@@ -126,6 +136,62 @@ function getResultCount(response: RuntimeResponse): number {
   if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
   if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
   return 0;
+}
+
+function InlineSummaryCard({
+  response,
+  messageId,
+  onActivate,
+  onOpenDrawer,
+}: {
+  response: RuntimeResponse;
+  messageId: string;
+  onActivate?: (messageId: string) => void;
+  onOpenDrawer?: () => void;
+}) {
+  const data = response.data;
+  if (!isSearchData(data)) return null;
+
+  const rows = data.results.rows;
+  if (rows.length === 0) return null;
+
+  const animeTitle = rows[0]?.title_cn || rows[0]?.title || "";
+  const count = data.results.row_count ?? rows.length;
+  const thumbnails = rows.filter((r) => r.screenshot_url).slice(0, 3);
+
+  return (
+    <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
+      <CardContent className="space-y-2">
+        <p className="text-xs font-medium text-[var(--color-fg)]">
+          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{count}処の聖地</span>
+        </p>
+        {thumbnails.length > 0 && (
+          <div className="flex gap-1">
+            {thumbnails.map((point) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={point.id}
+                src={point.screenshot_url!}
+                alt={point.name_cn || point.name}
+                className="h-12 w-16 rounded-sm object-cover"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => {
+            onActivate?.(messageId);
+            onOpenDrawer?.();
+          }}
+        >
+          詳細を見る
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ResultAnchor({

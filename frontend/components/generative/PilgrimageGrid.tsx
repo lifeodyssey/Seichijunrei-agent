@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 function PilgrimageCard({
   point,
@@ -87,6 +89,56 @@ function PilgrimageCard({
   );
 }
 
+function GroupSection({
+  label,
+  count,
+  points,
+  episodeLabel,
+  selectedIds,
+  toggle,
+  defaultOpen = true,
+}: {
+  label: string;
+  count: number;
+  points: PilgrimagePoint[];
+  episodeLabel: string;
+  selectedIds: ReadonlySet<string>;
+  toggle: (id: string) => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 text-left"
+      >
+        <span className="text-[10px] text-[var(--color-muted-fg)] transition-transform" style={{ display: "inline-block", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>
+          ▶
+        </span>
+        <span className="text-xs font-medium text-[var(--color-fg)]">{label}</span>
+        <Badge variant="secondary" className="text-[10px]">{count}</Badge>
+      </button>
+      {open && (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {points.map((point, idx) => (
+            <PilgrimageCard
+              key={point.id}
+              point={point}
+              idx={idx}
+              episodeLabel={episodeLabel}
+              selected={selectedIds.has(point.id)}
+              onToggle={() => toggle(point.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PilgrimageGridProps {
   data: SearchResultData;
 }
@@ -95,6 +147,39 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
   const { grid: t } = useDict();
   const { selectedIds, toggle } = usePointSelectionContext();
   const { results } = data;
+
+  const episodeGroups = useMemo(() => {
+    const groups = new Map<string, PilgrimagePoint[]>();
+    for (const point of results.rows) {
+      const key = point.episode != null && point.episode !== 0
+        ? String(point.episode)
+        : "__other__";
+      const list = groups.get(key) ?? [];
+      list.push(point);
+      groups.set(key, list);
+    }
+    // Sort numeric keys, put "other" last
+    const sorted: Array<[string, PilgrimagePoint[]]> = [];
+    const keys = [...groups.keys()].filter((k) => k !== "__other__").sort((a, b) => Number(a) - Number(b));
+    for (const k of keys) sorted.push([k, groups.get(k)!]);
+    if (groups.has("__other__")) sorted.push(["__other__", groups.get("__other__")!]);
+    return sorted;
+  }, [results.rows]);
+
+  const areaGroups = useMemo(() => {
+    const groups = new Map<string, PilgrimagePoint[]>();
+    for (const point of results.rows) {
+      const key = point.origin ? point.origin : "__unknown__";
+      const list = groups.get(key) ?? [];
+      list.push(point);
+      groups.set(key, list);
+    }
+    const sorted: Array<[string, PilgrimagePoint[]]> = [];
+    const keys = [...groups.keys()].filter((k) => k !== "__unknown__").sort();
+    for (const k of keys) sorted.push([k, groups.get(k)!]);
+    if (groups.has("__unknown__")) sorted.push(["__unknown__", groups.get("__unknown__")!]);
+    return sorted;
+  }, [results.rows]);
 
   if (results.status === "empty" || results.rows.length === 0) {
     return (
@@ -120,19 +205,44 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
         </span>
       </div>
 
-      {/* Photo spread — featured first card */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        {results.rows.map((point, idx) => (
-          <PilgrimageCard
-            key={point.id}
-            point={point}
-            idx={idx}
-            episodeLabel={t.episode}
-            selected={selectedIds.has(point.id)}
-            onToggle={() => toggle(point.id)}
-          />
-        ))}
-      </div>
+      <Tabs defaultValue="episode">
+        <TabsList variant="line">
+          <TabsTrigger value="episode">按集数</TabsTrigger>
+          <TabsTrigger value="area">按地区</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="episode">
+          <div className="space-y-4 pt-3">
+            {episodeGroups.map(([key, points]) => (
+              <GroupSection
+                key={key}
+                label={key === "__other__" ? "その他" : `EP ${key}`}
+                count={points.length}
+                points={points}
+                episodeLabel={t.episode}
+                selectedIds={selectedIds}
+                toggle={toggle}
+              />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="area">
+          <div className="space-y-4 pt-3">
+            {areaGroups.map(([key, points]) => (
+              <GroupSection
+                key={key}
+                label={key === "__unknown__" ? "不明" : key}
+                count={points.length}
+                points={points}
+                episodeLabel={t.episode}
+                selectedIds={selectedIds}
+                toggle={toggle}
+              />
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

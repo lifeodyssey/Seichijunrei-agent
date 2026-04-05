@@ -110,9 +110,8 @@ export default function AppShell() {
   );
 
   const hasVisualResponse = selectedVisualMessage !== null || latestVisualResponseMessage !== null;
-  // Suppress stale visual during loading (Bug 2); honour explicit pin otherwise
-  const activeMessage =
-    selectedVisualMessage ?? (isSending ? null : latestVisualResponseMessage);
+  // ResultPanel opens only when the user explicitly clicks the ◈ anchor
+  const activeMessage = selectedVisualMessage ?? null;
 
   const activeResponse = activeMessage?.response ?? null;
   const activeResultMessageId = activeMessage?.id ?? null;
