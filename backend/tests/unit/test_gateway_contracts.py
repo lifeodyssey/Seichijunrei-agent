@@ -11,8 +11,8 @@ import pytest
 from backend.application.errors import ExternalServiceError, InvalidInputError
 from backend.application.ports import AnitabiGateway, BangumiGateway
 from backend.clients.errors import APIError, NotFoundError
-from backend.domain.entities import Bangumi, Coordinates, Point, Station
-from backend.domain.errors import InvalidStationError, NoBangumiFoundError
+from backend.domain.entities import Coordinates, Point, Station
+from backend.domain.errors import InvalidStationError
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
 
@@ -61,16 +61,18 @@ def sample_point():
 
 
 @pytest.fixture
-def sample_bangumi():
-    """Create a sample Bangumi entity."""
-    return Bangumi(
-        id="bg-001",
-        title="Test Anime",
-        cn_title="测试动画",
-        cover_url="https://example.com/cover.jpg",
-        points_count=5,
-        distance_km=2.5,
-    )
+def sample_bangumi_lite():
+    """Create a sample bangumi lite response."""
+    return {
+        "id": "bg-001",
+        "title": "Test Anime",
+        "cn": "测试动画",
+        "city": "東京都",
+        "cover": "https://example.com/cover.jpg",
+        "geo": [139.7671, 35.6812],
+        "zoom": 14,
+        "pointsLength": 5,
+    }
 
 
 # --- AnitabiGateway Contract Tests ---
@@ -84,8 +86,8 @@ class TestAnitabiGatewayContract:
         gateway = AnitabiClientGateway(client=mock_anitabi_client)
         # Protocol compliance: check required methods exist
         assert hasattr(gateway, "get_bangumi_points")
+        assert hasattr(gateway, "get_bangumi_lite")
         assert hasattr(gateway, "get_station_info")
-        assert hasattr(gateway, "search_bangumi")
 
     @pytest.mark.asyncio
     async def test_get_bangumi_points_returns_list_of_points(
@@ -152,45 +154,28 @@ class TestAnitabiGatewayContract:
         assert exc_info.value.service == "anitabi"
 
     @pytest.mark.asyncio
-    async def test_search_bangumi_returns_list_of_bangumi(
-        self, mock_anitabi_client, sample_station, sample_bangumi
+    async def test_get_bangumi_lite_returns_dict(
+        self, mock_anitabi_client, sample_bangumi_lite
     ):
-        """search_bangumi should return list[Bangumi]."""
-        mock_anitabi_client.search_bangumi.return_value = [sample_bangumi]
+        """get_bangumi_lite should return dict with metadata."""
+        mock_anitabi_client.get_bangumi_lite.return_value = sample_bangumi_lite
         gateway = AnitabiClientGateway(client=mock_anitabi_client)
 
-        result = await gateway.search_bangumi(station=sample_station, radius_km=10.0)
+        result = await gateway.get_bangumi_lite("bg-001")
 
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], Bangumi)
-        mock_anitabi_client.search_bangumi.assert_called_once_with(
-            station=sample_station, radius_km=10.0
-        )
+        assert isinstance(result, dict)
+        assert result["title"] == "Test Anime"
+        assert result["city"] == "東京都"
+        mock_anitabi_client.get_bangumi_lite.assert_called_once_with("bg-001")
 
     @pytest.mark.asyncio
-    async def test_search_bangumi_maps_not_found_to_no_bangumi(
-        self, mock_anitabi_client, sample_station
-    ):
-        """Bangumi NotFoundError should map to NoBangumiFoundError."""
-        mock_anitabi_client.search_bangumi.side_effect = NotFoundError(
-            "No bangumi found near Tokyo", resource_type="bangumi"
-        )
-        gateway = AnitabiClientGateway(client=mock_anitabi_client)
-
-        with pytest.raises(NoBangumiFoundError):
-            await gateway.search_bangumi(station=sample_station, radius_km=10.0)
-
-    @pytest.mark.asyncio
-    async def test_search_bangumi_maps_api_error(
-        self, mock_anitabi_client, sample_station
-    ):
-        """General API errors should be mapped to ExternalServiceError."""
-        mock_anitabi_client.search_bangumi.side_effect = APIError("Network error")
+    async def test_get_bangumi_lite_maps_api_error(self, mock_anitabi_client):
+        """API errors should be mapped to ExternalServiceError."""
+        mock_anitabi_client.get_bangumi_lite.side_effect = APIError("Not found")
         gateway = AnitabiClientGateway(client=mock_anitabi_client)
 
         with pytest.raises(ExternalServiceError) as exc_info:
-            await gateway.search_bangumi(station=sample_station, radius_km=10.0)
+            await gateway.get_bangumi_lite("bg-001")
 
         assert exc_info.value.service == "anitabi"
 
@@ -336,7 +321,11 @@ class TestProtocolCompliance:
 
         # This test verifies structural subtyping
         def use_anitabi_gateway(gw: AnitabiGateway) -> bool:
-            return hasattr(gw, "get_bangumi_points") and hasattr(gw, "get_station_info")
+            return (
+                hasattr(gw, "get_bangumi_points")
+                and hasattr(gw, "get_bangumi_lite")
+                and hasattr(gw, "get_station_info")
+            )
 
         gateway = AnitabiClientGateway()
         assert use_anitabi_gateway(gateway)
@@ -369,14 +358,14 @@ class TestErrorMappingCompleteness:
             await gateway.get_station_info("test")
 
     @pytest.mark.asyncio
-    async def test_anitabi_maps_non_bangumi_not_found_to_external_error(
-        self, mock_anitabi_client, sample_station
+    async def test_anitabi_maps_lite_api_error_to_external_error(
+        self, mock_anitabi_client
     ):
-        """Non-bangumi NotFoundError should map to ExternalServiceError."""
-        mock_anitabi_client.search_bangumi.side_effect = NotFoundError(
-            "Unknown resource not found", resource_type="unknown"
+        """get_bangumi_lite API errors should map to ExternalServiceError."""
+        mock_anitabi_client.get_bangumi_lite.side_effect = APIError(
+            "Server error"
         )
         gateway = AnitabiClientGateway(client=mock_anitabi_client)
 
         with pytest.raises(ExternalServiceError):
-            await gateway.search_bangumi(station=sample_station, radius_km=10.0)
+            await gateway.get_bangumi_lite("bg-001")

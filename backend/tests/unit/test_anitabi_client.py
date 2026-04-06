@@ -2,22 +2,20 @@
 Unit tests for Anitabi API client.
 
 Tests cover:
-- Bangumi search near stations
+- Bangumi lite metadata retrieval
 - Point retrieval for specific bangumi
-- Station information lookup
+- Station information lookup (deprecated)
 - Error handling for invalid responses
 - Response caching behavior
-- Rate limiting
 """
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiohttp import ClientError
 
 from backend.clients.anitabi import AnitabiClient
 from backend.clients.errors import APIError, NotFoundError
-from backend.domain.entities import Bangumi, Coordinates, Point, Station
+from backend.domain.entities import Coordinates, Point, Station
 
 
 class TestAnitabiClient:
@@ -32,33 +30,6 @@ class TestAnitabiClient:
             rate_limit_calls=10,
             rate_limit_period=1.0,
         )
-
-    @pytest.fixture
-    def mock_bangumi_response(self):
-        """Mock response for bangumi search."""
-        return {
-            "data": [
-                {
-                    "id": "bangumi_1",
-                    "title": "けいおん！",
-                    "cn_title": "轻音少女",
-                    "cover": "https://example.com/cover1.jpg",
-                    "points_count": 5,
-                    "distance": 2.5,
-                    "color": "#FF6B6B",
-                },
-                {
-                    "id": "bangumi_2",
-                    "title": "らき☆すた",
-                    "cn_title": "幸运星",
-                    "cover": "https://example.com/cover2.jpg",
-                    "points_count": 3,
-                    "distance": 4.8,
-                    "color": "#4ECDC4",
-                },
-            ],
-            "total": 2,
-        }
 
     @pytest.fixture
     def mock_points_response(self):
@@ -112,52 +83,44 @@ class TestAnitabiClient:
             }
         }
 
-    @pytest.mark.asyncio
-    async def test_search_bangumi_success(self, client, mock_bangumi_response):
-        """Test successful bangumi search near a station."""
-        station = Station(
-            name="東京駅",
-            coordinates=Coordinates(latitude=35.681236, longitude=139.767125),
-            city="東京都",
-            prefecture="東京都",
-        )
-
-        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_bangumi_response
-
-            results = await client.search_bangumi(station, radius_km=5.0)
-
-            # Verify API call
-            mock_get.assert_called_once_with(
-                "/near",
-                params={
-                    "lat": 35.681236,
-                    "lng": 139.767125,
-                    "radius": 5000,  # Convert km to meters
-                },
-            )
-
-            # Verify results
-            assert len(results) == 2
-            assert isinstance(results[0], Bangumi)
-            assert results[0].id == "bangumi_1"
-            assert results[0].title == "けいおん！"
-            assert results[0].points_count == 5
-            assert results[0].distance_km == 2.5
+    # -- get_bangumi_lite tests --
 
     @pytest.mark.asyncio
-    async def test_search_bangumi_empty_results(self, client):
-        """Test bangumi search with no results."""
-        station = Station(
-            name="Rural Station",
-            coordinates=Coordinates(latitude=35.0, longitude=135.0),
-        )
+    async def test_get_bangumi_lite_success(self, client):
+        """Test successful retrieval of bangumi lite info."""
+        mock_response = {
+            "id": "115908",
+            "cn": "吹响吧！上低音号",
+            "title": "響け！ユーフォニアム",
+            "city": "京都府宇治市",
+            "cover": "https://example.com/cover.jpg",
+            "color": "#4A90D9",
+            "geo": [135.8, 34.9],
+            "zoom": 14,
+            "pointsLength": 577,
+            "imagesLength": 1200,
+        }
 
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = {"data": [], "total": 0}
+            mock_get.return_value = mock_response
 
-            with pytest.raises(NotFoundError, match="No anime locations found"):
-                await client.search_bangumi(station, radius_km=1.0)
+            result = await client.get_bangumi_lite("115908")
+
+            mock_get.assert_called_once_with("/115908/lite")
+            assert result["title"] == "響け！ユーフォニアム"
+            assert result["cn"] == "吹响吧！上低音号"
+            assert result["city"] == "京都府宇治市"
+
+    @pytest.mark.asyncio
+    async def test_get_bangumi_lite_api_error(self, client):
+        """Test bangumi lite with API error."""
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.side_effect = APIError("API request failed with status 404")
+
+            with pytest.raises(APIError, match="404"):
+                await client.get_bangumi_lite("invalid_id")
+
+    # -- get_bangumi_points tests --
 
     @pytest.mark.asyncio
     async def test_get_bangumi_points_success(self, client, mock_points_response):
@@ -191,6 +154,34 @@ class TestAnitabiClient:
                 await client.get_bangumi_points("invalid_id")
 
     @pytest.mark.asyncio
+    async def test_get_bangumi_points_with_origin_info(self, client):
+        """Test that origin information is parsed from official API response."""
+        mock_response = [
+            {
+                "id": "point_1",
+                "name": "Test Location",
+                "cn": "测试地点",
+                "geo": [35.6812, 139.7671],
+                "ep": 1,
+                "s": 120,
+                "image": "https://example.com/shot.jpg",
+                "origin": "Google Maps",
+                "originURL": "https://maps.google.com/test",
+            }
+        ]
+
+        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_response
+
+            points = await client.get_bangumi_points("test_bangumi")
+
+            assert len(points) == 1
+            assert points[0].origin == "Google Maps"
+            assert points[0].origin_url == "https://maps.google.com/test"
+
+    # -- get_station_info tests --
+
+    @pytest.mark.asyncio
     async def test_get_station_info_success(self, client, mock_station_response):
         """Test successful station information lookup."""
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
@@ -217,154 +208,6 @@ class TestAnitabiClient:
                 await client.get_station_info("Unknown Station")
 
     @pytest.mark.asyncio
-    async def test_caching_behavior(self, mock_bangumi_response):
-        """Test that responses are properly cached."""
-        # Create a fresh client to avoid cache pollution
-        async with AnitabiClient(
-            api_key="test_key",
-            use_cache=True,
-            rate_limit_calls=10,
-            rate_limit_period=1.0,
-        ) as client:
-            station = Station(
-                name="Cache Test Station",
-                coordinates=Coordinates(latitude=36.0, longitude=136.0),
-            )
-
-            with patch.object(
-                client, "_make_request", new_callable=AsyncMock
-            ) as mock_request:
-                mock_request.return_value = mock_bangumi_response
-
-                # First call - should hit _make_request
-                results1 = await client.search_bangumi(station, radius_km=5.0)
-
-                # Second call - should be cached (same params)
-                results2 = await client.search_bangumi(station, radius_km=5.0)
-
-                # API should only be called once due to caching
-                assert mock_request.call_count == 1
-                assert results1 == results2
-
-    @pytest.mark.asyncio
-    async def test_different_radius_not_cached(self, client, mock_bangumi_response):
-        """Test that different parameters bypass cache."""
-        station = Station(
-            name="Test Station", coordinates=Coordinates(latitude=35.0, longitude=135.0)
-        )
-
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request:
-            mock_request.return_value = mock_bangumi_response
-
-            # Call with radius 5km
-            await client.search_bangumi(station, radius_km=5.0)
-
-            # Call with radius 10km (different params)
-            await client.search_bangumi(station, radius_km=10.0)
-
-            # Should make two API calls (different parameters)
-            assert mock_request.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_malformed_response_handling(self, client):
-        """Test handling of malformed API responses."""
-        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            # Missing required fields
-            mock_get.return_value = {
-                "data": [{"id": "test", "title": "Missing fields"}]
-            }
-
-            station = Station(
-                name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
-            )
-
-            with pytest.raises(APIError, match="Invalid response"):
-                await client.search_bangumi(station, radius_km=5.0)
-
-    @pytest.mark.asyncio
-    async def test_network_error_handling(self, client):
-        """Test handling of network errors."""
-        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = ClientError("Network error")
-
-            station = Station(
-                name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
-            )
-
-            with pytest.raises(APIError):
-                await client.search_bangumi(station, radius_km=5.0)
-
-    @pytest.mark.asyncio
-    async def test_rate_limiting(self, client, mock_bangumi_response):
-        """Test that rate limiting is applied."""
-        station = Station(
-            name="Test", coordinates=Coordinates(latitude=35.0, longitude=135.0)
-        )
-
-        with patch.object(
-            client, "_make_request", new_callable=AsyncMock
-        ) as mock_request:
-            mock_request.return_value = mock_bangumi_response
-
-            # Make multiple rapid requests with different params to avoid cache
-            import asyncio
-
-            start_time = asyncio.get_event_loop().time()
-
-            tasks = [
-                client.search_bangumi(station, radius_km=float(i))
-                for i in range(1, 12)  # 11 requests (exceeds rate limit of 10)
-            ]
-
-            await asyncio.gather(*tasks)
-
-            elapsed = asyncio.get_event_loop().time() - start_time
-
-            # The 11th request should be delayed (token bucket refills at 10 tokens/second)
-            # Expecting at least 0.1 seconds delay for the 11th request
-            assert elapsed >= 0.09  # Small buffer for timing precision
-
-    @pytest.mark.asyncio
-    async def test_context_manager(self, client):
-        """Test client works as async context manager."""
-        async with client as c:
-            assert c is client
-
-        # Session should be closed after exiting
-        with patch.object(client, "close", new_callable=AsyncMock) as mock_close:
-            async with client:
-                pass
-            mock_close.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_get_bangumi_points_with_origin_info(self, client):
-        """Test that origin information is parsed from official API response."""
-        mock_response = [
-            {
-                "id": "point_1",
-                "name": "Test Location",
-                "cn": "测试地点",
-                "geo": [35.6812, 139.7671],
-                "ep": 1,
-                "s": 120,
-                "image": "https://example.com/shot.jpg",
-                "origin": "Google Maps",
-                "originURL": "https://maps.google.com/test",
-            }
-        ]
-
-        with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
-
-            points = await client.get_bangumi_points("test_bangumi")
-
-            assert len(points) == 1
-            assert points[0].origin == "Google Maps"
-            assert points[0].origin_url == "https://maps.google.com/test"
-
-    @pytest.mark.asyncio
     async def test_get_station_info_deprecation_warning(
         self, client, mock_station_response
     ):
@@ -381,3 +224,43 @@ class TestAnitabiClient:
                 assert len(w) == 1
                 assert issubclass(w[0].category, DeprecationWarning)
                 assert "non-official /station endpoint" in str(w[0].message)
+
+    # -- Caching tests --
+
+    @pytest.mark.asyncio
+    async def test_caching_behavior(self, mock_points_response):
+        """Test that responses are properly cached."""
+        async with AnitabiClient(
+            api_key="test_key",
+            use_cache=True,
+            rate_limit_calls=10,
+            rate_limit_period=1.0,
+        ) as client:
+            with patch.object(
+                client, "_make_request", new_callable=AsyncMock
+            ) as mock_request:
+                mock_request.return_value = mock_points_response
+
+                # First call - should hit _make_request
+                results1 = await client.get_bangumi_points("bangumi_1")
+
+                # Second call - should be cached (same params)
+                results2 = await client.get_bangumi_points("bangumi_1")
+
+                # API should only be called once due to caching
+                assert mock_request.call_count == 1
+                assert results1 == results2
+
+    # -- Context manager tests --
+
+    @pytest.mark.asyncio
+    async def test_context_manager(self, client):
+        """Test client works as async context manager."""
+        async with client as c:
+            assert c is client
+
+        # Session should be closed after exiting
+        with patch.object(client, "close", new_callable=AsyncMock) as mock_close:
+            async with client:
+                pass
+            mock_close.assert_called_once()

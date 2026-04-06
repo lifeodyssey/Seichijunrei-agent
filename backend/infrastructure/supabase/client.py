@@ -92,6 +92,7 @@ _BANGUMI_COLUMNS = frozenset(
         "rating",
         "points_count",
         "primary_color",
+        "city",
     }
 )
 _POINT_COLUMNS = frozenset(
@@ -257,6 +258,29 @@ class SupabaseClient:
             f"ON CONFLICT (id) DO UPDATE SET {update_set}"
         )
         await self.pool.execute(sql, bangumi_id, *fields.values())
+
+    async def get_bangumi_by_area(
+        self, lat: float, lng: float, radius_m: int = 50000
+    ) -> list[dict[str, object]]:
+        """Find bangumi whose known points are near a location."""
+        rows = await self.pool.fetch(
+            """SELECT DISTINCT b.id AS bangumi_id, b.title AS bangumi_title, b.city
+               FROM points p
+               JOIN bangumi b ON p.bangumi_id = b.id
+               WHERE ST_DWithin(
+                   COALESCE(
+                       p.location,
+                       ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)::geography
+                   ),
+                   ST_MakePoint($1, $2)::geography,
+                   $3
+               )
+               LIMIT 10""",
+            lng,
+            lat,
+            radius_m,
+        )
+        return [dict(r) for r in rows]
 
     async def find_bangumi_by_title(self, title: str) -> str | None:
         """Find a bangumi ID by matching title or title_cn."""
