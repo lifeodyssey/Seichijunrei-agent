@@ -178,6 +178,30 @@ h1, h2, h3 {
 
 a { color: inherit; }
 
+/* Leaflet numbered markers */
+.marker-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.marker-number.active {
+  background: oklch(0.5 0.2 30);
+  transform: scale(1.2);
+}
+
+/* Prevent browser zoom on Leaflet map container (Task 27) */
+.leaflet-container {
+  touch-action: none;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
