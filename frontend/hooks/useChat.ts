@@ -72,7 +72,7 @@ export function useChat(
           text.trim(),
           sessionId,
           locale,
-          (tool, status) => {
+          (tool, status, thought, observation) => {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === placeholderId
@@ -82,7 +82,7 @@ export function useChat(
                         ...((m.steps ?? []).filter(
                           (step) => step.tool !== tool || status === "running",
                         )),
-                        { tool, status },
+                        { tool, status, thought: thought || "", observation: observation || "" },
                       ],
                     }
                   : m,
