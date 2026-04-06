@@ -365,9 +365,7 @@ class Retriever:
             "points_count": len(points),
         }
 
-    async def _fetch_bangumi_lite(
-        self, bangumi_id: str
-    ) -> dict[str, object] | None:
+    async def _fetch_bangumi_lite(self, bangumi_id: str) -> dict[str, object] | None:
         """Fetch Anitabi /lite info for correct title, city, cover."""
         try:
             async with AnitabiClient() as client:
@@ -405,9 +403,7 @@ class Retriever:
             bangumi_id,
         )
 
-    async def _get_area_suggestions(
-        self, anchor: str
-    ) -> list[dict[str, object]]:
+    async def _get_area_suggestions(self, anchor: str) -> list[dict[str, object]]:
         """Look up known bangumi near an anchor location for clarification."""
         get_bangumi_by_area = getattr(self._db, "get_bangumi_by_area", None)
         if get_bangumi_by_area is None:

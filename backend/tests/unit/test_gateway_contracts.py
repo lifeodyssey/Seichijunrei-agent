@@ -362,9 +362,7 @@ class TestErrorMappingCompleteness:
         self, mock_anitabi_client
     ):
         """get_bangumi_lite API errors should map to ExternalServiceError."""
-        mock_anitabi_client.get_bangumi_lite.side_effect = APIError(
-            "Server error"
-        )
+        mock_anitabi_client.get_bangumi_lite.side_effect = APIError("Server error")
         gateway = AnitabiClientGateway(client=mock_anitabi_client)
 
         with pytest.raises(ExternalServiceError):

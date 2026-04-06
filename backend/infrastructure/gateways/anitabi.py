@@ -68,4 +68,3 @@ class AnitabiClientGateway(AnitabiGateway):
             raise ExternalServiceError("anitabi", str(exc)) from exc
         except APIError as exc:
             raise ExternalServiceError("anitabi", str(exc)) from exc
-

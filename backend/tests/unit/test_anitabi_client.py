@@ -15,7 +15,7 @@ import pytest
 
 from backend.clients.anitabi import AnitabiClient
 from backend.clients.errors import APIError, NotFoundError
-from backend.domain.entities import Coordinates, Point, Station
+from backend.domain.entities import Point, Station
 
 
 class TestAnitabiClient:

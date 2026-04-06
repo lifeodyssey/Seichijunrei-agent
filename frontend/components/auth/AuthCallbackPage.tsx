@@ -8,7 +8,6 @@ import { getSupabaseClient } from "../../lib/supabase";
 
 export function AuthCallbackPage() {
   const t = useDict().auth;
-  const [status, setStatus] = useState<string>(t.callback_loading);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,7 +50,6 @@ export function AuthCallbackPage() {
         if (cancelled) return;
         const message = authError instanceof Error ? authError.message : t.callback_error;
         setError(message);
-        setStatus(message);
       }
     }
 
