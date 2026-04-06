@@ -54,7 +54,8 @@
     "anchor_results": "{count}件の結果",
     "welcome_title": "聖地巡礼",
     "welcome_subtitle": "作品から聖地を探したり、場所ごとに近くのスポットを見たり、巡礼ルートをまとめて計画できます。",
-    "welcome_helper": "まずは挨拶して、何ができるか聞いてみても大丈夫です。"
+    "welcome_helper": "まずは挨拶して、何ができるか聞いてみても大丈夫です。",
+    "empty_hint": "聖地を検索するか、ルートを計画しましょう"
   },
   "sidebar": {
     "logo_icon": "聖",
