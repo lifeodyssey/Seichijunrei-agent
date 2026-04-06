@@ -202,16 +202,22 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
         await resp.write(f"event: {event}\ndata: {payload}\n\n".encode())
 
     async def on_step(
-        tool: str, status: str, data: dict[str, object],
-        thought: str = "", observation: str = "",
+        tool: str,
+        status: str,
+        data: dict[str, object],
+        thought: str = "",
+        observation: str = "",
     ) -> None:
-        await emit("step", {
-            "tool": tool,
-            "status": status,
-            "thought": thought,
-            "observation": observation,
-            "data": data,
-        })
+        await emit(
+            "step",
+            {
+                "tool": tool,
+                "status": status,
+                "thought": thought,
+                "observation": observation,
+                "data": data,
+            },
+        )
 
     try:
         await emit("planning", {"status": "running"})
@@ -224,10 +230,13 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
     except Exception as exc:
         # Sanitize error — never expose raw Python exceptions
         logger.exception("sse_pipeline_error", error=str(exc))
-        await emit("error", {
-            "code": "internal_error",
-            "message": "Something went wrong. Please try again.",
-        })
+        await emit(
+            "error",
+            {
+                "code": "internal_error",
+                "message": "Something went wrong. Please try again.",
+            },
+        )
     finally:
         try:
             await resp.write_eof()

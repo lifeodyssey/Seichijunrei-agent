@@ -1,4 +1,5 @@
 """Tests for ExecutorAgent.format_observation."""
+
 from backend.agents.executor_agent import ExecutorAgent, StepResult
 
 

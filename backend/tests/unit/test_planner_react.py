@@ -1,6 +1,8 @@
 """Tests for ReActPlannerAgent single-step mode."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from backend.agents.models import (
     DoneSignal,
@@ -36,9 +38,7 @@ async def test_step_returns_action(mock_agent):
     mock_result.output = expected
     mock_agent._step_agent.run = AsyncMock(return_value=mock_result)
 
-    result = await mock_agent.step(
-        text="響けの聖地", locale="ja", history=[]
-    )
+    result = await mock_agent.step(text="響けの聖地", locale="ja", history=[])
     assert result.action is not None
     assert result.action.tool == ToolName.RESOLVE_ANIME
     assert result.done is None
@@ -59,9 +59,7 @@ async def test_step_returns_done_after_observations(mock_agent):
         Observation(tool="resolve_anime", success=True, summary="Resolved to 115908"),
         Observation(tool="search_bangumi", success=True, summary="Found 577 spots"),
     ]
-    result = await mock_agent.step(
-        text="響けの聖地", locale="ja", history=history
-    )
+    result = await mock_agent.step(text="響けの聖地", locale="ja", history=history)
     assert result.done is not None
     assert result.action is None
 
@@ -69,12 +67,14 @@ async def test_step_returns_done_after_observations(mock_agent):
 def test_format_history_empty():
     """Empty history should produce no observation lines."""
     from backend.agents.planner_agent import _format_react_history
+
     assert _format_react_history([]) == ""
 
 
 def test_format_history_with_observations():
     """History should format as Observation blocks."""
     from backend.agents.planner_agent import _format_react_history
+
     history = [
         Observation(tool="resolve_anime", success=True, summary="Got 115908"),
     ]

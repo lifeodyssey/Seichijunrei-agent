@@ -1,7 +1,10 @@
 """Tests for ReAct loop pipeline."""
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from backend.agents.executor_agent import StepResult
 from backend.agents.models import (
     DoneSignal,
     Observation,
@@ -9,8 +12,7 @@ from backend.agents.models import (
     ReactStep,
     ToolName,
 )
-from backend.agents.executor_agent import StepResult
-from backend.agents.pipeline import react_loop, ReactStepEvent
+from backend.agents.pipeline import ReactStepEvent, react_loop
 
 
 @pytest.mark.asyncio
@@ -65,18 +67,22 @@ async def test_react_loop_multi_step():
 
     # Executor results
     result1 = StepResult(
-        tool="resolve_anime", success=True,
+        tool="resolve_anime",
+        success=True,
         data={"bangumi_id": "115908", "title": "響け！ユーフォニアム"},
     )
     result2 = StepResult(
-        tool="search_bangumi", success=True,
+        tool="search_bangumi",
+        success=True,
         data={"row_count": 577, "status": "ok", "rows": []},
     )
     mock_executor._execute_step = AsyncMock(side_effect=[result1, result2])
-    mock_executor.format_observation = MagicMock(side_effect=[
-        Observation(tool="resolve_anime", success=True, summary="Got 115908"),
-        Observation(tool="search_bangumi", success=True, summary="577 spots"),
-    ])
+    mock_executor.format_observation = MagicMock(
+        side_effect=[
+            Observation(tool="resolve_anime", success=True, summary="Got 115908"),
+            Observation(tool="search_bangumi", success=True, summary="577 spots"),
+        ]
+    )
 
     events = []
     async for event in react_loop(
@@ -121,8 +127,11 @@ async def test_react_loop_max_steps():
 
     events = []
     async for event in react_loop(
-        text="test", planner=mock_planner, executor=mock_executor,
-        locale="ja", max_steps=3,
+        text="test",
+        planner=mock_planner,
+        executor=mock_executor,
+        locale="ja",
+        max_steps=3,
     ):
         events.append(event)
 

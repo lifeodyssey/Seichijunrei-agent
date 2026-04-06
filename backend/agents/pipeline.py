@@ -80,7 +80,9 @@ async def react_loop(
         # 3. If action, execute it
         if react_step.action is not None:
             step = react_step.action
-            tool_name = step.tool.value if hasattr(step.tool, "value") else str(step.tool)
+            tool_name = (
+                step.tool.value if hasattr(step.tool, "value") else str(step.tool)
+            )
 
             # Yield "running" event
             yield ReactStepEvent(

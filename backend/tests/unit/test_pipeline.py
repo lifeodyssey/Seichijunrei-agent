@@ -7,7 +7,6 @@ import pytest
 from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import (
     DoneSignal,
-    ExecutionPlan,
     Observation,
     PlanStep,
     ReactStep,
@@ -64,9 +63,7 @@ class TestRunPipeline:
 
             with patch("backend.agents.pipeline.ExecutorAgent") as MockExecutor:
                 mock_executor = MockExecutor.return_value
-                mock_executor._execute_step = AsyncMock(
-                    side_effect=[result1, result2]
-                )
+                mock_executor._execute_step = AsyncMock(side_effect=[result1, result2])
                 mock_executor.format_observation = MagicMock(
                     side_effect=[
                         Observation(

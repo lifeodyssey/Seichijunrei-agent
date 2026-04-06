@@ -122,7 +122,9 @@ def _format_context_block(context: dict[str, object] | None) -> str:
     return "\n".join(lines) if len(lines) > 1 else ""
 
 
-REACT_SYSTEM_PROMPT = PLANNER_SYSTEM_PROMPT + """
+REACT_SYSTEM_PROMPT = (
+    PLANNER_SYSTEM_PROMPT
+    + """
 
 ## ReAct mode
 
@@ -136,6 +138,7 @@ When you need more information, set `action` with the next tool to call.
 Never emit both `action` and `done` in the same turn.
 Maximum 8 turns per conversation.
 """
+)
 
 
 def _format_react_history(history: list[Observation]) -> str:
