@@ -4,8 +4,10 @@
     "description": "Find anime pilgrimage spots and plan your route"
   },
   "landing": {
-    "hero": "Anime Pilgrimage,",
+    "hero": "聖地巡礼",
     "hero_accent": "The Journey",
+    "subtitle": "Discover anime pilgrimage spots. Plan your route.",
+    "cta": "Get started",
     "features": ["◈ Real-location Search", "◎ Route Planner", "↗ By Series"]
   },
   "auth": {
@@ -31,6 +33,9 @@
     "callback_redirect_hint": "You will be redirected automatically after the session is restored.",
     "callback_error_hint": "Please request a fresh magic link and try again.",
     "callback_open": "Open workspace",
+    "verifying": "Verifying your login...",
+    "link_expired": "This login link has expired.",
+    "request_new_link": "Request a new login link",
     "check_email_heading": "Check your email",
     "check_email_body": "Click the link in your inbox to sign in.",
     "back_to_login": "Back"
@@ -87,6 +92,19 @@
     "placeholder": "Departure…",
     "route": "Route",
     "clear": "Clear"
+  },
+  "card": {
+    "view_details": "View details",
+    "view_full_route": "View full route",
+    "results_count": "{count} results",
+    "spots_count": "{count} spots"
+  },
+  "error": {
+    "stream": "Connection interrupted. Please try again.",
+    "timeout": "Request timed out. Please try a simpler query.",
+    "rate_limit": "Daily limit reached. Resets at midnight.",
+    "generic": "Something went wrong. Please try again.",
+    "retry": "Retry"
   },
   "clarification": {
     "examples_label": "For example:",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ChatMessage, RuntimeResponse } from "../../lib/types";
+import type { ChatMessage, ErrorCode, RuntimeResponse } from "../../lib/types";
 import ThinkingProcess from "./ThinkingProcess";
 import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
@@ -16,6 +16,7 @@ interface MessageBubbleProps {
   onActivate?: (messageId: string) => void;
   isActive?: boolean;
   onOpenDrawer?: () => void;
+  onRetry?: () => void;
 }
 
 export default function MessageBubble({
@@ -24,8 +25,10 @@ export default function MessageBubble({
   onActivate,
   isActive = false,
   onOpenDrawer,
+  onRetry,
 }: MessageBubbleProps) {
-  const { chat: t } = useDict();
+  const dict = useDict();
+  const t = dict.chat;
 
   if (message.role === "user") {
     return (
@@ -51,6 +54,8 @@ export default function MessageBubble({
 
       {message.loading ? (
         <ThinkingProcess steps={message.steps ?? []} isStreaming={true} />
+      ) : message.errorCode ? (
+        <ErrorDisplay errorCode={message.errorCode} errorDict={dict.error} onRetry={onRetry} />
       ) : (
         <>
           {message.text && (
@@ -65,6 +70,7 @@ export default function MessageBubble({
                 messageId={message.id}
                 onActivate={onActivate}
                 onOpenDrawer={onOpenDrawer}
+                cardDict={dict.card}
               />
               <ResultAnchor
                 label={t.anchor_results.replace(
@@ -87,6 +93,40 @@ export default function MessageBubble({
   );
 }
 
+function mapErrorToKey(code: ErrorCode): "stream" | "timeout" | "rate_limit" | "generic" {
+  switch (code) {
+    case "stream_error": return "stream";
+    case "timeout": return "timeout";
+    case "rate_limit": return "rate_limit";
+    default: return "generic";
+  }
+}
+
+function ErrorDisplay({
+  errorCode,
+  errorDict,
+  onRetry,
+}: {
+  errorCode: ErrorCode;
+  errorDict: { stream: string; timeout: string; rate_limit: string; generic: string; retry: string };
+  onRetry?: () => void;
+}) {
+  const key = mapErrorToKey(errorCode);
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="text-red-600">{errorDict[key]}</span>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="text-[var(--color-primary)] hover:underline text-sm"
+        >
+          {errorDict.retry}
+        </button>
+      )}
+    </div>
+  );
+}
 function canShowAnchor(response: RuntimeResponse): boolean {
   return isVisualResponse(response);
 }
@@ -104,11 +144,13 @@ function InlineSummaryCard({
   messageId,
   onActivate,
   onOpenDrawer,
+  cardDict,
 }: {
   response: RuntimeResponse;
   messageId: string;
   onActivate?: (messageId: string) => void;
   onOpenDrawer?: () => void;
+  cardDict: { view_details: string; spots_count: string };
 }) {
   const data = response.data;
   if (!isSearchData(data)) return null;
@@ -124,7 +166,7 @@ function InlineSummaryCard({
     <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
       <CardContent className="space-y-2">
         <p className="text-xs font-medium text-[var(--color-fg)]">
-          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{count}処の聖地</span>
+          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{cardDict.spots_count.replace("{count}", String(count))}</span>
         </p>
         {thumbnails.length > 0 && (
           <div className="flex gap-1">
@@ -148,7 +190,7 @@ function InlineSummaryCard({
             onOpenDrawer?.();
           }}
         >
-          詳細を見る
+          {cardDict.view_details}
         </Button>
       </CardContent>
     </Card>

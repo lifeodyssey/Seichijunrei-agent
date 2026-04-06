@@ -200,6 +200,8 @@ export interface RuntimeResponse {
 
 // ── Frontend-only types ────────────────────────────────────────────────────
 
+export type ErrorCode = "stream_error" | "timeout" | "rate_limit" | "generic";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -208,6 +210,7 @@ export interface ChatMessage {
   loading?: boolean;
   timestamp: number;
   steps?: StepEvent[];
+  errorCode?: ErrorCode;
 }
 
 // ── Type guards ────────────────────────────────────────────────────────────

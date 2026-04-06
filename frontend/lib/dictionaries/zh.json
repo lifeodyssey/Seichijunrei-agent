@@ -4,8 +4,10 @@
     "description": "搜索动漫取景地 · 规划巡礼路线"
   },
   "landing": {
-    "hero": "動漫聖地，",
+    "hero": "聖地巡礼",
     "hero_accent": "巡禮之路",
+    "subtitle": "探索动漫圣地，规划巡礼路线",
+    "cta": "开始使用",
     "features": ["◈ 实拍取景地搜索", "◎ 最优路线规划", "↗ 作品取景总览"]
   },
   "auth": {
@@ -31,6 +33,9 @@
     "callback_redirect_hint": "会话恢复后将自动跳转。",
     "callback_error_hint": "请重新申请登录链接后再试。",
     "callback_open": "打开工作区",
+    "verifying": "正在验证登录...",
+    "link_expired": "此登录链接已过期。",
+    "request_new_link": "请求新的登录链接",
     "check_email_heading": "请查收邮件",
     "check_email_body": "点击邮件中的链接即可登录。",
     "back_to_login": "返回"
@@ -87,6 +92,19 @@
     "placeholder": "出发地…",
     "route": "规划路线",
     "clear": "清除"
+  },
+  "card": {
+    "view_details": "查看详情",
+    "view_full_route": "查看完整路线",
+    "results_count": "{count}条结果",
+    "spots_count": "{count}个圣地"
+  },
+  "error": {
+    "stream": "连接中断，请重试。",
+    "timeout": "请求超时，请简化查询后重试。",
+    "rate_limit": "已达今日上限，将于午夜重置。",
+    "generic": "出了点问题，请重试。",
+    "retry": "重试"
   },
   "clarification": {
     "examples_label": "例如：",

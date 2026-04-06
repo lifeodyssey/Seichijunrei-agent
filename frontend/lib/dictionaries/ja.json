@@ -4,8 +4,10 @@
     "description": "アニメ聖地を探す・ルートを計画する"
   },
   "landing": {
-    "hero": "動漫聖地，",
+    "hero": "聖地巡礼",
     "hero_accent": "巡礼の路",
+    "subtitle": "聖地を探す、ルートを計画する",
+    "cta": "始める",
     "features": ["◈ 実写ロケ地検索", "◎ 最適ルート生成", "↗ 作品別一覧"]
   },
   "auth": {
@@ -31,6 +33,9 @@
     "callback_redirect_hint": "セッション復元後に自動的にリダイレクトされます。",
     "callback_error_hint": "新しいマジックリンクをリクエストして再試行してください。",
     "callback_open": "ワークスペースを開く",
+    "verifying": "ログインを確認中...",
+    "link_expired": "このログインリンクは期限切れです。",
+    "request_new_link": "新しいリンクをリクエスト",
     "check_email_heading": "メールをご確認ください",
     "check_email_body": "送信されたリンクをクリックしてログインしてください。",
     "back_to_login": "戻る"
@@ -87,6 +92,19 @@
     "placeholder": "出発地…",
     "route": "ルート化",
     "clear": "クリア"
+  },
+  "card": {
+    "view_details": "詳細を見る",
+    "view_full_route": "ルートを見る",
+    "results_count": "{count}件の結果",
+    "spots_count": "{count}処の聖地"
+  },
+  "error": {
+    "stream": "接続が中断されました。もう一度お試しください。",
+    "timeout": "リクエストがタイムアウトしました。",
+    "rate_limit": "本日の上限に達しました。深夜にリセットされます。",
+    "generic": "エラーが発生しました。もう一度お試しください。",
+    "retry": "再試行"
   },
   "clarification": {
     "examples_label": "例えば：",

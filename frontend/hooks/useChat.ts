@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import type { ChatMessage, RuntimeRequest, RuntimeResponse } from "../lib/types";
+import type { ChatMessage, ErrorCode, RuntimeRequest, RuntimeResponse } from "../lib/types";
 import { sendMessageStream } from "../lib/api";
 
 let msgCounter = 0;
@@ -116,10 +116,11 @@ export function useChat(
         }
         const errorText =
           err instanceof Error ? err.message : "Unknown error";
+        const errorCode = classifyError(err);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === placeholderId
-              ? { ...m, text: `Error: ${errorText}`, loading: false }
+              ? { ...m, text: errorText, loading: false, errorCode }
               : m,
           ),
         );
@@ -147,4 +148,18 @@ export function useChat(
     replaceMessage,
     removeMessage,
   };
+}
+
+function classifyError(err: unknown): ErrorCode {
+  const msg = err instanceof Error ? err.message.toLowerCase() : "";
+  if (msg.includes("stream") || msg.includes("network") || msg.includes("fetch")) {
+    return "stream_error";
+  }
+  if (msg.includes("timeout") || msg.includes("timed out")) {
+    return "timeout";
+  }
+  if (msg.includes("rate") || msg.includes("limit") || msg.includes("429")) {
+    return "rate_limit";
+  }
+  return "generic";
 }
