@@ -1,8 +1,10 @@
 "use client";
 
 import { Drawer } from "vaul";
-import ResultPanel from "./ResultPanel";
 import type { RuntimeResponse } from "@/lib/types";
+import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
+import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
+import SelectionBar from "../generative/SelectionBar";
 
 interface ResultDrawerProps {
   response: RuntimeResponse | null;
@@ -15,9 +17,9 @@ interface ResultDrawerProps {
 }
 
 /**
- * Mobile-only bottom sheet drawer that wraps ResultPanel.
- * On desktop, ResultPanel renders directly in the three-column layout.
- * On mobile, the ◈ anchor opens this drawer.
+ * Mobile-only bottom sheet drawer that wraps GenerativeUIRenderer.
+ * On desktop, results appear in SlideOverPanel or FullscreenOverlay.
+ * On mobile, the anchor cards open this drawer.
  */
 export default function ResultDrawer({
   response,
@@ -28,6 +30,8 @@ export default function ResultDrawer({
   defaultOrigin,
   loading,
 }: ResultDrawerProps) {
+  const { selectedIds, clear } = usePointSelectionContext();
+
   return (
     <Drawer.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Drawer.Portal>
@@ -42,14 +46,25 @@ export default function ResultDrawer({
           <div className="flex justify-center pt-3 pb-1 shrink-0">
             <div className="w-10 h-1 rounded-full bg-[var(--color-muted-fg)] opacity-40" />
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0">
-            <ResultPanel
-              activeResponse={response}
-              onSuggest={onSuggest}
-              onRouteSelected={onRouteSelected}
-              defaultOrigin={defaultOrigin}
-              loading={loading}
+          {selectedIds.size > 0 && (
+            <SelectionBar
+              count={selectedIds.size}
+              defaultOrigin={defaultOrigin ?? ""}
+              onRoute={(origin) => onRouteSelected?.(origin)}
+              onClear={clear}
+              disabled={loading}
             />
+          )}
+          <div className="flex-1 overflow-y-auto min-h-0 p-4">
+            {response ? (
+              <GenerativeUIRenderer response={response} onSuggest={onSuggest} />
+            ) : loading ? (
+              <div className="space-y-4 animate-pulse">
+                <div className="h-6 bg-gray-200 rounded w-3/4" />
+                <div className="h-48 bg-gray-200 rounded" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
+            ) : null}
           </div>
         </Drawer.Content>
       </Drawer.Portal>

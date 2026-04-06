@@ -54,7 +54,8 @@
     "anchor_results": "{count} 条结果",
     "welcome_title": "圣地巡礼",
     "welcome_subtitle": "可以按作品找动漫取景地、按地点探索附近场景，或者帮你规划一条顺路巡礼路线。",
-    "welcome_helper": "也可以先打个招呼，问我能帮你做什么。"
+    "welcome_helper": "也可以先打个招呼，问我能帮你做什么。",
+    "empty_hint": "搜索动漫圣地或规划路线"
   },
   "sidebar": {
     "logo_icon": "圣",

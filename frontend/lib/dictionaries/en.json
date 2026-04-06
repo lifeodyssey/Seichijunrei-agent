@@ -54,7 +54,8 @@
     "anchor_results": "{count} results",
     "welcome_title": "Seichijunrei",
     "welcome_subtitle": "Search by anime, explore spots near a place, or ask for a pilgrimage route that fits your trip.",
-    "welcome_helper": "You can also just say hi and ask what I can help with."
+    "welcome_helper": "You can also just say hi and ask what I can help with.",
+    "empty_hint": "Search for anime pilgrimage spots or plan a route"
   },
   "sidebar": {
     "logo_icon": "聖",

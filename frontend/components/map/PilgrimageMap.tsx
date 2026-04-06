@@ -40,13 +40,17 @@ interface PilgrimageMapProps {
   points: PilgrimagePoint[];
   route?: PilgrimagePoint[];
   height?: number | string;
+  scrollWheelZoom?: boolean;
 }
 
 export default function PilgrimageMap({
   points,
   route,
   height = 300,
+  scrollWheelZoom: scrollWheelZoomProp,
 }: PilgrimageMapProps) {
+  // Enable scroll zoom when route is present (fullscreen map)
+  const scrollWheelZoom = scrollWheelZoomProp ?? !!route;
   const validPoints = points.filter((p) => p.latitude && p.longitude);
   const center =
     validPoints.length > 0
@@ -62,7 +66,7 @@ export default function PilgrimageMap({
       center={center}
       zoom={13}
       style={{ height, width: "100%" }}
-      scrollWheelZoom={false}
+      scrollWheelZoom={scrollWheelZoom}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'

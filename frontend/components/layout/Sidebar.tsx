@@ -20,6 +20,7 @@ interface SidebarProps {
   onRenameConversation: (sessionId: string, title: string) => void;
   onSelectConversation?: (sessionId: string) => void;
   routes?: RouteHistoryEntry[];
+  onCollapse?: () => void;
 }
 
 interface RouteHistoryEntry {
@@ -153,6 +154,7 @@ export default function Sidebar({
   onRenameConversation,
   onSelectConversation,
   routes,
+  onCollapse,
 }: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
@@ -160,8 +162,8 @@ export default function Sidebar({
 
   return (
     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
-      {/* Logo — 聖地巡礼 + seichijunrei romaji */}
-      <div className="flex h-16 items-center border-b border-[var(--color-sidebar-border)] px-5">
+      {/* Logo + collapse toggle */}
+      <div className="flex h-16 items-center justify-between border-b border-[var(--color-sidebar-border)] px-5">
         <div className="flex flex-col gap-0.5">
           <span className="font-[family-name:var(--app-font-display)] text-lg font-semibold leading-none text-[var(--color-fg)]">
             聖地巡礼
@@ -170,9 +172,21 @@ export default function Sidebar({
             seichijunrei
           </span>
         </div>
+        {onCollapse && (
+          <button
+            onClick={onCollapse}
+            className="rounded-lg p-2 hover:bg-[var(--color-primary)]/5 transition"
+            style={{ transitionDuration: "var(--duration-fast)" }}
+            aria-label="Collapse sidebar"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M3 5h14M3 10h14M3 15h14" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* New chat button — flat, editorial */}
+      {/* New chat button */}
       <div className="px-4 pt-4">
         <button
           onClick={onNewChat}
@@ -224,20 +238,16 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Footer — language switcher + diamond mark */}
+      {/* Footer — 44px locale switcher buttons */}
       <div className="border-t border-[var(--color-sidebar-border)] px-5 py-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {LOCALES.map((l) => (
             <button
               key={l}
               type="button"
               onClick={() => setLocale(l)}
-              className={[
-                "text-[10px] font-light tracking-wide transition",
-                locale === l
-                  ? "text-[var(--color-primary)]"
-                  : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",
-              ].join(" ")}
+              data-active={locale === l}
+              className="min-h-[44px] min-w-[44px] rounded-full px-3 py-2 text-[10px] font-light tracking-wide transition data-[active=true]:bg-[var(--color-primary)] data-[active=true]:text-white hover:bg-[var(--color-primary)]/10"
               style={{ transitionDuration: "var(--duration-fast)" }}
             >
               {LOCALE_LABELS[l]}

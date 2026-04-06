@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ChatMessage, ErrorCode, RuntimeResponse } from "../../lib/types";
+import type { ChatMessage, ErrorCode, RouteData, RuntimeResponse } from "../../lib/types";
 import ThinkingProcess from "./ThinkingProcess";
 import { isQAData, isRouteData, isSearchData } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
@@ -150,51 +150,101 @@ function InlineSummaryCard({
   messageId: string;
   onActivate?: (messageId: string) => void;
   onOpenDrawer?: () => void;
-  cardDict: { view_details: string; spots_count: string };
+  cardDict: { view_details: string; view_full_route: string; spots_count: string };
 }) {
-  const data = response.data;
-  if (!isSearchData(data)) return null;
+  const inlineData = response.data;
 
-  const rows = data.results.rows;
-  if (rows.length === 0) return null;
+  // Search result inline card
+  if (isSearchData(inlineData)) {
+    const data = inlineData;
+    const rows = data.results.rows;
+    if (rows.length === 0) return null;
 
-  const animeTitle = rows[0]?.title_cn || rows[0]?.title || "";
-  const count = data.results.row_count ?? rows.length;
-  const thumbnails = rows.filter((r) => r.screenshot_url).slice(0, 3);
+    const animeTitle = rows[0]?.title_cn || rows[0]?.title || "";
+    const count = data.results.row_count ?? rows.length;
+    const thumbnails = rows.filter((r) => r.screenshot_url).slice(0, 3);
 
-  return (
-    <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
-      <CardContent className="space-y-2">
-        <p className="text-xs font-medium text-[var(--color-fg)]">
-          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{cardDict.spots_count.replace("{count}", String(count))}</span>
-        </p>
-        {thumbnails.length > 0 && (
-          <div className="flex gap-1">
-            {thumbnails.map((point) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={point.id}
-                src={point.screenshot_url!}
-                alt={point.name_cn || point.name}
-                className="h-12 w-16 rounded-sm object-cover"
-                loading="lazy"
-              />
-            ))}
+    return (
+      <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
+        <CardContent className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg text-[var(--color-primary)]">◈</span>
+            <p className="text-xs font-medium text-[var(--color-fg)]">
+              {animeTitle} — <span className="text-[var(--color-muted-fg)]">{cardDict.spots_count.replace("{count}", String(count))}</span>
+            </p>
           </div>
-        )}
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={() => {
-            onActivate?.(messageId);
-            onOpenDrawer?.();
-          }}
-        >
-          {cardDict.view_details}
-        </Button>
-      </CardContent>
-    </Card>
-  );
+          {thumbnails.length > 0 && (
+            <div className="flex gap-1">
+              {thumbnails.map((point) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={point.id}
+                  src={point.screenshot_url!}
+                  alt={point.name_cn || point.name}
+                  className="h-12 w-16 rounded-sm object-cover"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onActivate?.(messageId);
+              onOpenDrawer?.();
+            }}
+          >
+            {cardDict.view_details} →
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Route result inline card
+  if ("route" in inlineData) {
+    const routeData = inlineData as unknown as RouteData;
+    const route = routeData.route;
+    const spotCount = route.point_count ?? route.ordered_points.length;
+    const itinerary = route.timed_itinerary;
+    const distance = itinerary
+      ? `${(itinerary.total_distance_m / 1000).toFixed(1)} km`
+      : "";
+    const duration = itinerary ? `${itinerary.total_minutes}min` : "";
+    const routeTitle =
+      route.ordered_points[0]?.title_cn ||
+      route.ordered_points[0]?.title ||
+      "";
+
+    return (
+      <Card size="sm" className="w-fit max-w-[320px] bg-[var(--color-card)]">
+        <CardContent className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🗺️</span>
+            <span className="text-xs font-medium text-[var(--color-fg)]">
+              {routeTitle}
+            </span>
+          </div>
+          <p className="text-[11px] text-[var(--color-muted-fg)]">
+            {spotCount} spots{distance ? ` · ${distance}` : ""}{duration ? ` · ~${duration}` : ""}
+          </p>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              onActivate?.(messageId);
+              onOpenDrawer?.();
+            }}
+          >
+            {cardDict.view_full_route} →
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return null;
 }
 
 function ResultAnchor({
