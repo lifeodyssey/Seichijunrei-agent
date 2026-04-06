@@ -90,6 +90,12 @@
     "route": "规划路线",
     "clear": "清除"
   },
+  "card": {
+    "view_details": "查看详情",
+    "view_full_route": "查看完整路线",
+    "results_count": "{count}条结果",
+    "spots_count": "{count}个圣地"
+  },
   "error": {
     "stream": "连接中断，请重试。",
     "timeout": "请求超时，请简化查询后重试。",

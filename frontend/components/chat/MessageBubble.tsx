@@ -70,6 +70,7 @@ export default function MessageBubble({
                 messageId={message.id}
                 onActivate={onActivate}
                 onOpenDrawer={onOpenDrawer}
+                cardDict={dict.card}
               />
               <ResultAnchor
                 label={t.anchor_results.replace(
@@ -143,11 +144,13 @@ function InlineSummaryCard({
   messageId,
   onActivate,
   onOpenDrawer,
+  cardDict,
 }: {
   response: RuntimeResponse;
   messageId: string;
   onActivate?: (messageId: string) => void;
   onOpenDrawer?: () => void;
+  cardDict: { view_details: string; spots_count: string };
 }) {
   const data = response.data;
   if (!isSearchData(data)) return null;
@@ -163,7 +166,7 @@ function InlineSummaryCard({
     <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
       <CardContent className="space-y-2">
         <p className="text-xs font-medium text-[var(--color-fg)]">
-          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{count}処の聖地</span>
+          {animeTitle} — <span className="text-[var(--color-muted-fg)]">{cardDict.spots_count.replace("{count}", String(count))}</span>
         </p>
         {thumbnails.length > 0 && (
           <div className="flex gap-1">
@@ -187,7 +190,7 @@ function InlineSummaryCard({
             onOpenDrawer?.();
           }}
         >
-          詳細を見る
+          {cardDict.view_details}
         </Button>
       </CardContent>
     </Card>

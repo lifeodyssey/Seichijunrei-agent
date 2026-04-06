@@ -90,6 +90,12 @@
     "route": "Route",
     "clear": "Clear"
   },
+  "card": {
+    "view_details": "View details",
+    "view_full_route": "View full route",
+    "results_count": "{count} results",
+    "spots_count": "{count} spots"
+  },
   "error": {
     "stream": "Connection interrupted. Please try again.",
     "timeout": "Request timed out. Please try a simpler query.",

@@ -90,6 +90,12 @@
     "route": "ルート化",
     "clear": "クリア"
   },
+  "card": {
+    "view_details": "詳細を見る",
+    "view_full_route": "ルートを見る",
+    "results_count": "{count}件の結果",
+    "spots_count": "{count}処の聖地"
+  },
   "error": {
     "stream": "接続が中断されました。もう一度お試しください。",
     "timeout": "リクエストがタイムアウトしました。",
