@@ -4,8 +4,10 @@
     "description": "Find anime pilgrimage spots and plan your route"
   },
   "landing": {
-    "hero": "Anime Pilgrimage,",
+    "hero": "聖地巡礼",
     "hero_accent": "The Journey",
+    "subtitle": "Discover anime pilgrimage spots. Plan your route.",
+    "cta": "Get started",
     "features": ["◈ Real-location Search", "◎ Route Planner", "↗ By Series"]
   },
   "auth": {

@@ -107,11 +107,10 @@ export default function AuthGate() {
         {/* Hero copy */}
         <div className="space-y-6 py-12 lg:py-0">
           <h1 className="font-[family-name:var(--app-font-display)] text-4xl font-semibold leading-snug text-[var(--color-fg)] lg:text-5xl">
-            {land.hero}<br />
-            <span className="text-[var(--color-primary)]">{land.hero_accent}</span>
+            聖地巡礼
           </h1>
-          <p className="max-w-sm text-sm font-light leading-relaxed text-[var(--color-muted-fg)]">
-            {dict.chat.welcome_subtitle}
+          <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
+            {land.subtitle}
           </p>
 
           {/* Feature pills */}
