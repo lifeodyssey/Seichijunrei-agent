@@ -151,6 +151,7 @@ class RuntimeAPI:
                 span.set_attribute("runtime.user_id", user_id)
 
             result: PipelineResult | None = None
+            user_message_persisted = False
             try:
                 previous_state = (
                     await self._load_session_state(session_id)
@@ -251,6 +252,14 @@ class RuntimeAPI:
                     context_delta=context_delta,
                     previous_state=previous_state,
                 )
+                await self._persist_messages(
+                    session_id=session_id,
+                    user_text=request.text,
+                    result=result,
+                    response=response,
+                    persist_user_only=not response.success,
+                )
+                user_message_persisted = True
                 raw_ints = session_state.get("interactions")
                 interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
                 if interaction_count >= _COMPACT_THRESHOLD:
@@ -290,6 +299,24 @@ class RuntimeAPI:
                     transport="public_api",
                 )
 
+                if not user_message_persisted and session_id and request.text:
+                    try:
+                        await self._persist_messages(
+                            session_id=session_id,
+                            user_text=request.text,
+                            result=None,
+                            response=response
+                            or PublicAPIResponse(
+                                success=False, status="error", intent="unknown"
+                            ),
+                            persist_user_only=True,
+                        )
+                    except Exception:
+                        logger.warning(
+                            "finally_persist_user_msg_failed",
+                            session_id=session_id,
+                        )
+
                 insert_request_log = getattr(self._db, "insert_request_log", None)
                 is_ephemeral = response is not None and response.intent == "greet_user"
                 if insert_request_log is not None and not is_ephemeral:
@@ -305,6 +332,47 @@ class RuntimeAPI:
                         )
                     except Exception:
                         logger.warning("request_log_failed", session_id=session_id)
+
+    async def _persist_messages(
+        self,
+        *,
+        session_id: str,
+        user_text: str,
+        result: PipelineResult | None,
+        response: PublicAPIResponse,
+        persist_user_only: bool = False,
+    ) -> None:
+        """Persist user and bot messages to conversation_messages (best-effort).
+
+        When ``persist_user_only`` is True (e.g. pipeline error), only the user
+        message is stored — the bot response is skipped because no valid result
+        was produced.
+        """
+        insert_message = getattr(self._db, "insert_message", None)
+        if insert_message is None:
+            return
+
+        try:
+            await insert_message(session_id, "user", user_text)
+        except Exception:
+            logger.warning("insert_user_message_failed", session_id=session_id)
+
+        if persist_user_only:
+            return
+
+        try:
+            response_data: dict[str, object] | None = None
+            if result is not None:
+                response_data = {
+                    "intent": result.intent,
+                    "success": result.success,
+                    "final_output": result.final_output,
+                }
+            await insert_message(
+                session_id, "assistant", response.message, response_data
+            )
+        except Exception:
+            logger.warning("insert_bot_message_failed", session_id=session_id)
 
     async def _load_user_memory(self, user_id: str | None) -> dict[str, object] | None:
         if not user_id:

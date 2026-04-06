@@ -18,6 +18,17 @@ interface SidebarProps {
   activeSessionId: string | null;
   onNewChat: () => void;
   onRenameConversation: (sessionId: string, title: string) => void;
+  onSelectConversation?: (sessionId: string) => void;
+  routes?: RouteHistoryEntry[];
+}
+
+interface RouteHistoryEntry {
+  id: string;
+  bangumi_id: string;
+  bangumi_title: string | null;
+  origin_station: string | null;
+  point_count: number;
+  created_at: string;
 }
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -31,11 +42,13 @@ function ConversationItem({
   record,
   renameHint,
   onRename,
+  onClick,
 }: {
   active: boolean;
   record: ConversationRecord;
   renameHint: string;
   onRename: (sessionId: string, title: string) => void;
+  onClick?: (sessionId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(getConversationDisplayTitle(record));
@@ -106,6 +119,7 @@ function ConversationItem({
           : "border-transparent hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-sidebar-accent)]",
       ].join(" ")}
       style={{ transitionDuration: "var(--duration-fast)" }}
+      onClick={editing ? undefined : () => onClick?.(record.session_id)}
       onDoubleClick={editing ? undefined : handleDoubleClick}
       title={editing ? undefined : renameHint}
     >
@@ -137,6 +151,8 @@ export default function Sidebar({
   activeSessionId,
   onNewChat,
   onRenameConversation,
+  onSelectConversation,
+  routes,
 }: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
@@ -181,11 +197,32 @@ export default function Sidebar({
                 record={record}
                 renameHint={t.rename_hint}
                 onRename={onRenameConversation}
+                onClick={onSelectConversation}
               />
             ))}
           </>
         )}
       </div>
+
+      {/* Route history */}
+      {routes && routes.length > 0 && (
+        <div className="border-t border-[var(--color-sidebar-border)] px-4 pt-3">
+          <p className="pb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--color-sidebar-fg)] opacity-60">
+            {t.route_history ?? "Route History"}
+          </p>
+          <ul className="max-h-32 space-y-0.5 overflow-y-auto">
+            {routes.map((route) => (
+              <li key={route.id}>
+                <div className="truncate py-1.5 text-xs font-light text-[var(--color-sidebar-accent-fg)]">
+                  {route.bangumi_title ?? route.bangumi_id} &mdash;{" "}
+                  {t.spots?.replace("{count}", String(route.point_count)) ??
+                    `${route.point_count} spots`}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Footer — language switcher + diamond mark */}
       <div className="border-t border-[var(--color-sidebar-border)] px-5 py-4">

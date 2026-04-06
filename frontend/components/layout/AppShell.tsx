@@ -6,7 +6,13 @@ import { useSession } from "../../hooks/useSession";
 import { createMessageId, useChat } from "../../hooks/useChat";
 import { usePointSelection } from "../../hooks/usePointSelection";
 import { useLocale } from "../../lib/i18n-context";
-import { buildSelectedRouteActionText, sendSelectedRoute } from "../../lib/api";
+import {
+  buildSelectedRouteActionText,
+  fetchConversationMessages,
+  fetchRouteHistory,
+  sendSelectedRoute,
+} from "../../lib/api";
+import type { RouteHistoryEntry } from "../../lib/api";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { isVisualResponse } from "../generative/registry";
@@ -39,6 +45,7 @@ export default function AppShell() {
     useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [routes, setRoutes] = useState<RouteHistoryEntry[]>([]);
   const [chatWidth, setChatWidth] = useState(360);
   const [routeSending, setRouteSending] = useState(false);
   const chatWidthRef = useRef(chatWidth);
@@ -48,6 +55,10 @@ export default function AppShell() {
   const isSending = sending || routeSending;
 
   useEffect(() => { chatWidthRef.current = chatWidth; }, [chatWidth]);
+
+  useEffect(() => {
+    fetchRouteHistory().then(setRoutes).catch(() => {});
+  }, []);
 
   const latestConversationResponse = useMemo(
     () => {
@@ -126,6 +137,38 @@ export default function AppShell() {
     }
     return "";
   }, [messages]);
+
+  const handleConversationSelect = useCallback(
+    async (selectedSessionId: string) => {
+      if (selectedSessionId === sessionId) return;
+      routeAbortRef.current?.abort();
+      routeAbortRef.current = null;
+      setRouteSending(false);
+      clearChat();
+      clearSelectedPoints();
+      setActiveMessageId(null);
+      setDrawerOpen(false);
+      setSessionId(selectedSessionId);
+      lastSyncedResponseIdRef.current = null;
+
+      try {
+        const msgs = await fetchConversationMessages(selectedSessionId);
+        const hydrated = msgs.map((m, i) => ({
+          id: `hydrated-${i}-${Date.now()}`,
+          role: m.role,
+          text: m.content,
+          response: m.data ? (m.data as unknown as import("../../lib/types").RuntimeResponse) : undefined,
+          timestamp: new Date(m.timestamp).getTime(),
+        }));
+        if (hydrated.length > 0) {
+          appendMessages(...hydrated);
+        }
+      } catch {
+        // Best-effort hydration; silent on failure
+      }
+    },
+    [appendMessages, clearChat, clearSelectedPoints, sessionId, setSessionId],
+  );
 
   const handleNewChat = useCallback(() => {
     routeAbortRef.current?.abort();
@@ -270,6 +313,8 @@ export default function AppShell() {
             activeSessionId={sessionId}
             onNewChat={handleNewChat}
             onRenameConversation={renameConversation}
+            onSelectConversation={handleConversationSelect}
+            routes={routes}
           />
         )}
 
