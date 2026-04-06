@@ -90,6 +90,13 @@
     "route": "Route",
     "clear": "Clear"
   },
+  "error": {
+    "stream": "Connection interrupted. Please try again.",
+    "timeout": "Request timed out. Please try a simpler query.",
+    "rate_limit": "Daily limit reached. Resets at midnight.",
+    "generic": "Something went wrong. Please try again.",
+    "retry": "Retry"
+  },
   "clarification": {
     "examples_label": "For example:",
     "suggestions": [

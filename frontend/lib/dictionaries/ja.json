@@ -90,6 +90,13 @@
     "route": "ルート化",
     "clear": "クリア"
   },
+  "error": {
+    "stream": "接続が中断されました。もう一度お試しください。",
+    "timeout": "リクエストがタイムアウトしました。",
+    "rate_limit": "本日の上限に達しました。深夜にリセットされます。",
+    "generic": "エラーが発生しました。もう一度お試しください。",
+    "retry": "再試行"
+  },
   "clarification": {
     "examples_label": "例えば：",
     "suggestions": [

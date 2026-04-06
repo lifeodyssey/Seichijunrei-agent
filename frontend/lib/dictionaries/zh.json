@@ -90,6 +90,13 @@
     "route": "规划路线",
     "clear": "清除"
   },
+  "error": {
+    "stream": "连接中断，请重试。",
+    "timeout": "请求超时，请简化查询后重试。",
+    "rate_limit": "已达今日上限，将于午夜重置。",
+    "generic": "出了点问题，请重试。",
+    "retry": "重试"
+  },
   "clarification": {
     "examples_label": "例如：",
     "suggestions": [
