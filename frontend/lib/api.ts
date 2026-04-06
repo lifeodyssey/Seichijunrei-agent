@@ -174,7 +174,7 @@ export async function sendMessageStream(
   text: string,
   sessionId?: string | null,
   locale?: RuntimeRequest["locale"],
-  onStep?: (tool: string, status: "running" | "done") => void,
+  onStep?: (tool: string, status: "running" | "done", thought?: string, observation?: string) => void,
   signal?: AbortSignal,
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
@@ -205,7 +205,12 @@ export async function sendMessageStream(
 
     for (const { event, payload } of parsedChunk.events) {
       if (event === "step" && payload.tool && payload.status) {
-        onStep?.(payload.tool, payload.status);
+        onStep?.(
+          payload.tool,
+          payload.status,
+          typeof payload.thought === "string" ? payload.thought : undefined,
+          typeof payload.observation === "string" ? payload.observation : undefined,
+        );
       }
       if (event === "done") {
         if (typeof payload.event === "string") {

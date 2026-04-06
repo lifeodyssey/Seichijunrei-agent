@@ -201,17 +201,42 @@ async def _handle_runtime_stream(request: web.Request) -> web.StreamResponse:
         payload = json.dumps({"event": event, **data}, ensure_ascii=False)
         await resp.write(f"event: {event}\ndata: {payload}\n\n".encode())
 
-    async def on_step(tool: str, status: str, data: dict[str, object]) -> None:
-        await emit("step", {"tool": tool, "status": status, "data": data})
+    async def on_step(
+        tool: str,
+        status: str,
+        data: dict[str, object],
+        thought: str = "",
+        observation: str = "",
+    ) -> None:
+        await emit(
+            "step",
+            {
+                "tool": tool,
+                "status": status,
+                "thought": thought,
+                "observation": observation,
+                "data": data,
+            },
+        )
 
     try:
         await emit("planning", {"status": "running"})
         response = await runtime_api.handle(
-            api_request, user_id=user_id, on_step=on_step
+            api_request,
+            user_id=user_id,
+            on_step=on_step,
         )
         await emit("done", response.model_dump(mode="json"))
     except Exception as exc:
-        await emit("error", {"message": str(exc)})
+        # Sanitize error — never expose raw Python exceptions
+        logger.exception("sse_pipeline_error", error=str(exc))
+        await emit(
+            "error",
+            {
+                "code": "internal_error",
+                "message": "Something went wrong. Please try again.",
+            },
+        )
     finally:
         try:
             await resp.write_eof()

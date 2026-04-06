@@ -9,7 +9,7 @@ from __future__ import annotations
 from pydantic_ai.models import Model
 
 from backend.agents.base import create_agent, get_default_model
-from backend.agents.models import ExecutionPlan
+from backend.agents.models import ExecutionPlan, Observation, ReactStep
 
 PLANNER_SYSTEM_PROMPT = """\
 You are a planning agent for an anime pilgrimage (聖地巡礼) search app.
@@ -122,18 +122,56 @@ def _format_context_block(context: dict[str, object] | None) -> str:
     return "\n".join(lines) if len(lines) > 1 else ""
 
 
-class ReActPlannerAgent:
-    """LLM-driven planner: user text → ExecutionPlan.
+REACT_SYSTEM_PROMPT = (
+    PLANNER_SYSTEM_PROMPT
+    + """
 
-    Uses Pydantic AI structured output with retries=2.
+## ReAct mode
+
+You are operating in ReAct (Reason + Act) mode. Each turn, you:
+1. Think about what to do next based on the user's request and any observations so far
+2. Either emit an action (tool call) or signal done
+
+When you have enough information to respond to the user, set `done` with the final message.
+When you need more information, set `action` with the next tool to call.
+
+Never emit both `action` and `done` in the same turn.
+Maximum 8 turns per conversation.
+"""
+)
+
+
+def _format_react_history(history: list[Observation]) -> str:
+    """Format observation history for planner prompt injection."""
+    if not history:
+        return ""
+    lines: list[str] = []
+    for i, obs in enumerate(history, 1):
+        status = "✓" if obs.success else "✗"
+        lines.append(f"Observation {i} [{obs.tool} {status}]: {obs.summary}")
+    return "\n".join(lines)
+
+
+class ReActPlannerAgent:
+    """LLM-driven planner with ReAct loop support.
+
+    Two modes:
+    - create_plan(): one-shot, returns full ExecutionPlan (backward compat)
+    - step(): single-step ReAct, returns ReactStep with thought + action/done
     """
 
     def __init__(self, model: Model | str | None = None) -> None:
         selected_model: Model | str = get_default_model() if model is None else model
-        self._agent = create_agent(
+        self._plan_agent = create_agent(
             selected_model,
             system_prompt=PLANNER_SYSTEM_PROMPT,
             output_type=ExecutionPlan,
+            retries=2,
+        )
+        self._step_agent = create_agent(
+            selected_model,
+            system_prompt=REACT_SYSTEM_PROMPT,
+            output_type=ReactStep,
             retries=2,
         )
 
@@ -143,12 +181,34 @@ class ReActPlannerAgent:
         locale: str = "ja",
         context: dict[str, object] | None = None,
     ) -> ExecutionPlan:
-        """Generate an ExecutionPlan from user text."""
+        """One-shot plan generation (backward compat)."""
         context_prefix = _format_context_block(context)
         prompt = (
             f"{context_prefix}\n[locale={locale}] {text}"
             if context_prefix
             else f"[locale={locale}] {text}"
         )
-        result = await self._agent.run(prompt)
+        result = await self._plan_agent.run(prompt)
+        return result.output
+
+    async def step(
+        self,
+        text: str,
+        locale: str = "ja",
+        context: dict[str, object] | None = None,
+        history: list[Observation] | None = None,
+    ) -> ReactStep:
+        """Single ReAct step: observe history, emit next action or done."""
+        context_prefix = _format_context_block(context)
+        history_prefix = _format_react_history(history or [])
+
+        parts: list[str] = []
+        if context_prefix:
+            parts.append(context_prefix)
+        if history_prefix:
+            parts.append(history_prefix)
+        parts.append(f"[locale={locale}] {text}")
+
+        prompt = "\n".join(parts)
+        result = await self._step_agent.run(prompt)
         return result.output

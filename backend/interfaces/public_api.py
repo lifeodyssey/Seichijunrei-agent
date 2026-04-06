@@ -474,8 +474,8 @@ async def handle_public_request(
 _UI_MAP: dict[str, str] = {
     "search_bangumi": "PilgrimageGrid",
     "search_nearby": "NearbyMap",
-    "plan_route": "RouteVisualization",
-    "plan_selected": "RouteVisualization",
+    "plan_route": "RoutePlannerWizard",
+    "plan_selected": "RoutePlannerWizard",
     "general_qa": "GeneralAnswer",
     "answer_question": "GeneralAnswer",
     "greet_user": "GeneralAnswer",

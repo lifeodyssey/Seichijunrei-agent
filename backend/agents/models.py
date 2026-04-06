@@ -40,6 +40,39 @@ class ExecutionPlan(BaseModel):
     locale: str = "ja"
 
 
+class DoneSignal(BaseModel):
+    """Planner signals that it has enough information to respond."""
+
+    message: str = Field(description="Final message to show the user")
+
+
+class Observation(BaseModel):
+    """Executor's result fed back to the planner as an observation."""
+
+    tool: str
+    success: bool
+    summary: str = Field(description="1-2 sentence summary of the step result")
+    data_keys: list[str] = Field(
+        default_factory=list,
+        description="Top-level keys available in step result data",
+    )
+
+
+class ReactStep(BaseModel):
+    """One turn of the ReAct loop — the planner's output per iteration.
+
+    Either `action` (execute a tool) or `done` (finish) must be set, not both.
+    """
+
+    thought: str = Field(description="Chain-of-thought reasoning for this step")
+    action: PlanStep | None = Field(
+        default=None, description="Tool to execute (None if done)"
+    )
+    done: DoneSignal | None = Field(
+        default=None, description="Signal to finish (None if action)"
+    )
+
+
 class RetrievalRequest(BaseModel):
     """Normalized retrieval request passed to Retriever and SQLAgent.
 

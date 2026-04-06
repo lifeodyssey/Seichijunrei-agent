@@ -152,6 +152,8 @@ export interface PublicAPIError {
 export interface StepEvent {
   tool: string;
   status: "running" | "done";
+  thought?: string;
+  observation?: string;
 }
 
 export interface RouteHistoryRecord {

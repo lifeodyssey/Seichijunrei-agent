@@ -56,7 +56,7 @@ export function intentToComponent(intent: string): string {
       return "NearbyMap";
     case "plan_route":
     case "plan_selected":
-      return "RouteVisualization";
+      return "RoutePlannerWizard";
     case "general_qa":
     case "answer_question":
       return "GeneralAnswer";
