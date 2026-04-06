@@ -783,9 +783,9 @@ class SupabaseClient:
                       r.created_at,
                       b.title AS bangumi_title
                FROM routes r
-               JOIN sessions s ON r.session_id = s.id
+               JOIN conversations c ON r.session_id = c.session_id
                LEFT JOIN bangumi b ON r.bangumi_id = b.id
-               WHERE s.user_id = $1
+               WHERE c.user_id = $1
                ORDER BY r.created_at DESC
                LIMIT $2""",
             user_id,
