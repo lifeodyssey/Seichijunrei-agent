@@ -33,6 +33,9 @@
     "callback_redirect_hint": "You will be redirected automatically after the session is restored.",
     "callback_error_hint": "Please request a fresh magic link and try again.",
     "callback_open": "Open workspace",
+    "verifying": "Verifying your login...",
+    "link_expired": "This login link has expired.",
+    "request_new_link": "Request a new login link",
     "check_email_heading": "Check your email",
     "check_email_body": "Click the link in your inbox to sign in.",
     "back_to_login": "Back"

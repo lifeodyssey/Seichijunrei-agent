@@ -33,6 +33,9 @@
     "callback_redirect_hint": "会话恢复后将自动跳转。",
     "callback_error_hint": "请重新申请登录链接后再试。",
     "callback_open": "打开工作区",
+    "verifying": "正在验证登录...",
+    "link_expired": "此登录链接已过期。",
+    "request_new_link": "请求新的登录链接",
     "check_email_heading": "请查收邮件",
     "check_email_body": "点击邮件中的链接即可登录。",
     "back_to_login": "返回"
