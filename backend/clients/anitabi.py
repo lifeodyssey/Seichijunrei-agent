@@ -2,9 +2,9 @@
 Anitabi API client for anime pilgrimage location data.
 
 Provides methods to:
-- Search for anime near train stations
-- Retrieve pilgrimage points for specific anime
-- Look up station information
+- Retrieve lightweight bangumi metadata (/{id}/lite)
+- Retrieve pilgrimage points for specific anime (/{id}/points/detail)
+- Look up station information (deprecated)
 """
 
 from backend.clients.base import (
@@ -19,7 +19,6 @@ from backend.clients.base import (
 from backend.clients.errors import APIError, NotFoundError
 from backend.config import get_settings
 from backend.domain.entities import (
-    Bangumi,
     Coordinates,
     Point,
     Station,
@@ -78,101 +77,27 @@ class AnitabiClient(BaseHTTPClient):
             rate_limit=f"{rate_limit_calls}/{rate_limit_period}s",
         )
 
-    async def search_bangumi(
-        self, station: Station, radius_km: float = 5.0
-    ) -> list[Bangumi]:
-        """
-        Search for anime near a station.
+    async def get_bangumi_lite(self, bangumi_id: str) -> dict[str, object]:
+        """Fetch lightweight bangumi info: title, cn, city, cover, geo, zoom.
 
-        Args:
-            station: Station to search from
-            radius_km: Search radius in kilometers
-
-        Returns:
-            List of Bangumi entities sorted by distance
-
-        Raises:
-            NoBangumiFoundError: If no anime found in the area
-            APIError: On API communication failure
+        Uses the documented /{id}/lite endpoint. Returns the raw JSON object
+        with fields: id, cn, title, city, cover, color, geo, zoom,
+        pointsLength, imagesLength.
         """
         try:
-            logger.info(
-                "Searching bangumi near station",
-                station=station.name,
-                radius_km=radius_km,
-            )
-
-            # Convert km to meters for API
-            radius_meters = int(radius_km * 1000)
-
-            # Make API request
-            raw = await self.get(
-                "/near",
-                params={
-                    "lat": station.coordinates.latitude,
-                    "lng": station.coordinates.longitude,
-                    "radius": radius_meters,
-                },
-            )
-
-            # Narrow to JSONDict
-            response = expect_json_object(raw, context="search_bangumi")
-
-            # Parse response
-            if not response.get("data"):
-                raise NotFoundError(
-                    f"No anime locations found within {radius_km}km of {station.name}",
-                    resource_type="bangumi",
-                )
-
-            # Convert to domain entities
-            data_list = expect_json_object_list(
-                response["data"], context="search_bangumi.data"
-            )
-            bangumi_list = []
-            for item in data_list:
-                try:
-                    bangumi = Bangumi(
-                        id=_str(item["id"]),
-                        title=_str(item["title"]),
-                        cn_title=_str(item["cn_title"]),
-                        cover_url=_str(item["cover"]),
-                        points_count=_int_or(item.get("points_count"), 0),
-                        distance_km=_float(item.get("distance", 0)),
-                        primary_color=_str_or_none(item.get("color")),
-                    )
-                    bangumi_list.append(bangumi)
-                except (KeyError, ValueError) as e:
-                    logger.warning(
-                        "Skipping invalid bangumi data", error=str(e), data=item
-                    )
-
-            if not bangumi_list:
-                raise APIError("Invalid response: No valid bangumi data")
-
-            # Sort by distance
-            bangumi_list.sort(key=lambda b: b.distance_km or float("inf"))
-
-            logger.info(
-                "Bangumi search complete",
-                station=station.name,
-                found_count=len(bangumi_list),
-            )
-
-            return bangumi_list
-
-        except NotFoundError:
-            raise
+            logger.info("Getting bangumi lite info", bangumi_id=bangumi_id)
+            raw = await self.get(f"/{bangumi_id}/lite")
+            return expect_json_object(raw, context="get_bangumi_lite")
         except APIError:
             raise
         except Exception as e:
             logger.error(
-                "Failed to search bangumi",
-                station=station.name,
+                "Failed to get bangumi lite info",
+                bangumi_id=bangumi_id,
                 error=str(e),
                 exc_info=True,
             )
-            raise APIError(f"Failed to search bangumi: {str(e)}") from e
+            raise APIError(f"Failed to get bangumi lite info: {str(e)}") from e
 
     async def get_bangumi_points(self, bangumi_id: str) -> list[Point]:
         """
@@ -281,6 +206,14 @@ class AnitabiClient(BaseHTTPClient):
                     # Branch 2: official Anitabi /points/detail schema.
                     # Example fields:
                     #   id, name, cn, image, ep, s, geo: [lat, lng], origin, originURL
+                    #
+                    # NOTE (Task 19 research): The `image` field contains a single
+                    # URL. There is no `image_type`, `is_screenshot`, `source`, or
+                    # `category` field to distinguish anime screenshots from user
+                    # photos. The Anitabi web UI pairs images side-by-side (left =
+                    # anime screenshot, right = real photo) but this pairing is done
+                    # client-side. The API returns only one image per point, typically
+                    # the comparison/composite image or screenshot.
                     geo_raw = item.get("geo")
                     if not isinstance(geo_raw, list) or len(geo_raw) < 2:
                         raise ValueError("Missing or invalid 'geo' field")

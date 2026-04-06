@@ -22,6 +22,7 @@ from backend.agents.models import RetrievalRequest
 from backend.agents.sql_agent import SQLAgent, SQLResult, resolve_location
 from backend.application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from backend.application.use_cases.get_bangumi_subject import GetBangumiSubject
+from backend.clients.anitabi import AnitabiClient
 from backend.domain.entities import Point
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
@@ -156,12 +157,22 @@ class Retriever:
             anchor,
             radius_m=request.radius or 5000,
         )
+
+        metadata: dict[str, object] = {"source": "geo", "anchor": anchor}
+
+        # Detect sparse results — suggest clarification
+        if not error and len(rows) < 5:
+            suggestions = await self._get_area_suggestions(anchor)
+            if suggestions:
+                metadata["sparse"] = True
+                metadata["suggestions"] = suggestions
+
         return RetrievalResult(
             strategy=RetrievalStrategy.GEO,
             rows=rows,
             row_count=len(rows),
             error=error,
-            metadata={"source": "geo", "anchor": anchor},
+            metadata=metadata,
         )
 
     async def _execute_hybrid(self, request: RetrievalRequest) -> RetrievalResult:
@@ -307,6 +318,23 @@ class Retriever:
             return
 
         metadata = await self._load_bangumi_metadata(bangumi_id, points)
+
+        # Enrich with Anitabi lite info (correct title, city, cover)
+        lite = await self._fetch_bangumi_lite(bangumi_id)
+        if lite:
+            lite_title = lite.get("title")
+            if isinstance(lite_title, str) and lite_title:
+                metadata["title"] = lite_title
+            lite_cn = lite.get("cn")
+            if isinstance(lite_cn, str) and lite_cn:
+                metadata["title_cn"] = lite_cn
+            lite_city = lite.get("city")
+            if isinstance(lite_city, str) and lite_city:
+                metadata["city"] = lite_city
+            lite_cover = lite.get("cover")
+            if isinstance(lite_cover, str) and lite_cover:
+                metadata["cover_url"] = lite_cover
+
         await upsert_bangumi(bangumi_id, **metadata)
 
     async def _load_bangumi_metadata(
@@ -337,6 +365,21 @@ class Retriever:
             "points_count": len(points),
         }
 
+    async def _fetch_bangumi_lite(
+        self, bangumi_id: str
+    ) -> dict[str, object] | None:
+        """Fetch Anitabi /lite info for correct title, city, cover."""
+        try:
+            async with AnitabiClient() as client:
+                return await client.get_bangumi_lite(bangumi_id)
+        except Exception as exc:
+            logger.warning(
+                "bangumi_lite_fetch_failed",
+                bangumi_id=bangumi_id,
+                error=str(exc),
+            )
+            return None
+
     async def _persist_points(self, points: list[Point]) -> None:
         upsert_points_batch = getattr(self._db, "upsert_points_batch", None)
         if upsert_points_batch is None:
@@ -361,6 +404,24 @@ class Retriever:
             points_count,
             bangumi_id,
         )
+
+    async def _get_area_suggestions(
+        self, anchor: str
+    ) -> list[dict[str, object]]:
+        """Look up known bangumi near an anchor location for clarification."""
+        get_bangumi_by_area = getattr(self._db, "get_bangumi_by_area", None)
+        if get_bangumi_by_area is None:
+            return []
+        coords = await resolve_location(anchor)
+        if coords is None or isinstance(coords, list):
+            return []
+        lat, lon = coords
+        try:
+            results: list[dict[str, object]] = await get_bangumi_by_area(lat, lon)
+            return results
+        except Exception as exc:
+            logger.warning("area_suggestions_failed", error=str(exc))
+            return []
 
     async def _fetch_geo_rows(
         self,

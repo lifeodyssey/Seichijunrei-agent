@@ -82,6 +82,13 @@ Your job: understand the user's request and output a structured execution plan.
 15. A plan must contain EITHER clarify steps OR tool steps, never both.
     If you clarify, the plan has exactly one clarify step and nothing else.
 
+## Sparse geo results
+
+16. If search_nearby returns fewer than 5 results and the user did not specify an
+    anime title, emit a clarify step asking which anime they are looking for.
+    Suggest anime titles known to have spots near the searched location.
+    Example: "この辺りには以下のアニメの聖地があります。どのアニメですか？"
+
 ## locale values
 - "ja" for Japanese queries
 - "zh" for Chinese queries

@@ -8,8 +8,8 @@ from backend.application.errors import ExternalServiceError
 from backend.application.ports import AnitabiGateway
 from backend.clients.anitabi import AnitabiClient
 from backend.clients.errors import APIError, NotFoundError
-from backend.domain.entities import Bangumi, Point, Station
-from backend.domain.errors import InvalidStationError, NoBangumiFoundError
+from backend.domain.entities import Point, Station
+from backend.domain.errors import InvalidStationError
 
 
 class AnitabiClientGateway(AnitabiGateway):
@@ -35,6 +35,16 @@ class AnitabiClientGateway(AnitabiGateway):
         """Async context manager exit with cleanup."""
         await self.close()
 
+    async def get_bangumi_lite(self, bangumi_id: str) -> dict[str, object]:
+        try:
+            if self._client is not None:
+                return await self._client.get_bangumi_lite(bangumi_id)
+
+            async with AnitabiClient() as client:
+                return await client.get_bangumi_lite(bangumi_id)
+        except APIError as exc:
+            raise ExternalServiceError("anitabi", str(exc)) from exc
+
     async def get_bangumi_points(self, bangumi_id: str) -> list[Point]:
         try:
             if self._client is not None:
@@ -59,20 +69,3 @@ class AnitabiClientGateway(AnitabiGateway):
         except APIError as exc:
             raise ExternalServiceError("anitabi", str(exc)) from exc
 
-    async def search_bangumi(
-        self, *, station: Station, radius_km: float
-    ) -> list[Bangumi]:
-        try:
-            if self._client is not None:
-                return await self._client.search_bangumi(
-                    station=station, radius_km=radius_km
-                )
-
-            async with AnitabiClient() as client:
-                return await client.search_bangumi(station=station, radius_km=radius_km)
-        except NotFoundError as exc:
-            if exc.resource_type == "bangumi":
-                raise NoBangumiFoundError(station.name) from exc
-            raise ExternalServiceError("anitabi", str(exc)) from exc
-        except APIError as exc:
-            raise ExternalServiceError("anitabi", str(exc)) from exc
