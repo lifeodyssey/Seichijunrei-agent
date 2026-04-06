@@ -13,7 +13,13 @@ from typing import cast
 
 import structlog
 
-from backend.agents.models import ExecutionPlan, PlanStep, RetrievalRequest, ToolName
+from backend.agents.models import (
+    ExecutionPlan,
+    Observation,
+    PlanStep,
+    RetrievalRequest,
+    ToolName,
+)
 from backend.agents.retriever import RetrievalResult, Retriever
 from backend.agents.route_export import build_google_maps_url, build_ics_calendar
 from backend.agents.route_optimizer import (
@@ -145,6 +151,59 @@ class ExecutorAgent:
 
         result.final_output = self._build_output(result, context, primary_tool)
         return result
+
+    @staticmethod
+    def format_observation(step_result: StepResult) -> Observation:
+        """Convert a StepResult into an Observation for the planner.
+
+        The planner needs a 1-2 sentence summary, not raw data.
+        """
+        tool = step_result.tool
+        success = step_result.success
+        data = step_result.data if isinstance(step_result.data, dict) else {}
+        data_keys = list(data.keys()) if isinstance(data, dict) else []
+
+        if not success:
+            summary = f"Failed: {step_result.error or 'unknown error'}"
+            return Observation(
+                tool=tool, success=False, summary=summary, data_keys=data_keys
+            )
+
+        # Tool-specific summaries
+        if tool == "resolve_anime":
+            bangumi_id = data.get("bangumi_id", "unknown")
+            title = data.get("title", "")
+            summary = f"Resolved to bangumi_id={bangumi_id}"
+            if title:
+                summary += f" ({title})"
+
+        elif tool in ("search_bangumi", "search_nearby"):
+            count = data.get("row_count", len(data.get("rows", [])))
+            status = data.get("status", "ok")
+            summary = f"Found {count} spots (status: {status})"
+
+        elif tool in ("plan_route", "plan_selected"):
+            point_count = data.get("point_count", 0)
+            itinerary = data.get("timed_itinerary")
+            if isinstance(itinerary, dict):
+                minutes = itinerary.get("total_minutes", 0)
+                summary = f"Route planned: {point_count} stops, ~{minutes}min"
+            else:
+                summary = f"Route planned: {point_count} stops"
+
+        elif tool == "clarify":
+            question = data.get("question", "")
+            summary = f"Asked user: {question[:80]}"
+
+        elif tool in ("greet_user", "answer_question"):
+            summary = "Response generated"
+
+        else:
+            summary = f"Completed with keys: {', '.join(data_keys[:5])}"
+
+        return Observation(
+            tool=tool, success=success, summary=summary, data_keys=data_keys
+        )
 
     async def _execute_step(
         self, step: PlanStep, context: dict[str, object]
