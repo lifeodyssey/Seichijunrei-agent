@@ -81,7 +81,11 @@
   "grid": {
     "no_results": "No results found. Try a different anime title.",
     "count": "{count} spots",
-    "episode": "Ep. {ep}"
+    "episode": "Ep. {ep}",
+    "tab_episode": "By Episode",
+    "tab_area": "By Area",
+    "other_label": "Other",
+    "unknown_area": "Unknown"
   },
   "route": {
     "no_results": "Could not create a route.",

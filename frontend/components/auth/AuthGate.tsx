@@ -92,7 +92,7 @@ export default function AuthGate() {
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)] lg:flex-row">
 
       {/* ── Left panel: brand ────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col justify-between px-10 py-12 lg:px-16 lg:py-16">
+      <div className="flex flex-1 flex-col justify-between px-6 py-8 sm:px-10 sm:py-12 lg:px-16 lg:py-16">
 
         {/* Logo */}
         <div className="flex flex-col gap-0.5">
@@ -105,11 +105,11 @@ export default function AuthGate() {
         </div>
 
         {/* Hero copy */}
-        <div className="space-y-6 py-12 lg:py-0">
-          <h1 className="font-[family-name:var(--app-font-display)] text-4xl font-semibold leading-snug text-[var(--color-fg)] lg:text-5xl">
+        <div className="space-y-4 py-8 sm:space-y-6 sm:py-12 lg:py-0">
+          <h1 className="font-[family-name:var(--app-font-display)] text-3xl font-semibold leading-snug text-[var(--color-fg)] sm:text-4xl lg:text-5xl">
             聖地巡礼
           </h1>
-          <p className="mt-2 text-lg text-[var(--color-text-secondary)]">
+          <p className="mt-2 text-base text-[var(--color-text-secondary)] sm:text-lg">
             {land.subtitle}
           </p>
 
@@ -127,7 +127,7 @@ export default function AuthGate() {
         </div>
 
         {/* Footer note */}
-        <p className="text-xs text-[var(--color-muted-fg)]/40 py-4">
+        <p className="hidden text-xs text-[var(--color-muted-fg)]/40 py-4 sm:block">
           聖地巡礼
         </p>
       </div>
@@ -137,7 +137,7 @@ export default function AuthGate() {
       <div className="h-px bg-[var(--color-border)] lg:hidden" />
 
       {/* ── Right panel: auth form ────────────────────────────────── */}
-      <div className="flex w-full flex-col justify-center px-10 py-12 lg:w-[420px] lg:px-16 lg:py-16">
+      <div className="flex w-full flex-col justify-center px-6 py-8 sm:px-10 sm:py-12 lg:w-[420px] lg:px-16 lg:py-16">
 
         <div className="mb-8">
           <h2 className="text-base font-medium text-[var(--color-fg)]">

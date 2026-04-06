@@ -81,7 +81,11 @@
   "grid": {
     "no_results": "没有找到结果，请尝试其他作品名。",
     "count": "{count}个",
-    "episode": "第{ep}集"
+    "episode": "第{ep}集",
+    "tab_episode": "按集数",
+    "tab_area": "按地区",
+    "other_label": "其他",
+    "unknown_area": "未知"
   },
   "route": {
     "no_results": "无法创建路线。",
