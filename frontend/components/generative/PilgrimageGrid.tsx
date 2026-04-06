@@ -212,8 +212,8 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
 
       <Tabs defaultValue="episode">
         <TabsList variant="line">
-          <TabsTrigger value="episode">按集数</TabsTrigger>
-          <TabsTrigger value="area">按地区</TabsTrigger>
+          <TabsTrigger value="episode">{t.tab_episode}</TabsTrigger>
+          <TabsTrigger value="area">{t.tab_area}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="episode">
@@ -221,7 +221,7 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
             {episodeGroups.map(([key, points]) => (
               <GroupSection
                 key={key}
-                label={key === "__other__" ? "その他" : `EP ${key}`}
+                label={key === "__other__" ? (t.other_label) : `EP ${key}`}
                 count={points.length}
                 points={points}
                 episodeLabel={t.episode}
@@ -238,7 +238,7 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
               <GroupSection
                 key={key}
                 label={key === "__unknown__"
-                  ? (resolveUnknownName(points[0].latitude, points[0].longitude) ?? "不明")
+                  ? (resolveUnknownName(points[0].latitude, points[0].longitude) ?? t.unknown_area)
                   : key}
                 count={points.length}
                 points={points}

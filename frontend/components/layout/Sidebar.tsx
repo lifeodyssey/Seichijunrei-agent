@@ -147,6 +147,18 @@ function ConversationItem({
   );
 }
 
+/** Deduplicate conversations by session_id, keeping the first occurrence. */
+function deduplicateConversations(
+  conversations: ConversationRecord[],
+): ConversationRecord[] {
+  const seen = new Set<string>();
+  return conversations.filter((record) => {
+    if (seen.has(record.session_id)) return false;
+    seen.add(record.session_id);
+    return true;
+  });
+}
+
 export default function Sidebar({
   conversations,
   activeSessionId,
@@ -204,7 +216,7 @@ export default function Sidebar({
             <p className="pb-3 text-[10px] font-medium uppercase tracking-widest text-[var(--color-sidebar-fg)] opacity-60">
               {t.recent}
             </p>
-            {conversations.map((record) => (
+            {deduplicateConversations(conversations).map((record) => (
               <ConversationItem
                 key={record.session_id}
                 active={record.session_id === activeSessionId}

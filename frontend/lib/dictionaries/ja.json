@@ -81,7 +81,11 @@
   "grid": {
     "no_results": "見つかりませんでした。別の作品名で試してください。",
     "count": "{count}件",
-    "episode": "第{ep}話"
+    "episode": "第{ep}話",
+    "tab_episode": "集数別",
+    "tab_area": "地域別",
+    "other_label": "その他",
+    "unknown_area": "不明"
   },
   "route": {
     "no_results": "ルートを作成できませんでした。",
