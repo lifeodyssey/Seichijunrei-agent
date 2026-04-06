@@ -681,7 +681,7 @@ class TestRuntimeAPI:
             "origin": "宇治駅",
         }
         assert response.intent == "plan_selected"
-        assert response.ui == {"component": "RouteVisualization", "props": {}}
+        assert response.ui == {"component": "RoutePlannerWizard", "props": {}}
 
 
 class TestLocalePassthrough:
