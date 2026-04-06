@@ -278,6 +278,53 @@ export async function fetchConversations(): Promise<ConversationRecord[]> {
   return res.json() as Promise<ConversationRecord[]>;
 }
 
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  data: Record<string, unknown> | null;
+  timestamp: string;
+}
+
+export async function fetchConversationMessages(
+  sessionId: string,
+): Promise<ConversationMessage[]> {
+  const res = await fetch(
+    `${RUNTIME_URL}/v1/conversations/${encodeURIComponent(sessionId)}/messages`,
+    { headers: await getAuthHeaders() },
+  );
+
+  if (!res.ok) return [];
+  const data: { messages: Array<{ role: string; content: string; response_data: Record<string, unknown> | null; created_at: string }> } = await res.json();
+  return data.messages.map((m) => ({
+    role: m.role as "user" | "assistant",
+    content: m.content,
+    data: m.response_data,
+    timestamp: m.created_at,
+  }));
+}
+
+export interface RouteHistoryEntry {
+  id: string;
+  bangumi_id: string;
+  bangumi_title: string | null;
+  origin_station: string | null;
+  point_count: number;
+  created_at: string;
+}
+
+export async function fetchRouteHistory(): Promise<RouteHistoryEntry[]> {
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders.Authorization) return [];
+
+  const res = await fetch(`${RUNTIME_URL}/v1/routes`, {
+    headers: authHeaders,
+  });
+
+  if (!res.ok) return [];
+  const data: { routes: RouteHistoryEntry[] } = await res.json();
+  return data.routes;
+}
+
 export async function patchConversationTitle(
   sessionId: string,
   title: string,
