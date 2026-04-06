@@ -251,6 +251,12 @@ class RuntimeAPI:
                     context_delta=context_delta,
                     previous_state=previous_state,
                 )
+                await self._persist_messages(
+                    session_id=session_id,
+                    user_text=request.text,
+                    result=result,
+                    response=response,
+                )
                 raw_ints = session_state.get("interactions")
                 interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
                 if interaction_count >= _COMPACT_THRESHOLD:
@@ -305,6 +311,34 @@ class RuntimeAPI:
                         )
                     except Exception:
                         logger.warning("request_log_failed", session_id=session_id)
+
+    async def _persist_messages(
+        self,
+        *,
+        session_id: str,
+        user_text: str,
+        result: PipelineResult | None,
+        response: PublicAPIResponse,
+    ) -> None:
+        """Persist user and bot messages to conversation_messages (best-effort)."""
+        insert_message = getattr(self._db, "insert_message", None)
+        if insert_message is None:
+            return
+
+        try:
+            await insert_message(session_id, "user", user_text)
+        except Exception:
+            logger.warning("insert_user_message_failed", session_id=session_id)
+
+        try:
+            response_data: dict[str, object] | None = None
+            if result is not None:
+                response_data = response.model_dump(mode="json")
+            await insert_message(
+                session_id, "assistant", response.message, response_data
+            )
+        except Exception:
+            logger.warning("insert_bot_message_failed", session_id=session_id)
 
     async def _load_user_memory(self, user_id: str | None) -> dict[str, object] | None:
         if not user_id:
