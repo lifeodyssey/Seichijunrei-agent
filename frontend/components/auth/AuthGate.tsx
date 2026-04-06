@@ -127,8 +127,8 @@ export default function AuthGate() {
         </div>
 
         {/* Footer note */}
-        <p className="text-[11px] font-light text-[var(--color-border)]">
-          {t.subtitle} · {new Date().getFullYear()}
+        <p className="text-xs text-[var(--color-muted-fg)]/40 py-4">
+          聖地巡礼
         </p>
       </div>
 
