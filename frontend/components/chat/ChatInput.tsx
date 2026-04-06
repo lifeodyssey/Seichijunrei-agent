@@ -18,18 +18,14 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (!el) return;
     el.style.height = "auto";
 
-    const computedMaxHeight = getComputedStyle(el).maxHeight;
-    const maxHeightPx = computedMaxHeight === "none" ? Infinity : parseFloat(computedMaxHeight);
-
+    const maxHeightPx = 144; // ~6 rows
     const clampedHeight = Math.min(el.scrollHeight, maxHeightPx);
     el.style.height = `${clampedHeight}px`;
-
     el.style.overflowY = el.scrollHeight > maxHeightPx ? "auto" : "hidden";
   }
 
   useEffect(adjustHeight, [text]);
 
-  // Recalculate when the textarea width changes (panel open/close, divider drag)
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -51,10 +47,12 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }
 
+  const hasText = text.trim().length > 0;
+
   return (
-    <div className="border-t border-[var(--color-border)] px-4 py-4">
+    <div className="px-4 py-4">
       <div
-        className="mx-auto flex w-full max-w-2xl items-end gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
+        className="mx-auto flex w-full max-w-[680px] items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
         style={{ transitionDuration: "var(--duration-fast)" }}
       >
         <textarea
@@ -66,14 +64,14 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder={t.placeholder}
           rows={1}
           disabled={disabled}
-          className="flex-1 overflow-hidden resize-none bg-transparent text-sm font-light outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
-          style={{ maxHeight: "8rem" }}
+          className="flex-1 resize-none bg-transparent text-sm font-light leading-relaxed outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
+          style={{ minHeight: "24px", maxHeight: "144px" }}
         />
         <button
           onClick={handleSubmit}
-          disabled={disabled || !text.trim()}
-          className="shrink-0 rounded-lg bg-[var(--color-primary)] px-4 py-1.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-30"
-          style={{ transitionDuration: "var(--duration-fast)" }}
+          disabled={disabled || !hasText}
+          className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 disabled:bg-gray-200 disabled:text-gray-400 bg-[var(--color-primary)] text-white hover:opacity-90"
+          aria-label={t.send}
         >
           {disabled ? (
             <span className="flex items-center gap-0.5">
@@ -89,7 +87,9 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
               ))}
             </span>
           ) : (
-            t.send
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 16V4M10 4l-5 5M10 4l5 5" />
+            </svg>
           )}
         </button>
       </div>
