@@ -38,11 +38,22 @@ function buildContainerEnvVars(env) {
     SERVICE_PORT: "8080",
   };
 
-  for (const key of [
-    ...CONTAINER_REQUIRED_ENV_KEYS,
-    ...CONTAINER_RUNTIME_ENV_KEYS,
-    ...CONTAINER_OPTIONAL_ENV_KEYS,
-  ]) {
+  for (const key of CONTAINER_REQUIRED_ENV_KEYS) {
+    const value = env[key];
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(`Missing required container env: ${key}`);
+    }
+    envVars[key] = value;
+  }
+
+  for (const key of CONTAINER_RUNTIME_ENV_KEYS) {
+    const value = env[key];
+    if (typeof value === "string" && value.length > 0) {
+      envVars[key] = value;
+    }
+  }
+
+  for (const key of CONTAINER_OPTIONAL_ENV_KEYS) {
     const value = env[key];
     if (typeof value === "string" && value.length > 0) {
       envVars[key] = value;

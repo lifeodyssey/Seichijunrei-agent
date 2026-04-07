@@ -52,10 +52,10 @@ Document:
 
 - [ ] **Step 2: Add auth flow**
 
-Document JWT flow and API key flow with references to:
-- `worker/worker.js:75`
-- `worker/worker.js:91`
-- `worker/worker.js:223`
+Document JWT flow and API key flow with references to stable symbols/search terms instead of brittle line numbers:
+- JWT validation path: `validateJwt()` in `worker/worker.js`
+- API key validation path: `validateApiKey()` in `worker/worker.js`
+- identity forwarding path: `authenticate()` and the `forwardedHeaders` / `X-User-Id` / `X-User-Type` proxy block in `worker/worker.js`
 
 - [ ] **Step 3: Commit**
 

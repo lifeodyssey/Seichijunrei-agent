@@ -132,9 +132,12 @@ Smoke test:
 curl http://127.0.0.1:8080/healthz
 curl -X POST http://127.0.0.1:8080/v1/runtime \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer sk_test_only' \
+  -H 'X-User-Id: local-dev' \
+  -H 'X-User-Type: human' \
   -d '{"text":"从京都站出发去吹响的圣地"}'
 ```
+
+Note: direct container access trusts forwarded identity headers. Bearer-token auth is enforced at the Worker edge, not inside the container process.
 
 ## Cloudflare Workers + Containers Path
 
