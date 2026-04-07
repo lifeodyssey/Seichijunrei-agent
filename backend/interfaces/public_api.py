@@ -106,9 +106,9 @@ class PublicAPIResponse(BaseModel):
     session: dict[str, object] = Field(default_factory=dict)
     route_history: list[dict[str, object]] = Field(default_factory=list)
     errors: list[PublicAPIError] = Field(default_factory=list)
-    ui: dict[str, object] | None = Field(
+    ui: dict[str, str] | None = Field(
         default=None,
-        description="Optional Generative UI descriptor: {component, props}",
+        description="Optional Generative UI descriptor: {component}",
     )
     debug: dict[str, object] | None = None
 
@@ -568,7 +568,7 @@ def _pipeline_result_to_public_response(
         for error in error_list
     ]
     component = _UI_MAP.get(result.intent)
-    ui = {"component": component, "props": {}} if component else None
+    ui = {"component": component} if component else None
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
         status=str(final_output.get("status", "ok" if result.success else "error")),
