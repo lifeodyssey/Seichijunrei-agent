@@ -255,18 +255,25 @@ async def run_pipeline(
     result = PipelineResult(intent=intent, plan=plan)
     result.step_results = all_step_results
 
-    # Build final_output from the last successful step's data
+    # Build final_output keyed so _pipeline_result_to_public_response can find it.
+    # Search results go under "results", route data under "route", others spread flat.
     last_data: dict[str, object] = {}
     for sr in reversed(all_step_results):
         if sr.success and isinstance(sr.data, dict):
             last_data = sr.data
             break
 
+    is_empty = not last_data or last_data.get("row_count", -1) == 0
     result.final_output = {
         "success": bool(all_step_results and all_step_results[-1].success),
-        "status": "ok" if all_step_results else "empty",
+        "status": "empty" if is_empty else "ok",
         "message": final_message,
-        **last_data,
     }
+    if intent in ("search_bangumi", "search_nearby"):
+        result.final_output["results"] = last_data
+    elif intent in ("plan_route", "plan_selected"):
+        result.final_output["route"] = last_data
+    else:
+        result.final_output.update(last_data)
 
     return result
