@@ -336,10 +336,15 @@ def create_fastapi_app(
                     shutdown_observability()
             return
 
-        runtime_db = db or _build_supabase_client(resolved_settings)
-        runtime_session_store = session_store or _build_session_store(
-            cast(SupabaseClient, runtime_db)
-        )
+        runtime_db = db if db is not None else _build_supabase_client(resolved_settings)
+        if session_store is not None:
+            runtime_session_store = session_store
+        elif isinstance(runtime_db, SupabaseClient):
+            runtime_session_store = _build_session_store(runtime_db)
+        else:
+            raise RuntimeError(
+                "create_fastapi_app(..., db=...) requires session_store for non-Supabase db adapters."
+            )
         await _call_optional_async(runtime_db, "connect")
         app.state.runtime_api = RuntimeAPI(
             runtime_db,
@@ -378,7 +383,7 @@ def main() -> None:
     """Run the FastAPI service."""
     settings = get_settings()
     uvicorn.run(
-        "backend.interfaces.fastapi_service:app",
+        app,
         host=settings.service_host,
         port=settings.service_port,
     )
@@ -461,7 +466,6 @@ def _register_observability_middleware(app: FastAPI) -> None:
 
         with tracer.start_as_current_span("http.request") as span:
             span.set_attribute("http.method", request.method)
-            span.set_attribute("http.route", request.url.path)
 
             try:
                 response = await call_next(request)
@@ -473,11 +477,19 @@ def _register_observability_middleware(app: FastAPI) -> None:
                 return response
             finally:
                 elapsed_ms = (perf_counter() - started_at) * 1000
+                route_obj: object = request.scope.get("route")
+                route_path_obj: object = getattr(route_obj, "path", request.url.path)
+                route_path = (
+                    route_path_obj
+                    if isinstance(route_path_obj, str)
+                    else request.url.path
+                )
+                span.set_attribute("http.route", route_path)
                 span.set_attribute("http.status_code", status_code)
                 record_http_request(
                     duration_ms=elapsed_ms,
                     method=request.method,
-                    route=request.url.path,
+                    route=route_path,
                     status_code=status_code,
                 )
 
