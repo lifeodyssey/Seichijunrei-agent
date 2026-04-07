@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from backend.agents.executor_agent import ExecutorAgent
+from backend.agents.handlers._helpers import optimize_route
 
 
 class FakeDB:
@@ -21,7 +22,7 @@ def executor() -> ExecutorAgent:
 
 
 async def test_plan_route_returns_timed_itinerary(executor: ExecutorAgent) -> None:
-    """_optimize_route produces backward-compat ordered_points AND timed_itinerary."""
+    """optimize_route produces backward-compat ordered_points AND timed_itinerary."""
     rows: list[dict[str, object]] = [
         {
             "id": "p1",
@@ -44,12 +45,13 @@ async def test_plan_route_returns_timed_itinerary(executor: ExecutorAgent) -> No
             "bangumi_id": "12345",
         },
     ]
-    result = await executor._optimize_route(rows, {}, None)
-    assert result.success
-    assert isinstance(result.data, dict)
-    assert "ordered_points" in result.data
-    assert "timed_itinerary" in result.data
-    itinerary = result.data["timed_itinerary"]
+    result = optimize_route(rows, {}, None)
+    assert result["success"]
+    data = result["data"]
+    assert isinstance(data, dict)
+    assert "ordered_points" in data
+    assert "timed_itinerary" in data
+    itinerary = data["timed_itinerary"]
     assert len(itinerary["stops"]) > 0
     assert itinerary["total_minutes"] >= 0
 
@@ -59,9 +61,9 @@ async def test_optimize_route_empty_rows(executor: ExecutorAgent) -> None:
     rows: list[dict[str, object]] = [
         {"id": "p1", "latitude": 0.0, "longitude": 0.0, "name": "Null Island"},
     ]
-    result = await executor._optimize_route(rows, {}, None)
-    assert not result.success
-    assert result.error == "No valid coordinates"
+    result = optimize_route(rows, {}, None)
+    assert not result["success"]
+    assert result["error"] == "No valid coordinates"
 
 
 async def test_optimize_route_pacing_param(executor: ExecutorAgent) -> None:
@@ -75,12 +77,11 @@ async def test_optimize_route_pacing_param(executor: ExecutorAgent) -> None:
             "screenshot_url": "",
         },
     ]
-    result = await executor._optimize_route(
-        rows, {"pacing": "chill", "start_time": "10:00"}, None
-    )
-    assert result.success
-    assert isinstance(result.data, dict)
-    itinerary = result.data["timed_itinerary"]
+    result = optimize_route(rows, {"pacing": "chill", "start_time": "10:00"}, None)
+    assert result["success"]
+    data = result["data"]
+    assert isinstance(data, dict)
+    itinerary = data["timed_itinerary"]
     assert itinerary["pacing"] == "chill"
     assert itinerary["start_time"] == "10:00"
 
@@ -103,10 +104,11 @@ async def test_optimize_route_summary_fields(executor: ExecutorAgent) -> None:
             "screenshot_url": "",
         },
     ]
-    result = await executor._optimize_route(rows, {}, None)
-    assert result.success
-    assert isinstance(result.data, dict)
-    summary = result.data["summary"]
+    result = optimize_route(rows, {}, None)
+    assert result["success"]
+    data = result["data"]
+    assert isinstance(data, dict)
+    summary = data["summary"]
     assert "clusters" in summary
     assert "total_minutes" in summary
     assert "total_distance_m" in summary
