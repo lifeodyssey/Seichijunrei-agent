@@ -2,14 +2,27 @@
 # https://developers.cloudflare.com/workers/containers/
 #
 # Required GitHub Secrets:
-#   CLOUDFLARE_API_TOKEN       — Workers:Edit + Containers:Edit + Account:Read
-#   CLOUDFLARE_ACCOUNT_ID      — Visible in dashboard URL
+#   CLOUDFLARE_API_TOKEN       — Wrangler deploy auth
+#   CLOUDFLARE_ACCOUNT_ID      — Cloudflare account target
+#
+# Worker-only runtime secrets (used by worker/worker.js at the edge):
 #   SUPABASE_URL               — https://<project>.supabase.co
-#   SUPABASE_ANON_KEY          — Public anon key
-#   SUPABASE_SERVICE_ROLE_KEY  — Service role key
-#   SUPABASE_DB_URL            — postgres://...
-#   GEMINI_API_KEY
-#   LOGFIRE_TOKEN              — logfire.pydantic.dev (optional)
+#   SUPABASE_ANON_KEY          — Public anon key for JWT validation
+#   SUPABASE_SERVICE_ROLE_KEY  — Service role for hashed API-key lookup
+#
+# Container runtime secrets (explicitly allowlisted in worker/worker.js):
+#   SUPABASE_DB_URL            — postgres://... for asyncpg
+#   GEMINI_API_KEY             — planner model provider key
+#   GOOGLE_MAPS_API_KEY        — optional geocoding provider key
+#   LOGFIRE_TOKEN              — optional observability token
+#   CORS_ALLOWED_ORIGIN        — backend CORS allowlist
+#
+# Frontend build-time envs are injected by GitHub Actions, not wrangler.toml:
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY
+#
+# Future optional container env (documented only until backend wiring exists):
+#   CLOUDFLARE_AI_GATEWAY_URL
 
 name = "seichijunrei"
 compatibility_date = "2025-03-01"
@@ -26,8 +39,9 @@ run_worker_first = ["/healthz", "/v1/*", "/img/*"]
 
 [[containers]]
 class_name = "RuntimeContainer"
-# Local dev: wrangler builds from Dockerfile.
-# CI: replaced at deploy time with the GHCR digest.
+# Local dev and CI both build from the checked-in Dockerfile.
+# `wrangler deploy` uploads the image to Cloudflare's registry; this repo does
+# not hand off a GHCR image digest.
 image = "./Dockerfile"
 max_instances = 3
 
