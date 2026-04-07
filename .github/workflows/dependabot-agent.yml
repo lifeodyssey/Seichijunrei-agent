@@ -48,7 +48,7 @@ jobs:
           uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
           uv run pytest backend/tests/unit/ -v --no-cov
           uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
-          uv run python -c "from backend.interfaces.http_service import create_http_app; print('http OK')"
+          uv run python -c "from backend.interfaces.fastapi_service import create_fastapi_app; print('fastapi OK')"
 
       # ── Node setup ──
       - uses: actions/setup-node@v6

@@ -4,7 +4,7 @@ This file provides repo-wide guidance for agentic coding tools (Codex, Claude Co
 
 ## Source Of Truth
 
-- Runtime entry path: `backend/interfaces/http_service.py` → `backend/interfaces/public_api.py` → `backend/agents/pipeline.py`
+- Runtime entry path: `backend/interfaces/fastapi_service.py` → `backend/interfaces/public_api.py` → `backend/agents/pipeline.py`
 - Shared plan + tool types: `backend/agents/models.py`
 - Frontend tokens: `frontend/app/globals.css`
 - Deployment wiring (Worker + Containers + assets): `wrangler.toml` + `DEPLOYMENT.md`

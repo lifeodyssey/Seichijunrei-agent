@@ -111,7 +111,7 @@ jobs:
       - name: Verify imports
         run: |
           uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
-          uv run python -c "from backend.interfaces.http_service import create_http_app; print('http OK')"
+          uv run python -c "from backend.interfaces.fastapi_service import create_fastapi_app; print('fastapi OK')"
           uv run python -c "from backend.domain.entities import Point; print('domain OK')"
 
       - name: Upload coverage

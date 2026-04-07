@@ -8,11 +8,10 @@ import ApiKeysPage from "@/components/settings/ApiKeysPage";
 export default function SettingsPage() {
   const authClient = getSupabaseClient();
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => authClient !== null);
 
   useEffect(() => {
     if (!authClient) {
-      setLoading(false);
       return;
     }
 
@@ -45,7 +44,11 @@ export default function SettingsPage() {
   }
 
   if (!session) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--color-bg)]">
+        <div className="text-[var(--color-muted-fg)]">Redirecting...</div>
+      </div>
+    );
   }
 
   return <ApiKeysPage />;
