@@ -19,7 +19,6 @@ from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.interfaces.fastapi_service import create_fastapi_app
 from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 

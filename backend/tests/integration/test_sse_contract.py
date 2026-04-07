@@ -10,14 +10,12 @@ from __future__ import annotations
 import json
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.config.settings import Settings
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.interfaces.fastapi_service import create_fastapi_app
 from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
