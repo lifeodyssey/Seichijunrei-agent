@@ -44,7 +44,11 @@ export default function SettingsPage() {
   }
 
   if (!session) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--color-bg)]">
+        <div className="text-[var(--color-muted-fg)]">Redirecting...</div>
+      </div>
+    );
   }
 
   return <ApiKeysPage />;
