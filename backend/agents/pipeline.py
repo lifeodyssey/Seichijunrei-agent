@@ -12,6 +12,8 @@ from backend.agents.executor_agent import ExecutorAgent, PipelineResult, StepRes
 from backend.agents.models import (
     ExecutionPlan,
     Observation,
+    PlanStep,
+    ToolName,
 )
 from backend.agents.planner_agent import ReActPlannerAgent
 
@@ -83,6 +85,64 @@ async def react_loop(
             tool_name = (
                 step.tool.value if hasattr(step.tool, "value") else str(step.tool)
             )
+
+            # ── Deterministic guard: ensure resolve_anime before search_bangumi ──
+            has_resolved = any(o.tool == "resolve_anime" for o in history)
+            if (
+                tool_name == "search_bangumi"
+                and not has_resolved
+                and not (step.params or {}).get("bangumi_id")
+            ):
+                logger.info("react_guard_inject_resolve_anime", query=text)
+                resolve_step = PlanStep(
+                    tool=ToolName.RESOLVE_ANIME,
+                    params={"title": text},
+                )
+
+                # Yield running event for injected step
+                yield ReactStepEvent(
+                    type="step",
+                    thought="Guard: injecting resolve_anime before search_bangumi",
+                    tool="resolve_anime",
+                    status="running",
+                )
+
+                # Execute the injected resolve_anime
+                resolve_result = await executor._execute_step(
+                    resolve_step, executor_context
+                )
+                accumulated_results.append(resolve_result)
+
+                if resolve_result.success and hasattr(resolve_step, "tool"):
+                    executor_context[resolve_step.tool.value] = resolve_result.data
+
+                resolve_obs = ExecutorAgent.format_observation(resolve_result)
+                history.append(resolve_obs)
+
+                yield ReactStepEvent(
+                    type="step",
+                    thought="Guard: resolve_anime completed",
+                    tool="resolve_anime",
+                    status="done",
+                    observation=resolve_obs.summary,
+                    data=(
+                        resolve_result.data
+                        if isinstance(resolve_result.data, dict)
+                        else {}
+                    ),
+                    step_result=resolve_result,
+                )
+
+                if not resolve_result.success:
+                    yield ReactStepEvent(
+                        type="error",
+                        thought="Guard: resolve_anime failed",
+                        message=(
+                            f"Could not resolve anime title: {resolve_result.error}"
+                        ),
+                    )
+                    return
+            # ── End guard ──
 
             # Yield "running" event
             yield ReactStepEvent(
