@@ -42,9 +42,9 @@ def _parse_sse_events(raw: str) -> list[dict[str, object]]:
 
     for line in raw.split("\n"):
         if line.startswith("event: "):
-            current_event = line[len("event: "):]
+            current_event = line[len("event: ") :]
         elif line.startswith("data: "):
-            current_data_lines.append(line[len("data: "):])
+            current_data_lines.append(line[len("data: ") :])
         elif line == "" and current_event is not None:
             data_str = "\n".join(current_data_lines)
             try:

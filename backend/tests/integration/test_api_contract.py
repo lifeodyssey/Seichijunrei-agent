@@ -26,9 +26,7 @@ from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
 def _canned_pipeline_result() -> PipelineResult:
     """A minimal successful PipelineResult for mocking RuntimeAPI.handle."""
     plan = ExecutionPlan(
-        steps=[
-            PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "12345"})
-        ],
+        steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "12345"})],
         reasoning="contract test",
         locale="ja",
     )
@@ -81,7 +79,9 @@ def _mock_db() -> MagicMock:
     return db
 
 
-def _build_app(*, runtime_api: RuntimeAPI | None = None, db: MagicMock | None = None) -> TestClient:
+def _build_app(
+    *, runtime_api: RuntimeAPI | None = None, db: MagicMock | None = None
+) -> TestClient:
     resolved_db = db or _mock_db()
     api = runtime_api or RuntimeAPI(resolved_db, session_store=InMemorySessionStore())
     app = create_fastapi_app(
