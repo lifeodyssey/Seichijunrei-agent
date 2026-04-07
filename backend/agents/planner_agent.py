@@ -144,6 +144,12 @@ When you need more information, set `action` with the next tool to call.
 
 Never emit both `action` and `done` in the same turn.
 Maximum 8 turns per conversation.
+
+CRITICAL RULE: Your FIRST action for any anime-related query MUST be resolve_anime.
+If the user's message mentions an anime title (in any language), you MUST call
+resolve_anime BEFORE calling search_bangumi. Do NOT call search_bangumi without
+a bangumi_id from a prior resolve_anime observation. Skipping resolve_anime causes
+0 results and a broken user experience.
 """
 )
 
