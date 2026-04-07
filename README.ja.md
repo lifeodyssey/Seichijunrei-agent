@@ -12,7 +12,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/lifeodyssey/Seichijunrei-agent)](https://github.com/lifeodyssey/Seichijunrei-agent/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/lifeodyssey/Seichijunrei-agent?style=flat)](https://github.com/lifeodyssey/Seichijunrei-agent)
 
-[**ライブデモ**](https://seichijunrei.zhenjia.org) | [アーキテクチャ](docs/ARCHITECTURE.md) | [デプロイ](DEPLOYMENT.md)
+[**ライブデモ**](https://seichijunrei.zhenjia.org) | [アーキテクチャ](docs/ARCHITECTURE.md) | [デプロイ](docs/ops/deployment.md)
 
 [English](README.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -93,19 +93,19 @@ make db-diff NAME=x    # ローカル変更から diff を生成
 
 **オプション：** `SERVICE_HOST`, `SERVICE_PORT`, `OBSERVABILITY_*`, `DEFAULT_AGENT_MODEL`
 
-詳細は [`config/settings.py`](config/settings.py) と [`.env.example`](.env.example) を参照してください。
+詳細は [`backend/config/settings.py`](backend/config/settings.py) と [`.env.example`](.env.example) を参照してください。
 
 ## 使用例
 
 **Python（直接呼び出し）：**
 ```python
-from agents.pipeline import run_pipeline
-from infrastructure.supabase.client import SupabaseClient
+from backend.agents.pipeline import run_pipeline
+from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
         result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.message)
+        print(result.final_output["message"])
 ```
 
 **HTTP（API キー）：**
@@ -118,31 +118,26 @@ curl -X POST https://seichijunrei.zhenjia.org/v1/runtime \
 
 **Python クライアント：**
 ```python
-from clients.python.seichijunrei_client import SeichijunreiClient
+from backend.clients.python.seichijunrei_client import SeichijunreiClient
 
 client = SeichijunreiClient(api_key="sk_your_key_here")
 result = client.search("Hibike Euphonium locations", locale="en")
 ```
 
-## プロジェクト構成
+## リポジトリ構成マップ
 
-```text
-agents/          プランナー、エグゼキューター、リトリーバー、SQLエージェント
-application/     ユースケースと抽象ポート
-clients/         Python 同期/非同期クライアント
-config/          環境設定とランタイム設定
-domain/          コアエンティティとドメインエラー
-frontend/        Next.js 静的エクスポート（3カラム・ライトテーマ）
-infrastructure/  Supabase クライアント、ゲートウェイ、セッション、可観測性
-interfaces/      パブリック API ファサード + aiohttp HTTP サービス
-worker/          Cloudflare Worker（認証ミドルウェア + アセットルーティング）
-tests/           ユニット、統合、評価テスト
-tools/           評価 CLI：スコアラー、フィードバックマイナー
-```
+- `backend/` — Python ランタイム本体。agents、interfaces、infrastructure、tests、tools を含む
+- `frontend/` — Next.js 静的エクスポートのフロントエンドと UI コンポーネント
+- `worker/` — 認証とリクエストルーティングを担う Cloudflare Worker
+- `supabase/` — スキーママイグレーションと Supabase プロジェクト資産
+- `docs/` — アーキテクチャ、運用手順、イテレーション資料、実装計画
+- `Dockerfile`、`Makefile`、`pyproject.toml`、`wrangler.toml`、`package.json` — ルートに残すランタイム/ツール入口
 
 ## ドキュメント
 
 - [アーキテクチャ](docs/ARCHITECTURE.md) — システム設計リファレンス
-- [デプロイ](DEPLOYMENT.md) — Cloudflare Workers + Containers デプロイガイド
-- [実装計画](docs/superpowers/plans/) — イテレーション履歴（Iter 0-3 + Auth）
+- [デプロイ](docs/ops/deployment.md) — Cloudflare Workers + Containers デプロイガイド
+- [運用ドキュメント](docs/ops/README.md) — 運用手順と環境向けランブック
+- [イテレーション資料](docs/iterations/README.md) — task plan、progress、findings の保存場所
+- [実装計画](docs/superpowers/plans/) — 既存位置を維持する実装計画の履歴
 - [設計仕様](docs/superpowers/specs/) — プロダクト仕様

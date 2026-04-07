@@ -55,4 +55,4 @@ cd frontend
 npm run build
 ```
 
-The Cloudflare Worker serves `frontend/out/` via the `ASSETS` binding (see `wrangler.toml` and `DEPLOYMENT.md`).
+The Cloudflare Worker serves `frontend/out/` via the `ASSETS` binding (see `wrangler.toml` and `docs/ops/deployment.md`).

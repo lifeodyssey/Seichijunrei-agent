@@ -12,7 +12,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/lifeodyssey/Seichijunrei-agent)](https://github.com/lifeodyssey/Seichijunrei-agent/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/lifeodyssey/Seichijunrei-agent?style=flat)](https://github.com/lifeodyssey/Seichijunrei-agent)
 
-[**在线体验**](https://seichijunrei.zhenjia.org) | [架构文档](docs/ARCHITECTURE.md) | [部署指南](DEPLOYMENT.md)
+[**在线体验**](https://seichijunrei.zhenjia.org) | [架构文档](docs/ARCHITECTURE.md) | [部署指南](docs/ops/deployment.md)
 
 [English](README.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -93,19 +93,19 @@ make db-diff NAME=x    # 从本地变更生成 diff
 
 **可选：** `SERVICE_HOST`, `SERVICE_PORT`, `OBSERVABILITY_*`, `DEFAULT_AGENT_MODEL`
 
-详见 [`config/settings.py`](config/settings.py) 和 [`.env.example`](.env.example)。
+详见 [`backend/config/settings.py`](backend/config/settings.py) 和 [`.env.example`](.env.example)。
 
 ## 使用示例
 
 **Python（直接调用）：**
 ```python
-from agents.pipeline import run_pipeline
-from infrastructure.supabase.client import SupabaseClient
+from backend.agents.pipeline import run_pipeline
+from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
         result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.message)
+        print(result.final_output["message"])
 ```
 
 **HTTP（API Key）：**
@@ -118,31 +118,26 @@ curl -X POST https://seichijunrei.zhenjia.org/v1/runtime \
 
 **Python 客户端：**
 ```python
-from clients.python.seichijunrei_client import SeichijunreiClient
+from backend.clients.python.seichijunrei_client import SeichijunreiClient
 
 client = SeichijunreiClient(api_key="sk_your_key_here")
 result = client.search("Hibike Euphonium locations", locale="en")
 ```
 
-## 项目结构
+## 仓库结构地图
 
-```text
-agents/          规划器、执行器、检索器、SQL Agent、共享模型
-application/     用例与抽象端口
-clients/         Python 同步/异步客户端
-config/          环境与运行时配置
-domain/          核心实体与领域错误
-frontend/        Next.js 静态导出前端（三栏浅色主题）
-infrastructure/  Supabase 客户端、网关、会话、可观测性
-interfaces/      公共 API 外观 + aiohttp HTTP 服务
-worker/          Cloudflare Worker（认证中间件 + 资源路由）
-tests/           单元、集成、评估测试
-tools/           评估 CLI：评分器、反馈挖掘器
-```
+- `backend/` — Python 运行时：agents、interfaces、infrastructure、tests、tools
+- `frontend/` — Next.js 静态导出前端与 UI 组件
+- `worker/` — Cloudflare Worker 入口，负责认证与请求路由
+- `supabase/` — schema 迁移与 Supabase 项目资产
+- `docs/` — 架构文档、运维文档、迭代资料与实现计划
+- `Dockerfile`、`Makefile`、`pyproject.toml`、`wrangler.toml`、`package.json` — 保留在根目录的运行与工具入口文件
 
 ## 文档
 
 - [架构文档](docs/ARCHITECTURE.md) — 系统设计参考
-- [部署指南](DEPLOYMENT.md) — Cloudflare Workers + Containers 部署
-- [实现计划](docs/superpowers/plans/) — 迭代历史（Iter 0-3 + Auth）
+- [部署指南](docs/ops/deployment.md) — Cloudflare Workers + Containers 部署
+- [运维文档](docs/ops/README.md) — 运维手册与环境流程
+- [迭代资料](docs/iterations/README.md) — 按迭代归档的 task plan、progress、findings
+- [实现计划](docs/superpowers/plans/) — 保持原位的实现计划历史
 - [设计规格](docs/superpowers/specs/) — 产品规格说明

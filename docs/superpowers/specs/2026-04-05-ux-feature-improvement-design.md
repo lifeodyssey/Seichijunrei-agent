@@ -31,10 +31,10 @@ cd ~/.claude/skills/gstack && ./setup
 **Delete build artifacts:**
 - `coverage.xml`, `htmlcov/`, `__pycache__/`
 
-**Move working files to `docs/`:**
-- `findings.md` → `docs/findings.md`
-- `progress.md` → `docs/progress.md`
-- `task_plan.md` → `docs/task_plan.md`
+**Move working files under iteration docs:**
+- `findings.md` → `docs/iterations/iter5/findings.md`
+- `progress.md` → `docs/iterations/iter5/progress.md`
+- `task_plan.md` → `docs/iterations/iter5/task_plan.md`
 
 **Delete stray files:**
 - `untitled.pen`

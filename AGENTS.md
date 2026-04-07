@@ -7,13 +7,13 @@ This file provides repo-wide guidance for agentic coding tools (Codex, Claude Co
 - Runtime entry path: `backend/interfaces/fastapi_service.py` → `backend/interfaces/public_api.py` → `backend/agents/pipeline.py`
 - Shared plan + tool types: `backend/agents/models.py`
 - Frontend tokens: `frontend/app/globals.css`
-- Deployment wiring (Worker + Containers + assets): `wrangler.toml` + `DEPLOYMENT.md`
+- Deployment wiring (Worker + Containers + assets): `wrangler.toml` + `docs/ops/deployment.md`
 
 Canonical docs (keep these accurate; avoid duplicating architecture narratives elsewhere):
 
 - `README.md`
 - `docs/ARCHITECTURE.md`
-- `DEPLOYMENT.md`
+- `docs/ops/deployment.md`
 - `CLAUDE.md`
 - `frontend/AGENTS.md` (frontend-only constraints)
 

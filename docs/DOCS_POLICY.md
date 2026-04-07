@@ -15,30 +15,31 @@ stable boundaries, current entry points, and active plans only.
 | `AGENTS.md` | Repo-wide guardrails for agentic coding tools |
 | `CLAUDE.md` | Agent guide for this repo (architecture + constraints) |
 | `docs/ARCHITECTURE.md` | Current v2 runtime architecture |
-| `DEPLOYMENT.md` | Intended deployment shape for v2 |
-| `task_plan.md` | Main task tracker |
-| `progress.md` | Session log |
-| `findings.md` | Current design findings and rationale |
+| `docs/ops/deployment.md` | Intended deployment shape for v2 |
+| `docs/iterations/iter5/task_plan.md` | Main task tracker |
+| `docs/iterations/iter5/progress.md` | Session log |
+| `docs/iterations/iter5/findings.md` | Current design findings and rationale |
 | `frontend/AGENTS.md` | Frontend-specific agent rules (Next.js static export) |
 
 ## Rules
 
 1. Do not keep legacy and current architecture docs side by side.
-2. Do not add separate roadmap files when `task_plan.md` already tracks the work.
+2. Do not add separate roadmap files when `docs/iterations/iter5/task_plan.md` already tracks the work.
 3. If a subsystem is removed from the codebase, remove its docs in the same change.
 4. Prefer linking to code paths over hardcoding volatile counts.
 5. Planning docs may contain process detail; README and architecture docs should not.
+6. Put operational docs under `docs/ops/` and iteration artifacts under `docs/iterations/`.
 
 ## Single Sources Of Truth
 
 | Topic | Source |
 |-------|--------|
-| Runtime entry path | `agents/pipeline.py` |
-| Shared types (Plan, Step, RetrievalRequest) | `agents/models.py` |
-| Planner behavior | `agents/planner_agent.py` |
-| Execution behavior | `agents/executor_agent.py` |
-| SQL retrieval | `agents/sql_agent.py` |
-| Configuration | `config/settings.py` |
+| Runtime entry path | `backend/agents/pipeline.py` |
+| Shared types (Plan, Step, RetrievalRequest) | `backend/agents/models.py` |
+| Planner behavior | `backend/agents/planner_agent.py` |
+| Execution behavior | `backend/agents/executor_agent.py` |
+| SQL retrieval | `backend/agents/sql_agent.py` |
+| Configuration | `backend/config/settings.py` |
 | Auth middleware | `worker/worker.js` |
 | DB schema | `supabase/migrations/` |
 | Frontend component registry | `frontend/components/generative/registry.ts` |
