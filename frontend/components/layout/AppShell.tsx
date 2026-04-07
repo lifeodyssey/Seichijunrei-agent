@@ -61,6 +61,32 @@ export default function AppShell() {
     fetchRouteHistory().then(setRoutes).catch(() => {});
   }, []);
 
+  // Hydrate messages on mount when a stored session exists
+  useEffect(() => {
+    if (!sessionId) return;
+    let active = true;
+    fetchConversationMessages(sessionId)
+      .then((msgs) => {
+        if (!active) return;
+        if (msgs.length === 0) {
+          // No messages stored for this session — start fresh
+          clearSession();
+          return;
+        }
+        const hydrated = msgs.map((m, i) => ({
+          id: `hydrated-${i}-${Date.now()}`,
+          role: m.role,
+          text: m.content,
+          response: m.data ? (m.data as unknown as RuntimeResponse) : undefined,
+          timestamp: new Date(m.timestamp).getTime(),
+        }));
+        appendMessages(...hydrated);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const latestConversationResponse = useMemo(
     () => {
       for (let index = messages.length - 1; index >= 0; index -= 1) {
