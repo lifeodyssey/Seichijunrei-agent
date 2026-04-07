@@ -681,7 +681,7 @@ class TestRuntimeAPI:
             "origin": "宇治駅",
         }
         assert response.intent == "plan_selected"
-        assert response.ui == {"component": "RoutePlannerWizard", "props": {}}
+        assert response.ui == {"component": "RoutePlannerWizard"}
 
 
 class TestLocalePassthrough:
@@ -770,7 +770,7 @@ class TestPublicAPIResponseUIField:
             success=True,
             status="ok",
             intent="search_bangumi",
-            ui={"component": "PilgrimageGrid", "props": {}},
+            ui={"component": "PilgrimageGrid"},
         )
         assert resp.ui is not None
         assert resp.ui["component"] == "PilgrimageGrid"

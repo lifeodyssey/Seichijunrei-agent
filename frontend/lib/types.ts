@@ -175,7 +175,6 @@ export interface ConversationRecord {
 
 export interface UIDescriptor {
   component: string;
-  props: Record<string, unknown>;
 }
 
 export interface RuntimeResponse {
