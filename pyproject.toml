@@ -40,6 +40,10 @@ dependencies = [
 
     # v2: Database (Postgres + PostGIS)
     "asyncpg>=0.31.0",
+
+    # HTTP runtime adapter
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [project.scripts]

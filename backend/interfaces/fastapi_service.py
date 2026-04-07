@@ -155,7 +155,7 @@ async def handle_runtime_stream(
     request: Request,
     api_request: PublicAPIRequest,
     auth: Annotated[TrustedAuthContext, Depends(_get_trusted_auth_context)],
-) -> Response:
+) -> StreamingResponse:
     runtime_api = _get_runtime_api(request)
     queue: asyncio.Queue[str | None] = asyncio.Queue()
 
