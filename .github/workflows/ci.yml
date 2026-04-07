@@ -205,13 +205,16 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Deploy via Wrangler
+      - name: Deploy via Wrangler (edge + container)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.79.0"
           command: deploy
+          # Uploaded into the Worker environment. `worker/worker.js` consumes
+          # Supabase auth secrets at the edge and forwards only its explicit
+          # container allowlist into RuntimeContainer envVars.
           secrets: |
             SUPABASE_URL
             SUPABASE_ANON_KEY
@@ -222,6 +225,8 @@ jobs:
             LOGFIRE_TOKEN
             CORS_ALLOWED_ORIGIN
         env:
+          # Frontend `NEXT_PUBLIC_*` values were consumed during frontend-build.
+          # The values below back the Worker edge auth layer and container runtime.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

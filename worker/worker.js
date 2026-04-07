@@ -2,25 +2,19 @@
 // runtime API requests to the Python container on port 8080.
 import { Container } from "@cloudflare/containers";
 
-const CONTAINER_ENV_KEYS = [
+const CONTAINER_REQUIRED_ENV_KEYS = ["GEMINI_API_KEY", "SUPABASE_DB_URL"];
+
+const CONTAINER_RUNTIME_ENV_KEYS = [
   "ANITABI_API_URL",
   "APP_ENV",
-  "CORS_ALLOWED_ORIGIN",
   "CACHE_TTL_SECONDS",
+  "CORS_ALLOWED_ORIGIN",
   "DEBUG",
   "DEFAULT_AGENT_MODEL",
-  "ENABLE_MCP_TOOLS",
-  "FIRESTORE_SESSION_COLLECTION",
-  "GEMINI_API_KEY",
   "GOOGLE_APPLICATION_CREDENTIALS",
   "GOOGLE_CLOUD_PROJECT",
-  "GOOGLE_MAPS_API_KEY",
-  "LOGFIRE_TOKEN",
   "LOG_LEVEL",
   "MAX_RETRIES",
-  "MCP_ANITABI_URL",
-  "MCP_BANGUMI_URL",
-  "MCP_TRANSPORT",
   "OBSERVABILITY_ENABLED",
   "OBSERVABILITY_EXPORTER_TYPE",
   "OBSERVABILITY_OTLP_ENDPOINT",
@@ -28,23 +22,15 @@ const CONTAINER_ENV_KEYS = [
   "OBSERVABILITY_SERVICE_VERSION",
   "RATE_LIMIT_CALLS",
   "RATE_LIMIT_PERIOD_SECONDS",
-  "REDIS_SESSION_DB",
-  "REDIS_SESSION_HOST",
-  "REDIS_SESSION_PASSWORD",
-  "REDIS_SESSION_PORT",
-  "REDIS_SESSION_PREFIX",
-  "SERVICE_HOST",
-  "SERVICE_PORT",
-  "SESSION_STORE_BACKEND",
-  "SESSION_TTL_SECONDS",
-  "SUPABASE_ANON_KEY",
-  "SUPABASE_DB_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_URL",
   "TIMEOUT_SECONDS",
   "USE_CACHE",
 ];
 
+const CONTAINER_OPTIONAL_ENV_KEYS = ["GOOGLE_MAPS_API_KEY", "LOGFIRE_TOKEN"];
+
+// Worker-only auth secrets stay at the edge and are intentionally not forwarded
+// into the container runtime: SUPABASE_URL, SUPABASE_ANON_KEY,
+// SUPABASE_SERVICE_ROLE_KEY.
 function buildContainerEnvVars(env) {
   const envVars = {
     APP_ENV: "production",
@@ -52,7 +38,11 @@ function buildContainerEnvVars(env) {
     SERVICE_PORT: "8080",
   };
 
-  for (const key of CONTAINER_ENV_KEYS) {
+  for (const key of [
+    ...CONTAINER_REQUIRED_ENV_KEYS,
+    ...CONTAINER_RUNTIME_ENV_KEYS,
+    ...CONTAINER_OPTIONAL_ENV_KEYS,
+  ]) {
     const value = env[key];
     if (typeof value === "string" && value.length > 0) {
       envVars[key] = value;
@@ -216,13 +206,15 @@ export default {
       );
     }
 
-    // Forward with identity headers so the container can trust them.
+    // Forward only trusted identity headers. The container trusts these edge
+    // headers and does not need the raw bearer token.
+    const forwardedHeaders = new Headers(request.headers);
+    forwardedHeaders.delete("Authorization");
+    forwardedHeaders.set("X-User-Id", auth.userId);
+    forwardedHeaders.set("X-User-Type", auth.userType);
+
     const authedRequest = new Request(request, {
-      headers: new Headers({
-        ...Object.fromEntries(request.headers),
-        "X-User-Id": auth.userId,
-        "X-User-Type": auth.userType,
-      }),
+      headers: forwardedHeaders,
     });
 
     // All instances share the same container ("default") so the in-memory
