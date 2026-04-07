@@ -138,8 +138,7 @@ async def react_loop(
                         type="error",
                         thought="Guard: resolve_anime failed",
                         message=(
-                            "Could not resolve anime title: "
-                            f"{resolve_result.error}"
+                            f"Could not resolve anime title: {resolve_result.error}"
                         ),
                     )
                     return
