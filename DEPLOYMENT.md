@@ -4,10 +4,10 @@
 
 The repository now ships a deployable backend service:
 
-- `interfaces/http_service.py` exposes `GET /healthz`
-- `interfaces/http_service.py` exposes `POST /v1/runtime`
-- `interfaces/http_service.py` exposes `POST /v1/runtime/stream` (SSE)
-- `interfaces/http_service.py` exposes `POST /v1/feedback`
+- `interfaces/fastapi_service.py` exposes `GET /healthz`
+- `interfaces/fastapi_service.py` exposes `POST /v1/runtime`
+- `interfaces/fastapi_service.py` exposes `POST /v1/runtime/stream` (SSE)
+- `interfaces/fastapi_service.py` exposes `POST /v1/feedback`
 - `Dockerfile` packages the runtime into a single container image
 
 The deployment target is intentionally thin. The service wraps the existing
@@ -101,7 +101,7 @@ npx wrangler@4 deploy
 ```
 
 **CF Worker routing** (`worker/worker.js`):
-- `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → aiohttp service on port 8080)
+- `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → FastAPI service on port 8080)
 - Everything else → `ASSETS` (Next.js static export from `frontend/out/`)
 
 **Frontend build env vars** required at build time:

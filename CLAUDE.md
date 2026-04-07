@@ -80,7 +80,7 @@ DB is source of truth. No hardcoded anime list in code.
 ### Interfaces
 
 - `backend/interfaces/public_api.py` — Stable facade over `run_pipeline`; session persistence; route history; `ui` field in response; request logging
-- `backend/interfaces/http_service.py` — aiohttp service: `/healthz`, `/v1/runtime`, `/v1/feedback`
+- `backend/interfaces/fastapi_service.py` — FastAPI service: `/healthz`, `/v1/runtime`, `/v1/runtime/stream`, `/v1/feedback`, conversations, routes
 
 ### Infrastructure
 
@@ -141,7 +141,7 @@ Design tokens (`frontend/app/globals.css`):
 
 ## Deployment
 
-- Container: Python aiohttp service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
+- Container: Python FastAPI service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
 - Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
 - Worker: `worker/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
 - Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)

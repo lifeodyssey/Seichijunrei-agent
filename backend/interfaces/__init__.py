@@ -1,6 +1,6 @@
 """Interface layer - web UIs, APIs, and external interfaces."""
 
-from backend.interfaces.http_service import create_http_app
+from backend.interfaces.fastapi_service import app, create_fastapi_app, main
 from backend.interfaces.public_api import (
     PublicAPIError,
     PublicAPIRequest,
@@ -10,7 +10,9 @@ from backend.interfaces.public_api import (
 )
 
 __all__ = [
-    "create_http_app",
+    "app",
+    "create_fastapi_app",
+    "main",
     "PublicAPIError",
     "PublicAPIRequest",
     "PublicAPIResponse",

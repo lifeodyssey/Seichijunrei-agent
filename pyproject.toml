@@ -43,7 +43,7 @@ dependencies = [
 ]
 
 [project.scripts]
-seichijunrei-api = "backend.interfaces.http_service:main"
+seichijunrei-api = "backend.interfaces.fastapi_service:main"
 
 [project.optional-dependencies]
 observability = [
