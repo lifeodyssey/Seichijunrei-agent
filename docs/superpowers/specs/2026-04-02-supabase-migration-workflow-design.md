@@ -1,6 +1,6 @@
 # Supabase Migration Workflow Design
 
-> **Update (2026-04-03):** This workflow has landed (root `supabase/`, Makefile `db-*` helpers, CI validation, and deploy-time `db push` stage). Treat this doc as rationale; prefer `DEPLOYMENT.md`, `.github/workflows/`, and `supabase/` as the source of truth.
+> **Update (2026-04-03):** This workflow has landed (root `supabase/`, Makefile `db-*` helpers, CI validation, and deploy-time `db push` stage). Treat this doc as rationale; prefer `docs/ops/deployment.md`, `.github/workflows/`, and `supabase/` as the source of truth.
 
 ## Goal
 

@@ -12,7 +12,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/lifeodyssey/Seichijunrei-agent)](https://github.com/lifeodyssey/Seichijunrei-agent/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/lifeodyssey/Seichijunrei-agent?style=flat)](https://github.com/lifeodyssey/Seichijunrei-agent)
 
-[**Try it live**](https://seichijunrei.zhenjia.org) | [Architecture](docs/ARCHITECTURE.md) | [Deployment](DEPLOYMENT.md)
+[**Try it live**](https://seichijunrei.zhenjia.org) | [Architecture](docs/ARCHITECTURE.md) | [Deployment](docs/ops/deployment.md)
 
 [English](README.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -93,19 +93,19 @@ Apply migrations in a dedicated deploy step, not at application startup.
 
 **Optional:** `SERVICE_HOST`, `SERVICE_PORT`, `OBSERVABILITY_*`, `DEFAULT_AGENT_MODEL`
 
-See [`config/settings.py`](config/settings.py) for full reference and [`.env.example`](.env.example) for defaults.
+See [`backend/config/settings.py`](backend/config/settings.py) for full reference and [`.env.example`](.env.example) for defaults.
 
 ## Example Usage
 
 **Python (direct):**
 ```python
-from agents.pipeline import run_pipeline
-from infrastructure.supabase.client import SupabaseClient
+from backend.agents.pipeline import run_pipeline
+from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
         result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.message)
+        print(result.final_output["message"])
 ```
 
 **HTTP (API key):**
@@ -118,31 +118,26 @@ curl -X POST https://seichijunrei.zhenjia.org/v1/runtime \
 
 **Python client:**
 ```python
-from clients.python.seichijunrei_client import SeichijunreiClient
+from backend.clients.python.seichijunrei_client import SeichijunreiClient
 
 client = SeichijunreiClient(api_key="sk_your_key_here")
 result = client.search("Hibike Euphonium locations", locale="en")
 ```
 
-## Project Layout
+## Repository Map
 
-```text
-agents/          Planner, executor, retriever, SQL agent, shared models
-application/     Use cases and abstract ports
-clients/         Python sync/async client for agent/CLI use
-config/          Environment and runtime configuration
-domain/          Core entities and domain errors
-frontend/        Next.js static-export frontend (three-column light theme)
-infrastructure/  Supabase client, gateways, session, observability
-interfaces/      Public API facade + aiohttp HTTP service
-worker/          Cloudflare Worker (auth middleware + asset routing)
-tests/           Unit, integration, and eval test suites
-tools/           Eval CLI: scorer, feedback miner
-```
+- `backend/` — Python runtime: agents, interfaces, infrastructure, tests, and tools
+- `frontend/` — Next.js static-export frontend and UI components
+- `worker/` — Cloudflare Worker entrypoint for auth and request routing
+- `supabase/` — schema migrations and Supabase project assets
+- `docs/` — architecture, ops runbooks, iteration artifacts, and implementation plans
+- `Dockerfile`, `Makefile`, `pyproject.toml`, `wrangler.toml`, `package.json` — root runtime and tooling entrypoints that stay at the repository root
 
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md) — full system design reference
-- [Deployment](DEPLOYMENT.md) — Cloudflare Workers + Containers deploy guide
-- [Implementation plans](docs/superpowers/plans/) — iteration history (Iter 0-3 + Auth)
+- [Deployment](docs/ops/deployment.md) — Cloudflare Workers + Containers deploy guide
+- [Ops docs](docs/ops/README.md) — operational runbooks and environment procedures
+- [Iteration artifacts](docs/iterations/README.md) — task plans, progress logs, and findings by iteration
+- [Implementation plans](docs/superpowers/plans/) — implementation plans kept in place for execution history
 - [Design spec](docs/superpowers/specs/) — product specification

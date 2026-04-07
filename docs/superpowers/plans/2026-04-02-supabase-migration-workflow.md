@@ -1,7 +1,7 @@
 # Supabase Migration Workflow Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **Status (2026-04-03):** Landed in the codebase. Keep as historical rationale/checklist; use `DEPLOYMENT.md`, `supabase/`, and CI workflows as the source of truth.
+> **Status (2026-04-03):** Landed in the codebase. Keep as historical rationale/checklist; use `docs/ops/deployment.md`, `supabase/`, and CI workflows as the source of truth.
 
 **Goal:** Move the repository from hand-managed SQL files to a Supabase CLI-based migration workflow with a live baseline, repo-owned `supabase/migrations/`, CI validation, and a dedicated deploy-time `db push` stage.
 

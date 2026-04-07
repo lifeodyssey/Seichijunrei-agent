@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working in this repository.
 
 Seichijunrei is an anime pilgrimage search and route planning service.
 
-**Implementation status:** Core runtime + Cloudflare deploy path are in place. Active work (and any remaining TODOs) lives in `task_plan.md` and `docs/superpowers/plans/`.
+**Implementation status:** Core runtime + Cloudflare deploy path are in place. Active work (and any remaining TODOs) lives in `docs/iterations/iter5/task_plan.md` and `docs/superpowers/plans/`.
 
 ## Current Commands
 
@@ -145,7 +145,16 @@ Design tokens (`frontend/app/globals.css`):
 - Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
 - Worker: `worker/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
 - Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
-- DB migrations: apply `supabase/migrations/` in order before each deploy (see `DEPLOYMENT.md`)
+- DB migrations: apply `supabase/migrations/` in order before each deploy (see `docs/ops/deployment.md`)
+
+## File Placement
+
+- Keep runtime entrypoints at the repository root or under `backend/interfaces/`
+- Keep root runtime-critical files in place: `Dockerfile`, `Makefile`, `pyproject.toml`, `wrangler.toml`, `package.json`
+- Put operational docs under `docs/ops/`
+- Put iteration artifacts under `docs/iterations/`
+- Keep implementation plans under `docs/superpowers/plans/`
+- Leave short compatibility stubs when moving long-lived docs that may still be linked externally
 
 ## gstack
 
