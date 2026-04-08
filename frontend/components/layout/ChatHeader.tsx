@@ -1,7 +1,7 @@
 "use client";
 
 import { useDict, useLocale, useSetLocale } from "../../lib/i18n-context";
-import { LOCALES } from "../../lib/i18n";
+import { LOCALES, LOCALE_LABELS } from "../../lib/i18n";
 
 interface ChatHeaderProps {
   onNewChat?: () => void;
@@ -44,7 +44,7 @@ export default function ChatHeader({ onNewChat, onMenuToggle }: ChatHeaderProps)
                   : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]"
               }`}
             >
-              {loc === "ja" ? "\u65E5\u672C\u8A9E" : loc === "zh" ? "\u4E2D\u6587" : "EN"}
+              {LOCALE_LABELS[loc]}
             </button>
           ))}
         </div>
