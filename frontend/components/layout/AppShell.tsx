@@ -50,7 +50,7 @@ export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [routes, setRoutes] = useState<RouteHistoryEntry[]>([]);
   const [routeSending, setRouteSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [slideOverOpen, setSlideOverOpen] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const lastSyncedResponseIdRef = useRef<string | null>(null);

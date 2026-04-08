@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
-import { useDict } from "../../lib/i18n-context";
+import { useDict, useLocale } from "../../lib/i18n-context";
 
 interface QuickAction {
   icon: string;
@@ -17,6 +17,7 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, disabled, showQuickActions }: ChatInputProps) {
   const { chat: t, landing_hero: lh } = useDict();
+  const locale = useLocale();
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,9 +58,9 @@ export default function ChatInput({ onSend, disabled, showQuickActions }: ChatIn
   const hasText = text.trim().length > 0;
 
   const quickActions: QuickAction[] = [
-    { icon: "\u2726", label: lh.feat_search, query: "" },
-    { icon: "\u25CE", label: lh.feat_route, query: "" },
-    { icon: "\u2197", label: lh.feat_series, query: "" },
+    { icon: "\u2726", label: lh.feat_search, query: lh.chat_placeholder },
+    { icon: "\u25CE", label: lh.feat_route, query: locale === "ja" ? "ルートを計画して" : locale === "zh" ? "帮我规划路线" : "Plan a route for me" },
+    { icon: "\u2197", label: lh.feat_series, query: locale === "ja" ? "人気の聖地を教えて" : locale === "zh" ? "有哪些热门动漫取景地" : "Show me popular anime spots" },
   ];
 
   return (
@@ -70,7 +71,7 @@ export default function ChatInput({ onSend, disabled, showQuickActions }: ChatIn
             <button
               key={action.label}
               type="button"
-              onClick={() => onSend(action.label)}
+              onClick={() => onSend(action.query)}
               className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
               style={{ minHeight: "44px", transitionDuration: "var(--duration-fast)" }}
             >
