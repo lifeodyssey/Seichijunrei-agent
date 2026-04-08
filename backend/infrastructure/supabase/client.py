@@ -128,7 +128,26 @@ class SupabaseClient:
         assert self._messages is not None
         return self._messages  # noqa: S101, E702
 
-    # --- Backward-compatible delegation ---
+    # --- Explicit delegation for frequently-used methods (mypy-visible) ---
+
+    async def get_session_state(self, session_id: str) -> dict[str, object] | None:
+        return await self.session.get_session_state(session_id)
+
+    async def upsert_session_state(
+        self, session_id: str, state: dict[str, object]
+    ) -> None:
+        await self.session.upsert_session_state(session_id, state)
+
+    async def delete_session_state(self, session_id: str) -> None:
+        await self.session.delete_session_state(session_id)
+
+    async def find_bangumi_by_title(self, title: str) -> str | None:
+        return await self.bangumi.find_bangumi_by_title(title)
+
+    async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
+        await self.bangumi.upsert_bangumi_title(title, bangumi_id)
+
+    # --- Backward-compatible delegation (remaining methods) ---
 
     def __getattr__(self, name: str) -> object:
         # Lazily init repos when _pool was set directly (tests bypass connect()).
