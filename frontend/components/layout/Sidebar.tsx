@@ -151,7 +151,7 @@ function ConversationItem({
       className={[
         "group mb-0.5 flex min-h-[52px] items-start gap-2 rounded-lg px-3 py-2.5 transition",
         active
-          ? "bg-[oklch(92%_0.022_228)]"
+          ? "bg-[var(--color-sidebar-accent)]"
           : "hover:bg-[var(--color-sidebar-accent)]",
       ].join(" ")}
       style={{ transitionDuration: "var(--duration-fast)", cursor: "pointer" }}
