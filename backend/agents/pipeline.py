@@ -50,6 +50,7 @@ async def react_loop(
     Yields ReactStepEvent for each step (for SSE streaming).
     """
     history: list[Observation] = []
+    failure_count = 0
     accumulated_results: list[StepResult] = []
     executor_context: dict[str, object] = {"locale": locale}
     if context and context.get("last_location"):
@@ -188,14 +189,24 @@ async def react_loop(
                 )
 
                 if not resolve_result.success:
+                    failure_count += 1
+                    if failure_count >= 2:
+                        yield ReactStepEvent(
+                            type="error",
+                            thought="Guard: resolve_anime failed after retries",
+                            message=(
+                                f"Could not resolve anime title: {resolve_result.error}"
+                            ),
+                        )
+                        return
                     yield ReactStepEvent(
-                        type="error",
-                        thought="Guard: resolve_anime failed",
-                        message=(
-                            f"Could not resolve anime title: {resolve_result.error}"
-                        ),
+                        type="step",
+                        thought="Guard: resolve_anime failed, planner will recover",
+                        tool="resolve_anime",
+                        status="failed",
+                        observation=resolve_obs.summary,
                     )
-                    return
+                    continue
             # ── End guard ──
 
             # Yield "running" event
@@ -213,6 +224,7 @@ async def react_loop(
             # Update executor context (same as original pipeline)
             if step_result.success and hasattr(step, "tool"):
                 executor_context[step.tool.value] = step_result.data
+                failure_count = 0  # reset on success
 
             # Format observation for planner
             obs = ExecutorAgent.format_observation(step_result)
@@ -229,14 +241,29 @@ async def react_loop(
                 step_result=step_result,
             )
 
-            # If step failed, stop the loop
+            # If step failed, let planner recover
             if not step_result.success:
+                failure_count += 1
+                if failure_count >= 2:
+                    yield ReactStepEvent(
+                        type="error",
+                        thought="Too many consecutive failures",
+                        message=(
+                            f"Stopped after {failure_count} failures. "
+                            f"Last: {step_result.error}"
+                        ),
+                    )
+                    return
+                # Planner already has the failure observation in history
+                # Just yield a failed step event and continue the loop
                 yield ReactStepEvent(
-                    type="error",
+                    type="step",
                     thought=react_step.thought,
-                    message=f"Step {tool_name} failed: {step_result.error}",
+                    tool=tool_name,
+                    status="failed",
+                    observation=obs.summary,
                 )
-                return
+                continue
 
             # If clarify, pause and wait for user input
             if tool_name == "clarify":

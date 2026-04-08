@@ -150,6 +150,17 @@ If the user's message mentions an anime title (in any language), you MUST call
 resolve_anime BEFORE calling search_bangumi. Do NOT call search_bangumi without
 a bangumi_id from a prior resolve_anime observation. Skipping resolve_anime causes
 0 results and a broken user experience.
+
+## Failure recovery
+
+If a tool fails (you see a \u2717 observation), analyze the error and recover:
+- plan_route failed "no points found": you need to run search_bangumi first to load spots
+- resolve_anime failed: try an alternative spelling or the original language title
+- search_bangumi failed "no bangumi_id": run resolve_anime first
+- Any tool timed out: retry once with the same parameters
+
+Do NOT give up after one failure. Try to recover by running prerequisite steps.
+Maximum 2 consecutive failures before stopping.
 """
 )
 
