@@ -10,6 +10,26 @@
     "cta": "Get started",
     "features": ["◈ Real-location Search", "◎ Route Planner", "↗ By Series"]
   },
+  "landing_hero": {
+    "tagline": "Find the exact spot where your favorite scene was drawn.",
+    "chat_placeholder": "Find pilgrimage spots or plan a route...",
+    "chat_submit": "Ask",
+    "hint": "Try <strong>Your Name</strong>, <strong>Sound! Euphonium</strong>, or <strong>Violet Evergarden</strong>",
+    "stat_locations": "locations",
+    "stat_anime": "anime",
+    "stat_prefectures": "prefectures",
+    "scroll_hint": "Scroll to explore",
+    "comparison_title": "Anime meets reality",
+    "comparison_sub": "Every location verified against the original frames.",
+    "feat_search": "Real-location Search",
+    "feat_search_desc": "Find spots by anime title, episode, or scene.",
+    "feat_route": "Route Planner",
+    "feat_route_desc": "Walking routes with time estimates. Export to Google Maps.",
+    "feat_series": "By Series",
+    "feat_series_desc": "Browse locations organized by anime.",
+    "login": "Log in",
+    "join_beta": "Join beta"
+  },
   "auth": {
     "title": "Seichijunrei",
     "subtitle": "Internal beta",
