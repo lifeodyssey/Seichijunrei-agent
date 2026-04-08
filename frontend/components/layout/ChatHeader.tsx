@@ -35,6 +35,7 @@ export default function ChatHeader({ onNewChat, onMenuToggle }: ChatHeaderProps)
         <div className="flex gap-0.5 rounded-md border border-[var(--color-border)] p-0.5">
           {LOCALES.map((loc) => (
             <button
+              type="button"
               key={loc}
               onClick={() => setLocale(loc)}
               className={`rounded px-2 py-1 text-xs transition-colors ${
