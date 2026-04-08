@@ -9,11 +9,11 @@ import AppShell from "../layout/AppShell";
 
 type Tab = "waitlist" | "login";
 
-/* ── Pin configuration (no Unsplash URLs) ── */
-const PINS: { top: string; left: string; label?: string }[] = [
-  { top: "30%", left: "46%", label: "君の名は · 新宿" },
-  { top: "42%", left: "56%", label: "響け · 宇治" },
-  { top: "52%", left: "44%", label: "ヴァイオレット · 京都" },
+/* ── Pin positions (labels come from i18n dictionaries) ── */
+const PIN_POSITIONS: { top: string; left: string; labelKey?: string }[] = [
+  { top: "30%", left: "46%", labelKey: "pin_yourname" },
+  { top: "42%", left: "56%", labelKey: "pin_euphonium" },
+  { top: "52%", left: "44%", labelKey: "pin_violet" },
   { top: "36%", left: "38%" },
   { top: "48%", left: "60%" },
   { top: "26%", left: "52%" },
@@ -220,28 +220,33 @@ export default function AuthGate() {
         />
 
         {/* Pins */}
-        {PINS.map((pin, i) => (
-          <div key={i} className="group absolute z-[3]" style={{ top: pin.top, left: pin.left }}>
-            <div
-              className="h-2.5 w-2.5 cursor-pointer rounded-full bg-[var(--color-primary)]"
-              style={{ animation: `seichi-pin-pulse 2.5s ease-in-out infinite ${i % 2 === 0 ? "0s" : "0.8s"}` }}
-            />
-            {pin.label && (
+        {PIN_POSITIONS.map((pin, i) => {
+          const pinLabel = pin.labelKey
+            ? (land as Record<string, string>)[pin.labelKey] ?? ""
+            : "";
+          return (
+            <div key={i} className="group absolute z-[3]" style={{ top: pin.top, left: pin.left }}>
               <div
-                className="pointer-events-none absolute bottom-[18px] left-1/2 hidden -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-white p-1 opacity-0 shadow-lg transition-all group-hover:translate-y-0 group-hover:opacity-100 sm:block"
-                style={{ transitionDuration: "250ms" }}
-              >
+                className="h-2.5 w-2.5 cursor-pointer rounded-full bg-[var(--color-primary)]"
+                style={{ animation: `seichi-pin-pulse 2.5s ease-in-out infinite ${i % 2 === 0 ? "0s" : "0.8s"}` }}
+              />
+              {pinLabel && (
                 <div
-                  className="h-[60px] w-[88px] rounded-md"
-                  style={{ background: "var(--color-card)" }}
-                />
-                <div className="px-1 pb-0.5 pt-1 text-center text-[9px] font-medium text-[var(--color-muted-fg)]">
-                  {pin.label}
+                  className="pointer-events-none absolute bottom-[18px] left-1/2 hidden -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-white p-1 opacity-0 shadow-lg transition-all group-hover:translate-y-0 group-hover:opacity-100 sm:block"
+                  style={{ transitionDuration: "250ms" }}
+                >
+                  <div
+                    className="h-[60px] w-[88px] rounded-md"
+                    style={{ background: "var(--color-card)" }}
+                  />
+                  <div className="px-1 pb-0.5 pt-1 text-center text-[9px] font-medium text-[var(--color-muted-fg)]">
+                    {pinLabel}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
 
         {/* Hero center content */}
         <div className="relative z-[5] max-w-[540px] px-6 text-center">

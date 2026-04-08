@@ -8,7 +8,11 @@
     "hero_accent": "The Journey",
     "subtitle": "Discover anime pilgrimage spots. Plan your route.",
     "cta": "Get started",
-    "features": ["◈ Real-location Search", "◎ Route Planner", "↗ By Series"]
+    "features": [
+      "◈ Real-location Search",
+      "◎ Route Planner",
+      "↗ By Series"
+    ]
   },
   "landing_hero": {
     "tagline": "Find the exact spot where your favorite scene was drawn.",
@@ -28,7 +32,10 @@
     "feat_series": "By Series",
     "feat_series_desc": "Browse locations organized by anime.",
     "login": "Log in",
-    "join_beta": "Join beta"
+    "join_beta": "Join beta",
+    "pin_yourname": "Your Name · Shinjuku",
+    "pin_euphonium": "Euphonium · Uji",
+    "pin_violet": "Violet Evergarden · Kyoto"
   },
   "auth": {
     "title": "Seichijunrei",
@@ -135,9 +142,18 @@
   "clarification": {
     "examples_label": "For example:",
     "suggestions": [
-      { "label": "Search by anime", "query": "Show me filming locations for Your Name" },
-      { "label": "Search by location", "query": "What anime spots are near Uji Station" },
-      { "label": "Plan a route", "query": "Plan a route for Hibike Euphonium spots from Kyoto" }
+      {
+        "label": "Search by anime",
+        "query": "Show me filming locations for Your Name"
+      },
+      {
+        "label": "Search by location",
+        "query": "What anime spots are near Uji Station"
+      },
+      {
+        "label": "Plan a route",
+        "query": "Plan a route for Hibike Euphonium spots from Kyoto"
+      }
     ]
   }
 }
