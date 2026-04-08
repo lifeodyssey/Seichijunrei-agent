@@ -9,6 +9,7 @@ Use this directory for:
 - other long-lived operational docs that are not iteration-specific
 
 Current canonical docs:
-- `docs/ops/deployment.md` — Cloudflare Workers + Containers deployment runbook
+- `deployment.md` — Cloudflare Workers + Containers deployment runbook (topology, auth flow, env boundaries, rollback)
+- `cloudflare-hardening.md` — WAF rate limiting, prompt-injection filtering, rollback for edge rules
 
 Keep iteration task trackers, progress logs, and findings under `docs/iterations/`.
