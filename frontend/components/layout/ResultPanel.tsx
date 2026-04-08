@@ -117,7 +117,10 @@ export default function ResultPanel({
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
+    <section
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
+      style={{ animation: "slide-in-right 0.3s ease-out" }}
+    >
       {selectionBar}
       <div className="flex-1 overflow-y-auto p-6">
         <GenerativeUIRenderer response={activeResponse} onSuggest={onSuggest} />

@@ -188,6 +188,17 @@
   50%       { opacity: 1;   }
 }
 
+@keyframes seichi-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-card) 25%, var(--color-muted) 50%, var(--color-card) 75%);
+  background-size: 200% 100%;
+  animation: seichi-shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
 /* Base */
 
 html, body {
