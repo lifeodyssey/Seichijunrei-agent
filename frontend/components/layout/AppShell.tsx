@@ -82,7 +82,9 @@ export default function AppShell() {
         }));
         appendMessages(...hydrated);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Session hydration failed:", err);
+      });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
