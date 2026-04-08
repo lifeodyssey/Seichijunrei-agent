@@ -9,12 +9,55 @@ This runbook captures Cloudflare dashboard changes that are intentionally not st
 - rollback procedure for over-blocking rules
 - the future AI Gateway insertion point
 
-It assumes the current topology already exists:
+For the full deployment topology, auth flow, and env-var boundaries see `deployment.md` in this directory.
 
-- `wrangler.toml` routes `seichijunrei.zhenjia.org/*`
-- static frontend assets are served from `ASSETS`
-- `/v1/*` and `/healthz` are handled by `worker/worker.js`
-- the Worker authenticates `/v1/*`, injects `X-User-Id` / `X-User-Type`, strips `Authorization`, and proxies to `CONTAINER`
+## Request Flow
+
+```text
+Browser / API client
+  │
+  ▼
+Cloudflare Edge (Worker: worker/worker.js)
+  ├─ static paths (/, /about, *.js, *.css, …) ──▶ ASSETS binding (frontend/out/)
+  ├─ /img/* ─────────────────────────────────────▶ Worker image proxy → Anitabi CDN (cached)
+  ├─ /healthz ───────────────────────────────────▶ RuntimeContainer (no auth)
+  └─ /v1/* ── authenticate ── strip Authorization
+       │        inject X-User-Id, X-User-Type
+       ▼
+     RuntimeContainer (Durable Object → Python FastAPI on port 8080)
+       ├─ Supabase Postgres (SUPABASE_DB_URL)
+       ├─ Anitabi API (ANITABI_API_URL)
+       └─ Gemini model provider (GEMINI_API_KEY)
+```
+
+## Auth Flow
+
+Two credential types, both validated at the Worker edge:
+
+| Credential | Format | Validation |
+|---|---|---|
+| Human JWT | `Bearer <supabase_jwt>` | `validateJwt()` calls Supabase `/auth/v1/user` with `SUPABASE_ANON_KEY` |
+| Agent API key | `Bearer sk_<hex>` | `validateApiKey()` SHA-256 hashes the key, looks up `api_keys` table via Supabase REST with `SUPABASE_SERVICE_ROLE_KEY` |
+
+On success the Worker sets `X-User-Id` and `X-User-Type`, deletes the `Authorization` header, and forwards to the container. The container never sees raw bearer tokens.
+
+## Env Var Boundary
+
+| Variable | Boundary | Notes |
+|---|---|---|
+| `SUPABASE_URL` | Worker-only | Used for JWT validation and API-key lookup |
+| `SUPABASE_ANON_KEY` | Worker-only | Passed as `apikey` header to Supabase auth |
+| `SUPABASE_SERVICE_ROLE_KEY` | Worker-only | Used for `api_keys` table lookup |
+| `SUPABASE_DB_URL` | Container-only | Direct Postgres connection for asyncpg |
+| `GEMINI_API_KEY` | Container-only | LLM provider credential |
+| `ANITABI_API_URL` | Container-only | Pilgrimage data API |
+| `CORS_ALLOWED_ORIGIN` | Container-only | Backend CORS allowlist |
+| `GOOGLE_MAPS_API_KEY` | Container-only (optional) | Geocoding |
+| `LOGFIRE_TOKEN` | Container-only (optional) | Observability |
+| `NEXT_PUBLIC_SUPABASE_URL` | Frontend build-time only | Injected by CI, not a runtime secret |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Frontend build-time only | Injected by CI, not a runtime secret |
+
+The full container env allowlist is defined in `worker/worker.js` as `CONTAINER_REQUIRED_ENV_KEYS`, `CONTAINER_RUNTIME_ENV_KEYS`, and `CONTAINER_OPTIONAL_ENV_KEYS`.
 
 ## Current Trust Boundary
 
