@@ -20,7 +20,8 @@ def _make_plan(
     return ExecutionPlan(
         reasoning="test",
         locale=locale,
-        steps=steps or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "1"})],
+        steps=steps
+        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "1"})],
     )
 
 
@@ -136,7 +137,9 @@ class TestPipelineResultToPublicResponse:
         result = _make_result(
             steps=steps,
             step_results=[
-                StepResult(tool="resolve_anime", success=True, data={"bangumi_id": "1"}),
+                StepResult(
+                    tool="resolve_anime", success=True, data={"bangumi_id": "1"}
+                ),
                 StepResult(tool="search_bangumi", success=True, data={"rows": []}),
             ],
             final_output={"success": True, "status": "ok", "message": "ok"},
@@ -149,7 +152,11 @@ class TestPipelineResultToPublicResponse:
 
     def test_non_list_errors_ignored(self) -> None:
         result = _make_result(
-            final_output={"success": False, "status": "error", "errors": "string-error"},
+            final_output={
+                "success": False,
+                "status": "error",
+                "errors": "string-error",
+            },
         )
         resp = pipeline_result_to_public_response(result, include_debug=False)
         assert resp.errors == []
