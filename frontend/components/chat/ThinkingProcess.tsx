@@ -27,7 +27,15 @@ export default function ThinkingProcess({
   const [expanded, setExpanded] = useState(isStreaming);
   const t = useDict();
 
-  if (steps.length === 0) return null;
+  if (steps.length === 0) {
+    if (!isStreaming) return null;
+    return (
+      <div className="mb-2 flex items-center gap-1.5 text-xs text-[var(--color-muted-fg)]">
+        <span className="animate-pulse">🧠</span>
+        <span>{t.chat?.thinking || "Thinking..."}</span>
+      </div>
+    );
+  }
 
   const summary = steps
     .filter((s) => s.status === "done")
