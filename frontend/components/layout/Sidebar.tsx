@@ -181,7 +181,7 @@ function ConversationItem({
               {itemTitle}
             </p>
             <p className="mt-0.5 truncate text-[10px] text-[var(--color-sidebar-fg)] opacity-60">
-              {meta} {spotsLabel ? ` \u00B7 ${spotsLabel}` : ""}
+              {meta}{spotsLabel ? ` \u00B7 ${spotsLabel}` : ""}
             </p>
           </>
         )}
