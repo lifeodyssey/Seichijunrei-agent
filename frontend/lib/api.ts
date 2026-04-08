@@ -23,6 +23,16 @@ const SELECTED_ROUTE_ACTION_TEXT = {
   },
 } as const;
 
+/** Safely parse response_data which may be a JSON string, object, or null. */
+function parseResponseData(raw: unknown): Record<string, unknown> | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
+  }
+  if (typeof raw === "object") return raw as Record<string, unknown>;
+  return null;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const supabase = getSupabaseClient();
   if (!supabase) return {};
@@ -294,11 +304,11 @@ export async function fetchConversationMessages(
   );
 
   if (!res.ok) return [];
-  const data: { messages: Array<{ role: string; content: string; response_data: Record<string, unknown> | null; created_at: string }> } = await res.json();
+  const data: { messages: Array<{ role: string; content: string; response_data: unknown; created_at: string }> } = await res.json();
   return data.messages.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
-    data: m.response_data,
+    data: parseResponseData(m.response_data),
     timestamp: m.created_at,
   }));
 }
