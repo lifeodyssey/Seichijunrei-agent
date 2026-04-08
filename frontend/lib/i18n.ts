@@ -2,6 +2,13 @@ export const LOCALES = ["ja", "zh", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "ja";
 
+/** Human-readable locale labels — single source of truth for all switchers. */
+export const LOCALE_LABELS: Record<Locale, string> = {
+  ja: "日本語",
+  zh: "中文",
+  en: "EN",
+};
+
 const STORAGE_KEY = "seichi_lang";
 
 export function detectLocale(): Locale {
