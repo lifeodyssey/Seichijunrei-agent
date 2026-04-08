@@ -242,16 +242,20 @@ a { color: inherit; }
   }
 }
 
-/* ── Touch targets ── */
-button, a, input, select, textarea, [role="button"], [role="tab"] {
+/* ── Touch targets (opt-in via data attribute, auto for standalone interactive elements) ── */
+/* Apply 44px minimum to primary interactive elements, but NOT to compact variants inside components */
+input:not([type="hidden"]), select, textarea {
   min-height: 44px;
 }
-button, a, [role="button"], [role="tab"] {
+/* Standalone buttons and links get 44px tap area via padding, not forced min-height */
+/* Use .touch-target class or data-touch attribute for explicit opt-in */
+.touch-target, [data-touch] {
+  min-height: 44px;
   min-width: 44px;
 }
 
 /* ── Focus visible ── */
-:focus-visible {
+:focus-visible:not(:has(:focus-visible)) {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
