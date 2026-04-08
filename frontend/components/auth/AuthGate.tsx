@@ -222,7 +222,7 @@ export default function AuthGate() {
         {/* Pins */}
         {PIN_POSITIONS.map((pin, i) => {
           const pinLabel = pin.labelKey
-            ? (land as Record<string, string>)[pin.labelKey] ?? ""
+            ? (lh as Record<string, string>)[pin.labelKey] ?? ""
             : "";
           return (
             <div key={i} className="group absolute z-[3]" style={{ top: pin.top, left: pin.left }}>
