@@ -241,7 +241,7 @@ class TestCompact:
         )
 
         with patch(
-            "backend.interfaces.public_api.create_agent", return_value=mock_agent
+            "backend.interfaces.session_facade.create_agent", return_value=mock_agent
         ):
             await _compact_session_interactions(session_id, state, store)
 
@@ -269,7 +269,7 @@ class TestCompact:
             "summary": None,
         }
 
-        with patch("backend.interfaces.public_api.create_agent") as create_agent:
+        with patch("backend.interfaces.session_facade.create_agent") as create_agent:
             await _compact_session_interactions("sess-short", state, store)
 
         create_agent.assert_not_called()
