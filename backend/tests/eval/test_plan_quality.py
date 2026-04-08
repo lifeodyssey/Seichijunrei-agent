@@ -23,7 +23,6 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 from pydantic_evals import Case, Dataset
@@ -35,12 +34,15 @@ _DEFAULT_MODEL = "openai:qwen3.5-9b@http://localhost:1234/v1"
 _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL)
 
 
-def make_model(model_id: str | None = None) -> Any:
+def make_model(model_id: str | None = None) -> object:
     """Build a Pydantic AI model from a model string."""
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
 
     mid = model_id or _EVAL_MODEL_ID
+    # Gemini models are resolved natively by pydantic-ai
+    if mid.startswith("gemini"):
+        return mid
     if "@" in mid:
         name, base_url = mid.split("@", 1)
         name = name.removeprefix("openai:")
@@ -64,6 +66,7 @@ class PlanInput:
 class PlanOutput:
     steps: list[str]  # tool/step names in execution order
     intent: str | None  # response.intent
+    row_count: int = 0
 
 
 @dataclass
@@ -98,20 +101,24 @@ async def evaluate_plan(inp: PlanInput) -> PlanOutput:
     result = await run_pipeline(inp.query, db, model=EVAL_MODEL, locale=inp.locale)
 
     steps: list[str] = []
-    if hasattr(result, "plan") and result.plan is not None:
-        for step in getattr(result.plan, "steps", []) or []:
-            tool = getattr(step, "tool", None)
-            if tool is not None:
-                steps.append(tool if isinstance(tool, str) else tool.value)
-                continue
+    for sr in getattr(result, "step_results", []) or []:
+        tool = getattr(sr, "tool", None)
+        if tool is not None and sr.success:
+            steps.append(tool if isinstance(tool, str) else str(tool))
 
-            step_type = getattr(step, "step_type", None)
-            if step_type is not None:
-                steps.append(
-                    step_type if isinstance(step_type, str) else step_type.value
-                )
+    # Extract row_count from final_output for outcome evaluation.
+    row_count = 0
+    final_output = getattr(result, "final_output", None) or {}
+    if isinstance(final_output, dict):
+        results = final_output.get("results")
+        if isinstance(results, dict):
+            row_count = int(results.get("row_count", 0) or 0)
 
-    return PlanOutput(steps=steps, intent=getattr(result, "intent", None))
+    return PlanOutput(
+        steps=steps,
+        intent=getattr(result, "intent", None),
+        row_count=row_count,
+    )
 
 
 # ── Evaluators ───────────────────────────────────────────────────────
@@ -135,6 +142,35 @@ class IntentMatchEvaluator(Evaluator[PlanInput, PlanOutput]):
         return 1.0 if actual == expected else 0.0
 
 
+_SEARCH_TOOLS = {"search_bangumi", "search_nearby"}
+
+
+class OutcomeEvaluator(Evaluator[PlanInput, PlanOutput]):
+    """Score 1.0 if non-search query, or search returned rows; 0.0 if search returned 0."""
+
+    def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
+        expected_steps = ctx.expected_output.expected_steps
+        is_search = bool(_SEARCH_TOOLS & set(expected_steps))
+        if not is_search:
+            return 1.0
+        row_count = ctx.output.row_count if ctx.output else 0
+        return 1.0 if row_count > 0 else 0.0
+
+
+class EfficiencyEvaluator(Evaluator[PlanInput, PlanOutput]):
+    """Score based on how close actual step count is to expected."""
+
+    def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
+        expected_len = len(ctx.expected_output.expected_steps)
+        actual_len = len(ctx.output.steps) if ctx.output else 0
+        diff = actual_len - expected_len
+        if diff <= 1:
+            return 1.0
+        if diff <= 3:
+            return 0.5
+        return 0.0
+
+
 # ── Load dataset ─────────────────────────────────────────────────────
 
 
@@ -155,7 +191,12 @@ CASES = [
 plan_dataset = Dataset(
     name="plan_quality_v1",
     cases=CASES,
-    evaluators=[StepsMatchEvaluator(), IntentMatchEvaluator()],
+    evaluators=[
+        StepsMatchEvaluator(),
+        IntentMatchEvaluator(),
+        OutcomeEvaluator(),
+        EfficiencyEvaluator(),
+    ],
 )
 
 
