@@ -3,13 +3,20 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import { useDict } from "../../lib/i18n-context";
 
+interface QuickAction {
+  icon: string;
+  label: string;
+  query: string;
+}
+
 interface ChatInputProps {
   onSend: (text: string) => void;
   disabled?: boolean;
+  showQuickActions?: boolean;
 }
 
-export default function ChatInput({ onSend, disabled }: ChatInputProps) {
-  const { chat: t } = useDict();
+export default function ChatInput({ onSend, disabled, showQuickActions }: ChatInputProps) {
+  const { chat: t, landing_hero: lh } = useDict();
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -49,8 +56,30 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   const hasText = text.trim().length > 0;
 
+  const quickActions: QuickAction[] = [
+    { icon: "\u2726", label: lh.feat_search, query: "" },
+    { icon: "\u25CE", label: lh.feat_route, query: "" },
+    { icon: "\u2197", label: lh.feat_series, query: "" },
+  ];
+
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+      {showQuickActions && (
+        <div className="mx-auto mb-2 flex max-w-[680px] gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => onSend(action.label)}
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+              style={{ minHeight: "44px", transitionDuration: "var(--duration-fast)" }}
+            >
+              <span>{action.icon}</span>
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div
         className="mx-auto flex w-full max-w-[680px] items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
         style={{ transitionDuration: "var(--duration-fast)" }}
