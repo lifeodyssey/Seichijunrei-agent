@@ -85,7 +85,7 @@ function ConversationItem({
 
   /** Show user-renamed title if available, otherwise first_query, fallback to displayTitle. */
   const hasCustomTitle = record.title && record.title !== record.first_query;
-  const itemTitle = truncate(hasCustomTitle ? record.title : (record.first_query || displayTitle), 25);
+  const itemTitle = truncate(hasCustomTitle ? (record.title ?? "") : (record.first_query || displayTitle), 25);
   /** Pick icon based on whether first_query mentions route/plan keywords. */
   const icon = ROUTE_KEYWORDS.test(record.first_query) ? "\uD83D\uDCCD" : "\uD83D\uDDFE";
 
