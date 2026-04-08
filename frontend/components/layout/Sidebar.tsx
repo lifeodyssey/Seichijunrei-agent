@@ -38,16 +38,43 @@ const LOCALE_LABELS: Record<Locale, string> = {
   en: "EN",
 };
 
+/** Route-related keywords used to select the 📍 icon. */
+const ROUTE_KEYWORDS = /route|ルート|路线|plan|計画|计划/i;
+
+/** Locale-aware relative time string from an ISO date. */
+function relativeTime(dateStr: string | undefined | null, locale: string): string {
+  if (!dateStr) return "";
+  const parsed = new Date(dateStr).getTime();
+  if (Number.isNaN(parsed)) return "";
+  const diff = Date.now() - parsed;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return locale === "ja" ? "たった今" : locale === "zh" ? "刚刚" : "just now";
+  if (mins < 60) return locale === "ja" ? `${mins}分前` : locale === "zh" ? `${mins}分钟前` : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return locale === "ja" ? `${hours}時間前` : locale === "zh" ? `${hours}小时前` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return locale === "ja" ? `${days}日前` : locale === "zh" ? `${days}天前` : `${days}d ago`;
+}
+
+/** Truncate a string to `max` characters, appending ellipsis if needed. */
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + "\u2026" : text;
+}
+
 function ConversationItem({
   active,
   record,
   renameHint,
+  locale,
+  spotsLabel,
   onRename,
   onClick,
 }: {
   active: boolean;
   record: ConversationRecord;
   renameHint: string;
+  locale: string;
+  spotsLabel: string;
   onRename: (sessionId: string, title: string) => void;
   onClick?: (sessionId: string) => void;
 }) {
@@ -55,6 +82,12 @@ function ConversationItem({
   const [draftTitle, setDraftTitle] = useState(getConversationDisplayTitle(record));
   const inputRef = useRef<HTMLInputElement>(null);
   const displayTitle = getConversationDisplayTitle(record);
+
+  /** Show user-renamed title if available, otherwise first_query, fallback to displayTitle. */
+  const hasCustomTitle = record.title && record.title !== record.first_query;
+  const itemTitle = truncate(hasCustomTitle ? (record.title ?? "") : (record.first_query || displayTitle), 25);
+  /** Pick icon based on whether first_query mentions route/plan keywords. */
+  const icon = ROUTE_KEYWORDS.test(record.first_query) ? "\uD83D\uDCCD" : "\uD83D\uDDFE";
 
   useEffect(() => {
     if (!editing) return;
@@ -111,38 +144,48 @@ function ConversationItem({
     [cancelEditing, commitEditing],
   );
 
+  const meta = relativeTime(record.updated_at, locale);
+
   return (
     <div
       className={[
-        "group mb-0.5 border-l-2 py-2 pl-3 pr-2 transition",
+        "group mb-0.5 flex min-h-[52px] items-start gap-2 rounded-lg px-3 py-2.5 transition",
         active
-          ? "border-[var(--color-primary)] bg-[var(--color-sidebar-accent)]"
-          : "border-transparent hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-sidebar-accent)]",
+          ? "bg-[var(--color-sidebar-accent)]"
+          : "hover:bg-[var(--color-sidebar-accent)]",
       ].join(" ")}
-      style={{ transitionDuration: "var(--duration-fast)" }}
+      style={{ transitionDuration: "var(--duration-fast)", cursor: "pointer" }}
       onClick={editing ? undefined : () => onClick?.(record.session_id)}
       onDoubleClick={editing ? undefined : handleDoubleClick}
       title={editing ? undefined : renameHint}
     >
-      {editing ? (
-        <input
-          ref={inputRef}
-          value={draftTitle}
-          onChange={(event) => setDraftTitle(event.target.value)}
-          onBlur={commitEditing}
-          onKeyDown={handleKeyDown}
-          className="w-full bg-transparent text-xs font-light text-[var(--color-sidebar-accent-fg)] outline-none"
-        />
-      ) : (
-        <>
-          <p className="truncate text-xs font-light text-[var(--color-sidebar-accent-fg)]">
-            {displayTitle}
-          </p>
-          <p className="mt-1 text-[10px] text-[var(--color-sidebar-fg)] opacity-0 transition group-hover:opacity-60">
-            {renameHint}
-          </p>
-        </>
-      )}
+      {/* Icon */}
+      <span className="mt-0.5 shrink-0 text-sm leading-none" aria-hidden>
+        {icon}
+      </span>
+
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draftTitle}
+            onChange={(event) => setDraftTitle(event.target.value)}
+            onBlur={commitEditing}
+            onKeyDown={handleKeyDown}
+            className="w-full bg-transparent text-xs font-light text-[var(--color-sidebar-accent-fg)] outline-none"
+          />
+        ) : (
+          <>
+            <p className="truncate text-xs font-medium text-[var(--color-sidebar-accent-fg)]">
+              {itemTitle}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-[var(--color-sidebar-fg)] opacity-60">
+              {meta}{spotsLabel ? ` \u00B7 ${spotsLabel}` : ""}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -222,6 +265,8 @@ export default function Sidebar({
                 active={record.session_id === activeSessionId}
                 record={record}
                 renameHint={t.rename_hint}
+                locale={locale}
+                spotsLabel=""
                 onRename={onRenameConversation}
                 onClick={onSelectConversation}
               />
