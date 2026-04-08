@@ -64,9 +64,10 @@ class PlanInput:
 
 @dataclass
 class PlanOutput:
-    steps: list[str]  # tool/step names in execution order
-    intent: str | None  # response.intent
-    row_count: int = 0
+    steps: list[str]  # successful tool names in execution order
+    total_steps: int = 0  # all steps including failures (for efficiency)
+    intent: str | None = None  # response.intent
+    row_count: int = 0  # search result count (for outcome eval)
 
 
 @dataclass
@@ -93,18 +94,28 @@ async def evaluate_plan(inp: PlanInput) -> PlanOutput:
     # Future-compat stubs for Iter 1+.
     db.query_bangumi_points = AsyncMock(return_value=[])
     db.query_nearby_points = AsyncMock(return_value=[])
-    db.find_bangumi_by_title = AsyncMock(return_value=None)
+    # Seed mock DB so resolve_anime succeeds (returns a known bangumi_id).
+    # This lets the pipeline progress past resolve_anime to search_bangumi.
+    # search_bangumi still returns empty rows (need real DB for outcome eval).
+    db.find_bangumi_by_title = AsyncMock(return_value="262243")
     db.upsert_bangumi_title = AsyncMock(return_value=None)
     db.save_route = AsyncMock(return_value=None)
     db.load_route = AsyncMock(return_value=None)
 
     result = await run_pipeline(inp.query, db, model=EVAL_MODEL, locale=inp.locale)
 
-    steps: list[str] = []
+    # Collect ALL executed steps (including failures) for efficiency accounting.
+    all_steps: list[str] = []
+    successful_steps: list[str] = []
     for sr in getattr(result, "step_results", []) or []:
         tool = getattr(sr, "tool", None)
-        if tool is not None and sr.success:
-            steps.append(tool if isinstance(tool, str) else str(tool))
+        if tool is not None:
+            step_name = tool if isinstance(tool, str) else str(tool)
+            all_steps.append(step_name)
+            if sr.success:
+                successful_steps.append(step_name)
+    # steps = successful only (for StepsMatchEvaluator ordering check)
+    steps = successful_steps
 
     # Extract row_count from final_output for outcome evaluation.
     row_count = 0
@@ -116,6 +127,7 @@ async def evaluate_plan(inp: PlanInput) -> PlanOutput:
 
     return PlanOutput(
         steps=steps,
+        total_steps=len(all_steps),
         intent=getattr(result, "intent", None),
         row_count=row_count,
     )
@@ -146,7 +158,13 @@ _SEARCH_TOOLS = {"search_bangumi", "search_nearby"}
 
 
 class OutcomeEvaluator(Evaluator[PlanInput, PlanOutput]):
-    """Score 1.0 if non-search query, or search returned rows; 0.0 if search returned 0."""
+    """Score 1.0 if non-search query, or search returned rows; 0.0 if search returned 0.
+
+    NOTE: With mock DB (default), search queries always return 0 rows.
+    This evaluator is most useful with real DB (testcontainers) or seeded mocks.
+    When row_count is 0 for a search query, this scores 0.0 — which is expected
+    with empty mocks. The score becomes meaningful with real data.
+    """
 
     def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
         expected_steps = ctx.expected_output.expected_steps
@@ -158,12 +176,17 @@ class OutcomeEvaluator(Evaluator[PlanInput, PlanOutput]):
 
 
 class EfficiencyEvaluator(Evaluator[PlanInput, PlanOutput]):
-    """Score based on how close actual step count is to expected."""
+    """Score based on how close total step count (including failures) is to expected.
+
+    Uses abs() so both too-few and too-many steps are penalized.
+    Counts ALL steps (including failed retries) via total_steps.
+    """
 
     def evaluate(self, ctx: EvaluatorContext[PlanInput, PlanOutput]) -> float:
         expected_len = len(ctx.expected_output.expected_steps)
-        actual_len = len(ctx.output.steps) if ctx.output else 0
-        diff = actual_len - expected_len
+        # Use total_steps (all attempts) not just successful ones
+        actual_len = ctx.output.total_steps if ctx.output else 0
+        diff = abs(actual_len - expected_len)
         if diff <= 1:
             return 1.0
         if diff <= 3:
