@@ -188,8 +188,15 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
 
   if (results.status === "empty" || results.rows.length === 0) {
     return (
-      <div className="py-8 text-sm font-light text-[var(--color-muted-fg)]">
-        {t.no_results}
+      <div className="space-y-4">
+        <div className="py-8 text-sm font-light text-[var(--color-muted-fg)]">
+          {t.no_results}
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton aspect-[4/3]" />
+          ))}
+        </div>
       </div>
     );
   }
