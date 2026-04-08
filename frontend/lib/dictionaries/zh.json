@@ -8,7 +8,34 @@
     "hero_accent": "巡禮之路",
     "subtitle": "探索动漫圣地，规划巡礼路线",
     "cta": "开始使用",
-    "features": ["◈ 实拍取景地搜索", "◎ 最优路线规划", "↗ 作品取景总览"]
+    "features": [
+      "◈ 实拍取景地搜索",
+      "◎ 最优路线规划",
+      "↗ 作品取景总览"
+    ]
+  },
+  "landing_hero": {
+    "tagline": "找到你最爱场景的真实取景地。",
+    "chat_placeholder": "找找动漫取景地吧...",
+    "chat_submit": "问问",
+    "hint": "<strong>你的名字</strong>、<strong>吹响吧上低音号</strong>、<strong>紫罗兰永恒花园</strong>",
+    "stat_locations": "取景地",
+    "stat_anime": "动漫",
+    "stat_prefectures": "都道府县",
+    "scroll_hint": "下滑探索",
+    "comparison_title": "动漫与现实",
+    "comparison_sub": "每一个取景地都经过原画验证。",
+    "feat_search": "取景地搜索",
+    "feat_search_desc": "按动漫名、集数或场景搜索取景地。",
+    "feat_route": "路线规划",
+    "feat_route_desc": "自动生成步行路线，导出至 Google Maps。",
+    "feat_series": "按作品浏览",
+    "feat_series_desc": "按动漫作品浏览所有取景地。",
+    "login": "登录",
+    "join_beta": "加入测试",
+    "pin_yourname": "你的名字 · 新宿",
+    "pin_euphonium": "吹响上低音号 · 宇治",
+    "pin_violet": "紫罗兰永恒花园 · 京都"
   },
   "auth": {
     "title": "圣地巡礼",
@@ -115,9 +142,18 @@
   "clarification": {
     "examples_label": "例如：",
     "suggestions": [
-      { "label": "按作品搜索", "query": "秒速五厘米的取景地在哪" },
-      { "label": "按地点搜索", "query": "宇治站附近有哪些取景地" },
-      { "label": "规划路线", "query": "从新宿出发去你的名字取景地的路线" }
+      {
+        "label": "按作品搜索",
+        "query": "秒速五厘米的取景地在哪"
+      },
+      {
+        "label": "按地点搜索",
+        "query": "宇治站附近有哪些取景地"
+      },
+      {
+        "label": "规划路线",
+        "query": "从新宿出发去你的名字取景地的路线"
+      }
     ]
   }
 }
