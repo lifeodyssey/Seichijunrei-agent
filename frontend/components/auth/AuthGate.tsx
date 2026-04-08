@@ -7,8 +7,6 @@ import { LOCALES, type Locale } from "../../lib/i18n";
 import { getSupabaseClient } from "../../lib/supabase";
 import AppShell from "../layout/AppShell";
 
-type Tab = "waitlist" | "login";
-
 /* ── Pin positions (labels come from i18n dictionaries) ── */
 const PIN_POSITIONS: { top: string; left: string; labelKey?: string }[] = [
   { top: "30%", left: "46%", labelKey: "pin_yourname" },
@@ -34,7 +32,6 @@ export default function AuthGate() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(authConfigured);
-  const [tab, setTab] = useState<Tab>("waitlist");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -78,31 +75,14 @@ export default function AuthGate() {
     return () => subscription.unsubscribe();
   }, [authClient]);
 
-  async function handleWaitlist(e: React.FormEvent) {
-    e.preventDefault();
-    if (!authClient) { setStatus(t.not_configured); return; }
-    setSubmitting(true);
-    setStatus(null);
-    const { error } = await authClient
-      .from("waitlist")
-      .insert({ email: email.trim().toLowerCase() });
-    if (error) {
-      setStatus(error.code === "23505" ? t.already_registered : t.error.replace("{message}", error.message));
-    } else {
-      setStatus(t.waitlist_success);
-    }
-    setSubmitting(false);
-  }
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!authClient) { setStatus(t.not_configured); return; }
     setSubmitting(true);
     setStatus(null);
     const normalizedEmail = email.trim().toLowerCase();
-    const { data } = await authClient.from("waitlist").select("status").eq("email", normalizedEmail).single();
-    if (!data) { setStatus(t.not_registered); setSubmitting(false); return; }
-    if (data.status !== "approved") { setStatus(t.pending_review); setSubmitting(false); return; }
+    // Fire-and-forget: track signup for analytics
+    authClient.from("waitlist").upsert({ email: normalizedEmail }, { onConflict: "email" }).then(() => {});
     const { error } = await authClient.auth.signInWithOtp({
       email: normalizedEmail,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback/` },
@@ -185,7 +165,7 @@ export default function AuthGate() {
           {/* Login link (hidden on mobile) */}
           <button
             type="button"
-            onClick={() => { setTab("login"); setShowAuthModal(true); }}
+            onClick={() => setShowAuthModal(true)}
             className="hidden min-h-[44px] px-3 text-[13px] text-[var(--color-muted-fg)] sm:block"
           >
             {lh.login}
@@ -193,7 +173,7 @@ export default function AuthGate() {
           {/* Join beta CTA */}
           <button
             type="button"
-            onClick={() => { setTab("waitlist"); setShowAuthModal(true); }}
+            onClick={() => setShowAuthModal(true)}
             className="min-h-[44px] rounded-md bg-[var(--color-primary)] px-4 py-1.5 text-[13px] font-semibold text-[var(--color-primary-fg)]"
           >
             {lh.join_beta}
@@ -271,14 +251,14 @@ export default function AuthGate() {
             <input
               type="text"
               placeholder={lh.chat_placeholder}
-              onFocus={() => { setTab("waitlist"); setShowAuthModal(true); }}
+              onFocus={() => setShowAuthModal(true)}
               className="min-h-[52px] flex-1 border-none bg-transparent px-5 text-[15px] text-[var(--color-fg)] outline-none placeholder:text-[var(--color-border)]"
               style={{ fontFamily: "var(--app-font-body)" }}
               readOnly
             />
             <button
               type="button"
-              onClick={() => { setTab("waitlist"); setShowAuthModal(true); }}
+              onClick={() => setShowAuthModal(true)}
               className="min-h-[52px] min-w-[44px] bg-[var(--color-primary)] px-6 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90"
               style={{ fontFamily: "var(--app-font-body)" }}
             >
@@ -410,31 +390,11 @@ export default function AuthGate() {
 
             <div className="mb-8">
               <h2 className="text-base font-medium text-[var(--color-fg)]">
-                {tab === "waitlist" ? t.tab_waitlist : t.tab_login}
+                {t.tab_login}
               </h2>
               <p className="mt-1 text-xs font-light text-[var(--color-muted-fg)]">
                 {t.subtitle}
               </p>
-            </div>
-
-            {/* Tab switcher */}
-            <div className="mb-6 flex gap-4 border-b border-[var(--color-border)]">
-              {(["waitlist", "login"] as Tab[]).map((t_) => (
-                <button
-                  key={t_}
-                  type="button"
-                  onClick={() => { setTab(t_); setStatus(null); }}
-                  className={[
-                    "min-h-[44px] pb-2.5 text-xs font-medium transition-colors",
-                    tab === t_
-                      ? "border-b-2 border-[var(--color-primary)] text-[var(--color-primary)]"
-                      : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",
-                  ].join(" ")}
-                  style={{ marginBottom: "-1px" }}
-                >
-                  {t_ === "waitlist" ? t.tab_waitlist : t.tab_login}
-                </button>
-              ))}
             </div>
 
             {/* Form or success card */}
@@ -452,7 +412,7 @@ export default function AuthGate() {
               </div>
             ) : (
               <>
-                <form onSubmit={tab === "waitlist" ? handleWaitlist : handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-1.5">
                     <label htmlFor="auth-email" className="text-xs font-medium text-[var(--color-muted-fg)]">
                       {t.email_label}
@@ -474,7 +434,7 @@ export default function AuthGate() {
                     className="min-h-[44px] w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-40"
                     style={{ transitionDuration: "var(--duration-fast)" }}
                   >
-                    {submitting ? t.submitting : tab === "waitlist" ? t.btn_waitlist : t.btn_login}
+                    {submitting ? t.submitting : t.btn_login}
                   </button>
                 </form>
 
