@@ -77,6 +77,7 @@ export default function MessageBubble({
                   "{count}",
                   String(getResultCount(message.response)),
                 )}
+                subtitle={t.tap_to_view}
                 messageId={message.id}
                 onActivate={onActivate}
                 isActive={isActive}
@@ -168,7 +169,7 @@ function InlineSummaryCard({
       <Card size="sm" className="w-fit max-w-[280px] bg-[var(--color-card)]">
         <CardContent className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-lg text-[var(--color-primary)]">◈</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-sm text-white">{"\uD83D\uDCCD"}</span>
             <p className="text-xs font-medium text-[var(--color-fg)]">
               {animeTitle} — <span className="text-[var(--color-muted-fg)]">{cardDict.spots_count.replace("{count}", String(count))}</span>
             </p>
@@ -249,12 +250,14 @@ function InlineSummaryCard({
 
 function ResultAnchor({
   label,
+  subtitle,
   messageId,
   onActivate,
   isActive,
   onOpenDrawer,
 }: {
   label: string;
+  subtitle: string;
   messageId: string;
   onActivate?: (messageId: string) => void;
   isActive: boolean;
@@ -268,17 +271,23 @@ function ResultAnchor({
         onOpenDrawer?.();
       }}
       className={[
-        "flex w-fit items-center gap-2 border px-3 py-1.5 text-xs transition",
+        "group/anchor flex w-full max-w-[320px] items-center gap-3 rounded-xl border p-3 text-left transition-all",
         isActive
-          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-          : "border-[var(--color-border)] bg-transparent text-[var(--color-muted-fg)] hover:border-[var(--color-primary)]/60 hover:text-[var(--color-fg)]",
+          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 shadow-sm"
+          : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/60 hover:-translate-y-0.5 hover:shadow-sm",
       ].join(" ")}
       style={{ transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quint)" }}
     >
-      <span className={isActive ? "text-[var(--color-primary-fg)]" : "text-[var(--color-primary)]"}>
-        ◈
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-sm text-white">
+        {"\uD83D\uDCCD"}
       </span>
-      <span>{label}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-xs font-medium text-[var(--color-fg)]">{label}</span>
+        <span className="text-[11px] text-[var(--color-muted-fg)]">{subtitle}</span>
+      </span>
+      <span className="shrink-0 text-sm text-[var(--color-muted-fg)] transition-transform group-hover/anchor:translate-x-0.5" style={{ transitionDuration: "var(--duration-fast)" }}>
+        {"\u203A"}
+      </span>
     </button>
   );
 }

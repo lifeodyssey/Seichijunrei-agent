@@ -50,7 +50,7 @@ export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [routes, setRoutes] = useState<RouteHistoryEntry[]>([]);
   const [routeSending, setRouteSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [slideOverOpen, setSlideOverOpen] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const lastSyncedResponseIdRef = useRef<string | null>(null);
@@ -353,7 +353,7 @@ export default function AppShell() {
   return (
     <PointSelectionContext.Provider value={{ selectedIds, toggle, clear: clearSelectedPoints }}>
       <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
-        {/* Sidebar — collapsible on desktop, hidden on mobile */}
+        {/* Sidebar — collapsible on desktop, overlay on mobile */}
         {!isMobile && sidebarOpen && (
           <Sidebar
             conversations={conversations}
@@ -364,6 +364,31 @@ export default function AppShell() {
             routes={routes}
             onCollapse={() => setSidebarOpen(false)}
           />
+        )}
+        {isMobile && sidebarOpen && (
+          <>
+            {/* Dark backdrop */}
+            <div
+              className="fixed inset-0 z-40 bg-black/30"
+              onClick={() => setSidebarOpen(false)}
+              style={{ animation: "fade-in 200ms ease both" }}
+            />
+            {/* Sidebar overlay */}
+            <div
+              className="fixed inset-y-0 left-0 z-50 w-[280px] bg-[var(--color-bg)] shadow-xl"
+              style={{ animation: "slide-in-left 250ms var(--ease-out-quint) both" }}
+            >
+              <Sidebar
+                conversations={conversations}
+                activeSessionId={sessionId}
+                onNewChat={() => { handleNewChat(); setSidebarOpen(false); }}
+                onRenameConversation={renameConversation}
+                onSelectConversation={(id) => { handleConversationSelect(id); setSidebarOpen(false); }}
+                routes={routes}
+                onCollapse={() => setSidebarOpen(false)}
+              />
+            </div>
+          </>
         )}
 
         {/* Main chat area — takes full width */}
@@ -379,7 +404,7 @@ export default function AppShell() {
             onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
             onSuggest={handleSend}
           />
-          <ChatInput onSend={handleSend} disabled={isSending} />
+          <ChatInput onSend={handleSend} disabled={isSending} showQuickActions={isMobile && messages.length === 0} />
         </main>
 
         {/* Mobile: vaul bottom sheet */}
