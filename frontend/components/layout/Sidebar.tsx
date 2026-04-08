@@ -42,8 +42,11 @@ const LOCALE_LABELS: Record<Locale, string> = {
 const ROUTE_KEYWORDS = /route|ルート|路线|plan|計画|计划/i;
 
 /** Locale-aware relative time string from an ISO date. */
-function relativeTime(dateStr: string, locale: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+function relativeTime(dateStr: string | undefined | null, locale: string): string {
+  if (!dateStr) return "";
+  const parsed = new Date(dateStr).getTime();
+  if (Number.isNaN(parsed)) return "";
+  const diff = Date.now() - parsed;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return locale === "ja" ? "たった今" : locale === "zh" ? "刚刚" : "just now";
   if (mins < 60) return locale === "ja" ? `${mins}分前` : locale === "zh" ? `${mins}分钟前` : `${mins}m ago`;
@@ -80,8 +83,9 @@ function ConversationItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const displayTitle = getConversationDisplayTitle(record);
 
-  /** Use first_query as the visible title, truncated to ~25 chars. */
-  const itemTitle = truncate(record.first_query || displayTitle, 25);
+  /** Show user-renamed title if available, otherwise first_query, fallback to displayTitle. */
+  const hasCustomTitle = record.title && record.title !== record.first_query;
+  const itemTitle = truncate(hasCustomTitle ? record.title : (record.first_query || displayTitle), 25);
   /** Pick icon based on whether first_query mentions route/plan keywords. */
   const icon = ROUTE_KEYWORDS.test(record.first_query) ? "\uD83D\uDCCD" : "\uD83D\uDDFE";
 
