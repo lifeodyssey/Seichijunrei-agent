@@ -20,7 +20,7 @@
       "status": "ok",
       "success": true,
       "plan_steps": ["search_nearby"],
-      "result_count": 1,
+      "result_count": 2,
       "strategy": "geo"
     }
   },
@@ -35,7 +35,6 @@
       "plan_steps": ["search_bangumi", "plan_route"],
       "result_count": 2,
       "route_point_count": 2,
-      "route_history_count": 1,
       "strategy": "hybrid"
     }
   },
