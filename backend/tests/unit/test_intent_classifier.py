@@ -44,7 +44,8 @@ class TestClassifyIntent:
             "I want to know about the best places to visit in Japan"
             " for culture and food recommendations"
         )
-        assert intent == QueryIntent.AMBIGUOUS or conf < 0.7
+        assert intent == QueryIntent.AMBIGUOUS
+        assert conf < 0.7
 
     def test_identity_question(self) -> None:
         intent, conf = classify_intent("你是谁？")
