@@ -11,8 +11,11 @@ Usage:
     # Any OpenAI-compatible endpoint
     EVAL_MODEL=openai:gpt-4o-mini uv run python tests/eval/test_plan_quality.py
 
-    # pytest
-    uv run python -m pytest tests/eval/test_plan_quality.py -v -m integration --no-cov
+    # pytest (with testcontainer — needs Docker)
+    uv run pytest backend/tests/eval/test_plan_quality.py -v -m integration --no-cov
+
+    # pytest (mock fallback — no Docker)
+    USE_MOCK_DB=1 uv run pytest backend/tests/eval/test_plan_quality.py -v -m integration --no-cov
 """
 
 from __future__ import annotations
@@ -79,28 +82,37 @@ class ExpectedPlan:
 # ── Task under test ──────────────────────────────────────────────────
 
 
-async def evaluate_plan(inp: PlanInput) -> PlanOutput:
-    """Run run_pipeline with a mock DB and capture the plan steps + intent."""
+def _make_mock_db() -> object:
+    """Build a MagicMock DB for standalone / no-Docker fallback."""
     from unittest.mock import AsyncMock, MagicMock
-
-    from backend.agents.pipeline import run_pipeline
 
     db = MagicMock()
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
     db.search_points_by_location = AsyncMock(return_value=[])
-
-    # Future-compat stubs for Iter 1+.
     db.query_bangumi_points = AsyncMock(return_value=[])
     db.query_nearby_points = AsyncMock(return_value=[])
-    # Seed mock DB so resolve_anime succeeds (returns a known bangumi_id).
-    # This lets the pipeline progress past resolve_anime to search_bangumi.
-    # search_bangumi still returns empty rows (need real DB for outcome eval).
     db.find_bangumi_by_title = AsyncMock(return_value="262243")
     db.upsert_bangumi_title = AsyncMock(return_value=None)
     db.save_route = AsyncMock(return_value=None)
     db.load_route = AsyncMock(return_value=None)
+    return db
+
+
+# Module-level DB override: set by fixtures for testcontainer path.
+_DB_OVERRIDE: object | None = None
+
+
+async def evaluate_plan(inp: PlanInput) -> PlanOutput:
+    """Run run_pipeline and capture the plan steps + intent.
+
+    Uses real DB from testcontainer when ``_DB_OVERRIDE`` is set,
+    otherwise falls back to MagicMock (standalone / no-Docker).
+    """
+    from backend.agents.pipeline import run_pipeline
+
+    db = _DB_OVERRIDE if _DB_OVERRIDE is not None else _make_mock_db()
 
     result = await run_pipeline(inp.query, db, model=EVAL_MODEL, locale=inp.locale)
 
@@ -226,24 +238,52 @@ plan_dataset = Dataset(
 # ── Pytest integration ───────────────────────────────────────────────
 
 
+def _use_mock_db() -> bool:
+    """Return True when we should fall back to mock DB (no Docker)."""
+    if os.environ.get("USE_MOCK_DB", "").strip() in ("1", "true", "yes"):
+        return True
+    return False
+
+
 @pytest.mark.integration
-def test_plan_quality_eval():
-    """Run plan quality eval. Baseline pass rate is recorded for Iter 1 comparison."""
-    report = plan_dataset.evaluate_sync(
-        evaluate_plan,
-        name=f"plan_eval_{_EVAL_MODEL_ID}",
-        max_concurrency=1,
-    )
+def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
+    """Run plan quality with real PostgreSQL testcontainer.
+
+    OutcomeEvaluator scores become meaningful (row_count > 0 for known anime).
+    Falls back to mock DB when USE_MOCK_DB=1 or real_db fixture unavailable.
+    """
+    global _DB_OVERRIDE  # noqa: PLW0603
+
+    if not _use_mock_db():
+        try:
+            real_db = request.getfixturevalue("real_db")
+            _DB_OVERRIDE = real_db
+        except pytest.FixtureLookupError:
+            pass  # testcontainer fixtures not available — use mock
+
+    try:
+        report = plan_dataset.evaluate_sync(
+            evaluate_plan,
+            name=f"plan_eval_db_{_EVAL_MODEL_ID}",
+            max_concurrency=1,
+        )
+    finally:
+        _DB_OVERRIDE = None
+
     report.print(include_input=True, include_output=True)
 
     avg = report.averages()
     steps_score = avg.scores.get("StepsMatchEvaluator", 0)
     intent_score = avg.scores.get("IntentMatchEvaluator", 0)
+    outcome_score = avg.scores.get("OutcomeEvaluator", 0)
 
+    db_mode = "testcontainer" if not _use_mock_db() else "mock"
     print(f"\n{'=' * 60}")
     print(f"  Model:          {_EVAL_MODEL_ID}")
+    print(f"  DB mode:        {db_mode}")
     print(f"  Steps accuracy: {steps_score:.1%}   ← record as Iter 1 baseline")
     print(f"  Intent accuracy:{intent_score:.1%}")
+    print(f"  Outcome score:  {outcome_score:.1%}")
     print(f"  Total cases:    {len(CASES)}")
     print(f"{'=' * 60}")
     # No assertion — this is a baseline measurement run, not a gate
