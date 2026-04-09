@@ -36,7 +36,7 @@ def _apply_migrations_sync(dsn: str) -> None:
         for line in lines:
             skip = False
             for ext in SKIP_EXTENSIONS:
-                if f"CREATE EXTENSION" in line and ext in line:
+                if "CREATE EXTENSION" in line and ext in line:
                     skip = True
                     break
             if not skip:
