@@ -225,9 +225,9 @@ class ReActPlannerAgent:
             """Validate ReactStep: reject premature done, enforce prerequisites."""
             from pydantic_ai import RunContext
 
-            run_ctx = ctx
-            assert isinstance(run_ctx, RunContext)
-            deps: ReActDeps = run_ctx.deps
+            if not isinstance(ctx, RunContext):
+                raise TypeError(f"Expected RunContext, got {type(ctx).__name__}")
+            deps: ReActDeps = ctx.deps
             history = deps.history
             intent = deps.classified_intent
 
