@@ -81,8 +81,10 @@ def _split_sql_statements(sql: str) -> list[str]:
 
         current.append(line)
 
-        # Statement boundary: semicolon at end of line, outside $$ blocks
-        if not in_dollar_block and stripped.endswith(";"):
+        # Statement boundary: semicolon (possibly followed by inline comment)
+        # Handles both "CREATE TABLE foo;" and "CREATE EXTENSION ...; -- comment"
+        code_part = stripped.split("--")[0].rstrip()
+        if not in_dollar_block and code_part.endswith(";"):
             stmt = "\n".join(current).strip()
             if stmt and stmt != ";":
                 statements.append(stmt)

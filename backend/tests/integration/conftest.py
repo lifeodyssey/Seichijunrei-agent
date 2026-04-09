@@ -8,8 +8,8 @@ import pytest
 from testcontainers.postgres import PostgresContainer
 
 from backend.infrastructure.supabase.client import SupabaseClient
-from backend.tests.conftest_db import db_pool as db_pool  # noqa: F401
-from backend.tests.conftest_db import pg_container as pg_container  # noqa: F401
+
+pytest_plugins = ("backend.tests.conftest_db",)
 
 
 @pytest.fixture
