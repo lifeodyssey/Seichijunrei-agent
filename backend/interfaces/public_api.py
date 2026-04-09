@@ -83,7 +83,8 @@ class RuntimeAPI:
         *,
         model: Model | str | None = None,
         user_id: str | None = None,
-        on_step: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None,
+        on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+        | None = None,
     ) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
         session_id = request.session_id or None
@@ -482,7 +483,8 @@ async def handle_public_request(
     model: Model | str | None = None,
     session_store: SessionStore | None = None,
     user_id: str | None = None,
-    on_step: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None,
+    on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+    | None = None,
 ) -> PublicAPIResponse:
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)

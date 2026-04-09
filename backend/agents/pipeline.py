@@ -181,7 +181,8 @@ async def run_pipeline(
     model: Model | str | None = None,
     locale: str = "ja",
     context: dict[str, object] | None = None,
-    on_step: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None,
+    on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+    | None = None,
 ) -> PipelineResult:
     """Backward-compatible wrapper: runs ReAct loop and collects into PipelineResult."""
     planner = ReActPlannerAgent(model)
@@ -198,7 +199,9 @@ async def run_pipeline(
         context=context,
     ):
         if on_step is not None and event.type == "step":
-            await on_step(event.tool, event.status, event.data)
+            await on_step(
+                event.tool, event.status, event.data, event.thought, event.observation
+            )
 
         if event.step_result is not None:
             all_step_results.append(event.step_result)

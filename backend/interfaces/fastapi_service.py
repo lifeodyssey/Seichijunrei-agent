@@ -163,14 +163,20 @@ async def handle_runtime_stream(
         payload = json.dumps({"event": event, **data}, ensure_ascii=False)
         await queue.put(f"event: {event}\ndata: {payload}\n\n")
 
-    async def on_step(tool: str, status: str, data: dict[str, object]) -> None:
+    async def on_step(
+        tool: str,
+        status: str,
+        data: dict[str, object],
+        thought: str = "",
+        observation: str = "",
+    ) -> None:
         await emit(
             "step",
             {
                 "tool": tool,
                 "status": status,
-                "thought": "",
-                "observation": "",
+                "thought": thought,
+                "observation": observation,
                 "data": data,
             },
         )
