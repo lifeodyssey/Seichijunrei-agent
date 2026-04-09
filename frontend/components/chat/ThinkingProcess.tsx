@@ -70,7 +70,10 @@ export default function ThinkingProcess({
             : summary || t.chat?.thought_complete || "Done"}
         </span>
         {failedSteps.length > 0 && !isStreaming && (
-          <span className="text-red-500 text-[10px]">
+          <span
+            className="text-[10px]"
+            style={{ color: "var(--color-error-fg)" }}
+          >
             ({failedSteps.length} failed)
           </span>
         )}
@@ -91,30 +94,39 @@ export default function ThinkingProcess({
                   <span className="w-4 text-center">{icon}</span>
                   <span
                     className={
+                      isRunning
+                        ? "text-[var(--color-primary)] animate-pulse"
+                        : "text-[var(--color-muted-fg)]"
+                    }
+                    style={
                       isFailed
-                        ? "text-red-500"
-                        : isRunning
-                          ? "text-[var(--color-primary)] animate-pulse"
-                          : "text-[var(--color-muted-fg)]"
+                        ? { color: "var(--color-error-fg)" }
+                        : undefined
                     }
                   >
                     {step.thought || step.tool}
                   </span>
                   <span
-                    className={
-                      isFailed
-                        ? "text-red-500"
+                    className={isRunning ? "text-[var(--color-primary)]" : ""}
+                    style={{
+                      color: isFailed
+                        ? "var(--color-error-fg)"
                         : isRunning
-                          ? "text-[var(--color-primary)]"
-                          : "text-green-600"
-                    }
+                          ? undefined
+                          : "var(--color-success-fg)",
+                    }}
                   >
                     {STATUS_INDICATOR[step.status] || ""}
                   </span>
                 </div>
                 {step.observation && !isRunning && (
                   <div
-                    className={`ml-5 ${isFailed ? "text-red-400" : "text-[var(--color-muted-fg)]"}`}
+                    className="ml-5 text-[var(--color-muted-fg)]"
+                    style={
+                      isFailed
+                        ? { color: "var(--color-error-fg)" }
+                        : undefined
+                    }
                   >
                     {"\u2192"} {step.observation}
                   </div>

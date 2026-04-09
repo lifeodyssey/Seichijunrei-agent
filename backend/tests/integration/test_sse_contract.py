@@ -87,8 +87,20 @@ def _build_runtime_api_mock(
         on_step: object = None,
     ) -> PublicAPIResponse:
         if emit_steps and on_step is not None and callable(on_step):
-            await on_step("search_bangumi", "running", {"bangumi_id": "12345"}, "Searching...", "")
-            await on_step("search_bangumi", "done", {"rows": [], "row_count": 0}, "", "Found 0 results")
+            await on_step(
+                "search_bangumi",
+                "running",
+                {"bangumi_id": "12345"},
+                "Searching...",
+                "",
+            )
+            await on_step(
+                "search_bangumi",
+                "done",
+                {"rows": [], "row_count": 0},
+                "",
+                "Found 0 results",
+            )
         return canned
 
     api.handle = AsyncMock(side_effect=handle_side_effect)
