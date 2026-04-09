@@ -35,7 +35,7 @@ def _docker_available() -> bool:
 
 
 @pytest.fixture
-async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:
+async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:  # noqa: F811
     """Build a SupabaseClient wired to the testcontainer pool."""
     from backend.infrastructure.supabase.client import SupabaseClient
 
