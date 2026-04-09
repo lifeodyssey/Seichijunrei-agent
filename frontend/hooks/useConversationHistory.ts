@@ -16,7 +16,6 @@ export function useConversationHistory() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
 
     void fetchConversations()
       .then((records) => {
