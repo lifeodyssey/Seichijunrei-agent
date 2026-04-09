@@ -10,8 +10,7 @@ import {
 } from "react";
 import { getConversationDisplayTitle } from "../../lib/conversation-history";
 import type { ConversationRecord } from "../../lib/types";
-import { useDict, useLocale, useSetLocale } from "../../lib/i18n-context";
-import { LOCALES, type Locale } from "../../lib/i18n";
+import { useDict, useLocale } from "../../lib/i18n-context";
 
 interface SidebarProps {
   conversations: ConversationRecord[];
@@ -31,12 +30,6 @@ interface RouteHistoryEntry {
   point_count: number;
   created_at: string;
 }
-
-const LOCALE_LABELS: Record<Locale, string> = {
-  ja: "日本語",
-  zh: "中文",
-  en: "EN",
-};
 
 /** Route-related keywords used to select the 📍 icon. */
 const ROUTE_KEYWORDS = /route|ルート|路线|plan|計画|计划/i;
@@ -213,7 +206,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
-  const setLocale = useSetLocale();
 
   return (
     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
@@ -295,24 +287,6 @@ export default function Sidebar({
         </div>
       )}
 
-      {/* Footer — 44px locale switcher buttons */}
-      <div className="border-t border-[var(--color-sidebar-border)] px-5 py-4">
-        <div className="flex items-center gap-2">
-          {LOCALES.map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setLocale(l)}
-              data-active={locale === l}
-              className="min-h-[44px] min-w-[44px] rounded-full px-3 py-2 text-[10px] font-light tracking-wide transition data-[active=true]:bg-[var(--color-primary)] data-[active=true]:text-white hover:bg-[var(--color-primary)]/10"
-              style={{ transitionDuration: "var(--duration-fast)" }}
-            >
-              {LOCALE_LABELS[l]}
-            </button>
-          ))}
-          <span className="ml-auto text-sm text-[var(--color-primary)] opacity-30">◈</span>
-        </div>
-      </div>
     </aside>
   );
 }
