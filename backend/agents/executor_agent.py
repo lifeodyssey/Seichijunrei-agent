@@ -85,7 +85,8 @@ class ExecutorAgent:
         self,
         plan: ExecutionPlan,
         context_block: Mapping[str, object] | None = None,
-        on_step: Callable[[str, str, dict[str, object]], Awaitable[None]] | None = None,
+        on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+        | None = None,
     ) -> PipelineResult:
         """Execute all steps in the plan and return a PipelineResult."""
         primary_tool = _infer_primary_tool(plan)
@@ -96,12 +97,12 @@ class ExecutorAgent:
         for step in plan.steps:
             tool_name = getattr(getattr(step, "tool", None), "value", "unknown")
             if on_step is not None:
-                await on_step(tool_name, "running", {})
+                await on_step(tool_name, "running", {}, "", "")
             step_result = await self._execute_step(step, context)
             result.step_results.append(step_result)
             if on_step is not None:
                 payload = step_result.data if isinstance(step_result.data, dict) else {}
-                await on_step(tool_name, "done", payload)
+                await on_step(tool_name, "done", payload, "", "")
             tool = getattr(step, "tool", None)
             if not step_result.success:
                 logger.warning("step_failed", tool=tool, error=step_result.error)

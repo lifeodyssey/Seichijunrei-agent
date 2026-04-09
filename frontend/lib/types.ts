@@ -151,7 +151,7 @@ export interface PublicAPIError {
 
 export interface StepEvent {
   tool: string;
-  status: "running" | "done";
+  status: "running" | "done" | "failed";
   thought?: string;
   observation?: string;
 }
