@@ -53,21 +53,32 @@ export function useConversationHistory() {
       renameConversationRecord(prev, sessionId, trimmedTitle),
     );
 
-    void patchConversationTitle(sessionId, trimmedTitle).catch(
-      (err: unknown) => {
+    void patchConversationTitle(sessionId, trimmedTitle)
+      .then(() => {
+        setError(null);
+      })
+      .catch((err: unknown) => {
         console.error("patchConversationTitle failed:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to rename conversation",
+        );
         // Refetch to restore correct state
         void fetchConversations()
           .then((records) => {
             setConversations((prev) =>
               mergeConversationLists(prev, records),
             );
+            setError(null);
           })
           .catch((refetchErr: unknown) => {
             console.error("refetch after rename failure:", refetchErr);
+            setError(
+              refetchErr instanceof Error
+                ? refetchErr.message
+                : "Failed to reload conversations",
+            );
           });
-      },
-    );
+      });
   }, []);
 
   return { conversations, upsert, rename, error, isLoading };
