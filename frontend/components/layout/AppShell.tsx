@@ -126,7 +126,6 @@ export default function AppShell() {
     lastSyncedResponseIdRef.current = latestConversationResponse.responseId;
   }, [latestConversationResponse, upsertConversation]);
 
-  // Click-to-open only: no auto-open for visual responses (Task 12)
   const activeMessage = useMemo(
     () =>
       activeMessageId
@@ -164,6 +163,25 @@ export default function AppShell() {
       setFullscreenOpen(false);
     }
   }, []);
+
+  // Auto-open result panel when a visual response arrives
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (
+      last.role === "assistant" &&
+      !last.loading &&
+      last.response &&
+      isVisualResponse(last.response)
+    ) {
+      setActiveMessageId(last.id);
+      if (isMobile) {
+        setDrawerOpen(true);
+      } else {
+        openOverlayForResponse(last.response);
+      }
+    }
+  }, [messages, isMobile, openOverlayForResponse]);
 
   const handleConversationSelect = useCallback(
     async (selectedSessionId: string) => {

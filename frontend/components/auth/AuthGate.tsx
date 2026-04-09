@@ -166,7 +166,7 @@ export default function AuthGate() {
           <button
             type="button"
             onClick={() => setShowAuthModal(true)}
-            className="hidden min-h-[44px] px-3 text-[13px] text-[var(--color-muted-fg)] sm:block"
+            className="min-h-[44px] px-3 text-[13px] text-[var(--color-muted-fg)]"
           >
             {lh.login}
           </button>
