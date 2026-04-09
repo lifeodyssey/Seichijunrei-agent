@@ -24,6 +24,21 @@ class ToolName(str, Enum):
     CLARIFY = "clarify"
 
 
+# Declarative step dependency graph.
+# Key = tool that has prerequisites, Value = list of tools that must succeed first.
+# The result_validator reads this to enforce prerequisites before tool execution.
+STEP_DEPENDENCIES: dict[ToolName, list[ToolName]] = {
+    ToolName.SEARCH_BANGUMI: [ToolName.RESOLVE_ANIME],
+    ToolName.PLAN_ROUTE: [ToolName.SEARCH_BANGUMI],
+    ToolName.PLAN_SELECTED: [],
+    ToolName.SEARCH_NEARBY: [],
+    ToolName.RESOLVE_ANIME: [],
+    ToolName.GREET_USER: [],
+    ToolName.ANSWER_QUESTION: [],
+    ToolName.CLARIFY: [],
+}
+
+
 class PlanStep(BaseModel):
     """One step in an execution plan produced by ReActPlannerAgent."""
 
