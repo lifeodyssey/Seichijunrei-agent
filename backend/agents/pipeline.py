@@ -77,7 +77,7 @@ async def react_loop(
                 r.tool == "resolve_anime" and r.success for r in accumulated_results
             )
             has_search = any(
-                r.tool in ("search_bangumi", "search_nearby")
+                r.tool in ("search_bangumi", "search_nearby") and r.success
                 for r in accumulated_results
             )
             if has_resolve and not has_search:
@@ -321,12 +321,25 @@ async def run_pipeline(
             final_message = event.message
 
     # Build a PipelineResult from accumulated results
-    # Infer intent from the last successful tool execution
+    # Infer intent via priority: route > search > fallback (order-independent)
+    _INTENT_PRIORITY: dict[str, int] = {
+        "plan_route": 0,
+        "plan_selected": 1,
+        "search_nearby": 2,
+        "search_bangumi": 3,
+        "answer_question": 4,
+        "clarify": 5,
+        "greet_user": 6,
+        "resolve_anime": 7,
+    }
     intent = "answer_question"
-    for sr in reversed(all_step_results):
-        if sr.success and sr.tool not in ("resolve_anime", "greet_user"):
-            intent = sr.tool
-            break
+    best_priority = _INTENT_PRIORITY.get("answer_question", 99)
+    for sr in all_step_results:
+        if sr.success:
+            p = _INTENT_PRIORITY.get(sr.tool, 99)
+            if p < best_priority:
+                intent = sr.tool
+                best_priority = p
 
     plan = ExecutionPlan(
         steps=[],  # ReAct doesn't produce a pre-computed plan
