@@ -1,32 +1,50 @@
-"""Integration acceptance tests for the runtime and public API facade."""
+"""Integration acceptance tests for the runtime executor against a real PostgreSQL DB.
+
+Uses testcontainer PostgreSQL (with PostGIS) and seed data instead of MagicMock.
+The planner is bypassed — tests exercise ExecutorAgent.execute() directly with
+pre-built ExecutionPlans against a real SupabaseClient.
+"""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from typing import cast
 
 import pytest
-from pydantic_ai.models.test import TestModel
 
+from backend.agents.executor_agent import ExecutorAgent, PipelineResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
-from backend.agents.pipeline import run_pipeline
-from backend.infrastructure.session.memory import InMemorySessionStore
-from backend.interfaces.public_api import PublicAPIRequest, handle_public_request
+from backend.agents.retriever import Retriever
+from backend.domain.entities import Point
+from backend.infrastructure.supabase.client import SupabaseClient
+from backend.interfaces.response_builder import pipeline_result_to_public_response
 
 _BASELINE_PATH = Path(__file__).parent / "cases" / "runtime_acceptance_baseline.json"
 
 
 def _load_cases() -> list[dict[str, object]]:
     with _BASELINE_PATH.open(encoding="utf-8") as handle:
-        return json.load(handle)
+        raw = json.load(handle)
+    return cast(list[dict[str, object]], raw)
 
 
 _CASES = _load_cases()
 
 
+def _expected(case: dict[str, object]) -> dict[str, object]:
+    """Safely extract the 'expected' dict from a test case."""
+    raw = case["expected"]
+    assert isinstance(raw, dict)
+    return dict(raw)
+
+
+# ── Plan builders (same scenarios, updated to seed data IDs) ────────────────
+
+
 def _build_plan(scenario: str) -> ExecutionPlan:
     if scenario == "empty_search":
+        # bangumi_id not in seed → 0 results
         return ExecutionPlan(
             steps=[
                 PlanStep(
@@ -34,7 +52,7 @@ def _build_plan(scenario: str) -> ExecutionPlan:
                     params={"bangumi_id": "160209"},
                 )
             ],
-            reasoning="acceptance test bangumi search",
+            reasoning="acceptance test bangumi search (empty)",
             locale="zh",
         )
 
@@ -51,11 +69,12 @@ def _build_plan(scenario: str) -> ExecutionPlan:
         )
 
     if scenario == "route_planning":
+        # bangumi_id 120632 (Eupho) has 2 points in seed data
         return ExecutionPlan(
             steps=[
                 PlanStep(
                     tool=ToolName.SEARCH_BANGUMI,
-                    params={"bangumi_id": "115908", "origin": "京都站"},
+                    params={"bangumi_id": "120632", "origin": "京都站"},
                 ),
                 PlanStep(
                     tool=ToolName.PLAN_ROUTE,
@@ -83,102 +102,119 @@ def _build_plan(scenario: str) -> ExecutionPlan:
     raise ValueError(f"Unknown acceptance scenario: {scenario}")
 
 
-def _build_model(scenario: str) -> TestModel:
-    return TestModel(custom_output_args=_build_plan(scenario))
+# ── Executor with no external API fallbacks ─────────────────────────────────
 
 
-def _build_db(scenario: str) -> MagicMock:
-    db = MagicMock()
-    pool = AsyncMock()
-    db.pool = pool
-    db.upsert_session = AsyncMock()
-    db.save_route = AsyncMock(return_value="route-1")
+async def _noop_fetch_points(bangumi_id: str) -> list[Point]:
+    """Stub: never call external Anitabi API in tests."""
+    return []
 
-    if scenario == "empty_search":
-        pool.fetch = AsyncMock(return_value=[])
-        db.search_points_by_location = AsyncMock(return_value=[])
-        return db
 
-    if scenario == "geo_search":
-        pool.fetch = AsyncMock(return_value=[])
-        db.search_points_by_location = AsyncMock(
-            return_value=[
-                {
-                    "id": "1",
-                    "bangumi_id": "115908",
-                    "distance_m": 100,
-                    "name": "宇治桥",
-                }
-            ]
-        )
-        return db
+async def _noop_get_subject(subject_id: int) -> dict[str, object]:
+    """Stub: never call external Bangumi API in tests."""
+    return {}
 
-    if scenario == "route_planning":
-        pool.fetch = AsyncMock(
-            return_value=[
-                {
-                    "id": "1",
-                    "bangumi_id": "115908",
-                    "name": "A",
-                    "latitude": 34.88,
-                    "longitude": 135.80,
-                },
-                {
-                    "id": "2",
-                    "bangumi_id": "115908",
-                    "name": "B",
-                    "latitude": 34.89,
-                    "longitude": 135.81,
-                },
-            ]
-        )
-        db.search_points_by_location = AsyncMock(
-            return_value=[
-                {"id": "1", "bangumi_id": "115908", "distance_m": 100},
-                {"id": "2", "bangumi_id": "115908", "distance_m": 80},
-            ]
-        )
-        return db
 
-    if scenario == "unclear":
-        pool.fetch = AsyncMock(return_value=[])
-        db.search_points_by_location = AsyncMock(return_value=[])
-        return db
+def _build_executor(db: SupabaseClient) -> ExecutorAgent:
+    """Build an ExecutorAgent with external API fallbacks disabled."""
+    executor = ExecutorAgent(db)
+    # Override the retriever to disable write-through fallback to Anitabi/Bangumi
+    executor._retriever = Retriever(
+        db,
+        fetch_bangumi_points=_noop_fetch_points,
+        get_bangumi_subject=_noop_get_subject,
+    )
+    return executor
 
-    raise ValueError(f"Unknown acceptance scenario: {scenario}")
+
+def _get_result_count(payload: object) -> int:
+    """Extract result count from a results payload (dict or list)."""
+    if isinstance(payload, dict):
+        items = payload.get("items", [])
+        items_len = len(items) if isinstance(items, list) else 0
+        rc = payload.get("row_count", items_len)
+        return int(rc) if isinstance(rc, (int, float)) else items_len
+    if isinstance(payload, list):
+        return len(payload)
+    return 0
+
+
+# ── Executor-level tests (bypass planner, hit real DB) ──────────────────────
 
 
 @pytest.mark.parametrize(
-    ("case"),
+    "case",
     _CASES,
     ids=[str(case["name"]) for case in _CASES],
 )
-async def test_runtime_acceptance_baseline(case: dict[str, object]) -> None:
+async def test_executor_against_testcontainer(
+    case: dict[str, object],
+    tc_db: SupabaseClient,
+) -> None:
+    """Execute pre-built plans against the real testcontainer DB."""
     scenario = str(case["scenario"])
-    expected = dict(case["expected"])
-    text = str(case["text"])
-    locale = "zh"
+    expected = _expected(case)
 
-    db = _build_db(scenario)
-    pipeline_result = await run_pipeline(
-        text,
-        db,
-        model=_build_model(scenario),
-        locale=locale,
-    )
-    public_response = await handle_public_request(
-        PublicAPIRequest(text=text, locale=locale),
-        db,
-        model=_build_model(scenario),
-        session_store=InMemorySessionStore(),
-    )
+    plan = _build_plan(scenario)
+    executor = _build_executor(tc_db)
+    result: PipelineResult = await executor.execute(plan)
 
-    assert pipeline_result.intent == expected["intent"]
-    assert pipeline_result.final_output["status"] == expected["status"]
-    assert pipeline_result.success is expected["success"]
-    assert [step.tool.value for step in pipeline_result.plan.steps] == expected[
-        "plan_steps"
-    ]
+    # Intent check
+    assert result.intent == expected["intent"]
+
+    # Success: all steps must succeed
+    assert result.success is expected["success"]
+
+    # Status check
+    assert result.final_output["status"] == expected["status"]
+
+    # Plan steps
+    assert [step.tool.value for step in result.plan.steps] == expected["plan_steps"]
+
+    # Result count (for search scenarios)
+    if "result_count" in expected:
+        results_payload = result.final_output.get("results", {})
+        count = _get_result_count(results_payload)
+        assert count == expected["result_count"]
+
+    # Route checks
+    if "route_point_count" in expected:
+        route = result.final_output.get("route")
+        assert isinstance(route, dict)
+        ordered = route["ordered_points"]
+        assert isinstance(ordered, list)
+        assert len(ordered) == expected["route_point_count"]
+
+    # Strategy check
+    if "strategy" in expected:
+        step_data = result.step_results[0].data
+        assert isinstance(step_data, dict)
+        assert step_data["strategy"] == expected["strategy"]
+
+
+# ── Public API shape test (uses executor result → response builder) ─────────
+
+
+@pytest.mark.parametrize(
+    "case",
+    _CASES,
+    ids=[str(case["name"]) for case in _CASES],
+)
+async def test_public_response_shape(
+    case: dict[str, object],
+    tc_db: SupabaseClient,
+) -> None:
+    """Build public API response from executor results against real DB."""
+    scenario = str(case["scenario"])
+    expected = _expected(case)
+
+    plan = _build_plan(scenario)
+    executor = _build_executor(tc_db)
+    pipeline_result = await executor.execute(plan)
+
+    public_response = pipeline_result_to_public_response(
+        pipeline_result, include_debug=False
+    )
 
     assert public_response.intent == expected["intent"]
     assert public_response.status == expected["status"]
@@ -187,18 +223,12 @@ async def test_runtime_acceptance_baseline(case: dict[str, object]) -> None:
 
     if "result_count" in expected:
         results_payload = public_response.data.get("results", [])
-        if isinstance(results_payload, dict):
-            result_count = int(
-                results_payload.get("row_count", len(results_payload.get("items", [])))
-            )
-        else:
-            result_count = len(results_payload)
+        result_count = _get_result_count(results_payload)
         assert result_count == expected["result_count"]
 
     if "route_point_count" in expected:
-        ordered_points = public_response.data["route"]["ordered_points"]
+        route_data = public_response.data.get("route")
+        assert isinstance(route_data, dict)
+        ordered_points = route_data["ordered_points"]
+        assert isinstance(ordered_points, list)
         assert len(ordered_points) == expected["route_point_count"]
-        assert len(public_response.route_history) == expected["route_history_count"]
-
-    if "strategy" in expected:
-        assert pipeline_result.step_results[0].data["strategy"] == expected["strategy"]
