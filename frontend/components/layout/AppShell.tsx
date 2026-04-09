@@ -388,6 +388,7 @@ export default function AppShell() {
                 onSelectConversation={(id) => { handleConversationSelect(id); setSidebarOpen(false); }}
                 routes={routes}
                 onCollapse={() => setSidebarOpen(false)}
+                variant="mobile"
               />
             </div>
           </>

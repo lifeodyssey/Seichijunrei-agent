@@ -21,6 +21,7 @@ interface SidebarProps {
   onSelectConversation?: (sessionId: string) => void;
   routes?: RouteHistoryEntry[];
   onCollapse?: () => void;
+  variant?: "desktop" | "mobile";
 }
 
 interface RouteHistoryEntry {
@@ -210,13 +211,14 @@ export default function Sidebar({
   onSelectConversation,
   routes,
   onCollapse,
+  variant = "desktop",
 }: SidebarProps) {
   const { sidebar: t } = useDict();
   const locale = useLocale();
   const setLocale = useSetLocale();
 
   return (
-    <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] lg:flex">
+    <aside className={`${variant === "mobile" ? "flex" : "hidden lg:flex"} w-[240px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)]`}>
       {/* Logo + collapse toggle */}
       <div className="flex h-16 items-center justify-between border-b border-[var(--color-sidebar-border)] px-5">
         <div className="flex flex-col gap-0.5">
