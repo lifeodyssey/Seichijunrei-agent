@@ -6,10 +6,30 @@ to produce an ExecutionPlan from free-text user input.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
+from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
 
 from backend.agents.base import create_agent, get_default_model
-from backend.agents.models import ExecutionPlan, Observation, ReactStep
+from backend.agents.intent_classifier import QueryIntent
+from backend.agents.models import (
+    STEP_DEPENDENCIES,
+    ExecutionPlan,
+    Observation,
+    ReactStep,
+)
+
+
+@dataclass
+class ReActDeps:
+    """Dependencies injected into the ReAct step agent."""
+
+    history: list[Observation] = field(default_factory=list)
+    classified_intent: QueryIntent = QueryIntent.AMBIGUOUS
+    query: str = ""
+    locale: str = "ja"
+
 
 PLANNER_SYSTEM_PROMPT = """\
 You are a planning agent for an anime pilgrimage (聖地巡礼) search app.
@@ -192,12 +212,62 @@ class ReActPlannerAgent:
             output_type=ExecutionPlan,
             retries=2,
         )
-        self._step_agent = create_agent(
+        self._step_agent: Agent[ReActDeps, ReactStep] = Agent(
             selected_model,
             system_prompt=REACT_SYSTEM_PROMPT,
             output_type=ReactStep,
+            deps_type=ReActDeps,
             retries=2,
         )
+
+        @self._step_agent.output_validator
+        async def validate_react_step(ctx: object, result: ReactStep) -> ReactStep:
+            """Validate ReactStep: reject premature done, enforce prerequisites."""
+            from pydantic_ai import RunContext
+
+            run_ctx = ctx
+            assert isinstance(run_ctx, RunContext)
+            deps: ReActDeps = run_ctx.deps
+            history = deps.history
+            intent = deps.classified_intent
+
+            # 1. Reject premature "done" when required work isn't complete
+            if result.done is not None:
+                has_search = any(
+                    o.tool in ("search_bangumi", "search_nearby") and o.success
+                    for o in history
+                )
+                needs_search = intent in (
+                    QueryIntent.ANIME_SEARCH,
+                    QueryIntent.ROUTE_PLAN,
+                )
+
+                if needs_search and not has_search:
+                    raise ModelRetry(
+                        "You resolved the anime but haven't searched for spots yet. "
+                        "Call search_bangumi with the bangumi_id from your "
+                        "resolve_anime observation."
+                    )
+
+                has_route = any(o.tool == "plan_route" and o.success for o in history)
+                if intent == QueryIntent.ROUTE_PLAN and not has_route and has_search:
+                    raise ModelRetry(
+                        "The user asked for a route but you only searched for "
+                        "spots. Call plan_route with the search results."
+                    )
+
+            # 2. Reject actions with unmet prerequisites
+            if result.action is not None:
+                tool = result.action.tool
+                dep_list = STEP_DEPENDENCIES.get(tool, [])
+                for dep in dep_list:
+                    if not any(o.tool == dep.value and o.success for o in history):
+                        raise ModelRetry(
+                            f"{tool.value} requires {dep.value} to run first. "
+                            f"Call {dep.value} before {tool.value}."
+                        )
+
+            return result
 
     async def create_plan(
         self,
@@ -221,10 +291,12 @@ class ReActPlannerAgent:
         locale: str = "ja",
         context: dict[str, object] | None = None,
         history: list[Observation] | None = None,
+        classified_intent: QueryIntent = QueryIntent.AMBIGUOUS,
     ) -> ReactStep:
         """Single ReAct step: observe history, emit next action or done."""
         context_prefix = _format_context_block(context)
-        history_prefix = _format_react_history(history or [])
+        obs_history = history or []
+        history_prefix = _format_react_history(obs_history)
 
         parts: list[str] = []
         if context_prefix:
@@ -234,5 +306,11 @@ class ReActPlannerAgent:
         parts.append(f"[locale={locale}] {text}")
 
         prompt = "\n".join(parts)
-        result = await self._step_agent.run(prompt)
+        deps = ReActDeps(
+            history=obs_history,
+            classified_intent=classified_intent,
+            query=text,
+            locale=locale,
+        )
+        result = await self._step_agent.run(prompt, deps=deps)
         return result.output

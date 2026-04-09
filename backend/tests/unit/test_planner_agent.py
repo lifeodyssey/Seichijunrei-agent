@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -82,10 +82,16 @@ class TestReActPlannerAgent:
         assert lines[1] == "summary: previous summary"
 
     async def test_create_plan_returns_execution_plan(self, mock_plan_bangumi):
-        with patch("backend.agents.planner_agent.create_agent") as mock_create:
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
             mock_agent = AsyncMock()
             mock_agent.run.return_value = AsyncMock(output=mock_plan_bangumi)
             mock_create.return_value = mock_agent
+            mock_step = MagicMock()
+            mock_step.output_validator = MagicMock(side_effect=lambda f: f)
+            mock_agent_cls.return_value = mock_step
 
             planner = ReActPlannerAgent()
             plan = await planner.create_plan("吹響の聖地在哪", locale="ja")
@@ -95,10 +101,16 @@ class TestReActPlannerAgent:
         assert len(plan.steps) >= 1
 
     async def test_create_plan_passes_locale_in_prompt(self, mock_plan_bangumi):
-        with patch("backend.agents.planner_agent.create_agent") as mock_create:
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
             mock_agent = AsyncMock()
             mock_agent.run.return_value = AsyncMock(output=mock_plan_bangumi)
             mock_create.return_value = mock_agent
+            mock_step = MagicMock()
+            mock_step.output_validator = MagicMock(side_effect=lambda f: f)
+            mock_agent_cls.return_value = mock_step
 
             planner = ReActPlannerAgent()
             await planner.create_plan(
@@ -133,10 +145,16 @@ class TestReActPlannerAgent:
             locale="zh",
         )
 
-        with patch("backend.agents.planner_agent.create_agent") as mock_create:
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
             mock_agent = AsyncMock()
             mock_agent.run.return_value = AsyncMock(output=greet_plan)
             mock_create.return_value = mock_agent
+            mock_step = MagicMock()
+            mock_step.output_validator = MagicMock(side_effect=lambda f: f)
+            mock_agent_cls.return_value = mock_step
 
             planner = ReActPlannerAgent()
             plan = await planner.create_plan("你好", locale="zh")
@@ -145,10 +163,16 @@ class TestReActPlannerAgent:
         assert plan.steps[0].tool == ToolName.GREET_USER
 
     async def test_create_plan_prefixes_context_block(self, mock_plan_bangumi):
-        with patch("backend.agents.planner_agent.create_agent") as mock_create:
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
             mock_agent = AsyncMock()
             mock_agent.run.return_value = AsyncMock(output=mock_plan_bangumi)
             mock_create.return_value = mock_agent
+            mock_step = MagicMock()
+            mock_step.output_validator = MagicMock(side_effect=lambda f: f)
+            mock_agent_cls.return_value = mock_step
 
             planner = ReActPlannerAgent()
             await planner.create_plan(
