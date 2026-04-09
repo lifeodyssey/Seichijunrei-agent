@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { Dict, Locale } from "./i18n";
-import { DEFAULT_LOCALE, detectLocale, loadDict, persistLocale } from "./i18n";
+import { DEFAULT_LOCALE, detectLocale, loadDict } from "./i18n";
 import defaultDict from "./dictionaries/ja.json";
 
 interface I18nCtx {
@@ -30,7 +30,6 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    persistLocale(newLocale);
     document.documentElement.lang = newLocale;
     loadDict(newLocale).then((d) => setDict(d as Dict));
   }, []);
