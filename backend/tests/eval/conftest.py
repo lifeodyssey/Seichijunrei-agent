@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from backend.tests.conftest_db import db_pool as db_pool  # noqa: F401
-from backend.tests.conftest_db import pg_container as pg_container  # noqa: F401
+pytest_plugins = ("backend.tests.conftest_db",)
 
 if TYPE_CHECKING:
     import asyncpg
@@ -35,7 +34,7 @@ def _docker_available() -> bool:
 
 
 @pytest.fixture
-async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:  # noqa: F811
+async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:
     """Build a SupabaseClient wired to the testcontainer pool."""
     from backend.infrastructure.supabase.client import SupabaseClient
 
