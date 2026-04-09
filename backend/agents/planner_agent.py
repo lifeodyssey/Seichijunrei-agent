@@ -233,16 +233,15 @@ class ReActPlannerAgent:
 
             # 1. Reject premature "done" when required work isn't complete
             if result.done is not None:
-                has_search = any(
-                    o.tool in ("search_bangumi", "search_nearby") and o.success
-                    for o in history
+                has_bangumi_search = any(
+                    o.tool == "search_bangumi" and o.success for o in history
                 )
-                needs_search = intent in (
+                needs_bangumi_search = intent in (
                     QueryIntent.ANIME_SEARCH,
                     QueryIntent.ROUTE_PLAN,
                 )
 
-                if needs_search and not has_search:
+                if needs_bangumi_search and not has_bangumi_search:
                     raise ModelRetry(
                         "You resolved the anime but haven't searched for spots yet. "
                         "Call search_bangumi with the bangumi_id from your "
@@ -250,7 +249,11 @@ class ReActPlannerAgent:
                     )
 
                 has_route = any(o.tool == "plan_route" and o.success for o in history)
-                if intent == QueryIntent.ROUTE_PLAN and not has_route and has_search:
+                if (
+                    intent == QueryIntent.ROUTE_PLAN
+                    and not has_route
+                    and has_bangumi_search
+                ):
                     raise ModelRetry(
                         "The user asked for a route but you only searched for "
                         "spots. Call plan_route with the search results."
