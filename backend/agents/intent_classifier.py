@@ -103,6 +103,6 @@ def classify_intent(query: str, locale: str = "ja") -> tuple[QueryIntent, float]
     # If the query is short and doesn't match anything specific,
     # it's likely an anime title (most users come to search anime)
     if len(q) < 30 and not any(c in q for c in "?？"):
-        return QueryIntent.ANIME_SEARCH, 0.60
+        return QueryIntent.ANIME_SEARCH, 0.70
 
     return QueryIntent.AMBIGUOUS, 0.40
