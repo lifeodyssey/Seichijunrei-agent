@@ -86,7 +86,7 @@ def _parse_openai_compat_model(
         base_url = inline_base_url
     else:
         name = spec
-        base_url = base_url_override
+        base_url: str | None = base_url_override
     model_name = name.removeprefix("openai:")
     if not base_url:
         raise ValueError("OpenAI-compatible model requires a base URL")
@@ -108,6 +108,7 @@ def parse_model_spec(
         return model
 
     settings = get_settings()
+    primary: Model
     if model.startswith("google-gla:") or model.startswith("gemini"):
         primary = _normalize_gemini_model(model)
     elif model.startswith("openai:"):
