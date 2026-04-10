@@ -81,12 +81,13 @@ def _parse_openai_compat_model(
     spec: str, *, base_url_override: str | None = None, api_key: str | None = None
 ) -> OpenAIChatModel:
     """Build an OpenAI-compatible model from a spec string."""
+    base_url: str | None
     if "@" in spec:
         name, inline_base_url = spec.split("@", 1)
         base_url = inline_base_url
     else:
         name = spec
-        base_url: str | None = base_url_override
+        base_url = base_url_override
     model_name = name.removeprefix("openai:")
     if not base_url:
         raise ValueError("OpenAI-compatible model requires a base URL")
