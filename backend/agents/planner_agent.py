@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models import Model
 
-from backend.agents.base import create_agent, get_default_model
+from backend.agents.base import create_agent, resolve_model
 from backend.agents.intent_classifier import QueryIntent
 from backend.agents.models import (
     STEP_DEPENDENCIES,
@@ -205,7 +205,7 @@ class ReActPlannerAgent:
     """
 
     def __init__(self, model: Model | str | None = None) -> None:
-        selected_model: Model | str = get_default_model() if model is None else model
+        selected_model: Model = resolve_model(model)
         self._plan_agent = create_agent(
             selected_model,
             system_prompt=PLANNER_SYSTEM_PROMPT,

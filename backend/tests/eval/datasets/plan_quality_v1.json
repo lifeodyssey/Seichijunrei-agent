@@ -1679,6 +1679,44 @@
     "notes": "Prompt injection attempt"
   },
   {
+    "id": "recovery-en-01",
+    "locale": "en",
+    "query": "plan a route for Your Name from Shinjuku",
+    "expected_steps": [
+      "resolve_anime",
+      "search_bangumi",
+      "plan_route"
+    ],
+    "expected_intent": "plan_route",
+    "notes": "Failure recovery: planner should recover from an initial premature route action and complete resolve → search → route"
+  },
+  {
+    "id": "multiturn-route-after-search-ja-01",
+    "locale": "ja",
+    "query": "さっきの聖地でルートを作って",
+    "context": {
+      "last_intent": "search_bangumi",
+      "current_bangumi_id": "115908"
+    },
+    "expected_steps": [
+      "plan_route"
+    ],
+    "expected_intent": "plan_route",
+    "notes": "Route after search in Japanese with different bangumi_id"
+  },
+  {
+    "id": "premature-done-ja-01",
+    "locale": "ja",
+    "query": "ヴァイオレットの聖地ルートを作って",
+    "expected_steps": [
+      "resolve_anime",
+      "search_bangumi",
+      "plan_route"
+    ],
+    "expected_intent": "plan_route",
+    "notes": "Premature done rejection: planner must not stop before search and route are complete"
+  },
+  {
     "id": "greet-ja-02",
     "locale": "ja",
     "query": "おはよう！初めて使います",

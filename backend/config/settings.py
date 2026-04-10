@@ -4,6 +4,7 @@ import warnings
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +19,24 @@ def _mask_secret(value: str | None, visible_chars: int = 4) -> str:
     return f"{value[:visible_chars]}...***"
 
 
+def _is_gemini_model(model_name: str | None) -> bool:
+    """Return True when a model spec points at Gemini."""
+    return bool(model_name) and "gemini" in model_name.lower()
+
+
+def _is_openai_compat_model(model_name: str | None) -> bool:
+    """Return True when a model spec uses the repo's OpenAI-compatible path."""
+    return bool(model_name) and model_name.lower().startswith("openai:")
+
+
+def _is_local_base_url(base_url: str | None) -> bool:
+    """Return True when a compat base URL targets a local/dev endpoint."""
+    if not base_url:
+        return False
+    parsed = urlparse(base_url)
+    return parsed.hostname in {"localhost", "127.0.0.1"}
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -27,6 +46,10 @@ class Settings(BaseSettings):
 
     # API Keys
     gemini_api_key: str = Field(default="", description="Gemini API key for LLM agents")
+    openai_compat_api_key: str = Field(
+        default="",
+        description="API key for the OpenAI-compatible fallback provider",
+    )
 
     # API Endpoints
     anitabi_api_url: str = Field(
@@ -100,8 +123,16 @@ class Settings(BaseSettings):
 
     # Agent model
     default_agent_model: str = Field(
-        default="gemini-2.5-pro",
-        description="Default LLM model for pydantic-ai agents",
+        default="google-gla:gemini-3.1-pro-preview",
+        description="Default primary LLM model for pydantic-ai agents",
+    )
+    fallback_agent_model: str | None = Field(
+        default="openai:gpt-5.4",
+        description="Fallback LLM model when the default provider fails",
+    )
+    openai_compat_base_url: str = Field(
+        default="https://api.univibe.cc/openai",
+        description="Base URL for the OpenAI-compatible fallback provider",
     )
 
     # CORS
@@ -168,6 +199,9 @@ class Settings(BaseSettings):
             "observability_exporter_type": self.observability_exporter_type,
             "google_cloud_project": self.google_cloud_project or "(not set)",
             "gcp_auth_mode": "service_account" if self.uses_service_account else "adc",
+            "default_agent_model": self.default_agent_model,
+            "fallback_agent_model": self.fallback_agent_model or "(not set)",
+            "openai_compat_base_url": self.openai_compat_base_url,
         }
 
     def get_feature_flags(self) -> dict[str, bool]:
@@ -189,6 +223,7 @@ class Settings(BaseSettings):
         """
         return {
             "gemini_api_key": _mask_secret(self.gemini_api_key),
+            "openai_compat_api_key": _mask_secret(self.openai_compat_api_key),
             "google_application_credentials": _mask_secret(
                 self.google_application_credentials
             ),
@@ -196,9 +231,24 @@ class Settings(BaseSettings):
 
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
-        missing = []
-        if not self.gemini_api_key:
+        missing: list[str] = []
+        uses_gemini = _is_gemini_model(self.default_agent_model) or _is_gemini_model(
+            self.fallback_agent_model
+        )
+        if uses_gemini and not self.gemini_api_key:
             missing.append("GEMINI_API_KEY")
+
+        uses_openai_compat = _is_openai_compat_model(
+            self.default_agent_model
+        ) or _is_openai_compat_model(self.fallback_agent_model)
+        if uses_openai_compat:
+            if not self.openai_compat_base_url:
+                missing.append("OPENAI_COMPAT_BASE_URL")
+            elif (
+                not _is_local_base_url(self.openai_compat_base_url)
+                and not self.openai_compat_api_key
+            ):
+                missing.append("OPENAI_COMPAT_API_KEY")
         return missing
 
     def validate_gcp_config(self) -> list[str]:
@@ -244,7 +294,8 @@ class Settings(BaseSettings):
             f"app_env={self.app_env!r}, "
             f"debug={self.debug}, "
             f"log_level={self.log_level!r}, "
-            f"gemini_api_key={_mask_secret(self.gemini_api_key)}"
+            f"gemini_api_key={_mask_secret(self.gemini_api_key)}, "
+            f"openai_compat_api_key={_mask_secret(self.openai_compat_api_key)}"
             f")"
         )
 

@@ -17,23 +17,147 @@ Usage:
 
 from __future__ import annotations
 
+import os
 from typing import TypeVar, overload
 
+import httpx
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.openai import OpenAIProvider
 
 T = TypeVar("T", bound=BaseModel)
 
 # Fallback when settings don't specify a model
-_FALLBACK_MODEL = "gemini-2.5-pro"
+_FALLBACK_MODEL = "google-gla:gemini-3.1-pro-preview"
 
 
-def get_default_model() -> str:
-    """Get the default agent model from settings, with fallback."""
+def _build_http_client() -> httpx.AsyncClient:
+    """Build an HTTP client that ignores shell proxy env vars.
+
+    Uses trust_env=False to scope proxy bypass to provider clients only,
+    without mutating process-wide os.environ.
+    """
+    return httpx.AsyncClient(trust_env=False)
+
+
+def _normalize_gemini_model(model_name: str) -> GoogleModel:
+    """Build a GoogleModel from a repo config string.
+
+    Note: Google genai SDK creates an internal sync httpx client that reads
+    process proxy env vars. We temporarily save and clear them during
+    construction, then restore after. This is scoped to GoogleModel only.
+    """
     from backend.config import get_settings
 
-    return get_settings().default_agent_model or _FALLBACK_MODEL
+    # Save and clear proxy env for Google SDK sync client construction
+    _proxy_vars = (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    )
+    saved = {k: os.environ.pop(k) for k in _proxy_vars if k in os.environ}
+
+    normalized = model_name.removeprefix("google-gla:")
+    provider = GoogleProvider(
+        api_key=get_settings().gemini_api_key or None,
+        http_client=_build_http_client(),
+    )
+    model = GoogleModel(normalized, provider=provider)
+
+    # Restore proxy env vars
+    os.environ.update(saved)
+    return model
+
+
+def _parse_openai_compat_model(
+    spec: str, *, base_url_override: str | None = None, api_key: str | None = None
+) -> OpenAIChatModel:
+    """Build an OpenAI-compatible model from a spec string."""
+    base_url: str | None
+    if "@" in spec:
+        name, inline_base_url = spec.split("@", 1)
+        base_url = inline_base_url
+    else:
+        name = spec
+        base_url = base_url_override
+    model_name = name.removeprefix("openai:")
+    if not base_url:
+        raise ValueError("OpenAI-compatible model requires a base URL")
+    provider = OpenAIProvider(
+        base_url=base_url,
+        api_key=api_key or None,
+        http_client=_build_http_client(),
+    )
+    return OpenAIChatModel(model_name, provider=provider)
+
+
+def parse_model_spec(
+    model: Model | str, *, use_settings_fallbacks: bool = False
+) -> Model:
+    """Resolve a configured model string or instance into a concrete Model."""
+    from backend.config import get_settings
+
+    if not isinstance(model, str):
+        return model
+
+    settings = get_settings()
+    primary: Model
+    if model.startswith("google-gla:") or model.startswith("gemini"):
+        primary = _normalize_gemini_model(model)
+    elif model.startswith("openai:"):
+        primary = _parse_openai_compat_model(
+            model,
+            base_url_override=settings.openai_compat_base_url,
+            api_key=settings.openai_compat_api_key,
+        )
+    else:
+        raise ValueError(f"Unsupported model spec: {model}")
+
+    if not use_settings_fallbacks:
+        return primary
+
+    fallback_spec = settings.fallback_agent_model
+    if not fallback_spec:
+        return primary
+    if fallback_spec == model:
+        return primary
+
+    fallback_model = parse_model_spec(fallback_spec, use_settings_fallbacks=False)
+    return FallbackModel(primary, fallback_model)
+
+
+def get_default_model() -> Model:
+    """Get the default agent model chain from settings, with fallback."""
+    from backend.config import get_settings
+
+    settings = get_settings()
+    model_spec = settings.default_agent_model or _FALLBACK_MODEL
+    return parse_model_spec(model_spec, use_settings_fallbacks=True)
+
+
+def resolve_model(model: Model | str | None) -> Model:
+    """Resolve an explicit or default model to a concrete runtime Model."""
+    if model is None:
+        return get_default_model()
+    return parse_model_spec(model, use_settings_fallbacks=False)
+
+
+def describe_model(model: object) -> str:
+    """Return a human-readable model description for logs and telemetry."""
+    if isinstance(model, FallbackModel):
+        return f"fallback({', '.join(item.model_name for item in model.models)})"
+    label = getattr(model, "model_name", None)
+    if isinstance(label, str) and label:
+        return label
+    return type(model).__name__
 
 
 @overload
@@ -73,7 +197,7 @@ def create_agent(
     Returns:
         A configured Pydantic AI Agent instance.
     """
-    selected_model: Model | str = get_default_model() if model is None else model
+    selected_model: Model = resolve_model(model)
     if output_type is None:
         return Agent(
             selected_model,
