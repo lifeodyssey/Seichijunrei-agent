@@ -36,42 +36,51 @@ T = TypeVar("T", bound=BaseModel)
 _FALLBACK_MODEL = "google-gla:gemini-3.1-pro-preview"
 
 
-def _clear_proxy_env() -> None:
-    """Clear proxy env vars that break model provider initialization."""
-    for var in (
+def _build_http_client() -> httpx.AsyncClient:
+    """Build an HTTP client that ignores shell proxy env vars.
+
+    Uses trust_env=False to scope proxy bypass to provider clients only,
+    without mutating process-wide os.environ.
+    """
+    return httpx.AsyncClient(trust_env=False)
+
+
+def _normalize_gemini_model(model_name: str) -> GoogleModel:
+    """Build a GoogleModel from a repo config string.
+
+    Note: Google genai SDK creates an internal sync httpx client that reads
+    process proxy env vars. We temporarily save and clear them during
+    construction, then restore after. This is scoped to GoogleModel only.
+    """
+    from backend.config import get_settings
+
+    # Save and clear proxy env for Google SDK sync client construction
+    _proxy_vars = (
         "HTTP_PROXY",
         "HTTPS_PROXY",
         "ALL_PROXY",
         "http_proxy",
         "https_proxy",
         "all_proxy",
-    ):
-        os.environ.pop(var, None)
+    )
+    saved = {k: os.environ.pop(k) for k in _proxy_vars if k in os.environ}
 
-
-def _build_http_client() -> httpx.AsyncClient:
-    """Build an HTTP client that ignores shell proxy env vars."""
-    return httpx.AsyncClient(trust_env=False)
-
-
-def _normalize_gemini_model(model_name: str) -> GoogleModel:
-    """Build a GoogleModel from a repo config string."""
-    from backend.config import get_settings
-
-    _clear_proxy_env()
     normalized = model_name.removeprefix("google-gla:")
     provider = GoogleProvider(
         api_key=get_settings().gemini_api_key or None,
         http_client=_build_http_client(),
     )
-    return GoogleModel(normalized, provider=provider)
+    model = GoogleModel(normalized, provider=provider)
+
+    # Restore proxy env vars
+    os.environ.update(saved)
+    return model
 
 
 def _parse_openai_compat_model(
     spec: str, *, base_url_override: str | None = None, api_key: str | None = None
 ) -> OpenAIChatModel:
     """Build an OpenAI-compatible model from a spec string."""
-    _clear_proxy_env()
     if "@" in spec:
         name, inline_base_url = spec.split("@", 1)
         base_url = inline_base_url

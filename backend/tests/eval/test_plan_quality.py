@@ -28,21 +28,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-
-
-def _clear_proxy_env() -> None:
-    """Clear proxy env vars that break httpx/OpenAI provider setup in eval runs."""
-    for var in (
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-    ):
-        os.environ.pop(var, None)
-
-
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
@@ -53,15 +38,29 @@ _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL)
 
 
 def make_model(model_id: str | None = None) -> object:
-    """Build a Pydantic AI model from a model string."""
-    _clear_proxy_env()
+    """Build a Pydantic AI model from a model string.
+
+    Model construction uses trust_env=False httpx clients internally,
+    so proxy env vars are safely ignored without mutating os.environ.
+    """
     from backend.agents.base import parse_model_spec
 
     mid = model_id or _EVAL_MODEL_ID
     return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
-EVAL_MODEL = make_model()
+# Lazy-init: avoid running LLM provider setup during pytest collection.
+# EVAL_MODEL is initialized on first use via _get_eval_model().
+_EVAL_MODEL: object | None = None
+
+
+def _get_eval_model() -> object:
+    """Get or lazily initialize the eval model."""
+    global _EVAL_MODEL  # noqa: PLW0603
+    if _EVAL_MODEL is None:
+        _EVAL_MODEL = make_model()
+    return _EVAL_MODEL
+
 
 # ── Case types ───────────────────────────────────────────────────────
 
@@ -125,7 +124,7 @@ async def evaluate_plan(inp: PlanInput) -> PlanOutput:
     result = await run_pipeline(
         inp.query,
         db,
-        model=EVAL_MODEL,
+        model=_get_eval_model(),
         locale=inp.locale,
         context=inp.context,
     )
@@ -268,11 +267,22 @@ def _baseline_path_for(model_id: str) -> Path:
     return Path(__file__).parent / "baselines" / f"{safe}.json"
 
 
-def _read_baseline_scores(model_id: str) -> dict[str, float]:
+def _read_baseline_scores(
+    model_id: str, *, expected_case_count: int | None = None
+) -> dict[str, float]:
     path = _baseline_path_for(model_id)
     if not path.exists():
         return {}
     data = json.loads(path.read_text())
+    # Reject stale baselines when dataset changes
+    if expected_case_count is not None:
+        stored_count = data.get("case_count")
+        if stored_count is not None and stored_count != expected_case_count:
+            print(
+                f"  WARNING: baseline has {stored_count} cases but dataset has "
+                f"{expected_case_count}. Treating as new baseline."
+            )
+            return {}
     scores = data.get("scores")
     return scores if isinstance(scores, dict) else {}
 
@@ -330,7 +340,9 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
         "OutcomeEvaluator": outcome_score,
         "EfficiencyEvaluator": efficiency_score,
     }
-    baseline_scores = _read_baseline_scores(_EVAL_MODEL_ID)
+    baseline_scores = _read_baseline_scores(
+        _EVAL_MODEL_ID, expected_case_count=len(CASES)
+    )
     print(f"\n{'=' * 60}")
     print(f"  Model:          {_EVAL_MODEL_ID}")
     print(f"  DB mode:        {db_mode}")
@@ -371,13 +383,11 @@ if __name__ == "__main__":
             break
 
     async def main() -> None:
+        global _EVAL_MODEL  # noqa: PLW0603
         mid = model_arg or _EVAL_MODEL_ID
-        model = make_model(model_arg) if model_arg else EVAL_MODEL
+        _EVAL_MODEL = make_model(model_arg) if model_arg else _get_eval_model()
 
         async def _task(inp: PlanInput) -> PlanOutput:
-            # Keep evaluate_plan signature unchanged for Dataset.evaluate_sync.
-            global EVAL_MODEL
-            EVAL_MODEL = model
             return await evaluate_plan(inp)
 
         report = await plan_dataset.evaluate(

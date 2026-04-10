@@ -2,11 +2,7 @@
 // runtime API requests to the Python container on port 8080.
 import { Container } from "@cloudflare/containers";
 
-const CONTAINER_REQUIRED_ENV_KEYS = [
-  "GEMINI_API_KEY",
-  "SUPABASE_DB_URL",
-  "OPENAI_COMPAT_API_KEY",
-];
+const CONTAINER_REQUIRED_ENV_KEYS = ["GEMINI_API_KEY", "SUPABASE_DB_URL"];
 
 const CONTAINER_RUNTIME_ENV_KEYS = [
   "ANITABI_API_URL",
@@ -32,7 +28,11 @@ const CONTAINER_RUNTIME_ENV_KEYS = [
   "USE_CACHE",
 ];
 
-const CONTAINER_OPTIONAL_ENV_KEYS = ["GOOGLE_MAPS_API_KEY", "LOGFIRE_TOKEN"];
+const CONTAINER_OPTIONAL_ENV_KEYS = [
+  "GOOGLE_MAPS_API_KEY",
+  "LOGFIRE_TOKEN",
+  "OPENAI_COMPAT_API_KEY",
+];
 
 // Worker-only auth secrets stay at the edge and are intentionally not forwarded
 // into the container runtime: SUPABASE_URL, SUPABASE_ANON_KEY,

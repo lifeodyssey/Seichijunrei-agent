@@ -232,7 +232,10 @@ class Settings(BaseSettings):
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
         missing: list[str] = []
-        if _is_gemini_model(self.default_agent_model) and not self.gemini_api_key:
+        uses_gemini = _is_gemini_model(self.default_agent_model) or _is_gemini_model(
+            self.fallback_agent_model
+        )
+        if uses_gemini and not self.gemini_api_key:
             missing.append("GEMINI_API_KEY")
 
         uses_openai_compat = _is_openai_compat_model(

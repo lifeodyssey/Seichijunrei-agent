@@ -1691,18 +1691,18 @@
     "notes": "Failure recovery: planner should recover from an initial premature route action and complete resolve → search → route"
   },
   {
-    "id": "multiturn-route-after-search-en-01",
-    "locale": "en",
-    "query": "now plan a route for those spots",
+    "id": "multiturn-route-after-search-ja-01",
+    "locale": "ja",
+    "query": "さっきの聖地でルートを作って",
     "context": {
       "last_intent": "search_bangumi",
-      "current_bangumi_id": "262243"
+      "current_bangumi_id": "115908"
     },
     "expected_steps": [
       "plan_route"
     ],
     "expected_intent": "plan_route",
-    "notes": "Route after search via session context"
+    "notes": "Route after search in Japanese with different bangumi_id"
   },
   {
     "id": "premature-done-ja-01",
