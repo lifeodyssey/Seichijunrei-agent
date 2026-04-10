@@ -221,6 +221,8 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY
             SUPABASE_DB_URL
             GEMINI_API_KEY
+            OPENAI_COMPAT_BASE_URL
+            OPENAI_COMPAT_API_KEY
             GOOGLE_MAPS_API_KEY
             LOGFIRE_TOKEN
             CORS_ALLOWED_ORIGIN
@@ -232,6 +234,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_COMPAT_BASE_URL: ${{ vars.OPENAI_COMPAT_BASE_URL || 'https://api.univibe.cc/openai' }}
+          OPENAI_COMPAT_API_KEY: ${{ secrets.OPENAI_COMPAT_API_KEY }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
           CORS_ALLOWED_ORIGIN: ${{ secrets.CORS_ALLOWED_ORIGIN }}

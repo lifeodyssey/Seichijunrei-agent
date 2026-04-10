@@ -93,6 +93,44 @@ class TestAPIKeyValidation:
 
     def test_validate_api_keys_all_present(self):
         """Test that no keys are reported missing when all are set."""
-        settings = Settings(gemini_api_key="test_key")
+        settings = Settings(
+            gemini_api_key="test_key",
+            openai_compat_api_key="compat_key",
+            openai_compat_base_url="https://api.univibe.cc/openai",
+        )
         missing = settings.validate_api_keys()
         assert missing == []
+
+    def test_validate_api_keys_missing_openai_compat_when_fallback_enabled(self):
+        """Fallback provider requires compat config when using openai fallback."""
+        settings = Settings(
+            gemini_api_key="test_key",
+            fallback_agent_model="openai:gpt-5.4",
+            openai_compat_base_url="",
+            openai_compat_api_key="",
+        )
+        missing = settings.validate_api_keys()
+        assert "OPENAI_COMPAT_BASE_URL" in missing
+
+    def test_get_runtime_config_includes_provider_fields(self):
+        """Runtime config should expose non-secret provider settings."""
+        settings = Settings(
+            gemini_api_key="test_key",
+            openai_compat_api_key="compat_key",
+            default_agent_model="google-gla:gemini-3.1-pro-preview",
+            fallback_agent_model="openai:gpt-5.4",
+            openai_compat_base_url="https://api.univibe.cc/openai",
+        )
+        config = settings.get_runtime_config()
+        assert config["default_agent_model"] == "google-gla:gemini-3.1-pro-preview"
+        assert config["fallback_agent_model"] == "openai:gpt-5.4"
+        assert config["openai_compat_base_url"] == "https://api.univibe.cc/openai"
+
+    def test_get_secrets_masks_openai_compat_key(self):
+        """Secret debug info should mask the compat key too."""
+        settings = Settings(
+            gemini_api_key="test_key",
+            openai_compat_api_key="sk-test-openai-compat",
+        )
+        secrets = settings.get_secrets()
+        assert secrets["openai_compat_api_key"].endswith("***")

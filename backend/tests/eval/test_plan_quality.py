@@ -28,6 +28,21 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+
+
+def _clear_proxy_env() -> None:
+    """Clear proxy env vars that break httpx/OpenAI provider setup in eval runs."""
+    for var in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        os.environ.pop(var, None)
+
+
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
@@ -39,19 +54,11 @@ _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL)
 
 def make_model(model_id: str | None = None) -> object:
     """Build a Pydantic AI model from a model string."""
-    from pydantic_ai.models.openai import OpenAIModel
-    from pydantic_ai.providers.openai import OpenAIProvider
+    _clear_proxy_env()
+    from backend.agents.base import parse_model_spec
 
     mid = model_id or _EVAL_MODEL_ID
-    # Gemini models are resolved natively by pydantic-ai
-    if mid.startswith("gemini"):
-        return mid
-    if "@" in mid:
-        name, base_url = mid.split("@", 1)
-        name = name.removeprefix("openai:")
-        return OpenAIModel(name, provider=OpenAIProvider(base_url=base_url))
-    # pydantic-ai resolves "openai:gpt-4o-mini" natively
-    return mid
+    return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
 EVAL_MODEL = make_model()
@@ -63,6 +70,7 @@ EVAL_MODEL = make_model()
 class PlanInput:
     query: str
     locale: str
+    context: dict[str, object] | None = None
 
 
 @dataclass
@@ -114,7 +122,13 @@ async def evaluate_plan(inp: PlanInput) -> PlanOutput:
 
     db = _DB_OVERRIDE if _DB_OVERRIDE is not None else _make_mock_db()
 
-    result = await run_pipeline(inp.query, db, model=EVAL_MODEL, locale=inp.locale)
+    result = await run_pipeline(
+        inp.query,
+        db,
+        model=EVAL_MODEL,
+        locale=inp.locale,
+        context=inp.context,
+    )
 
     # Collect ALL executed steps (including failures) for efficiency accounting.
     all_steps: list[str] = []
@@ -214,7 +228,11 @@ _DATASET_PATH = Path(__file__).parent / "datasets" / "plan_quality_v1.json"
 CASES = [
     Case(
         name=row["id"],
-        inputs=PlanInput(query=row["query"], locale=row["locale"]),
+        inputs=PlanInput(
+            query=row["query"],
+            locale=row["locale"],
+            context=row.get("context"),
+        ),
         expected_output=ExpectedPlan(
             expected_steps=row["expected_steps"],
             expected_intent=row["expected_intent"],
@@ -243,6 +261,33 @@ def _use_mock_db() -> bool:
     if os.environ.get("USE_MOCK_DB", "").strip() in ("1", "true", "yes"):
         return True
     return False
+
+
+def _baseline_path_for(model_id: str) -> Path:
+    safe = model_id.replace(":", "-").replace("@", "-").replace("/", "-")
+    return Path(__file__).parent / "baselines" / f"{safe}.json"
+
+
+def _read_baseline_scores(model_id: str) -> dict[str, float]:
+    path = _baseline_path_for(model_id)
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    scores = data.get("scores")
+    return scores if isinstance(scores, dict) else {}
+
+
+def _write_baseline_scores(
+    model_id: str, scores: dict[str, float], *, case_count: int
+) -> None:
+    path = _baseline_path_for(model_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "model": model_id,
+        "case_count": case_count,
+        "scores": scores,
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 @pytest.mark.integration
@@ -276,17 +321,40 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
     steps_score = avg.scores.get("StepsMatchEvaluator", 0)
     intent_score = avg.scores.get("IntentMatchEvaluator", 0)
     outcome_score = avg.scores.get("OutcomeEvaluator", 0)
+    efficiency_score = avg.scores.get("EfficiencyEvaluator", 0)
 
     db_mode = "testcontainer" if not _use_mock_db() else "mock"
+    current_scores = {
+        "StepsMatchEvaluator": steps_score,
+        "IntentMatchEvaluator": intent_score,
+        "OutcomeEvaluator": outcome_score,
+        "EfficiencyEvaluator": efficiency_score,
+    }
+    baseline_scores = _read_baseline_scores(_EVAL_MODEL_ID)
     print(f"\n{'=' * 60}")
     print(f"  Model:          {_EVAL_MODEL_ID}")
     print(f"  DB mode:        {db_mode}")
-    print(f"  Steps accuracy: {steps_score:.1%}   ← record as Iter 1 baseline")
+    print(f"  Steps accuracy: {steps_score:.1%}")
     print(f"  Intent accuracy:{intent_score:.1%}")
     print(f"  Outcome score:  {outcome_score:.1%}")
+    print(f"  Efficiency:     {efficiency_score:.1%}")
     print(f"  Total cases:    {len(CASES)}")
     print(f"{'=' * 60}")
-    # No assertion — this is a baseline measurement run, not a gate
+
+    if not baseline_scores:
+        _write_baseline_scores(_EVAL_MODEL_ID, current_scores, case_count=len(CASES))
+        pytest.skip(f"Baseline created for {_EVAL_MODEL_ID}; re-run to enforce gate.")
+
+    failures: list[str] = []
+    for name, score in current_scores.items():
+        baseline = float(baseline_scores.get(name, 0.0))
+        minimum = baseline - 0.10
+        if score < minimum:
+            failures.append(
+                f"{name}: {score:.1%} < baseline-10pp ({minimum:.1%}, baseline {baseline:.1%})"
+            )
+
+    assert not failures, "Eval regression:\n" + "\n".join(failures)
 
 
 # ── Standalone runner ────────────────────────────────────────────────
@@ -319,11 +387,34 @@ if __name__ == "__main__":
         )
         report.print(include_input=True, include_output=True)
         avg = report.averages()
+        current_scores = {
+            "StepsMatchEvaluator": avg.scores.get("StepsMatchEvaluator", 0),
+            "IntentMatchEvaluator": avg.scores.get("IntentMatchEvaluator", 0),
+            "OutcomeEvaluator": avg.scores.get("OutcomeEvaluator", 0),
+            "EfficiencyEvaluator": avg.scores.get("EfficiencyEvaluator", 0),
+        }
         print(f"\n  Model: {mid}")
         print(
-            f"  Steps: {avg.scores.get('StepsMatchEvaluator', 0):.1%}  "
-            f"Intent: {avg.scores.get('IntentMatchEvaluator', 0):.1%}  "
+            f"  Steps: {current_scores['StepsMatchEvaluator']:.1%}  "
+            f"Intent: {current_scores['IntentMatchEvaluator']:.1%}  "
+            f"Outcome: {current_scores['OutcomeEvaluator']:.1%}  "
+            f"Efficiency: {current_scores['EfficiencyEvaluator']:.1%}  "
             f"Cases: {len(CASES)}"
         )
+        baseline_scores = _read_baseline_scores(mid)
+        if not baseline_scores:
+            _write_baseline_scores(mid, current_scores, case_count=len(CASES))
+            print("  Baseline created. Re-run to enforce gate.")
+            return
+        failures: list[str] = []
+        for name, score in current_scores.items():
+            baseline = float(baseline_scores.get(name, 0.0))
+            minimum = baseline - 0.10
+            if score < minimum:
+                failures.append(
+                    f"{name}: {score:.1%} < baseline-10pp ({minimum:.1%}, baseline {baseline:.1%})"
+                )
+        if failures:
+            raise SystemExit("Eval regression:\n" + "\n".join(failures))
 
     asyncio.run(main())

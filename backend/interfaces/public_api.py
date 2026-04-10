@@ -494,13 +494,14 @@ async def handle_public_request(
 def _runtime_model_label(model: object) -> str | None:
     if model is None:
         return None
-    if isinstance(model, str):
-        return model
+    from backend.agents.base import describe_model, parse_model_spec
 
-    label = getattr(model, "model_name", None)
-    if isinstance(label, str) and label:
-        return label
-    return type(model).__name__
+    if isinstance(model, str):
+        try:
+            return describe_model(parse_model_spec(model, use_settings_fallbacks=False))
+        except Exception:
+            return model
+    return describe_model(model)
 
 
 def _get_plan_params(result: PipelineResult) -> dict[str, object]:

@@ -12,7 +12,9 @@
 #
 # Container runtime secrets (explicitly allowlisted in worker/worker.js):
 #   SUPABASE_DB_URL            — postgres://... for asyncpg
-#   GEMINI_API_KEY             — planner model provider key
+#   GEMINI_API_KEY             — primary planner model provider key
+#   OPENAI_COMPAT_BASE_URL     — custom OpenAI-compatible fallback endpoint
+#   OPENAI_COMPAT_API_KEY      — custom OpenAI-compatible fallback provider key
 #   GOOGLE_MAPS_API_KEY        — optional geocoding provider key
 #   LOGFIRE_TOKEN              — optional observability token
 #   CORS_ALLOWED_ORIGIN        — backend CORS allowlist
