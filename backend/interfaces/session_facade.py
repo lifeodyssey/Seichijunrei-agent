@@ -104,14 +104,15 @@ def build_session_summary(state: dict[str, object]) -> dict[str, object]:
     }
 
 
-def build_context_block(
-    session_state: dict[str, object],
-    user_memory: dict[str, object] | None = None,
-) -> dict[str, object] | None:
-    """Derive a context block from session history and cross-session memory."""
-    raw_interactions = session_state.get("interactions")
-    interactions = raw_interactions if isinstance(raw_interactions, list) else []
-    summary = as_str_or_none(session_state.get("summary"))
+def _extract_from_interactions(
+    interactions: list[object],
+) -> tuple[str | None, str | None, str | None, dict[str, object] | None, list[str]]:
+    """Walk interactions in reverse and extract context fields.
+
+    Returns:
+        (current_bangumi_id, current_anime_title, last_location,
+         last_search_data, visited_bangumi_ids)
+    """
     current_bangumi_id: str | None = None
     current_anime_title: str | None = None
     last_location: str | None = None
@@ -144,6 +145,26 @@ def build_context_block(
         if current_bangumi_id and last_location:
             break
 
+    return current_bangumi_id, current_anime_title, last_location, last_search_data, visited_bangumi_ids
+
+
+def build_context_block(
+    session_state: dict[str, object],
+    user_memory: dict[str, object] | None = None,
+) -> dict[str, object] | None:
+    """Derive a context block from session history and cross-session memory."""
+    raw_interactions = session_state.get("interactions")
+    interactions = raw_interactions if isinstance(raw_interactions, list) else []
+    summary = as_str_or_none(session_state.get("summary"))
+
+    (
+        current_bangumi_id,
+        current_anime_title,
+        last_location,
+        last_search_data,
+        visited_bangumi_ids,
+    ) = _extract_from_interactions(interactions)
+
     if user_memory:
         raw_visited = user_memory.get("visited_anime")
         visited_anime = raw_visited if isinstance(raw_visited, list) else []
@@ -169,6 +190,7 @@ def build_context_block(
         and not last_location
         and not visited_bangumi_ids
         and not summary
+        and last_search_data is None
     ):
         return None
 
@@ -183,6 +205,42 @@ def build_context_block(
     if last_search_data is not None:
         block["last_search_data"] = last_search_data
     return block
+
+
+def _extract_from_search_bangumi(
+    plan_step: PlanStep,
+    step_result: object,
+    bangumi_id: str | None,
+) -> tuple[str | None, str | None, dict[str, object]]:
+    """Extract bangumi_id, anime_title, and last_search_data from a search_bangumi step.
+
+    Returns:
+        (bangumi_id, anime_title, last_search_data)
+    """
+    from backend.agents.executor_agent import StepResult  # local import avoids circular
+
+    sr = step_result if isinstance(step_result, StepResult) else None
+    data: dict[str, object] = {}
+    if sr is not None:
+        data = sr.data if isinstance(sr.data, dict) else {}
+
+    last_search_data: dict[str, object] = data
+    resolved_bangumi_id = bangumi_id
+    anime_title: str | None = None
+
+    rows = data.get("rows")
+    if isinstance(rows, list) and rows and resolved_bangumi_id is None:
+        first_row = rows[0] if isinstance(rows[0], dict) else {}
+        resolved_bangumi_id = as_str_or_none(first_row.get("bangumi_id"))
+        anime_title = as_str_or_none(
+            first_row.get("title") or first_row.get("title_cn")
+        )
+    if resolved_bangumi_id is None:
+        resolved_bangumi_id = as_str_or_none(
+            plan_step.params.get("bangumi_id") or plan_step.params.get("bangumi")
+        )
+
+    return resolved_bangumi_id, anime_title, last_search_data
 
 
 def extract_context_delta(result: PipelineResult) -> dict[str, object]:
@@ -213,19 +271,13 @@ def extract_context_delta(result: PipelineResult) -> dict[str, object]:
         if step_result.tool != "search_bangumi":
             continue
 
-        data = step_result.data if isinstance(step_result.data, dict) else {}
-        last_search_data = data
-        rows = data.get("rows")
-        if isinstance(rows, list) and rows and bangumi_id is None:
-            first_row = rows[0] if isinstance(rows[0], dict) else {}
-            bangumi_id = as_str_or_none(first_row.get("bangumi_id"))
-            anime_title = as_str_or_none(
-                first_row.get("title") or first_row.get("title_cn")
-            )
+        new_bangumi_id, new_anime_title, last_search_data = _extract_from_search_bangumi(
+            plan_step, step_result, bangumi_id
+        )
         if bangumi_id is None:
-            bangumi_id = as_str_or_none(
-                plan_step.params.get("bangumi_id") or plan_step.params.get("bangumi")
-            )
+            bangumi_id = new_bangumi_id
+        if anime_title is None:
+            anime_title = new_anime_title
 
     context_delta: dict[str, object] = {}
     if bangumi_id is not None:

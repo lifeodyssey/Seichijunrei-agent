@@ -446,6 +446,38 @@ class TestBuildContextBlockSearchData:
         assert block is not None
         assert "last_search_data" not in block
 
+    def test_search_bangumi_only_no_resolve_anime_returns_non_none(self) -> None:
+        """Correctness: last_search_data alone is sufficient to return a context block.
+
+        Scenario: resolve_anime failed (or was not emitted) so no bangumi_id/
+        location/summary is present, but search_bangumi succeeded and stored
+        last_search_data.  The early-return guard must NOT fire.
+        """
+        state = {
+            "interactions": [
+                {
+                    "text": "search eupho",
+                    "context_delta": {
+                        "last_search_data": {
+                            "rows": [{"bangumi_id": "99", "title": "Eupho"}],
+                            "row_count": 1,
+                        },
+                    },
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None, (
+            "build_context_block must not return None when last_search_data is populated"
+        )
+        assert "last_search_data" in block
+        search_data = block["last_search_data"]
+        assert isinstance(search_data, dict)
+        assert search_data["row_count"] == 1
+        assert block["current_bangumi_id"] is None
+
 
 class TestAsStrOrNone:
     def test_none_returns_none(self) -> None:
