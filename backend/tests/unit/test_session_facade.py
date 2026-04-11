@@ -299,6 +299,154 @@ class TestExtractContextDelta:
         assert delta["anime_title"] == "From Rows"
 
 
+class TestExtractContextDeltaSearchData:
+    """AC: extract_context_delta persists last_search_data after search_bangumi."""
+
+    def test_search_bangumi_success_includes_last_search_data(self) -> None:
+        plan = _make_plan(
+            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "99"})]
+        )
+        result = PipelineResult(intent="search_bangumi", plan=plan)
+        result.step_results = [
+            StepResult(
+                tool="search_bangumi",
+                success=True,
+                data={
+                    "rows": [{"bangumi_id": "99", "title": "Eupho"}],
+                    "row_count": 1,
+                },
+            )
+        ]
+
+        delta = extract_context_delta(result)
+        assert "last_search_data" in delta
+        search_data = delta["last_search_data"]
+        assert isinstance(search_data, dict)
+        assert search_data["rows"] == [{"bangumi_id": "99", "title": "Eupho"}]
+        assert search_data["row_count"] == 1
+
+    def test_no_search_bangumi_step_has_no_last_search_data(self) -> None:
+        plan = _make_plan(
+            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "Eupho"})]
+        )
+        result = PipelineResult(intent="search_bangumi", plan=plan)
+        result.step_results = [
+            StepResult(
+                tool="resolve_anime",
+                success=True,
+                data={"bangumi_id": "99", "title": "Eupho"},
+            )
+        ]
+
+        delta = extract_context_delta(result)
+        assert "last_search_data" not in delta
+
+    def test_search_bangumi_failure_has_no_last_search_data(self) -> None:
+        plan = _make_plan(
+            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "99"})]
+        )
+        result = PipelineResult(intent="search_bangumi", plan=plan)
+        result.step_results = [
+            StepResult(tool="search_bangumi", success=False, error="DB error")
+        ]
+
+        delta = extract_context_delta(result)
+        assert "last_search_data" not in delta
+
+
+class TestBuildContextBlockSearchData:
+    """AC: build_context_block reconstructs last_search_data from interactions."""
+
+    def test_reconstructs_last_search_data_from_most_recent_interaction(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "search eupho",
+                    "context_delta": {
+                        "bangumi_id": "99",
+                        "last_search_data": {
+                            "rows": [{"bangumi_id": "99", "title": "Eupho"}],
+                            "row_count": 1,
+                        },
+                    },
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        assert "last_search_data" in block
+        search_data = block["last_search_data"]
+        assert isinstance(search_data, dict)
+        assert search_data["row_count"] == 1
+
+    def test_uses_most_recent_interaction_with_search_data(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "first search",
+                    "context_delta": {
+                        "bangumi_id": "50",
+                        "last_search_data": {"rows": [{"bangumi_id": "50"}], "row_count": 1},
+                    },
+                },
+                {
+                    "text": "second search",
+                    "context_delta": {
+                        "bangumi_id": "99",
+                        "last_search_data": {"rows": [{"bangumi_id": "99"}], "row_count": 5},
+                    },
+                },
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        search_data = block["last_search_data"]
+        assert isinstance(search_data, dict)
+        assert search_data["row_count"] == 5
+
+    def test_no_interactions_returns_none(self) -> None:
+        state: dict[str, object] = {"interactions": []}
+        block = build_context_block(state)
+        assert block is None
+
+    def test_no_search_data_in_interactions_has_no_key(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "search",
+                    "context_delta": {"bangumi_id": "99", "anime_title": "Eupho"},
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        assert "last_search_data" not in block
+
+    def test_malformed_last_search_data_ignored_gracefully(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "search",
+                    "context_delta": {
+                        "bangumi_id": "99",
+                        "last_search_data": "not-a-dict",
+                    },
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        assert "last_search_data" not in block
+
+
 class TestAsStrOrNone:
     def test_none_returns_none(self) -> None:
         assert as_str_or_none(None) is None
