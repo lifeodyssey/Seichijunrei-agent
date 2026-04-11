@@ -388,14 +388,20 @@ class TestBuildContextBlockSearchData:
                     "text": "first search",
                     "context_delta": {
                         "bangumi_id": "50",
-                        "last_search_data": {"rows": [{"bangumi_id": "50"}], "row_count": 1},
+                        "last_search_data": {
+                            "rows": [{"bangumi_id": "50"}],
+                            "row_count": 1,
+                        },
                     },
                 },
                 {
                     "text": "second search",
                     "context_delta": {
                         "bangumi_id": "99",
-                        "last_search_data": {"rows": [{"bangumi_id": "99"}], "row_count": 5},
+                        "last_search_data": {
+                            "rows": [{"bangumi_id": "99"}],
+                            "row_count": 5,
+                        },
                     },
                 },
             ],

@@ -145,7 +145,13 @@ def _extract_from_interactions(
         if current_bangumi_id and last_location:
             break
 
-    return current_bangumi_id, current_anime_title, last_location, last_search_data, visited_bangumi_ids
+    return (
+        current_bangumi_id,
+        current_anime_title,
+        last_location,
+        last_search_data,
+        visited_bangumi_ids,
+    )
 
 
 def build_context_block(
@@ -271,8 +277,8 @@ def extract_context_delta(result: PipelineResult) -> dict[str, object]:
         if step_result.tool != "search_bangumi":
             continue
 
-        new_bangumi_id, new_anime_title, last_search_data = _extract_from_search_bangumi(
-            plan_step, step_result, bangumi_id
+        new_bangumi_id, new_anime_title, last_search_data = (
+            _extract_from_search_bangumi(plan_step, step_result, bangumi_id)
         )
         if bangumi_id is None:
             bangumi_id = new_bangumi_id
