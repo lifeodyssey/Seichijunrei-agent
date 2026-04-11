@@ -134,6 +134,7 @@ function canShowAnchor(response: RuntimeResponse): boolean {
 
 function getResultCount(response: RuntimeResponse): number {
   const data = response.data;
+  if (data == null) return 0;
   if (isQAData(data)) return 1;
   if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
   if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
@@ -154,6 +155,7 @@ function InlineSummaryCard({
   cardDict: { view_details: string; view_full_route: string; spots_count: string };
 }) {
   const inlineData = response.data;
+  if (inlineData == null) return null;
 
   // Search result inline card
   if (isSearchData(inlineData)) {

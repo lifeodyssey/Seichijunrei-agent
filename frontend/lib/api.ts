@@ -33,13 +33,48 @@ function parseResponseData(raw: unknown): Record<string, unknown> | null {
   return null;
 }
 
+/**
+ * Convert DB-stored response_data into a RuntimeResponse-shaped object.
+ *
+ * DB stores: { intent, success, final_output: { results, status, message, ... } }
+ * Frontend expects: RuntimeResponse { intent, success, status, message, data: { results | route } }
+ *
+ * This bridges the gap so hydrated messages render correctly.
+ */
+export function hydrateResponseData(
+  raw: Record<string, unknown> | null,
+): Record<string, unknown> | undefined {
+  if (!raw) return undefined;
+  // If it already looks like a RuntimeResponse (has 'data' key), pass through
+  if ("data" in raw && raw.data != null) return raw;
+  // Convert from DB format: extract final_output as data
+  const finalOutput = raw.final_output;
+  if (finalOutput != null && typeof finalOutput === "object") {
+    return {
+      ...raw,
+      data: finalOutput,
+    };
+  }
+  return raw;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const supabase = getSupabaseClient();
   if (!supabase) return {};
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return {};
-  return { Authorization: `Bearer ${session.access_token}` };
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${session.access_token}`,
+  };
+  // In production, Cloudflare Worker injects X-User-Id after JWT validation.
+  // For local dev (no Worker), inject it from the session so the backend
+  // doesn't reject requests with 400 "X-User-Id header required."
+  if (session.user?.id) {
+    headers["X-User-Id"] = session.user.id;
+    headers["X-User-Type"] = "human";
+  }
+  return headers;
 }
 
 /**

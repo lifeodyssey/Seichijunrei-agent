@@ -10,6 +10,7 @@ import {
   buildSelectedRouteActionText,
   fetchConversationMessages,
   fetchRouteHistory,
+  hydrateResponseData,
   sendSelectedRoute,
 } from "../../lib/api";
 import type { RouteHistoryEntry } from "../../lib/api";
@@ -77,7 +78,7 @@ export default function AppShell() {
           id: `hydrated-${i}-${Date.now()}`,
           role: m.role,
           text: m.content,
-          response: m.data ? (m.data as unknown as RuntimeResponse) : undefined,
+          response: hydrateResponseData(m.data) as RuntimeResponse | undefined,
           timestamp: new Date(m.timestamp).getTime(),
         }));
         appendMessages(...hydrated);
@@ -204,7 +205,7 @@ export default function AppShell() {
           id: `hydrated-${i}-${Date.now()}`,
           role: m.role,
           text: m.content,
-          response: m.data ? (m.data as unknown as RuntimeResponse) : undefined,
+          response: hydrateResponseData(m.data) as RuntimeResponse | undefined,
           timestamp: new Date(m.timestamp).getTime(),
         }));
         if (hydrated.length > 0) {

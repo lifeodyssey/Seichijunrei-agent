@@ -215,15 +215,15 @@ export interface ChatMessage {
 // ── Type guards ────────────────────────────────────────────────────────────
 
 export function isSearchData(data: RuntimeResponse["data"]): data is SearchResultData {
-  return "results" in data && !("route" in data);
+  return data != null && "results" in data && !("route" in data);
 }
 
 export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
-  return "route" in data;
+  return data != null && "route" in data;
 }
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
-  return data.status === "info" || data.status === "needs_clarification";
+  return data != null && (data.status === "info" || data.status === "needs_clarification");
 }
 
 export type TimedRouteData = RouteData & {
@@ -231,5 +231,5 @@ export type TimedRouteData = RouteData & {
 };
 
 export function isTimedRouteData(data: RuntimeResponse["data"]): data is TimedRouteData {
-  return "route" in data && "timed_itinerary" in (data as RouteData).route;
+  return data != null && "route" in data && "timed_itinerary" in (data as RouteData).route;
 }
