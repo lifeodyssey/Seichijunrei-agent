@@ -20,6 +20,31 @@ logger = structlog.get_logger(__name__)
 
 MAX_REACT_STEPS = 8
 
+# Intent priority: lower number = higher precedence (route > search > fallback).
+_INTENT_PRIORITY: dict[str, int] = {
+    "plan_route": 0,
+    "plan_selected": 1,
+    "search_nearby": 2,
+    "search_bangumi": 3,
+    "answer_question": 4,
+    "clarify": 5,
+    "greet_user": 6,
+    "resolve_anime": 7,
+}
+
+
+def _infer_intent(step_results: list[StepResult], priority_map: dict[str, int]) -> str:
+    """Return the highest-priority tool name from successful step results."""
+    intent = "answer_question"
+    best_priority = priority_map.get("answer_question", 99)
+    for sr in step_results:
+        if sr.success:
+            p = priority_map.get(sr.tool, 99)
+            if p < best_priority:
+                intent = sr.tool
+                best_priority = p
+    return intent
+
 
 @dataclass
 class ReactStepEvent:
@@ -204,14 +229,17 @@ async def run_pipeline(
                 event.tool, event.status, event.data, event.thought, event.observation
             )
 
-        if on_step is not None and event.type == "clarify":
-            await on_step(
-                "clarify",
-                "needs_clarification",
-                event.data,
-                event.thought,
-                event.message,
-            )
+        if event.type == "clarify":
+            clarify_fired = True
+            final_message = event.message
+            if on_step is not None:
+                await on_step(
+                    "clarify",
+                    "needs_clarification",
+                    event.data,
+                    event.thought,
+                    event.message,
+                )
 
         if event.step_result is not None:
             all_step_results.append(event.step_result)
@@ -219,33 +247,11 @@ async def run_pipeline(
         if event.type == "done":
             final_message = event.message
 
-        if event.type == "clarify":
-            clarify_fired = True
-            final_message = event.message
-
     # Build a PipelineResult from accumulated results
-    # Infer intent via priority: route > search > fallback (order-independent)
-    _INTENT_PRIORITY: dict[str, int] = {
-        "plan_route": 0,
-        "plan_selected": 1,
-        "search_nearby": 2,
-        "search_bangumi": 3,
-        "answer_question": 4,
-        "clarify": 5,
-        "greet_user": 6,
-        "resolve_anime": 7,
-    }
+    intent = _infer_intent(all_step_results, _INTENT_PRIORITY)
+    # clarify overrides inferred intent when the planner requested clarification
     if clarify_fired:
         intent = "clarify"
-    else:
-        intent = "answer_question"
-        best_priority = _INTENT_PRIORITY.get("answer_question", 99)
-        for sr in all_step_results:
-            if sr.success:
-                p = _INTENT_PRIORITY.get(sr.tool, 99)
-                if p < best_priority:
-                    intent = sr.tool
-                    best_priority = p
 
     plan = ExecutionPlan(
         steps=[],  # ReAct doesn't produce a pre-computed plan
@@ -266,6 +272,8 @@ async def run_pipeline(
     is_empty = not last_data or last_data.get("row_count", -1) == 0
     if clarify_fired:
         status = "needs_clarification"
+        # success is intentionally False here: the pipeline did not fulfil the
+        # user's request; it is paused pending additional user input.
     elif is_empty:
         status = "empty"
     else:
