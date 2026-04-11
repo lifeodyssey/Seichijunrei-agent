@@ -1,10 +1,13 @@
 """Tests for ReAct loop pipeline."""
 
-from unittest.mock import AsyncMock, MagicMock
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.agents.executor_agent import StepResult
+from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import (
     DoneSignal,
     Observation,
@@ -12,7 +15,7 @@ from backend.agents.models import (
     ReactStep,
     ToolName,
 )
-from backend.agents.pipeline import ReactStepEvent, react_loop
+from backend.agents.pipeline import ReactStepEvent, react_loop, run_pipeline
 
 
 @pytest.mark.asyncio
@@ -140,3 +143,139 @@ async def test_react_loop_max_steps():
     step_events = [e for e in events if e.type == "step"]
     # Each step produces 2 events (running + done), max_steps=3 means 6 step events
     assert len(step_events) <= 6
+
+
+# ---------------------------------------------------------------------------
+# Verify react_loop yields clarify event
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_react_loop_clarify_yields_clarify_event():
+    """react_loop yields a clarify event when the planner emits a clarify action."""
+    mock_planner = MagicMock()
+    mock_executor = MagicMock()
+
+    clarify_react = ReactStep(
+        thought="Need more info",
+        action=PlanStep(
+            tool=ToolName.CLARIFY,
+            params={"question": "Which city?", "options": ["京都", "宇治"]},
+        ),
+    )
+    mock_planner.step = AsyncMock(return_value=clarify_react)
+
+    step_result = StepResult(
+        tool="clarify",
+        success=True,
+        data={"question": "Which city?", "options": ["京都", "宇治"]},
+    )
+    mock_executor._execute_step = AsyncMock(return_value=step_result)
+    mock_executor.format_observation = MagicMock(
+        return_value=Observation(tool="clarify", success=True, summary="Asked user")
+    )
+
+    events: list[ReactStepEvent] = []
+    async for event in react_loop(
+        text="どこで？",
+        planner=mock_planner,
+        executor=mock_executor,
+        locale="ja",
+    ):
+        events.append(event)
+
+    clarify_events = [e for e in events if e.type == "clarify"]
+    assert clarify_events, (
+        f"No clarify event yielded. Events: {[(e.type, e.tool) for e in events]}"
+    )
+    assert clarify_events[0].data.get("question") == "Which city?"
+
+
+# ---------------------------------------------------------------------------
+# AC tests: clarify event forwarding through run_pipeline
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_db():
+    db = MagicMock()
+    pool = AsyncMock()
+    pool.fetch = AsyncMock(return_value=[])
+    db.pool = pool
+    return db
+
+
+async def _fake_react_loop_clarify(**kwargs: object) -> AsyncIterator[ReactStepEvent]:
+    """Async generator replacement for react_loop that yields clarify events."""
+    yield ReactStepEvent(
+        type="clarify",
+        tool="clarify",
+        data={"question": "Which city?", "options": ["京都", "宇治"]},
+        message="Which city?",
+    )
+
+
+async def _fake_react_loop_done(**kwargs: object) -> AsyncIterator[ReactStepEvent]:
+    """Async generator replacement for react_loop that yields a done event."""
+    yield ReactStepEvent(type="done", message="Hello!")
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_clarify_calls_on_step_with_clarify_tool(mock_db):
+    """AC: clarify event -> on_step called with tool='clarify' + question/options data."""
+    on_step = AsyncMock()
+    mock_loop = MagicMock(side_effect=_fake_react_loop_clarify)
+
+    with patch("backend.agents.pipeline.react_loop", new=mock_loop):
+        await run_pipeline("どこで？", mock_db, on_step=on_step)
+
+    # on_step must have been called with tool="clarify" AND status="needs_clarification"
+    clarify_calls = [
+        c
+        for c in on_step.call_args_list
+        if c.args[0] == "clarify" and c.args[1] == "needs_clarification"
+    ]
+    assert clarify_calls, (
+        f"on_step was never called with tool='clarify', status='needs_clarification'. "
+        f"Total calls: {on_step.await_count}. All: {on_step.call_args_list}"
+    )
+    # The data dict passed to on_step must contain question and options
+    _, _, data, _, _ = clarify_calls[0].args
+    assert "question" in data
+    assert "options" in data
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_clarify_sets_intent_and_status(mock_db):
+    """AC: PipelineResult for clarify has intent='clarify', status='needs_clarification'."""
+    mock_loop = MagicMock(side_effect=_fake_react_loop_clarify)
+    with patch("backend.agents.pipeline.react_loop", new=mock_loop):
+        result = await run_pipeline("どこで？", mock_db)
+
+    assert isinstance(result, PipelineResult)
+    assert result.intent == "clarify"
+    assert result.final_output.get("status") == "needs_clarification"
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_no_clarify_unchanged(mock_db):
+    """AC: No clarify event -> pipeline behaviour unchanged."""
+    mock_loop = MagicMock(side_effect=_fake_react_loop_done)
+    with patch("backend.agents.pipeline.react_loop", new=mock_loop):
+        result = await run_pipeline("hi", mock_db)
+
+    assert isinstance(result, PipelineResult)
+    # intent should NOT be "clarify" — falls back to default
+    assert result.intent != "clarify"
+    assert result.final_output.get("status") != "needs_clarification"
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_clarify_no_on_step_no_crash(mock_db):
+    """AC: on_step is None + clarify fires -> no crash."""
+    mock_loop = MagicMock(side_effect=_fake_react_loop_clarify)
+    with patch("backend.agents.pipeline.react_loop", new=mock_loop):
+        # Must not raise
+        result = await run_pipeline("どこで？", mock_db, on_step=None)
+
+    assert isinstance(result, PipelineResult)

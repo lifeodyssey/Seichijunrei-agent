@@ -190,6 +190,7 @@ async def run_pipeline(
 
     all_step_results: list[StepResult] = []
     final_message = ""
+    clarify_fired = False
 
     async for event in react_loop(
         text=text,
@@ -203,10 +204,23 @@ async def run_pipeline(
                 event.tool, event.status, event.data, event.thought, event.observation
             )
 
+        if on_step is not None and event.type == "clarify":
+            await on_step(
+                "clarify",
+                "needs_clarification",
+                event.data,
+                event.thought,
+                event.message,
+            )
+
         if event.step_result is not None:
             all_step_results.append(event.step_result)
 
         if event.type == "done":
+            final_message = event.message
+
+        if event.type == "clarify":
+            clarify_fired = True
             final_message = event.message
 
     # Build a PipelineResult from accumulated results
@@ -221,14 +235,17 @@ async def run_pipeline(
         "greet_user": 6,
         "resolve_anime": 7,
     }
-    intent = "answer_question"
-    best_priority = _INTENT_PRIORITY.get("answer_question", 99)
-    for sr in all_step_results:
-        if sr.success:
-            p = _INTENT_PRIORITY.get(sr.tool, 99)
-            if p < best_priority:
-                intent = sr.tool
-                best_priority = p
+    if clarify_fired:
+        intent = "clarify"
+    else:
+        intent = "answer_question"
+        best_priority = _INTENT_PRIORITY.get("answer_question", 99)
+        for sr in all_step_results:
+            if sr.success:
+                p = _INTENT_PRIORITY.get(sr.tool, 99)
+                if p < best_priority:
+                    intent = sr.tool
+                    best_priority = p
 
     plan = ExecutionPlan(
         steps=[],  # ReAct doesn't produce a pre-computed plan
@@ -247,9 +264,15 @@ async def run_pipeline(
             break
 
     is_empty = not last_data or last_data.get("row_count", -1) == 0
+    if clarify_fired:
+        status = "needs_clarification"
+    elif is_empty:
+        status = "empty"
+    else:
+        status = "ok"
     result.final_output = {
         "success": bool(all_step_results and all_step_results[-1].success),
-        "status": "empty" if is_empty else "ok",
+        "status": status,
         "message": final_message,
     }
     if intent in ("search_bangumi", "search_nearby"):
