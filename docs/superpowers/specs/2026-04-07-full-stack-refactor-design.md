@@ -1,5 +1,7 @@
 # Full-Stack Refactoring: Clean Code + Best Practices
 
+> **Update (2026-04-11):** Backend Phase 2 is substantially complete: FastAPI adapter live, aiohttp removed, supabase client decomposed into 7 repositories, executor handlers extracted, response_builder and session_facade split out, contract tests written. Phase 3 (frontend splits) and Phase 4 (Vitest/Playwright) are not started. `dependencies.py` from P2-T1 was never created. Some files exceed target line counts (`fastapi_service.py` 649L, `public_api.py` 545L).
+
 ## Context
 
 The Seichijunrei codebase has grown organically through 5 iterations. While the layered architecture (domain → application → infrastructure → interfaces → agents) is sound, several files have become "god objects" that mix concerns. The backend runs on aiohttp but a FastAPI cutover plan exists. Frontend has minimal test coverage (3/51 files). No E2E or production API tests exist.
@@ -126,14 +128,14 @@ tests/
 
 ### Phase 1: Contract Lock (safety net before any refactoring)
 
-**P1-T1: Extract Pydantic schemas from public_api.py**
+**✅ P1-T1: Extract Pydantic schemas from public_api.py** (landed)
 
 Move `PublicAPIRequest`, `PublicAPIResponse`, `PublicAPIError` to `interfaces/schemas.py`. Update all imports. This is a mechanical move — no logic changes.
 
 - Files: `backend/interfaces/schemas.py` (new), `backend/interfaces/public_api.py` (edit)
 - AC: `make check` passes; all existing tests pass with new import paths
 
-**P1-T2: Write FastAPI contract tests**
+**✅ P1-T2: Write FastAPI contract tests** (landed)
 
 Using `httpx.AsyncClient` + `FastAPI.TestClient`, assert every endpoint's request/response shape:
 - `GET /healthz` → 200, `{status, service, version}`
@@ -152,21 +154,21 @@ These tests run against the FastAPI adapter (written in P2) but define the contr
 
 ### Phase 2: Backend — FastAPI Cutover + File Decomposition
 
-**P2-T1: Create FastAPI adapter**
+**✅ P2-T1: Create FastAPI adapter** (landed — partially; `dependencies.py` not created, deps are inline in `fastapi_service.py` which is 649L, above the 200L target)
 
 New `backend/interfaces/fastapi_service.py` with:
 - All endpoints matching current aiohttp surface (`/healthz`, `/v1/runtime`, `/v1/runtime/stream`, `/v1/conversations`, etc.)
 - FastAPI dependency injection for `RuntimeAPI`, `SupabaseClient`, `Settings`
-- `dependencies.py` for `Depends()` providers
+- `dependencies.py` for `Depends()` providers — **not created; deps live in fastapi_service.py**
 - Custom exception handlers to preserve `{error: {code, message}}` shape
 - SSE via `StreamingResponse` with `asyncio.Queue` pattern (not buffered)
 - CORS from settings, not hardcoded `*`
 - Trusted headers (`X-User-Id`, `X-User-Type`) read via `Header()`
 
-- Files: `backend/interfaces/fastapi_service.py` (new), `backend/interfaces/dependencies.py` (new)
+- Files: `backend/interfaces/fastapi_service.py` (new), `backend/interfaces/dependencies.py` (new — **still missing**)
 - AC: All P1-T2 contract tests pass; `make serve` starts FastAPI on port 8080; `/docs` shows OpenAPI
 
-**P2-T2: Switch entrypoints**
+**✅ P2-T2: Switch entrypoints** (landed)
 
 - `pyproject.toml` script → `backend.interfaces.fastapi_service:main`
 - `Dockerfile` CMD → uvicorn
@@ -177,18 +179,18 @@ New `backend/interfaces/fastapi_service.py` with:
 - Files: `pyproject.toml`, `Makefile`, `Dockerfile`, `.github/workflows/ci.yml`
 - AC: `make serve` launches FastAPI; CI import check passes
 
-**P2-T3: Decompose public_api.py**
+**✅ P2-T3: Decompose public_api.py** (landed — partially; `response_builder.py` and `session_facade.py` extracted, but `public_api.py` is still 545L, above the 300L target)
 
 Split into:
 - `schemas.py` — already done in P1-T1
 - `response_builder.py` — `_pipeline_result_to_public_response()`, `_application_error_response()`, `_build_message_for_result()`
 - `session_facade.py` — `_load_session_state()`, `_persist_session()`, `_persist_messages()`, `_persist_user_state()`, `_build_updated_session_state()`, `_compact_session_interactions()`, `_load_user_memory()`, `_maybe_persist_route()`
-- `public_api.py` — `RuntimeAPI.handle()` orchestration only, importing from above
+- `public_api.py` — `RuntimeAPI.handle()` orchestration only, importing from above — **still 545L; needs further decomposition**
 
 - Files: `backend/interfaces/response_builder.py` (new), `backend/interfaces/session_facade.py` (new), `backend/interfaces/public_api.py` (edit)
 - AC: All existing `test_public_api.py` tests pass; each file ≤ 300 lines
 
-**P2-T4: Decompose supabase/client.py into repositories**
+**✅ P2-T4: Decompose supabase/client.py into repositories** (landed — `client.py` at 181L, 7 repo files created)
 
 Split by domain:
 - `repositories/bangumi.py` — `get_bangumi`, `list_bangumi`, `upsert_bangumi`, `get_bangumi_by_area`, `find_bangumi_by_title`, `upsert_bangumi_title`
@@ -205,7 +207,7 @@ Each repository takes a pool reference, not the full client. The `SupabaseClient
 - Files: `backend/infrastructure/supabase/repositories/` (new dir, 7 files), `backend/infrastructure/supabase/client.py` (edit)
 - AC: `test_supabase_client.py` passes; each repo file ≤ 150 lines; `client.py` ≤ 150 lines
 
-**P2-T5: Decompose executor_agent.py into handlers**
+**✅ P2-T5: Decompose executor_agent.py into handlers** (landed — `executor_agent.py` at 237L, 7 handler files + `messages.py` created)
 
 - `messages.py` — `_MESSAGES` dict + `_build_message()`
 - `handlers/resolve_anime.py` — `_execute_resolve_anime()`
@@ -222,7 +224,7 @@ Each handler is a standalone async function with signature `async def execute(st
 - Files: `backend/agents/handlers/` (new dir, 7 files), `backend/agents/messages.py` (new), `backend/agents/executor_agent.py` (edit)
 - AC: `test_executor_agent.py` passes; executor_agent.py ≤ 200 lines
 
-**P2-T6: Remove aiohttp adapter**
+**✅ P2-T6: Remove aiohttp adapter** (landed — `http_service.py` deleted)
 
 - Delete `backend/interfaces/http_service.py`
 - Update `backend/interfaces/__init__.py`
@@ -276,18 +278,18 @@ Add `index.ts` to each component subdirectory (`layout/`, `chat/`, `generative/`
 
 ### Phase 4: Test Suite — Production-Grade
 
-**P4-T1: Backend unit tests for new modules**
+**P4-T1: Backend unit tests for new modules** (partial — `test_response_builder.py` and `test_session_facade.py` landed; `test_fastapi_service.py` and `tests/unit/repositories/` still missing)
 
 Write tests for the newly extracted modules:
-- `test_response_builder.py` — pipeline result → response conversion
-- `test_session_facade.py` — session state load/persist cycle
+- ✅ `test_response_builder.py` — pipeline result → response conversion
+- ✅ `test_session_facade.py` — session state load/persist cycle
 - `test_fastapi_service.py` — route registration, middleware, error handlers
 - `tests/unit/repositories/` — one test file per repo (mock pool)
 
 - Files: 6+ new test files under `backend/tests/unit/`
 - AC: `make test` passes; new modules have > 80% line coverage
 
-**P4-T2: Backend integration tests (FastAPI contract)**
+**✅ P4-T2: Backend integration tests (FastAPI contract)** (landed — `test_api_contract.py` and `test_sse_contract.py` exist)
 
 Finalize and run the P1-T2 contract tests against the real FastAPI app with mocked DB:
 - Every endpoint returns the correct shape
@@ -323,20 +325,20 @@ Set up Playwright targeting the deployed staging or local dev environment:
 
 ### Phase 5: Wire Up — CI, Deployment, Cleanup
 
-**P5-T1: Update CI pipeline**
+**P5-T1: Update CI pipeline** (partial — FastAPI import check landed; Playwright E2E step and frontend test step still missing)
 
-- Add FastAPI import check
+- ✅ Add FastAPI import check
 - Add Playwright E2E step (can be optional/manual trigger)
 - Add frontend test step (`npm test`)
-- Remove aiohttp import check
+- ✅ Remove aiohttp import check
 
 - Files: `.github/workflows/ci.yml`
 - AC: CI passes on PR
 
-**P5-T2: Update deployment docs**
+**P5-T2: Update deployment docs** (partial — `CLAUDE.md` already references FastAPI; `DEPLOYMENT.md` not verified)
 
 - `DEPLOYMENT.md` — FastAPI/uvicorn references
-- `CLAUDE.md` — update architecture section, commands, tool descriptions
+- ✅ `CLAUDE.md` — update architecture section, commands, tool descriptions
 
 - Files: `DEPLOYMENT.md`, `CLAUDE.md`
 - AC: Docs match actual runtime
@@ -412,3 +414,30 @@ Each wave must pass before the next starts:
 | SSE behavior regression | Dedicated SSE contract test asserts event order |
 | Frontend build breakage from type/api split | `npm run build` gate after each frontend change |
 | aiohttp removal breaks clients/base.py | Keep aiohttp dep if ClientSession still used; only remove http_service.py |
+
+## Remaining Work
+
+### Backend cleanup (line-count targets not met)
+
+- **P2-T1 remainder:** Extract `backend/interfaces/dependencies.py` from `fastapi_service.py` (currently 649L, target ≤200L)
+- **P2-T3 remainder:** Further decompose `backend/interfaces/public_api.py` (currently 545L, target ≤300L)
+- **P2-T5 note:** `backend/agents/executor_agent.py` is 237L (target ≤200L) — minor overshoot
+
+### Phase 3: Frontend (not started)
+
+- **P3-T1:** Split `frontend/lib/api.ts` into `frontend/lib/api/` module (client, runtime, conversations, routes, barrel)
+- **P3-T2:** Split `frontend/lib/types.ts` into `frontend/lib/types/` module (api, domain, components, barrel)
+- **P3-T3:** Add barrel `index.ts` exports to component directories (`layout/`, `chat/`, `generative/`, `auth/`, `map/`, `settings/`, `ui/`)
+- **P3-T4:** Hook naming and dead code audit (`useConversationHistory` vs `lib/conversation-history.ts`, `lib/japanRegions.ts`, `lib/utils.ts`)
+
+### Phase 4: Tests (mostly not started)
+
+- **P4-T1 remainder:** `backend/tests/unit/test_fastapi_service.py` and `backend/tests/unit/repositories/` (per-repo test files)
+- **P4-T3:** Frontend component tests with Vitest + React Testing Library (MessageBubble, PilgrimageGrid, AppShell, useChat, useSession)
+- **P4-T4:** Playwright E2E setup and specs (`e2e/` directory with auth-flow, search-flow, route-planning, conversation-history)
+
+### Phase 5: CI and docs (partially done)
+
+- **P5-T1 remainder:** Add Playwright E2E step and frontend test step (`npm test`) to `.github/workflows/ci.yml`
+- **P5-T2 remainder:** Verify `DEPLOYMENT.md` references FastAPI/uvicorn correctly
+- **P5-T3:** Final verification pass (all gates green, local smoke test, OpenAPI docs complete)

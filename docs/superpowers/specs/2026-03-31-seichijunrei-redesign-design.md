@@ -1,7 +1,7 @@
 # Seichijunrei 全栈重设计 — Design Spec
 
 **Date:** 2026-03-31
-**Status:** Approved for implementation
+**Status:** LANDED
 
 > **Update (2026-04-03):** The core runtime architecture in this spec has landed. Some UI token details have evolved since (the current shipped palette/tokens live in `frontend/app/globals.css`). Treat this as historical design rationale and use `docs/ARCHITECTURE.md` + code as the source of truth.
 

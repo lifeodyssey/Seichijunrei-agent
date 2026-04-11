@@ -82,6 +82,9 @@ anitabi/
 .superpowers/
 .trae/
 .mcp.json
+skills/
+skills-lock.json
+.remember/tmp/
 
 # Misc
 images/

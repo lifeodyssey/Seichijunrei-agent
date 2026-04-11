@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working in this repository.
 
 Seichijunrei is an anime pilgrimage search and route planning service.
 
-**Implementation status:** Core runtime + Cloudflare deploy path are in place. Active work (and any remaining TODOs) lives in `docs/iterations/iter5/task_plan.md` and `docs/superpowers/plans/`.
+**Implementation status:** Core runtime + Cloudflare deploy path are in place. ReAct agent architecture v2 deployed. Active work lives in `docs/superpowers/specs/` (see Harness Engineering System below for status) and `docs/superpowers/plans/` (implementation cards).
 
 ## Current Commands
 
@@ -155,6 +155,69 @@ Design tokens (`frontend/app/globals.css`):
 - Put iteration artifacts under `docs/iterations/`
 - Keep implementation plans under `docs/superpowers/plans/`
 - Leave short compatibility stubs when moving long-lived docs that may still be linked externally
+
+## Harness Engineering System
+
+Iteration work uses a 4-role agent harness with strict capability boundaries. Agent definitions live in `.claude/agents/`. Orchestration via `/iteration-planning` (spec → cards) and `/iteration-execution` (cards → PRs).
+
+### Roles
+
+| Role | Agent def | Can do | Cannot do |
+|---|---|---|---|
+| **Planner** | `.claude/agents/planner.md` | Read code, run reviews, write specs | Write code, create PRs, run tests |
+| **Executor** | `.claude/agents/executor.md` | Write code + tests in worktree, create PR | Merge PRs, modify files outside card scope |
+| **Reviewer** | `.claude/agents/reviewer.md` | Read diffs, run evals, post findings | Write/edit code, merge PRs |
+| **Tester** | `.claude/agents/tester.md` | Browse app, test API, take screenshots | Read source code, write code |
+
+### Workflow
+
+```
+Planner → spec (docs/superpowers/specs/)
+   ↓
+Coordinator → cards + wave graph (docs/superpowers/plans/)
+   ↓
+Per wave (parallel within wave, sequential across waves):
+   Executor → worktree branch → PR
+   Wait 10 min for bot comments (CodeRabbit, Codecov, Codacy, Qodo)
+   Reviewer → read diff + bot comments → approve/request_changes
+   ↓
+Merge → rebase remaining PRs → next wave
+   ↓
+After all waves:
+   Tester → browser QA + API tests → evidence as PR comments
+   Retro → GitHub issue with harness metrics
+```
+
+### Agent Dispatch Rules
+
+- Use `subagent_type="coder"` with `model="sonnet"` for Executor agents
+- Use `subagent_type="reviewer"` for Reviewer (has Read/Grep/Bash but no Write/Edit)
+- Use `isolation="worktree"` for Executor agents
+- In worktrees: use `uv tool run ruff format` (not `uv run ruff format`)
+- Reviewer must check Codecov patch coverage >= 95% (P1 if below)
+
+### Quality Ratchet
+
+Every AC in a card must have:
+- A test type annotation (`-> unit | integration | eval | browser | api`)
+- A corresponding test in the PR diff
+- Reviewer verifies: `ac_total == ac_with_test`
+
+### Hook
+
+- `.claude/hookify.block-secrets-in-pr.local.md` — blocks `gh pr comment/review` commands containing secrets/tokens
+
+### Specs Index
+
+All specs at `docs/superpowers/specs/`. Status:
+- **LANDED**: redesign-03/31, memory-04/01, compact-04/01, greeting-04/02, supabase-04/02, qa-bugfix-04/07, agent-arch-04/08, frontend-redesign-04/08, production-bugfix-04/08
+- **IN PROGRESS**: bug03-route-planning-04/11 (Wave 1 merged, Waves 2-3 pending)
+- **READY (harness format)**: refactor-remaining-04/11, test-infra-remaining-04/11, seo-geo-harness-04/11, layered-eval-harness-04/11
+- **SUPERSEDED**: ux-improvement-04/05 (90%, 2 scraps left), full-stack-refactor-04/07 (superseded by refactor-remaining), test-infrastructure-04/08 (superseded by test-infra-remaining), seo-geo-04/08 (superseded by seo-geo-harness), layered-eval-04/10 (superseded by layered-eval-harness)
+
+### Testing Strategy
+
+See `docs/testing-strategy.md` for the full test pyramid, mock rules, coverage targets, and reviewer checklist.
 
 ## gstack
 
