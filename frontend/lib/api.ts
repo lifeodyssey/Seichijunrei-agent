@@ -244,22 +244,12 @@ export async function sendMessageStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  let clarifyData: { question: string; options: string[] } | null = null;
-
   const consume = (chunk: string): RuntimeResponse | null => {
     const parsedChunk = parseSSEChunk(chunk);
     buffer = parsedChunk.buffer;
 
     for (const { event, payload } of parsedChunk.events) {
       if (event === "step" && payload.tool && payload.status) {
-        if (payload.tool === "clarify") {
-          clarifyData = {
-            question: typeof payload.question === "string" ? payload.question : "",
-            options: Array.isArray(payload.options)
-              ? (payload.options as string[])
-              : [],
-          };
-        }
         onStep?.(
           payload.tool,
           payload.status,
@@ -268,28 +258,11 @@ export async function sendMessageStream(
         );
       }
       if (event === "done") {
-        let response: RuntimeResponse;
         if (typeof payload.event === "string") {
-          const { event: _event, ...rest } = payload;
-          response = rest as unknown as RuntimeResponse;
-        } else {
-          response = payload as unknown as RuntimeResponse;
+          const { event: _event, ...response } = payload;
+          return response as unknown as RuntimeResponse;
         }
-        if (clarifyData) {
-          response = {
-            ...response,
-            status: "needs_clarification",
-            data: {
-              intent: response.intent ?? "clarify",
-              confidence: 1,
-              status: "needs_clarification",
-              message: clarifyData.question,
-              question: clarifyData.question,
-              options: clarifyData.options,
-            } as unknown as RuntimeResponse["data"],
-          };
-        }
-        return response;
+        return payload as unknown as RuntimeResponse;
       }
       if (event === "error") {
         throw new Error(

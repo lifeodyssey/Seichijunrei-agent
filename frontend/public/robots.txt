@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://seichijunrei.zhenjia.org/sitemap.xml

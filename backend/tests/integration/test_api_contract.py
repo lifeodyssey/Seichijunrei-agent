@@ -2,25 +2,20 @@
 
 These tests assert the request/response shape (status codes, required keys,
 types) for every endpoint exposed by the FastAPI adapter.  They serve as a
-safety net during the FastAPI cutover — DB is a real testcontainer PostgreSQL,
-RuntimeAPI is mocked so we only verify HTTP contract.
+safety net during the FastAPI cutover — no LLM or real DB calls are made.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
-import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.config.settings import Settings
 from backend.infrastructure.session.memory import InMemorySessionStore
-from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.fastapi_service import create_fastapi_app
 from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
 
@@ -65,133 +60,69 @@ def _canned_public_response() -> PublicAPIResponse:
     )
 
 
-def _build_test_app(
-    *,
-    db: SupabaseClient | object,
-    runtime_api: RuntimeAPI | MagicMock | None = None,
-) -> FastAPI:
-    """Build a FastAPI app pre-configured for testing.
-
-    Bypasses the production lifespan by pre-setting app.state directly.
-    This avoids event-loop mismatch between the ASGI transport and the
-    testcontainer asyncpg pool.
-    """
-    settings = Settings()
-    resolved_api: RuntimeAPI | MagicMock = runtime_api or RuntimeAPI(
-        db,
-        session_store=InMemorySessionStore(),
-    )
-
-    @asynccontextmanager
-    async def _noop_lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        yield
-
-    app = create_fastapi_app(
-        runtime_api=resolved_api,
-        settings=settings,
-        db=db,
-    )
-    # Replace production lifespan with no-op; set state directly
-    app.router.lifespan_context = _noop_lifespan
-    app.state.settings = settings
-    app.state.runtime_api = resolved_api
-    app.state.db_client = db
-    return app
+def _mock_db() -> MagicMock:
+    db = MagicMock()
+    pool = AsyncMock()
+    pool.fetch = AsyncMock(return_value=[])
+    db.pool = pool
+    db.search_points_by_location = AsyncMock(return_value=[])
+    db.get_conversations = AsyncMock(return_value=[{"id": "c1", "title": "Test"}])
+    db.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
+    db.get_messages = AsyncMock(return_value=[{"role": "user", "content": "hi"}])
+    db.get_user_routes = AsyncMock(return_value=[{"route_id": "r1"}])
+    db.save_feedback = AsyncMock(return_value="feedback-1")
+    db.upsert_session = AsyncMock()
+    db.upsert_conversation = AsyncMock()
+    db.insert_message = AsyncMock()
+    db.insert_request_log = AsyncMock()
+    return db
 
 
 def _build_app(
-    *,
-    runtime_api: RuntimeAPI | MagicMock | None = None,
-    db: SupabaseClient | None = None,
-) -> httpx.AsyncClient:
-    if db is None:
-        raise RuntimeError(
-            "tc_db fixture required: _build_app() needs a real SupabaseClient. "
-            "Pass the tc_db fixture as db= parameter."
-        )
-    app = _build_test_app(db=db, runtime_api=runtime_api)
-    transport = httpx.ASGITransport(app=app)
-    return httpx.AsyncClient(transport=transport, base_url="http://test")
+    *, runtime_api: RuntimeAPI | None = None, db: MagicMock | None = None
+) -> TestClient:
+    resolved_db = db or _mock_db()
+    api = runtime_api or RuntimeAPI(resolved_db, session_store=InMemorySessionStore())
+    app = create_fastapi_app(
+        runtime_api=api,
+        settings=Settings(),
+        db=resolved_db,
+    )
+    return TestClient(app)
 
 
-def _mock_runtime_api(
-    db: SupabaseClient, response: PublicAPIResponse | None = None
-) -> MagicMock:
+def _mock_runtime_api(response: PublicAPIResponse | None = None) -> MagicMock:
     """Return a MagicMock that quacks like RuntimeAPI.handle."""
     api = MagicMock(spec=RuntimeAPI)
     api.handle = AsyncMock(return_value=response or _canned_public_response())
-    api._db = db
+    api._db = _mock_db()
     api._session_store = InMemorySessionStore()
     return api
-
-
-async def _seed_conversation(
-    db: SupabaseClient, session_id: str, user_id: str, first_query: str = "test"
-) -> None:
-    """Insert a conversation row for tests that need one."""
-    pool = db.pool
-    await pool.execute(
-        """
-        INSERT INTO conversations (session_id, user_id, first_query)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (session_id) DO NOTHING
-        """,
-        session_id,
-        user_id,
-        first_query,
-    )
-
-
-async def _seed_message(
-    db: SupabaseClient, session_id: str, role: str = "user", content: str = "hi"
-) -> None:
-    """Insert a message row for tests that need one."""
-    pool = db.pool
-    await pool.execute(
-        """
-        INSERT INTO conversation_messages (session_id, role, content)
-        VALUES ($1, $2, $3)
-        """,
-        session_id,
-        role,
-        content,
-    )
-
-
-async def _cleanup_test_data(db: SupabaseClient) -> None:
-    """Remove test-inserted rows to preserve isolation."""
-    pool = db.pool
-    await pool.execute(
-        "DELETE FROM conversation_messages WHERE session_id LIKE 'sess-%'"
-    )
-    await pool.execute("DELETE FROM conversations WHERE session_id LIKE 'sess-%'")
-    await pool.execute(
-        "DELETE FROM feedback WHERE query_text IN ('京吹', 'test', '  ')"
-    )
 
 
 # ── GET /healthz ─────────────────────────────────────────────────────────────
 
 
 class TestHealthz:
-    async def test_returns_200(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get("/healthz")
+    def test_returns_200(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.get("/healthz")
         assert resp.status_code == 200
 
-    async def test_response_has_required_keys(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            body = (await client.get("/healthz")).json()
+    def test_response_has_required_keys(self) -> None:
+        client = _build_app()
+        with client:
+            body = client.get("/healthz").json()
         assert "status" in body
         assert "service" in body
         assert isinstance(body["status"], str)
         assert isinstance(body["service"], str)
 
-    async def test_response_includes_optional_diagnostics(
-        self, tc_db: SupabaseClient
-    ) -> None:
-        async with _build_app(db=tc_db) as client:
-            body = (await client.get("/healthz")).json()
+    def test_response_includes_optional_diagnostics(self) -> None:
+        client = _build_app()
+        with client:
+            body = client.get("/healthz").json()
         for key in ("app_env", "observability_enabled", "db_adapter", "session_store"):
             assert key in body
 
@@ -200,9 +131,10 @@ class TestHealthz:
 
 
 class TestRoot:
-    async def test_returns_200_with_service_info(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get("/")
+    def test_returns_200_with_service_info(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.get("/")
         assert resp.status_code == 200
         body = resp.json()
         assert "service" in body
@@ -214,12 +146,12 @@ class TestRoot:
 
 
 class TestRuntime:
-    async def test_returns_200_with_public_api_shape(
-        self, tc_db: SupabaseClient
-    ) -> None:
-        api = _mock_runtime_api(tc_db)
-        async with _build_app(runtime_api=api, db=tc_db) as client:
-            resp = await client.post(
+    def test_returns_200_with_public_api_shape(self) -> None:
+        api = _mock_runtime_api()
+        db = _mock_db()
+        app = create_fastapi_app(runtime_api=api, settings=Settings(), db=db)
+        with TestClient(app) as client:
+            resp = client.post(
                 "/v1/runtime",
                 json={"text": "京吹の聖地"},
                 headers={"X-User-Id": "user-1"},
@@ -235,35 +167,35 @@ class TestRuntime:
         assert isinstance(body["data"], dict)
         assert isinstance(body["errors"], list)
 
-    async def test_response_includes_optional_ui_field(
-        self, tc_db: SupabaseClient
-    ) -> None:
-        api = _mock_runtime_api(tc_db)
-        async with _build_app(runtime_api=api, db=tc_db) as client:
-            body = (
-                await client.post(
-                    "/v1/runtime",
-                    json={"text": "京吹"},
-                    headers={"X-User-Id": "user-1"},
-                )
+    def test_response_includes_optional_ui_field(self) -> None:
+        api = _mock_runtime_api()
+        db = _mock_db()
+        app = create_fastapi_app(runtime_api=api, settings=Settings(), db=db)
+        with TestClient(app) as client:
+            body = client.post(
+                "/v1/runtime",
+                json={"text": "京吹"},
+                headers={"X-User-Id": "user-1"},
             ).json()
         # ui may be null or a dict with "component"
         if body.get("ui") is not None:
             assert isinstance(body["ui"], dict)
             assert "component" in body["ui"]
 
-    async def test_blank_text_returns_422(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post("/v1/runtime", json={"text": "  "})
+    def test_blank_text_returns_422(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post("/v1/runtime", json={"text": "  "})
         assert resp.status_code == 422
         body = resp.json()
         assert "error" in body
         assert "code" in body["error"]
         assert "message" in body["error"]
 
-    async def test_invalid_json_returns_400(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post(
+    def test_invalid_json_returns_400(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post(
                 "/v1/runtime",
                 content=b"not-json{{{",
                 headers={"Content-Type": "application/json"},
@@ -272,9 +204,10 @@ class TestRuntime:
         body = resp.json()
         assert body["error"]["code"] == "invalid_json"
 
-    async def test_missing_body_returns_422(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post(
+    def test_missing_body_returns_422(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post(
                 "/v1/runtime",
                 content=b"{}",
                 headers={"Content-Type": "application/json"},
@@ -287,9 +220,11 @@ class TestRuntime:
 
 
 class TestConversations:
-    async def test_returns_200_list(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get(
+    def test_returns_200_list(self) -> None:
+        db = _mock_db()
+        client = _build_app(db=db)
+        with client:
+            resp = client.get(
                 "/v1/conversations",
                 headers={"X-User-Id": "user-1"},
             )
@@ -297,11 +232,10 @@ class TestConversations:
         body = resp.json()
         assert isinstance(body, list)
 
-    async def test_missing_user_header_returns_400_error_shape(
-        self, tc_db: SupabaseClient
-    ) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get("/v1/conversations")
+    def test_missing_user_header_returns_400_error_shape(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.get("/v1/conversations")
         assert resp.status_code == 400
         body = resp.json()
         assert "error" in body
@@ -313,42 +247,39 @@ class TestConversations:
 
 
 class TestConversationMessages:
-    async def test_returns_200_with_messages_key(self, tc_db: SupabaseClient) -> None:
-        await _seed_conversation(tc_db, "sess-msg-1", "user-1")
-        await _seed_message(tc_db, "sess-msg-1", role="user", content="hi")
-        try:
-            async with _build_app(db=tc_db) as client:
-                resp = await client.get(
-                    "/v1/conversations/sess-msg-1/messages",
-                    headers={"X-User-Id": "user-1"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert "messages" in body
-            assert isinstance(body["messages"], list)
-        finally:
-            await _cleanup_test_data(tc_db)
+    def test_returns_200_with_messages_key(self) -> None:
+        db = _mock_db()
+        client = _build_app(db=db)
+        with client:
+            resp = client.get(
+                "/v1/conversations/sess-1/messages",
+                headers={"X-User-Id": "user-1"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "messages" in body
+        assert isinstance(body["messages"], list)
 
-    async def test_ownership_mismatch_returns_404(self, tc_db: SupabaseClient) -> None:
-        await _seed_conversation(tc_db, "sess-owned", "other-user")
-        try:
-            async with _build_app(db=tc_db) as client:
-                resp = await client.get(
-                    "/v1/conversations/sess-owned/messages",
-                    headers={"X-User-Id": "user-1"},
-                )
-            assert resp.status_code == 404
-            body = resp.json()
-            assert body["error"]["code"] == "not_found"
-        finally:
-            await _cleanup_test_data(tc_db)
+    def test_ownership_mismatch_returns_404(self) -> None:
+        db = _mock_db()
+        db.get_conversation = AsyncMock(return_value={"user_id": "other-user"})
+        client = _build_app(db=db)
+        with client:
+            resp = client.get(
+                "/v1/conversations/sess-1/messages",
+                headers={"X-User-Id": "user-1"},
+            )
+        assert resp.status_code == 404
+        body = resp.json()
+        assert body["error"]["code"] == "not_found"
 
-    async def test_missing_conversation_returns_404(
-        self, tc_db: SupabaseClient
-    ) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get(
-                "/v1/conversations/sess-nonexistent/messages",
+    def test_missing_conversation_returns_404(self) -> None:
+        db = _mock_db()
+        db.get_conversation = AsyncMock(return_value=None)
+        client = _build_app(db=db)
+        with client:
+            resp = client.get(
+                "/v1/conversations/nonexistent/messages",
                 headers={"X-User-Id": "user-1"},
             )
         assert resp.status_code == 404
@@ -358,38 +289,39 @@ class TestConversationMessages:
 
 
 class TestConversationPatch:
-    async def test_returns_200_on_success(self, tc_db: SupabaseClient) -> None:
-        await _seed_conversation(tc_db, "sess-patch-1", "user-1")
-        try:
-            async with _build_app(db=tc_db) as client:
-                resp = await client.patch(
-                    "/v1/conversations/sess-patch-1",
-                    json={"title": "New title"},
-                    headers={"X-User-Id": "user-1"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert "ok" in body
-        finally:
-            await _cleanup_test_data(tc_db)
+    def test_returns_200_on_success(self) -> None:
+        db = _mock_db()
+        db.update_conversation_title = AsyncMock()
+        client = _build_app(db=db)
+        with client:
+            resp = client.patch(
+                "/v1/conversations/sess-1",
+                json={"title": "New title"},
+                headers={"X-User-Id": "user-1"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "ok" in body
 
-    async def test_blank_title_returns_422(self, tc_db: SupabaseClient) -> None:
-        await _seed_conversation(tc_db, "sess-patch-2", "user-1")
-        try:
-            async with _build_app(db=tc_db) as client:
-                resp = await client.patch(
-                    "/v1/conversations/sess-patch-2",
-                    json={"title": "   "},
-                    headers={"X-User-Id": "user-1"},
-                )
-            assert resp.status_code == 422
-        finally:
-            await _cleanup_test_data(tc_db)
+    def test_blank_title_returns_422(self) -> None:
+        db = _mock_db()
+        db.update_conversation_title = AsyncMock()
+        client = _build_app(db=db)
+        with client:
+            resp = client.patch(
+                "/v1/conversations/sess-1",
+                json={"title": "   "},
+                headers={"X-User-Id": "user-1"},
+            )
+        assert resp.status_code == 422
 
-    async def test_missing_user_header_returns_400(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.patch(
-                "/v1/conversations/sess-patch-3",
+    def test_missing_user_header_returns_400(self) -> None:
+        db = _mock_db()
+        db.update_conversation_title = AsyncMock()
+        client = _build_app(db=db)
+        with client:
+            resp = client.patch(
+                "/v1/conversations/sess-1",
                 json={"title": "hello"},
             )
         assert resp.status_code == 400
@@ -399,9 +331,11 @@ class TestConversationPatch:
 
 
 class TestRoutes:
-    async def test_returns_200_with_routes_key(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get(
+    def test_returns_200_with_routes_key(self) -> None:
+        db = _mock_db()
+        client = _build_app(db=db)
+        with client:
+            resp = client.get(
                 "/v1/routes",
                 headers={"X-User-Id": "user-1"},
             )
@@ -410,9 +344,10 @@ class TestRoutes:
         assert "routes" in body
         assert isinstance(body["routes"], list)
 
-    async def test_missing_user_header_returns_400(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.get("/v1/routes")
+    def test_missing_user_header_returns_400(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.get("/v1/routes")
         assert resp.status_code == 400
         body = resp.json()
         assert "error" in body
@@ -422,23 +357,23 @@ class TestRoutes:
 
 
 class TestFeedback:
-    async def test_returns_200_with_feedback_id(self, tc_db: SupabaseClient) -> None:
-        try:
-            async with _build_app(db=tc_db) as client:
-                resp = await client.post(
-                    "/v1/feedback",
-                    json={"rating": "good", "query_text": "京吹"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert "feedback_id" in body
-            assert isinstance(body["feedback_id"], str)
-        finally:
-            await _cleanup_test_data(tc_db)
+    def test_returns_200_with_feedback_id(self) -> None:
+        db = _mock_db()
+        client = _build_app(db=db)
+        with client:
+            resp = client.post(
+                "/v1/feedback",
+                json={"rating": "good", "query_text": "京吹"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "feedback_id" in body
+        assert isinstance(body["feedback_id"], str)
 
-    async def test_blank_query_text_returns_422(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post(
+    def test_blank_query_text_returns_422(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post(
                 "/v1/feedback",
                 json={"rating": "good", "query_text": "  "},
             )
@@ -446,17 +381,19 @@ class TestFeedback:
         body = resp.json()
         assert body["error"]["code"] == "invalid_request"
 
-    async def test_invalid_rating_returns_422(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post(
+    def test_invalid_rating_returns_422(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post(
                 "/v1/feedback",
                 json={"rating": "amazing", "query_text": "test"},
             )
         assert resp.status_code == 422
 
-    async def test_invalid_json_returns_400(self, tc_db: SupabaseClient) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.post(
+    def test_invalid_json_returns_400(self) -> None:
+        client = _build_app()
+        with client:
+            resp = client.post(
                 "/v1/feedback",
                 content=b"not json!",
                 headers={"Content-Type": "application/json"},
@@ -483,19 +420,17 @@ class TestErrorShape:
         _ERROR_CASES,
         ids=[f"{m} {p}" for m, p, *_ in _ERROR_CASES],
     )
-    async def test_error_responses_have_standard_shape(
+    def test_error_responses_have_standard_shape(
         self,
-        tc_db: SupabaseClient,
         method: str,
         path: str,
         json_body: dict[str, object] | None,
         headers: dict[str, str] | None,
         expected_status: int,
     ) -> None:
-        async with _build_app(db=tc_db) as client:
-            resp = await client.request(
-                method, path, json=json_body, headers=headers or {}
-            )
+        client = _build_app()
+        with client:
+            resp = client.request(method, path, json=json_body, headers=headers or {})
         assert resp.status_code == expected_status
         body = resp.json()
         assert "error" in body
@@ -504,32 +439,3 @@ class TestErrorShape:
         assert "message" in error
         assert isinstance(error["code"], str)
         assert isinstance(error["message"], str)
-
-
-# ── DB connection failure ────────────────────────────────────────────────────
-
-
-class TestDBConnectionFailure:
-    """Verify that a broken DB connection raises a clear fixture error."""
-
-    async def test_build_app_without_db_raises(self) -> None:
-        with pytest.raises(RuntimeError, match="tc_db fixture required"):
-            _build_app(db=None)
-
-    async def test_unconnected_client_surfaces_error(self) -> None:
-        """A client that was never connect()-ed should fail on DB operations."""
-        bad_client = SupabaseClient(
-            "postgresql://localhost:1/nonexistent",
-            min_pool_size=1,
-            max_pool_size=2,
-        )
-        app = _build_test_app(db=bad_client)
-        transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
-            resp = await client.get(
-                "/v1/conversations", headers={"X-User-Id": "user-1"}
-            )
-        # Should get a 500 error, not a silent success
-        assert resp.status_code == 500
