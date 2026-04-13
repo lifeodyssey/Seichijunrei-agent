@@ -20,7 +20,7 @@ dependencies = [
     # Core Dependencies
     "pydantic>=2.12.0",
     "pydantic-settings>=2.13.1",
-    "python-dotenv>=1.1.0",
+    "python-dotenv>=1.2.2",
 
     # Async/HTTP
     "aiohttp>=3.13.5",
