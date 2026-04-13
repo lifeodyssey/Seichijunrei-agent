@@ -18,7 +18,7 @@ from backend.interfaces.public_api import RuntimeAPI
 from backend.interfaces.schemas import PublicAPIResponse
 
 
-def _make_mock_db() -> MagicMock:
+def _build_stub_db() -> MagicMock:
     db = MagicMock()
     db.get_conversations = AsyncMock(return_value=[])
     db.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
@@ -37,14 +37,29 @@ def _make_success_response() -> PublicAPIResponse:
     )
 
 
+def _inject_state(
+    app: FastAPI,
+    settings: Settings,
+    runtime_api: RuntimeAPI | MagicMock,
+    db: MagicMock,
+) -> None:
+    """Lifespan is not triggered by ASGITransport; state is injected manually."""
+    app.state.settings = settings
+    app.state.runtime_api = runtime_api
+    app.state.db_client = db
+
+
 def _build_app(
     *,
     runtime_api: RuntimeAPI | MagicMock | None = None,
     db: MagicMock | None = None,
     settings: Settings | None = None,
 ) -> tuple[FastAPI, MagicMock]:
-    """Build a FastAPI app and manually set state (lifespan is not triggered by ASGITransport)."""
-    mock_db = db or _make_mock_db()
+    """Build a FastAPI app with manually injected state for testing.
+
+    Lifespan is not triggered by ASGITransport; state is injected manually.
+    """
+    mock_db = db or _build_stub_db()
     resolved_settings = settings or Settings()
     if runtime_api is None:
         runtime_api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
@@ -54,11 +69,7 @@ def _build_app(
         settings=resolved_settings,
         db=mock_db,
     )
-
-    app.state.settings = resolved_settings
-    app.state.runtime_api = runtime_api
-    app.state.db_client = mock_db
-
+    _inject_state(app, resolved_settings, runtime_api, mock_db)
     return app, mock_db
 
 
@@ -94,7 +105,7 @@ async def test_healthz_returns_ok_with_status_and_service() -> None:
 async def test_runtime_post_with_valid_request_returns_200() -> None:
     mock_runtime = MagicMock(spec=RuntimeAPI)
     mock_runtime.handle = AsyncMock(return_value=_make_success_response())
-    mock_runtime._db = _make_mock_db()
+    mock_runtime._db = _build_stub_db()
     mock_runtime._session_store = InMemorySessionStore()
 
     app, _ = _build_app(runtime_api=mock_runtime)
@@ -181,7 +192,7 @@ async def test_conversations_get_without_user_id_returns_400() -> None:
 async def test_unhandled_exception_returns_500() -> None:
     mock_runtime = MagicMock(spec=RuntimeAPI)
     mock_runtime.handle = AsyncMock(side_effect=RuntimeError("unexpected boom"))
-    mock_runtime._db = _make_mock_db()
+    mock_runtime._db = _build_stub_db()
     mock_runtime._session_store = InMemorySessionStore()
 
     app, _ = _build_app(runtime_api=mock_runtime)
@@ -222,21 +233,17 @@ async def test_cors_middleware_allows_configured_origin() -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_create_fastapi_app_sets_app_state() -> None:
-    mock_db = _make_mock_db()
-    session_store = InMemorySessionStore()
-    runtime_api = RuntimeAPI(mock_db, session_store=session_store)
+async def test_app_state_accessible_when_injected() -> None:
+    """Verify routes can read app.state after _inject_state.
+
+    ASGITransport does not trigger FastAPI lifespan, so state must be
+    injected manually via _inject_state before the first request.
+    """
+    mock_db = _build_stub_db()
+    runtime_api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
     settings = Settings(app_env="testing")
 
-    app = create_fastapi_app(
-        runtime_api=runtime_api,
-        settings=settings,
-        db=mock_db,
-    )
-
-    app.state.settings = settings
-    app.state.runtime_api = runtime_api
-    app.state.db_client = mock_db
+    app, _ = _build_app(runtime_api=runtime_api, db=mock_db, settings=settings)
 
     async with _async_client(app) as client:
         resp = await client.get("/healthz")
