@@ -21,7 +21,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import sys
 from dataclasses import dataclass
@@ -30,6 +29,13 @@ from pathlib import Path
 import pytest
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
+
+from backend.tests.eval.eval_common import (
+    enforce_gate,
+    load_dataset,
+    read_baseline,
+    write_baseline,
+)
 
 # ── Pluggable model ──────────────────────────────────────────────────
 
@@ -223,21 +229,21 @@ class EfficiencyEvaluator(Evaluator[PlanInput, PlanOutput]):
 
 
 _DATASET_PATH = Path(__file__).parent / "datasets" / "plan_quality_v1.json"
+_EVAL_CASES = load_dataset(_DATASET_PATH)
 
 CASES = [
     Case(
-        name=row["id"],
+        name=ec.id,
         inputs=PlanInput(
-            query=row["query"],
-            locale=row["locale"],
-            context=row.get("context"),
+            query=ec.query,
+            locale=ec.locale,
         ),
         expected_output=ExpectedPlan(
-            expected_steps=row["expected_steps"],
-            expected_intent=row["expected_intent"],
+            expected_steps=ec.expected_steps,
+            expected_intent=ec.expected_intent,
         ),
     )
-    for row in json.loads(_DATASET_PATH.read_text())
+    for ec in _EVAL_CASES
 ]
 
 plan_dataset = Dataset(
@@ -262,42 +268,7 @@ def _use_mock_db() -> bool:
     return False
 
 
-def _baseline_path_for(model_id: str) -> Path:
-    safe = model_id.replace(":", "-").replace("@", "-").replace("/", "-")
-    return Path(__file__).parent / "baselines" / f"{safe}.json"
-
-
-def _read_baseline_scores(
-    model_id: str, *, expected_case_count: int | None = None
-) -> dict[str, float]:
-    path = _baseline_path_for(model_id)
-    if not path.exists():
-        return {}
-    data = json.loads(path.read_text())
-    # Reject stale baselines when dataset changes
-    if expected_case_count is not None:
-        stored_count = data.get("case_count")
-        if stored_count is not None and stored_count != expected_case_count:
-            print(
-                f"  WARNING: baseline has {stored_count} cases but dataset has "
-                f"{expected_case_count}. Treating as new baseline."
-            )
-            return {}
-    scores = data.get("scores")
-    return scores if isinstance(scores, dict) else {}
-
-
-def _write_baseline_scores(
-    model_id: str, scores: dict[str, float], *, case_count: int
-) -> None:
-    path = _baseline_path_for(model_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "model": model_id,
-        "case_count": case_count,
-        "scores": scores,
-    }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+_LAYER = "plan_quality"
 
 
 @pytest.mark.integration
@@ -340,8 +311,8 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
         "OutcomeEvaluator": outcome_score,
         "EfficiencyEvaluator": efficiency_score,
     }
-    baseline_scores = _read_baseline_scores(
-        _EVAL_MODEL_ID, expected_case_count=len(CASES)
+    baseline_scores = read_baseline(
+        _LAYER, _EVAL_MODEL_ID, expected_case_count=len(CASES)
     )
     print(f"\n{'=' * 60}")
     print(f"  Model:          {_EVAL_MODEL_ID}")
@@ -354,17 +325,10 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
     print(f"{'=' * 60}")
 
     if not baseline_scores:
-        _write_baseline_scores(_EVAL_MODEL_ID, current_scores, case_count=len(CASES))
+        write_baseline(_LAYER, _EVAL_MODEL_ID, current_scores, case_count=len(CASES))
         pytest.skip(f"Baseline created for {_EVAL_MODEL_ID}; re-run to enforce gate.")
 
-    failures: list[str] = []
-    for name, score in current_scores.items():
-        baseline = float(baseline_scores.get(name, 0.0))
-        minimum = baseline - 0.10
-        if score < minimum:
-            failures.append(
-                f"{name}: {score:.1%} < baseline-10pp ({minimum:.1%}, baseline {baseline:.1%})"
-            )
+    failures = enforce_gate(current_scores, baseline_scores)
 
     assert not failures, "Eval regression:\n" + "\n".join(failures)
 
@@ -411,19 +375,12 @@ if __name__ == "__main__":
             f"Efficiency: {current_scores['EfficiencyEvaluator']:.1%}  "
             f"Cases: {len(CASES)}"
         )
-        baseline_scores = _read_baseline_scores(mid)
+        baseline_scores = read_baseline(_LAYER, mid)
         if not baseline_scores:
-            _write_baseline_scores(mid, current_scores, case_count=len(CASES))
+            write_baseline(_LAYER, mid, current_scores, case_count=len(CASES))
             print("  Baseline created. Re-run to enforce gate.")
             return
-        failures: list[str] = []
-        for name, score in current_scores.items():
-            baseline = float(baseline_scores.get(name, 0.0))
-            minimum = baseline - 0.10
-            if score < minimum:
-                failures.append(
-                    f"{name}: {score:.1%} < baseline-10pp ({minimum:.1%}, baseline {baseline:.1%})"
-                )
+        failures = enforce_gate(current_scores, baseline_scores)
         if failures:
             raise SystemExit("Eval regression:\n" + "\n".join(failures))
 
