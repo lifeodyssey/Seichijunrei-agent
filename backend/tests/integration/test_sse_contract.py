@@ -3,6 +3,9 @@
 Validates that ``POST /v1/runtime/stream`` emits Server-Sent Events in the
 expected order (``planning`` -> ``step*`` -> ``done``) and that the final
 ``done`` payload conforms to the PublicAPIResponse shape.
+
+Uses a real PostgreSQL testcontainer for the DB layer; RuntimeAPI is still
+mocked so we test SSE framing, not pipeline logic.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from backend.config.settings import Settings
 from backend.infrastructure.session.memory import InMemorySessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.fastapi_service import create_fastapi_app
 from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
 
@@ -56,20 +60,8 @@ def _parse_sse_events(raw: str) -> list[dict[str, object]]:
     return events
 
 
-def _mock_db() -> MagicMock:
-    db = MagicMock()
-    pool = AsyncMock()
-    pool.fetch = AsyncMock(return_value=[])
-    db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.upsert_session = AsyncMock()
-    db.upsert_conversation = AsyncMock()
-    db.insert_message = AsyncMock()
-    db.insert_request_log = AsyncMock()
-    return db
-
-
 def _build_runtime_api_mock(
+    db: SupabaseClient,
     response: PublicAPIResponse | None = None,
     *,
     emit_steps: bool = True,
@@ -77,7 +69,7 @@ def _build_runtime_api_mock(
     """Build a mock RuntimeAPI whose ``handle`` optionally emits on_step calls."""
     canned = response or _canned_response()
     api = MagicMock(spec=RuntimeAPI)
-    api._db = _mock_db()
+    api._db = db
     api._session_store = InMemorySessionStore()
 
     async def handle_side_effect(
@@ -111,8 +103,10 @@ def _build_runtime_api_mock(
 
 
 class TestSSEEventOrdering:
-    def test_stream_starts_with_planning_event(self) -> None:
-        api = _build_runtime_api_mock()
+    async def test_stream_starts_with_planning_event(
+        self, tc_db: SupabaseClient
+    ) -> None:
+        api = _build_runtime_api_mock(tc_db)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -127,8 +121,8 @@ class TestSSEEventOrdering:
         assert len(events) >= 1
         assert events[0]["event"] == "planning"
 
-    def test_stream_ends_with_done_event(self) -> None:
-        api = _build_runtime_api_mock()
+    async def test_stream_ends_with_done_event(self, tc_db: SupabaseClient) -> None:
+        api = _build_runtime_api_mock(tc_db)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -143,8 +137,10 @@ class TestSSEEventOrdering:
         done_events = [e for e in events if e["event"] == "done"]
         assert len(done_events) == 1
 
-    def test_event_order_is_planning_then_steps_then_done(self) -> None:
-        api = _build_runtime_api_mock(emit_steps=True)
+    async def test_event_order_is_planning_then_steps_then_done(
+        self, tc_db: SupabaseClient
+    ) -> None:
+        api = _build_runtime_api_mock(tc_db, emit_steps=True)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -171,8 +167,10 @@ class TestSSEEventOrdering:
 
 
 class TestSSEDoneEventShape:
-    def test_done_event_contains_public_api_response_keys(self) -> None:
-        api = _build_runtime_api_mock()
+    async def test_done_event_contains_public_api_response_keys(
+        self, tc_db: SupabaseClient
+    ) -> None:
+        api = _build_runtime_api_mock(tc_db)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -202,8 +200,8 @@ class TestSSEDoneEventShape:
 
 
 class TestSSEStepEventShape:
-    def test_step_events_have_required_keys(self) -> None:
-        api = _build_runtime_api_mock(emit_steps=True)
+    async def test_step_events_have_required_keys(self, tc_db: SupabaseClient) -> None:
+        api = _build_runtime_api_mock(tc_db, emit_steps=True)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -231,8 +229,8 @@ class TestSSEStepEventShape:
 
 
 class TestSSEPlanningEventShape:
-    def test_planning_event_has_status(self) -> None:
-        api = _build_runtime_api_mock()
+    async def test_planning_event_has_status(self, tc_db: SupabaseClient) -> None:
+        api = _build_runtime_api_mock(tc_db)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             with client.stream(
@@ -255,10 +253,12 @@ class TestSSEPlanningEventShape:
 
 
 class TestSSEErrorEvent:
-    def test_runtime_error_emits_error_event_with_code_and_message(self) -> None:
+    async def test_runtime_error_emits_error_event_with_code_and_message(
+        self, tc_db: SupabaseClient
+    ) -> None:
         api = MagicMock(spec=RuntimeAPI)
         api.handle = AsyncMock(side_effect=RuntimeError("boom"))
-        api._db = _mock_db()
+        api._db = tc_db
         api._session_store = InMemorySessionStore()
         app = create_fastapi_app(runtime_api=api, settings=Settings())
 
@@ -279,8 +279,10 @@ class TestSSEErrorEvent:
         assert "code" in data
         assert "message" in data
 
-    def test_blank_text_on_stream_returns_422(self) -> None:
-        api = _build_runtime_api_mock()
+    async def test_blank_text_on_stream_returns_422(
+        self, tc_db: SupabaseClient
+    ) -> None:
+        api = _build_runtime_api_mock(tc_db)
         app = create_fastapi_app(runtime_api=api, settings=Settings())
         with TestClient(app) as client:
             resp = client.post(
