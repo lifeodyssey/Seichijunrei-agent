@@ -7,8 +7,11 @@ and model precheck utilities.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 CASE_TIMEOUT_S = 60
 
@@ -24,6 +27,7 @@ class EvalCase:
     locale: str
     expected_steps: list[str]
     expected_intent: str
+    context: dict[str, object] | None = field(default=None)
 
 
 def load_dataset(path: Path) -> list[EvalCase]:
@@ -37,6 +41,10 @@ def load_dataset(path: Path) -> list[EvalCase]:
     for row in rows:
         raw_steps = row["expected_steps"]
         steps = list(raw_steps) if isinstance(raw_steps, list) else []
+        raw_context = row.get("context")
+        context: dict[str, object] | None = None
+        if isinstance(raw_context, dict):
+            context = raw_context
         cases.append(
             EvalCase(
                 id=str(row["id"]),
@@ -44,14 +52,26 @@ def load_dataset(path: Path) -> list[EvalCase]:
                 locale=str(row["locale"]),
                 expected_steps=steps,
                 expected_intent=str(row["expected_intent"]),
+                context=context,
             )
         )
     return cases
 
 
-def _baseline_filename(layer: str, model_id: str) -> str:
+def _build_baseline_filename(layer: str, model_id: str) -> str:
+    """Build the baseline filename for a given layer and model.
+
+    Uses ``{layer}_{safe_model}.json`` format to support multi-layer baselines.
+    Earlier versions used ``{safe_model}.json`` without a layer prefix.
+    """
     safe_model = model_id.replace(":", "-").replace("@", "-").replace("/", "-")
     return f"{layer}_{safe_model}.json"
+
+
+def _legacy_baseline_filename(model_id: str) -> str:
+    """Build the old-style baseline filename (no layer prefix)."""
+    safe_model = model_id.replace(":", "-").replace("@", "-").replace("/", "-")
+    return f"{safe_model}.json"
 
 
 def read_baseline(
@@ -65,13 +85,24 @@ def read_baseline(
 
     Returns empty dict when the file is missing or case_count is stale.
     """
-    path = baselines_dir / _baseline_filename(layer, model_id)
+    path = baselines_dir / _build_baseline_filename(layer, model_id)
     if not path.exists():
-        return {}
+        legacy = baselines_dir / _legacy_baseline_filename(model_id)
+        if legacy.exists():
+            path = legacy
+        else:
+            return {}
     data: dict[str, object] = json.loads(path.read_text())
     if expected_case_count is not None:
         stored_count = data.get("case_count")
         if stored_count is not None and stored_count != expected_case_count:
+            logger.warning(
+                "Stale baseline for %s/%s: expected %d cases, found %s",
+                layer,
+                model_id,
+                expected_case_count,
+                stored_count,
+            )
             return {}
     scores = data.get("scores")
     if isinstance(scores, dict):
@@ -89,7 +120,7 @@ def write_baseline(
 ) -> None:
     """Write baseline scores to a JSON file."""
     baselines_dir.mkdir(parents=True, exist_ok=True)
-    path = baselines_dir / _baseline_filename(layer, model_id)
+    path = baselines_dir / _build_baseline_filename(layer, model_id)
     payload = {
         "model": model_id,
         "case_count": case_count,

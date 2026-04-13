@@ -10,6 +10,7 @@ import pytest
 from backend.tests.eval.eval_common import (
     CASE_TIMEOUT_S,
     EvalCase,
+    _build_baseline_filename,
     enforce_gate,
     load_dataset,
     read_baseline,
@@ -63,6 +64,41 @@ class TestLoadDataset:
         cases = load_dataset(path)
         assert len(cases) == 3
 
+    def test_loads_context_field(self, tmp_path: Path) -> None:
+        dataset = [
+            {
+                "id": "ctx-01",
+                "query": "query with context",
+                "locale": "ja",
+                "expected_steps": ["resolve_anime"],
+                "expected_intent": "search_bangumi",
+                "context": {"bangumi_id": 123},
+            },
+        ]
+        path = tmp_path / "dataset.json"
+        path.write_text(json.dumps(dataset))
+
+        cases = load_dataset(path)
+
+        assert cases[0].context == {"bangumi_id": 123}
+
+    def test_context_defaults_to_none(self, tmp_path: Path) -> None:
+        dataset = [
+            {
+                "id": "no-ctx",
+                "query": "no context",
+                "locale": "en",
+                "expected_steps": ["greet_user"],
+                "expected_intent": "greet",
+            },
+        ]
+        path = tmp_path / "dataset.json"
+        path.write_text(json.dumps(dataset))
+
+        cases = load_dataset(path)
+
+        assert cases[0].context is None
+
     def test_raises_on_missing_file(self) -> None:
         with pytest.raises(FileNotFoundError):
             load_dataset(Path("/nonexistent/dataset.json"))
@@ -84,6 +120,40 @@ class TestReadBaseline:
 
         result = read_baseline("plan_quality", "test-model", baselines_dir=tmp_path)
         assert result == {"StepsMatch": 0.8, "IntentMatch": 0.9}
+
+    def test_falls_back_to_legacy_filename(self, tmp_path: Path) -> None:
+        payload = {
+            "model": "test-model",
+            "case_count": 5,
+            "scores": {"Accuracy": 0.75},
+        }
+        legacy_path = tmp_path / "test-model.json"
+        legacy_path.write_text(json.dumps(payload))
+
+        result = read_baseline("plan_quality", "test-model", baselines_dir=tmp_path)
+        assert result == {"Accuracy": 0.75}
+
+    def test_stale_baseline_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        payload = {
+            "model": "test-model",
+            "case_count": 10,
+            "scores": {"StepsMatch": 0.8},
+        }
+        path = tmp_path / "plan_quality_test-model.json"
+        path.write_text(json.dumps(payload))
+
+        with caplog.at_level("WARNING", logger="backend.tests.eval.eval_common"):
+            result = read_baseline(
+                "plan_quality",
+                "test-model",
+                baselines_dir=tmp_path,
+                expected_case_count=20,
+            )
+
+        assert result == {}
+        assert "Stale baseline" in caplog.text
 
     def test_returns_empty_dict_when_stale_case_count(self, tmp_path: Path) -> None:
         payload = {
@@ -125,6 +195,16 @@ class TestWriteBaseline:
             baselines_dir=baselines_dir,
         )
         assert (baselines_dir / "layer1_model-x.json").exists()
+
+
+class TestBuildBaselineFilename:
+    def test_includes_layer_prefix(self) -> None:
+        result = _build_baseline_filename("plan_quality", "gpt-4o")
+        assert result == "plan_quality_gpt-4o.json"
+
+    def test_sanitizes_special_characters(self) -> None:
+        result = _build_baseline_filename("plan", "org/model:v1@latest")
+        assert result == "plan_org-model-v1-latest.json"
 
 
 class TestEnforceGate:
