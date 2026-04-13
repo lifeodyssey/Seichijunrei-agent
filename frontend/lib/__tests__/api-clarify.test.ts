@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { isClarifyData } from "../types";
 
 /**
  * Unit tests for clarify SSE event handling in sendMessageStream.
@@ -69,9 +70,11 @@ describe("sendMessageStream clarify handling", () => {
     const result = await sendMessageStream("test query", "sess-1", "ja");
 
     expect(result.status).toBe("needs_clarification");
-    const data = result.data as unknown as Record<string, unknown>;
-    expect(data.question).toBe("Which anime do you mean?");
-    expect(data.options).toEqual(["Steins;Gate", "Steins;Gate 0"]);
+    expect(isClarifyData(result.data)).toBe(true);
+    if (isClarifyData(result.data)) {
+      expect(result.data.question).toBe("Which anime do you mean?");
+      expect(result.data.options).toEqual(["Steins;Gate", "Steins;Gate 0"]);
+    }
   });
 
   it("resolves with needs_clarification when clarify has empty options", async () => {
@@ -105,9 +108,11 @@ describe("sendMessageStream clarify handling", () => {
     const result = await sendMessageStream("test", "sess-2", "ja");
 
     expect(result.status).toBe("needs_clarification");
-    const data = result.data as unknown as Record<string, unknown>;
-    expect(data.question).toBe("What do you want to search?");
-    expect(data.options).toEqual([]);
+    expect(isClarifyData(result.data)).toBe(true);
+    if (isClarifyData(result.data)) {
+      expect(result.data.question).toBe("What do you want to search?");
+      expect(result.data.options).toEqual([]);
+    }
   });
 
   it("throws on malformed clarify JSON in step event", async () => {

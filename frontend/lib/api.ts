@@ -1,4 +1,5 @@
 import type {
+  ClarifyData,
   ConversationRecord,
   RuntimeRequest,
   RuntimeResponse,
@@ -158,6 +159,27 @@ export async function sendSelectedRoute(
   return res.json() as Promise<RuntimeResponse>;
 }
 
+/** Parse an SSE done-event payload as a RuntimeResponse (trust boundary). */
+function parseDonePayload(payload: StreamEventPayload): RuntimeResponse {
+  const { event: _event, ...rest } = payload;
+  return rest as unknown as RuntimeResponse;
+}
+
+function applyClarifyOverride(
+  response: RuntimeResponse,
+  clarify: { question: string; options: string[] },
+): RuntimeResponse {
+  const data: ClarifyData = {
+    intent: response.intent ?? "clarify",
+    confidence: 1,
+    status: "needs_clarification",
+    message: clarify.question,
+    question: clarify.question,
+    options: clarify.options,
+  };
+  return { ...response, status: "needs_clarification", data };
+}
+
 type StreamEventPayload = {
   event?: string;
   tool?: string;
@@ -255,9 +277,7 @@ export async function sendMessageStream(
         if (payload.tool === "clarify") {
           clarifyData = {
             question: typeof payload.question === "string" ? payload.question : "",
-            options: Array.isArray(payload.options)
-              ? (payload.options as string[])
-              : [],
+            options: Array.isArray(payload.options) ? (payload.options as string[]) : [],
           };
         }
         onStep?.(
@@ -268,33 +288,11 @@ export async function sendMessageStream(
         );
       }
       if (event === "done") {
-        let response: RuntimeResponse;
-        if (typeof payload.event === "string") {
-          const { event: _event, ...rest } = payload;
-          response = rest as unknown as RuntimeResponse;
-        } else {
-          response = payload as unknown as RuntimeResponse;
-        }
-        if (clarifyData) {
-          response = {
-            ...response,
-            status: "needs_clarification",
-            data: {
-              intent: response.intent ?? "clarify",
-              confidence: 1,
-              status: "needs_clarification",
-              message: clarifyData.question,
-              question: clarifyData.question,
-              options: clarifyData.options,
-            } as unknown as RuntimeResponse["data"],
-          };
-        }
-        return response;
+        const response = parseDonePayload(payload);
+        return clarifyData ? applyClarifyOverride(response, clarifyData) : response;
       }
       if (event === "error") {
-        throw new Error(
-          typeof payload.message === "string" ? payload.message : "Stream error",
-        );
+        throw new Error(typeof payload.message === "string" ? payload.message : "Stream error");
       }
     }
     return null;
