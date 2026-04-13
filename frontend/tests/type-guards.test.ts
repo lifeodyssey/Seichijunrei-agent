@@ -60,6 +60,14 @@ test("isQAData returns true for info status", () => {
   assert.equal(isQAData(data as never), true);
 });
 
+test("isTimedRouteData returns false when route is null", () => {
+  assert.equal(isTimedRouteData({ route: null } as never), false);
+});
+
+test("isTimedRouteData returns false when route is undefined", () => {
+  assert.equal(isTimedRouteData({ route: undefined } as never), false);
+});
+
 test("isTimedRouteData returns true for route with timed_itinerary", () => {
   const data = {
     results: { rows: [], row_count: 0, strategy: "sql", status: "ok" },
