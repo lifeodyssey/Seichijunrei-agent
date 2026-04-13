@@ -79,7 +79,7 @@ def _build_test_app(
     settings = Settings()
     resolved_api: RuntimeAPI | MagicMock = runtime_api or RuntimeAPI(
         db,
-        session_store=InMemorySessionStore(),  # type: ignore[arg-type]
+        session_store=InMemorySessionStore(),
     )
 
     @asynccontextmanager
