@@ -276,6 +276,7 @@ async def test_patch_conversation_nonexistent_returns_404() -> None:
     body = resp.json()
     assert body["error"]["code"] == "not_found"
     assert body["error"]["message"] == "Conversation not found."
+    db.update_conversation_title.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -299,6 +300,7 @@ async def test_patch_conversation_wrong_user_returns_404() -> None:
     body = resp.json()
     assert body["error"]["code"] == "not_found"
     assert body["error"]["message"] == "Conversation not found."
+    db.update_conversation_title.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
