@@ -33,20 +33,20 @@ export type { ErrorCode, ChatMessage } from "./components";
 import type { RuntimeResponse } from "./api";
 import type { SearchResultData, RouteData, QAData, TimedRouteData } from "./domain";
 
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 export function isSearchData(data: RuntimeResponse["data"]): data is SearchResultData {
-  return data != null && "results" in data && !("route" in data);
+  return isObjectRecord(data) && "results" in data && !("route" in data);
 }
 
 export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
-  return data != null && "route" in data;
+  return isObjectRecord(data) && "route" in data;
 }
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
-  return data != null && (data.status === "info" || data.status === "needs_clarification");
+  return isObjectRecord(data) && (data.status === "info" || data.status === "needs_clarification");
 }
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 
 export function isTimedRouteData(data: RuntimeResponse["data"]): data is TimedRouteData {
   if (!isObjectRecord(data) || !("route" in data)) return false;
