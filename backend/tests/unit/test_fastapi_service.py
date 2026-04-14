@@ -25,6 +25,7 @@ def _build_stub_db() -> MagicMock:
     db.get_messages = AsyncMock(return_value=[])
     db.get_user_routes = AsyncMock(return_value=[])
     db.save_feedback = AsyncMock(return_value="fb-001")
+    db.update_conversation_title = AsyncMock(return_value=None)
     return db
 
 
@@ -252,3 +253,75 @@ async def test_app_state_accessible_when_injected() -> None:
     assert app.state.runtime_api is runtime_api
     assert app.state.settings is settings
     assert app.state.db_client is mock_db
+
+
+# ---------------------------------------------------------------------------
+# AC 10: PATCH /v1/conversations/{session_id} returns 404 for nonexistent
+# ---------------------------------------------------------------------------
+
+
+async def test_patch_conversation_nonexistent_returns_404() -> None:
+    db = _build_stub_db()
+    db.get_conversation = AsyncMock(return_value=None)
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.patch(
+            "/v1/conversations/nonexistent-session",
+            json={"title": "New Title"},
+            headers={"X-User-Id": "user-1"},
+        )
+
+    assert resp.status_code == 404
+    body = resp.json()
+    assert body["error"]["code"] == "not_found"
+    assert body["error"]["message"] == "Conversation not found."
+    db.update_conversation_title.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# AC 11: PATCH /v1/conversations/{session_id} returns 404 for wrong user
+# ---------------------------------------------------------------------------
+
+
+async def test_patch_conversation_wrong_user_returns_404() -> None:
+    db = _build_stub_db()
+    db.get_conversation = AsyncMock(return_value={"user_id": "other-user"})
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.patch(
+            "/v1/conversations/some-session",
+            json={"title": "New Title"},
+            headers={"X-User-Id": "user-1"},
+        )
+
+    assert resp.status_code == 404
+    body = resp.json()
+    assert body["error"]["code"] == "not_found"
+    assert body["error"]["message"] == "Conversation not found."
+    db.update_conversation_title.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# AC 12: PATCH /v1/conversations/{session_id} returns 200 for valid update
+# ---------------------------------------------------------------------------
+
+
+async def test_patch_conversation_valid_returns_200() -> None:
+    db = _build_stub_db()
+    db.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
+    db.update_conversation_title = AsyncMock(return_value=None)
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.patch(
+            "/v1/conversations/existing-session",
+            json={"title": "New Title"},
+            headers={"X-User-Id": "user-1"},
+        )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    db.update_conversation_title.assert_awaited_once()

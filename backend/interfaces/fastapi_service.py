@@ -255,6 +255,15 @@ async def handle_patch_conversation(
 ) -> JSONResponse:
     assert auth.user_id is not None
     db = _get_db_from_request(request)
+    get_conversation = _require_db_method(db, "get_conversation")
+    conversation_obj: object = await get_conversation(session_id)
+    conversation = conversation_obj if isinstance(conversation_obj, dict) else None
+    if conversation is None or conversation.get("user_id") != auth.user_id:
+        return _error_response(
+            "not_found",
+            "Conversation not found.",
+            status_code=404,
+        )
     update_conversation_title = _require_db_method(db, "update_conversation_title")
     await update_conversation_title(session_id, payload.title, user_id=auth.user_id)
     return _json_response({"ok": True})
