@@ -154,38 +154,6 @@ export default function AppShell() {
     }
   }, [messages, isMobile]);
 
-  const handleConversationSelect = useCallback(
-    async (selectedSessionId: string) => {
-      if (selectedSessionId === sessionId) return;
-      routeAbortRef.current?.abort();
-      routeAbortRef.current = null;
-      setRouteSending(false);
-      clearChat();
-      clearSelectedPoints();
-      setActiveMessageId(null);
-      setDrawerOpen(false);
-      setSessionId(selectedSessionId);
-      lastSyncedResponseIdRef.current = null;
-
-      try {
-        const msgs = await fetchConversationMessages(selectedSessionId);
-        const hydrated = msgs.map((m, i) => ({
-          id: `hydrated-${i}-${Date.now()}`,
-          role: m.role,
-          text: m.content,
-          response: hydrateResponseData(m.data) as RuntimeResponse | undefined,
-          timestamp: new Date(m.timestamp).getTime(),
-        }));
-        if (hydrated.length > 0) {
-          appendMessages(...hydrated);
-        }
-      } catch {
-        // Best-effort hydration; silent on failure
-      }
-    },
-    [appendMessages, clearChat, clearSelectedPoints, sessionId, setSessionId],
-  );
-
   const handleNewChat = useCallback(() => {
     routeAbortRef.current?.abort();
     routeAbortRef.current = null;
