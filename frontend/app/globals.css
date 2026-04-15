@@ -30,6 +30,7 @@
   --color-sidebar-border:    oklch(85% 0.022 222);
   --color-sidebar-accent:    oklch(88% 0.028 230);
   --color-sidebar-accent-fg: oklch(20% 0.025 238);
+  --color-sidebar-active:    oklch(93% 0.025 240);
 
   /* Semantic */
   --color-info:       oklch(88% 0.035 240);
@@ -274,6 +275,11 @@ input:not([type="hidden"]), select, textarea {
 :focus-visible:not(:has(:focus-visible)) {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* ── Icon sidebar nav button hover ── */
+.nav-button:not([data-active="true"]):hover {
+  background: var(--color-muted) !important;
 }
 
 /* ── Hover lift for cards ── */

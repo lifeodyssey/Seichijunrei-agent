@@ -3,7 +3,7 @@
 /** Icon sidebar — 56px wide icon rail replacing the 240px text sidebar.
  *
  * Layout spec:
- * - 56px wide, white bg, border-right
+ * - 56px wide, bg uses --color-bg, border-right
  * - Logo: 聖 in primary-colored rounded square (38x38)
  * - Navigation icons: 38x38 touch targets, rounded-8px, hover:muted bg
  * - Bottom section: settings icon
@@ -34,6 +34,7 @@ function NavButton({ label, active = false, onClick, children }: NavButtonProps)
       aria-label={label}
       data-active={active ? "true" : "false"}
       onClick={onClick}
+      className="nav-button"
       style={{
         width: 38,
         height: 38,
@@ -42,22 +43,15 @@ function NavButton({ label, active = false, onClick, children }: NavButtonProps)
         justifyContent: "center",
         borderRadius: 8,
         border: "none",
-        background: active ? "oklch(93% 0.025 240)" : "none",
-        color: active ? "var(--color-primary, oklch(60% 0.148 240))" : "var(--color-muted-fg, oklch(54% 0.032 228))",
+        background: active
+          ? "var(--color-sidebar-active, oklch(93% 0.025 240))"
+          : "transparent",
+        color: active
+          ? "var(--color-primary, oklch(60% 0.148 240))"
+          : "var(--color-muted-fg, oklch(54% 0.032 228))",
         cursor: "pointer",
         transition: "background 0.15s, color 0.15s",
         flexShrink: 0,
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLButtonElement).style.background =
-            "var(--color-muted, oklch(91% 0.016 218))";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLButtonElement).style.background = "none";
-        }
       }}
     >
       {children}
@@ -76,7 +70,7 @@ export default function IconSidebar({
       style={{
         width: 56,
         minWidth: 56,
-        background: "white",
+        background: "var(--color-bg)",
         borderRight: "1px solid var(--color-border, oklch(85% 0.022 222))",
         display: "flex",
         flexDirection: "column",
@@ -101,7 +95,7 @@ export default function IconSidebar({
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 10,
-          background: "oklch(93% 0.025 240)",
+          background: "var(--color-sidebar-active, oklch(93% 0.025 240))",
           marginBottom: 12,
           cursor: "pointer",
           border: "none",

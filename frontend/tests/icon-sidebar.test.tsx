@@ -2,8 +2,8 @@
  * Unit tests for IconSidebar component
  * AC: renders icons, no crash without session/active state
  */
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import IconSidebar from "../components/layout/IconSidebar";
 
 afterEach(() => cleanup());
@@ -59,9 +59,7 @@ describe("IconSidebar", () => {
     const { container } = render(<IconSidebar onNewChat={() => {}} />);
     const aside = container.querySelector("aside");
     expect(aside).not.toBeNull();
-    // Check the element has w-14 (56px) or inline width style
-    const style = window.getComputedStyle(aside!);
-    // jsdom won't resolve tailwind, but we can check the class or data attr
+    // jsdom won't resolve tailwind, but we can check the data attr
     expect(aside!.getAttribute("data-testid")).toBe("icon-sidebar");
   });
 
@@ -79,5 +77,15 @@ describe("IconSidebar", () => {
     );
     const activeBtn = container.querySelector("button[data-active='true']");
     expect(activeBtn).not.toBeNull();
+  });
+
+  it("onSectionClick('history') is callable without error", () => {
+    const onSectionClick = vi.fn();
+    render(
+      <IconSidebar onNewChat={() => {}} onSectionClick={onSectionClick} />
+    );
+    const historyBtn = screen.getByRole("button", { name: /history|履歴/i });
+    expect(() => fireEvent.click(historyBtn)).not.toThrow();
+    expect(onSectionClick).toHaveBeenCalledWith("history");
   });
 });

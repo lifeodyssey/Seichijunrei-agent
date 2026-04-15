@@ -294,8 +294,8 @@ export default function AppShell() {
             onNewChat={handleNewChat}
             onSectionClick={(section) => {
               // Section navigation is handled via the icon rail
-              // Currently just triggers new chat for now; can be extended
               if (section === "search") handleNewChat();
+              // TODO: wire history section click in Wave 2 (ConversationDrawer integration)
             }}
           />
         </div>
