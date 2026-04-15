@@ -22,7 +22,8 @@ import Sidebar from "./Sidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
-import ResultDrawer from "./ResultDrawer";
+import ResultSheet from "./ResultSheet";
+import ConversationDrawer from "./ConversationDrawer";
 import { SlideOverPanel } from "./SlideOverPanel";
 import { FullscreenOverlay } from "./FullscreenOverlay";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
@@ -386,31 +387,15 @@ export default function AppShell() {
             onCollapse={() => setSidebarOpen(false)}
           />
         )}
-        {isMobile && sidebarOpen && (
-          <>
-            {/* Dark backdrop */}
-            <div
-              className="fixed inset-0 z-40 bg-black/30"
-              onClick={() => setSidebarOpen(false)}
-              style={{ animation: "fade-in 200ms ease both" }}
-            />
-            {/* Sidebar overlay */}
-            <div
-              className="fixed inset-y-0 left-0 z-50 w-[280px] bg-[var(--color-bg)] shadow-xl"
-              style={{ animation: "slide-in-left 250ms var(--ease-out-quint) both" }}
-            >
-              <Sidebar
-                conversations={conversations}
-                activeSessionId={sessionId}
-                onNewChat={() => { handleNewChat(); setSidebarOpen(false); }}
-                onRenameConversation={renameConversation}
-                onSelectConversation={(id) => { handleConversationSelect(id); setSidebarOpen(false); }}
-                routes={routes}
-                onCollapse={() => setSidebarOpen(false)}
-                variant="mobile"
-              />
-            </div>
-          </>
+        {isMobile && (
+          <ConversationDrawer
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            conversations={conversations}
+            activeSessionId={sessionId}
+            onSelectConversation={handleConversationSelect}
+            onNewChat={handleNewChat}
+          />
         )}
 
         {/* Main chat area — takes full width */}
@@ -431,7 +416,7 @@ export default function AppShell() {
 
         {/* Mobile: vaul bottom sheet */}
         {isMobile && (
-          <ResultDrawer
+          <ResultSheet
             response={activeResponse}
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
