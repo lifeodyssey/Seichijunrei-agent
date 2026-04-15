@@ -255,6 +255,10 @@ class ReActPlannerAgent:
                 has_bangumi_search = any(
                     o.tool == "search_bangumi" and o.success for o in history
                 )
+                has_bangumi_search = has_bangumi_search or _dep_satisfied_in_session(
+                    "search_bangumi",
+                    deps.session_context,
+                )
                 needs_bangumi_search = intent in (
                     QueryIntent.ANIME_SEARCH,
                     QueryIntent.ROUTE_PLAN,
