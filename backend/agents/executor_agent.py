@@ -92,8 +92,13 @@ class ExecutorAgent:
         primary_tool = _infer_primary_tool(plan)
         result = PipelineResult(intent=primary_tool, plan=plan)
         context: dict[str, object] = {"locale": getattr(plan, "locale", "ja")}
-        if context_block and context_block.get("last_location"):
-            context["last_location"] = context_block["last_location"]
+        if context_block:
+            if context_block.get("last_location"):
+                context["last_location"] = context_block["last_location"]
+            if context_block.get("origin_lat") is not None:
+                context["origin_lat"] = context_block["origin_lat"]
+            if context_block.get("origin_lng") is not None:
+                context["origin_lng"] = context_block["origin_lng"]
         for step in plan.steps:
             tool_name = getattr(getattr(step, "tool", None), "value", "unknown")
             if on_step is not None:

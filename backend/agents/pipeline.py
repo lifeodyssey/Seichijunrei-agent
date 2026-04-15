@@ -104,8 +104,13 @@ async def react_loop(
     failure_count = 0
     accumulated_results: list[StepResult] = []
     executor_context: dict[str, object] = {"locale": locale}
-    if context and context.get("last_location"):
-        executor_context["last_location"] = context["last_location"]
+    if context:
+        if context.get("last_location"):
+            executor_context["last_location"] = context["last_location"]
+        if context.get("origin_lat") is not None:
+            executor_context["origin_lat"] = context["origin_lat"]
+        if context.get("origin_lng") is not None:
+            executor_context["origin_lng"] = context["origin_lng"]
     _seed_executor_context(executor_context, context)
 
     # Classify intent once for the entire loop
