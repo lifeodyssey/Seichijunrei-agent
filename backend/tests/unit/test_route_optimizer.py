@@ -226,6 +226,40 @@ def test_nearest_neighbor_with_origin() -> None:
     assert result[0].cluster_id == "b"
 
 
+def test_itinerary_uses_origin_for_first_stop() -> None:
+    clusters = [
+        LocationCluster(
+            center_lat=34.890,
+            center_lng=135.800,
+            cluster_id="a",
+            photo_count=1,
+            points=[{"id": "1", "name": "A"}],
+        ),
+        LocationCluster(
+            center_lat=34.900,
+            center_lng=135.800,
+            cluster_id="b",
+            photo_count=1,
+            points=[{"id": "2", "name": "B"}],
+        ),
+    ]
+
+    default_itinerary = build_timed_itinerary(
+        clusters,
+        start_time="09:00",
+        pacing="normal",
+    )
+    origin_itinerary = build_timed_itinerary(
+        clusters,
+        start_time="09:00",
+        pacing="normal",
+        origin=(34.899, 135.800),
+    )
+
+    assert default_itinerary.stops[0].cluster_id == "a"
+    assert origin_itinerary.stops[0].cluster_id == "b"
+
+
 def test_nearest_neighbor_empty() -> None:
     assert nearest_neighbor_sort([]) == []
 

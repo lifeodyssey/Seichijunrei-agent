@@ -434,6 +434,59 @@ class TestRuntimeAPI:
         assert response.route_history[0]["route_id"] == "route-1"
         mock_db.save_route.assert_awaited_once()
 
+    async def test_handle_preserves_coordinate_origin_in_route_history(self, mock_db):
+        result = _make_result(
+            intent="plan_route",
+            steps=[PlanStep(tool=ToolName.PLAN_ROUTE, params={})],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "ルートを作成しました。",
+                "results": {
+                    "rows": [{"id": "1", "bangumi_id": "115908"}],
+                    "row_count": 1,
+                },
+                "route": {
+                    "ordered_points": [
+                        {
+                            "id": "1",
+                            "name": "A",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        },
+                        {
+                            "id": "2",
+                            "name": "B",
+                            "latitude": 34.89,
+                            "longitude": 135.81,
+                        },
+                    ],
+                    "point_count": 2,
+                },
+            },
+        )
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            return result
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db)
+            response = await api.handle(
+                PublicAPIRequest(
+                    text="从当前位置出发去吹响的圣地",
+                    origin_lat=34.9,
+                    origin_lng=135.8,
+                )
+            )
+
+        assert response.route_history[0]["origin_station"] == "34.9,135.8"
+        save_route_kwargs = mock_db.save_route.await_args.kwargs
+        assert save_route_kwargs["origin_station"] == "34.9,135.8"
+        assert save_route_kwargs["origin_lat"] == 34.9
+        assert save_route_kwargs["origin_lon"] == 135.8
+
     async def test_request_log_called_after_response(self, monkeypatch):
         """insert_request_log is called once after a successful pipeline run."""
         result = _make_result(

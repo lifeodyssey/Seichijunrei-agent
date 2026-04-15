@@ -45,6 +45,27 @@ def build_query_payload(retrieval: RetrievalResult) -> dict[str, object]:
     }
 
 
+def _parse_coordinate_origin(origin: str | None) -> tuple[float, float] | None:
+    """Parse a coordinate origin encoded as "lat,lng"."""
+    if origin is None:
+        return None
+
+    parts = [part.strip() for part in origin.split(",")]
+    if len(parts) != 2:
+        return None
+
+    try:
+        lat = float(parts[0])
+        lng = float(parts[1])
+    except ValueError:
+        return None
+
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lng <= 180.0):
+        return None
+
+    return lat, lng
+
+
 def optimize_route(
     rows: list[dict[str, object]],
     params: dict[str, object],
@@ -70,10 +91,15 @@ def optimize_route(
     start_raw = params.get("start_time")
     start_time = start_raw if isinstance(start_raw, str) else "09:00"
 
+    route_origin = _parse_coordinate_origin(origin)
+
     # 4. Build timed itinerary (includes nearest-neighbor sort internally)
     try:
         itinerary = build_timed_itinerary(
-            clusters, start_time=start_time, pacing=pacing
+            clusters,
+            start_time=start_time,
+            pacing=pacing,
+            origin=route_origin,
         )
     except ValueError as e:
         return {"tool": tool_name, "success": False, "error": str(e)}
