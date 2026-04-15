@@ -131,6 +131,16 @@ export interface QAData {
   message: string;
 }
 
+/** data shape when intent = clarify (SSE clarify event merged into response) */
+export interface ClarifyData {
+  intent: string;
+  confidence: number;
+  status: "needs_clarification";
+  message: string;
+  question: string;
+  options: string[];
+}
+
 // ── Top-level request / response ───────────────────────────────────────────
 
 export interface RuntimeRequest {
@@ -183,7 +193,7 @@ export interface RuntimeResponse {
   intent: Intent;
   session_id: string | null;
   message: string;
-  data: SearchResultData | RouteData | QAData;
+  data: SearchResultData | RouteData | QAData | ClarifyData;
   session: {
     interaction_count: number;
     route_history_count: number;
@@ -223,7 +233,11 @@ export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
 }
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
-  return data != null && (data.status === "info" || data.status === "needs_clarification");
+  return data != null && !("question" in data) && (data.status === "info" || data.status === "needs_clarification");
+}
+
+export function isClarifyData(data: RuntimeResponse["data"]): data is ClarifyData {
+  return data != null && "question" in data && "options" in data;
 }
 
 export type TimedRouteData = RouteData & {
