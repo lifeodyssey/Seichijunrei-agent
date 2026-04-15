@@ -29,6 +29,7 @@ class ReActDeps:
     classified_intent: QueryIntent = QueryIntent.AMBIGUOUS
     query: str = ""
     locale: str = "ja"
+    session_context: dict[str, object] | None = None
 
 
 PLANNER_SYSTEM_PROMPT = """\
@@ -114,6 +115,24 @@ Your job: understand the user's request and output a structured execution plan.
 - "zh" for Chinese queries
 - "en" for English queries
 """
+
+
+def _dep_satisfied_in_session(
+    dep_tool: str,
+    session_context: dict[str, object] | None,
+) -> bool:
+    """Return True if *dep_tool* was satisfied in a prior session interaction.
+
+    Checks ``session_context["last_search_data"]`` for a key matching the
+    dependency tool name.  This allows the validator to accept steps whose
+    prerequisites were fulfilled in an earlier turn stored in session state.
+    """
+    if session_context is None:
+        return False
+    raw = session_context.get("last_search_data")
+    if not isinstance(raw, dict):
+        return False
+    return dep_tool in raw
 
 
 def _format_context_block(context: dict[str, object] | None) -> str:
@@ -264,7 +283,13 @@ class ReActPlannerAgent:
                 tool = result.action.tool
                 dep_list = STEP_DEPENDENCIES.get(tool, [])
                 for dep in dep_list:
-                    if not any(o.tool == dep.value and o.success for o in history):
+                    satisfied_in_history = any(
+                        o.tool == dep.value and o.success for o in history
+                    )
+                    satisfied_in_session = _dep_satisfied_in_session(
+                        dep.value, deps.session_context
+                    )
+                    if not satisfied_in_history and not satisfied_in_session:
                         raise ModelRetry(
                             f"{tool.value} requires {dep.value} to run first. "
                             f"Call {dep.value} before {tool.value}."
@@ -314,6 +339,7 @@ class ReActPlannerAgent:
             classified_intent=classified_intent,
             query=text,
             locale=locale,
+            session_context=context,
         )
         result = await self._step_agent.run(prompt, deps=deps)
         return result.output
