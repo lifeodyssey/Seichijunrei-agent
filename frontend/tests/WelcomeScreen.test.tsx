@@ -59,12 +59,18 @@ describe("WelcomeScreen", () => {
     expect(onSend).toHaveBeenCalledWith("君の名は の聖地を教えて");
   });
 
-  it("all 3 quick-action buttons are clickable and each calls onSend", () => {
+  it("nearby quick-action sends corresponding ja query", () => {
     const onSend = vi.fn();
     renderWelcomeScreen(onSend);
     fireEvent.click(screen.getByText("近くの聖地"));
+    expect(onSend).toHaveBeenCalledWith("現在地の近くにある聖地を教えて");
+  });
+
+  it("route quick-action sends corresponding ja query", () => {
+    const onSend = vi.fn();
+    renderWelcomeScreen(onSend);
     fireEvent.click(screen.getByText("ルートを作成"));
-    expect(onSend).toHaveBeenCalledTimes(2);
+    expect(onSend).toHaveBeenCalledWith("響け！ユーフォニアム の聖地を巡るルートを作って");
   });
 
   it("renders popular_label section header when bangumi popular chips load", async () => {
