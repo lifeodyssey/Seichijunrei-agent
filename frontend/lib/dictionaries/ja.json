@@ -140,6 +140,16 @@
     "generic": "エラーが発生しました。もう一度お試しください。",
     "retry": "再試行"
   },
+  "welcome_screen": {
+    "tagline": "アニメの舞台を探して、巡礼ルートを作ろう",
+    "action_search": "作品で探す",
+    "action_search_desc": "アニメのタイトルから聖地を検索",
+    "action_nearby": "近くの聖地",
+    "action_nearby_desc": "現在地の周辺にあるスポットを表示",
+    "action_route": "ルートを作成",
+    "action_route_desc": "行きたいスポットで巡礼ルートを組む",
+    "popular_label": "人気の作品"
+  },
   "clarification": {
     "examples_label": "例えば：",
     "suggestions": [
