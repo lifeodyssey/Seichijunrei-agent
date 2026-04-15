@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Drawer } from "vaul";
 import type { RuntimeResponse } from "@/lib/types";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
@@ -31,13 +32,15 @@ export default function ResultSheet({
   loading,
 }: ResultSheetProps) {
   const { selectedIds, clear } = usePointSelectionContext();
+  const [snap, setSnap] = useState<number | string | null>(0.4);
 
   return (
     <Drawer.Root
       open={open}
       onOpenChange={(o) => !o && onClose()}
       snapPoints={[0.4, 0.9]}
-      activeSnapPoint={0.4}
+      activeSnapPoint={snap}
+      setActiveSnapPoint={setSnap}
     >
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-black/60" />

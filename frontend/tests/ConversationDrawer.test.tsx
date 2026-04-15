@@ -1,7 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-
-afterEach(cleanup);
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import ConversationDrawer from "@/components/layout/ConversationDrawer";
 import type { ConversationRecord } from "@/lib/types";
 

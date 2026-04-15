@@ -2,6 +2,7 @@
 
 import type { ConversationRecord } from "@/lib/types";
 import { getConversationDisplayTitle } from "../../lib/conversation-history";
+import { relativeTime } from "../../lib/time-utils";
 
 interface ConversationDrawerProps {
   open: boolean;
@@ -15,19 +16,105 @@ interface ConversationDrawerProps {
 /** Route-related keywords used to select the 📍 icon. */
 const ROUTE_KEYWORDS = /route|ルート|路线|plan|計画|计划/i;
 
-/** Locale-aware relative time string from an ISO date. */
-function relativeTime(dateStr: string | undefined | null): string {
-  if (!dateStr) return "";
-  const parsed = new Date(dateStr).getTime();
-  if (Number.isNaN(parsed)) return "";
-  const diff = Date.now() - parsed;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+interface ConversationItemProps {
+  record: ConversationRecord;
+  isActive: boolean;
+  onSelect: () => void;
+}
+
+function ConversationItem({ record, isActive, onSelect }: ConversationItemProps) {
+  const displayTitle = getConversationDisplayTitle(record);
+  const icon = ROUTE_KEYWORDS.test(record.first_query) ? "📍" : "🗾";
+  const meta = relativeTime(record.updated_at);
+
+  return (
+    <div
+      key={record.session_id}
+      data-testid={`conversation-item-${record.session_id}`}
+      className={[
+        "mb-0.5 flex items-start gap-2 rounded-lg px-3 py-2.5 cursor-pointer transition",
+        isActive
+          ? "bg-[var(--color-primary)] text-white"
+          : "hover:bg-[var(--color-muted)]",
+      ].join(" ")}
+      onClick={onSelect}
+    >
+      <span className="mt-0.5 shrink-0 text-sm leading-none" aria-hidden="true">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p
+          className={[
+            "truncate text-xs font-medium",
+            isActive ? "text-white" : "text-[var(--color-fg)]",
+          ].join(" ")}
+        >
+          {displayTitle.length > 25
+            ? displayTitle.slice(0, 25) + "\u2026"
+            : displayTitle}
+        </p>
+        {meta && (
+          <p
+            className={[
+              "mt-0.5 text-[10px]",
+              isActive ? "text-white/70" : "text-[var(--color-muted-fg)] opacity-60",
+            ].join(" ")}
+          >
+            {meta}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyConversations() {
+  return (
+    <div
+      data-testid="conversation-drawer-empty"
+      className="flex flex-col items-center justify-center h-32 gap-2 text-[var(--color-muted-fg)]"
+    >
+      <span className="text-2xl" aria-hidden="true">🗾</span>
+      <p className="text-xs text-center">
+        まだ会話がありません
+      </p>
+    </div>
+  );
+}
+
+interface ConversationListProps {
+  conversations: ConversationRecord[];
+  activeSessionId: string | null;
+  onSelectConversation: (sessionId: string) => void;
+  onClose: () => void;
+}
+
+function ConversationList({
+  conversations,
+  activeSessionId,
+  onSelectConversation,
+  onClose,
+}: ConversationListProps) {
+  if (conversations.length === 0) return <EmptyConversations />;
+
+  return (
+    <>
+      <p className="pb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)] opacity-60">
+        最近
+      </p>
+      {conversations.map((record) => (
+        <ConversationItem
+          key={record.session_id}
+          record={record}
+          isActive={record.session_id === activeSessionId}
+          onSelect={() => {
+            onSelectConversation(record.session_id);
+            onClose();
+          }}
+        />
+      ))}
+    </>
+  );
 }
 
 /**
@@ -51,7 +138,10 @@ export default function ConversationDrawer({
       <div
         className="fixed inset-0 z-40 bg-black/30"
         onClick={onClose}
-        aria-hidden="true"
+        role="button"
+        tabIndex={0}
+        aria-label="Close conversation drawer"
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
       />
 
       {/* Drawer panel */}
@@ -99,72 +189,12 @@ export default function ConversationDrawer({
 
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto px-4 pt-2">
-          {conversations.length === 0 ? (
-            <div
-              data-testid="conversation-drawer-empty"
-              className="flex flex-col items-center justify-center h-32 gap-2 text-[var(--color-muted-fg)]"
-            >
-              <span className="text-2xl" aria-hidden="true">🗾</span>
-              <p className="text-xs text-center">
-                まだ会話がありません
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="pb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)] opacity-60">
-                最近
-              </p>
-              {conversations.map((record) => {
-                const isActive = record.session_id === activeSessionId;
-                const displayTitle = getConversationDisplayTitle(record);
-                const icon = ROUTE_KEYWORDS.test(record.first_query) ? "📍" : "🗾";
-                const meta = relativeTime(record.updated_at);
-
-                return (
-                  <div
-                    key={record.session_id}
-                    data-testid={`conversation-item-${record.session_id}`}
-                    className={[
-                      "mb-0.5 flex items-start gap-2 rounded-lg px-3 py-2.5 cursor-pointer transition",
-                      isActive
-                        ? "bg-[var(--color-primary)] text-white"
-                        : "hover:bg-[var(--color-muted)]",
-                    ].join(" ")}
-                    onClick={() => {
-                      onSelectConversation(record.session_id);
-                      onClose();
-                    }}
-                  >
-                    <span className="mt-0.5 shrink-0 text-sm leading-none" aria-hidden="true">
-                      {icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={[
-                          "truncate text-xs font-medium",
-                          isActive ? "text-white" : "text-[var(--color-fg)]",
-                        ].join(" ")}
-                      >
-                        {displayTitle.length > 25
-                          ? displayTitle.slice(0, 25) + "\u2026"
-                          : displayTitle}
-                      </p>
-                      {meta && (
-                        <p
-                          className={[
-                            "mt-0.5 text-[10px]",
-                            isActive ? "text-white/70" : "text-[var(--color-muted-fg)] opacity-60",
-                          ].join(" ")}
-                        >
-                          {meta}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
+          <ConversationList
+            conversations={conversations}
+            activeSessionId={activeSessionId}
+            onSelectConversation={onSelectConversation}
+            onClose={onClose}
+          />
         </div>
       </div>
     </>
