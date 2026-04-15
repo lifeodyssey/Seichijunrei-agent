@@ -7,6 +7,7 @@ import type {
   SearchResultData,
   RouteData,
   QAData,
+  ClarifyData,
 } from "./domain";
 
 export interface RouteHistoryRecord {
@@ -59,7 +60,7 @@ export interface RuntimeResponse {
   intent: Intent;
   session_id: string | null;
   message: string;
-  data: SearchResultData | RouteData | QAData;
+  data: SearchResultData | RouteData | QAData | ClarifyData;
   session: {
     interaction_count: number;
     route_history_count: number;

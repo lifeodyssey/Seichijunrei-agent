@@ -13,6 +13,7 @@ export type {
   TransitLeg,
   TimedItinerary,
   QAData,
+  ClarifyData,
   TimedRouteData,
 } from "./domain";
 
@@ -31,7 +32,7 @@ export type { ErrorCode, ChatMessage } from "./components";
 // ── Type guards ────────────────────────────────────────────────────────────
 
 import type { RuntimeResponse } from "./api";
-import type { SearchResultData, RouteData, QAData, TimedRouteData } from "./domain";
+import type { SearchResultData, RouteData, QAData, ClarifyData, TimedRouteData } from "./domain";
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -46,6 +47,10 @@ export function isRouteData(data: RuntimeResponse["data"]): data is RouteData {
 
 export function isQAData(data: RuntimeResponse["data"]): data is QAData {
   return isObjectRecord(data) && (data.status === "info" || data.status === "needs_clarification");
+}
+
+export function isClarifyData(data: RuntimeResponse["data"]): data is ClarifyData {
+  return isObjectRecord(data) && data.status === "needs_clarification" && "question" in data;
 }
 
 export function isTimedRouteData(data: RuntimeResponse["data"]): data is TimedRouteData {

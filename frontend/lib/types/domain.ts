@@ -129,6 +129,16 @@ export interface QAData {
   message: string;
 }
 
+/** data shape when intent = clarify (SSE clarify event merged into response) */
+export interface ClarifyData {
+  intent: string;
+  confidence: number;
+  status: "needs_clarification";
+  message: string;
+  question: string;
+  options: string[];
+}
+
 export type TimedRouteData = RouteData & {
   route: { timed_itinerary: TimedItinerary };
 };
