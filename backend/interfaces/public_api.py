@@ -114,6 +114,11 @@ class RuntimeAPI:
                 context_delta: dict[str, object] = {}
                 user_memory = await self._load_user_memory(user_id)
                 context = build_context_block(previous_state, user_memory=user_memory)
+                if request.origin_lat is not None and request.origin_lng is not None:
+                    if context is None:
+                        context = {}
+                    context["origin_lat"] = request.origin_lat
+                    context["origin_lng"] = request.origin_lng
                 synthetic_plan = (
                     build_selected_points_plan(request)
                     if request.selected_point_ids

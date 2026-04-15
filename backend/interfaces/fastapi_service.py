@@ -307,6 +307,7 @@ async def handle_get_routes(
 @router.get("/v1/bangumi/popular")
 async def handle_bangumi_popular(
     request: Request,
+    auth: Annotated[TrustedAuthContext, Depends(_get_trusted_auth_context)],
     limit: int = 8,
 ) -> JSONResponse:
     if limit < 1:
@@ -321,6 +322,7 @@ async def handle_bangumi_popular(
 @router.get("/v1/bangumi/nearby")
 async def handle_bangumi_nearby(
     request: Request,
+    auth: Annotated[TrustedAuthContext, Depends(_get_trusted_auth_context)],
     lat: float,
     lng: float,
     radius_m: int = 50000,
@@ -329,6 +331,8 @@ async def handle_bangumi_nearby(
         raise HTTPException(status_code=422, detail="lat must be between -90 and 90.")
     if lng < -180.0 or lng > 180.0:
         raise HTTPException(status_code=422, detail="lng must be between -180 and 180.")
+    if radius_m < 1:
+        raise HTTPException(status_code=422, detail="radius_m must be positive.")
     db = _get_db_from_request(request)
     get_bangumi_by_area = _require_db_method(db, "get_bangumi_by_area")
     rows_obj: object = await get_bangumi_by_area(lat, lng, radius_m)

@@ -496,3 +496,102 @@ async def test_nearby_missing_lat_returns_422() -> None:
         resp = await client.get("/v1/bangumi/nearby?lng=135.8&radius_m=50000")
 
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Finding 2: Auth enforcement on /v1/bangumi/popular and /v1/bangumi/nearby
+# ---------------------------------------------------------------------------
+
+
+async def test_popular_without_auth_header_still_returns_200() -> None:
+    """GET /v1/bangumi/popular does NOT require X-User-Id (open endpoint)."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular")
+
+    assert resp.status_code == 200
+
+
+async def test_nearby_without_auth_header_still_returns_200() -> None:
+    """GET /v1/bangumi/nearby does NOT require X-User-Id (open endpoint)."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=1000")
+
+    assert resp.status_code == 200
+
+
+async def test_popular_with_x_user_id_header_passes_auth_context() -> None:
+    """GET /v1/bangumi/popular with X-User-Id header succeeds (auth is read but not required)."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular", headers={"X-User-Id": "user-1"})
+
+    assert resp.status_code == 200
+
+
+async def test_nearby_with_x_user_id_header_passes_auth_context() -> None:
+    """GET /v1/bangumi/nearby with X-User-Id header succeeds."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get(
+            "/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=1000",
+            headers={"X-User-Id": "user-1"},
+        )
+
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Finding 6: radius_m validation (must be positive)
+# ---------------------------------------------------------------------------
+
+
+async def test_nearby_zero_radius_returns_422() -> None:
+    """radius_m=0 returns 422 (must be positive)."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=0")
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert "radius_m" in body["error"]["message"]
+
+
+async def test_nearby_negative_radius_returns_422() -> None:
+    """Negative radius_m returns 422."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=-1000")
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert "radius_m" in body["error"]["message"]
+
+
+async def test_nearby_positive_radius_returns_200() -> None:
+    """Positive radius_m passes validation."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=1")
+
+    assert resp.status_code == 200

@@ -274,6 +274,42 @@ class TestPlanRouteCoordinateOrigin:
         assert result["success"] is False
         assert "No points to route" in result["error"]
 
+    async def test_coordinate_origin_passed_as_string_to_optimize_route(self) -> None:
+        """Finding 7: coordinate origin is forwarded as 'lat,lng' string, not discarded."""
+        from unittest.mock import patch as _patch
+
+        step = _step(ToolName.PLAN_ROUTE, {})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _SAMPLE_ROWS},
+            "origin_lat": 34.9,
+            "origin_lng": 135.8,
+        }
+
+        captured: list[tuple[object, ...]] = []
+
+        def _fake_optimize(
+            rows: object,
+            params: object,
+            origin: object,
+            tool_name: str = "plan_route",
+        ) -> dict[str, object]:
+            captured.append((rows, params, origin, tool_name))
+            return {
+                "tool": "plan_route",
+                "success": True,
+                "data": {"ordered_points": []},
+            }
+
+        with _patch(
+            "backend.agents.handlers.plan_route.optimize_route",
+            side_effect=_fake_optimize,
+        ):
+            await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        assert len(captured) == 1
+        _, _, origin, _ = captured[0]
+        assert origin == "34.9,135.8"
+
 
 class TestClarify:
     async def test_returns_clarification(self) -> None:

@@ -31,8 +31,8 @@ async def execute(
     coord_lat = context.get("origin_lat")
     coord_lng = context.get("origin_lng")
     if isinstance(coord_lat, (int, float)) and isinstance(coord_lng, (int, float)):
-        # Pass coordinate origin directly to optimize_route; no text resolution needed
-        origin: str | None = None
+        # Forward coordinate as "lat,lng" string so it survives into route history
+        origin: str | None = f"{coord_lat},{coord_lng}"
         return optimize_route(rows, params, origin, tool_name="plan_route")
 
     origin_raw = params.get("origin") or context.get("last_location")

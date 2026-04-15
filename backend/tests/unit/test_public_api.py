@@ -1032,3 +1032,57 @@ class TestBuildContextBlockWithUserMemory:
             "last_intent": None,
             "visited_bangumi_ids": ["105"],
         }
+
+
+# ---------------------------------------------------------------------------
+# Finding 1: origin_lat/origin_lng injected into pipeline context
+# ---------------------------------------------------------------------------
+
+
+class TestOriginCoordinatesWiredToContext:
+    async def test_origin_lat_lng_injected_when_provided(self, mock_db):
+        """Finding 1: origin_lat/lng on request are forwarded to pipeline context."""
+        captured: dict[str, object] = {}
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            captured["context"] = context
+            return _make_result(locale=locale)
+
+        request = PublicAPIRequest(
+            text="聖地巡礼",
+            origin_lat=34.9,
+            origin_lng=135.8,
+        )
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(request)
+
+        ctx = captured.get("context")
+        assert isinstance(ctx, dict)
+        assert ctx.get("origin_lat") == 34.9
+        assert ctx.get("origin_lng") == 135.8
+
+    async def test_origin_coords_not_injected_when_absent(self, mock_db):
+        """When origin_lat/lng are not set, context does not contain those keys."""
+        captured: dict[str, object] = {}
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            captured["context"] = context
+            return _make_result(locale=locale)
+
+        request = PublicAPIRequest(text="聖地巡礼")
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(request)
+
+        ctx = captured.get("context")
+        # context may be None (no session state) or a dict without origin keys
+        if isinstance(ctx, dict):
+            assert "origin_lat" not in ctx
+            assert "origin_lng" not in ctx
