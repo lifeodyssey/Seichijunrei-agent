@@ -12,8 +12,12 @@ export function EpisodeBadge({ episode }: { episode: number | null }) {
   if (episode == null) return null;
   return (
     <span
-      className="absolute left-2 top-2 rounded-[5px] px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white"
-      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+      className="absolute left-2 top-2 rounded-[5px] px-2 py-0.5 text-[10px] font-semibold tracking-wide"
+      style={{
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)",
+        color: "var(--color-bg)",
+      }}
     >
       {t.episode.replace("{ep}", String(episode))}
     </span>
@@ -59,7 +63,10 @@ export function PhotoCard({ point, selected, onToggle }: PhotoCardProps) {
         )}
         <EpisodeBadge episode={point.episode} />
         {selected && (
-          <div className="absolute right-2 top-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-white">
+          <div
+            className="absolute right-2 top-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold"
+            style={{ color: "var(--color-bg)" }}
+          >
             ✓
           </div>
         )}
