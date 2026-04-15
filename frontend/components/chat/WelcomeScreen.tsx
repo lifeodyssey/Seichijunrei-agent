@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Dict } from "../../lib/i18n";
+import type { Dict, Locale } from "../../lib/i18n";
 import { fetchPopularBangumi, type PopularBangumiEntry } from "../../lib/api";
 
 interface WelcomeScreenProps {
   onSend: (text: string) => void;
   dict: Dict;
+  locale: Locale;
 }
 
 interface QuickAction {
@@ -16,25 +17,26 @@ interface QuickAction {
   query: string;
 }
 
-function buildQuickActions(ws: Dict["welcome_screen"], locale: string): QuickAction[] {
-  const queries: Record<string, [string, string, string]> = {
-    ja: [
-      "君の名は の聖地を教えて",
-      "現在地の近くにある聖地を教えて",
-      "響け！ユーフォニアム の聖地を巡るルートを作って",
-    ],
-    zh: [
-      "你的名字的取景地在哪",
-      "告诉我附近的动漫取景地",
-      "帮我规划吹响上低音号的巡礼路线",
-    ],
-    en: [
-      "Show me anime spots for Your Name",
-      "Find anime spots near me",
-      "Plan a pilgrimage route for Sound! Euphonium",
-    ],
-  };
-  const q = queries[locale] ?? queries["ja"];
+const QUICK_ACTION_QUERIES: Record<Locale, [string, string, string]> = {
+  ja: [
+    "君の名は の聖地を教えて",
+    "現在地の近くにある聖地を教えて",
+    "響け！ユーフォニアム の聖地を巡るルートを作って",
+  ],
+  zh: [
+    "你的名字的取景地在哪",
+    "告诉我附近的动漫取景地",
+    "帮我规划吹响上低音号的巡礼路线",
+  ],
+  en: [
+    "Show me anime spots for Your Name",
+    "Find anime spots near me",
+    "Plan a pilgrimage route for Sound! Euphonium",
+  ],
+};
+
+function buildQuickActions(ws: Dict["welcome_screen"], locale: Locale): QuickAction[] {
+  const q = QUICK_ACTION_QUERIES[locale];
   return [
     { icon: "🔍", label: ws.action_search, desc: ws.action_search_desc, query: q[0] },
     { icon: "📍", label: ws.action_nearby, desc: ws.action_nearby_desc, query: q[1] },
@@ -42,15 +44,9 @@ function buildQuickActions(ws: Dict["welcome_screen"], locale: string): QuickAct
   ];
 }
 
-export default function WelcomeScreen({ onSend, dict }: WelcomeScreenProps) {
+export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenProps) {
   const ws = dict.welcome_screen;
   const [popular, setPopular] = useState<PopularBangumiEntry[]>([]);
-
-  // Detect locale from dict by checking a known locale-specific string
-  const locale =
-    dict.chat.placeholder.startsWith("聖地を探す") ? "ja"
-    : dict.chat.placeholder.startsWith("搜索") ? "zh"
-    : "en";
 
   useEffect(() => {
     fetchPopularBangumi()

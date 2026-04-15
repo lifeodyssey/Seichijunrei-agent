@@ -11,7 +11,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "./mocks/server";
 import WelcomeScreen from "@/components/chat/WelcomeScreen";
-import type { Dict } from "@/lib/i18n";
+import type { Dict, Locale } from "@/lib/i18n";
 import jaDict from "@/lib/dictionaries/ja.json";
 import zhDict from "@/lib/dictionaries/zh.json";
 import enDict from "@/lib/dictionaries/en.json";
@@ -24,9 +24,10 @@ const enFull = enDict as unknown as Dict;
 function renderWelcomeScreen(
   onSend: (text: string) => void = vi.fn(),
   dict: Dict = jaFull,
+  locale: Locale = "ja",
 ) {
   return render(
-    <WelcomeScreen onSend={onSend} dict={dict} />,
+    <WelcomeScreen onSend={onSend} dict={dict} locale={locale} />,
   );
 }
 
@@ -55,7 +56,7 @@ describe("WelcomeScreen", () => {
     renderWelcomeScreen(onSend);
     fireEvent.click(screen.getByText("作品で探す"));
     expect(onSend).toHaveBeenCalledOnce();
-    expect(onSend).toHaveBeenCalledWith(expect.any(String));
+    expect(onSend).toHaveBeenCalledWith("君の名は の聖地を教えて");
   });
 
   it("all 3 quick-action buttons are clickable and each calls onSend", () => {
@@ -92,6 +93,8 @@ describe("WelcomeScreen", () => {
     expect(() => renderWelcomeScreen()).not.toThrow();
     // Quick actions still visible
     expect(screen.getByText("作品で探す")).toBeInTheDocument();
+    // Chip section header must be absent when list is empty
+    expect(screen.queryByText("人気の作品")).not.toBeInTheDocument();
   });
 
   it("does not crash on /v1/bangumi/popular network failure", async () => {
@@ -105,26 +108,26 @@ describe("WelcomeScreen", () => {
   });
 
   it("renders tagline in Chinese when zh dict provided", () => {
-    renderWelcomeScreen(vi.fn(), zhFull);
+    renderWelcomeScreen(vi.fn(), zhFull, "zh");
     expect(screen.getByText("探索动漫圣地，踏上巡礼之旅")).toBeInTheDocument();
   });
 
   it("renders tagline in English when en dict provided", () => {
-    renderWelcomeScreen(vi.fn(), enFull);
+    renderWelcomeScreen(vi.fn(), enFull, "en");
     expect(
       screen.getByText("Find anime filming locations and plan your pilgrimage route"),
     ).toBeInTheDocument();
   });
 
   it("renders quick-action labels in Chinese", () => {
-    renderWelcomeScreen(vi.fn(), zhFull);
+    renderWelcomeScreen(vi.fn(), zhFull, "zh");
     expect(screen.getByText("搜索作品")).toBeInTheDocument();
     expect(screen.getByText("附近圣地")).toBeInTheDocument();
     expect(screen.getByText("创建路线")).toBeInTheDocument();
   });
 
   it("renders quick-action labels in English", () => {
-    renderWelcomeScreen(vi.fn(), enFull);
+    renderWelcomeScreen(vi.fn(), enFull, "en");
     expect(screen.getByText("Search by anime")).toBeInTheDocument();
     expect(screen.getByText("Nearby spots")).toBeInTheDocument();
     expect(screen.getByText("Plan a route")).toBeInTheDocument();
