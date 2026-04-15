@@ -46,6 +46,31 @@ def _infer_intent(step_results: list[StepResult], priority_map: dict[str, int]) 
     return intent
 
 
+_SEARCH_TOOLS = ("search_bangumi", "search_nearby")
+
+
+def _seed_executor_context(
+    executor_context: dict[str, object],
+    context: dict[str, object] | None,
+) -> None:
+    """Pre-populate executor_context with cached search results from the session.
+
+    When the session's context block carries ``last_search_data``, its
+    ``search_bangumi`` and/or ``search_nearby`` entries are copied into
+    *executor_context* so downstream steps can reuse previous results
+    without re-executing the search.
+    """
+    if context is None:
+        return
+    raw = context.get("last_search_data")
+    if not isinstance(raw, dict):
+        return
+    for key in _SEARCH_TOOLS:
+        value = raw.get(key)
+        if isinstance(value, dict):
+            executor_context[key] = value
+
+
 @dataclass
 class ReactStepEvent:
     """One event yielded by the ReAct loop for SSE streaming."""
@@ -81,6 +106,7 @@ async def react_loop(
     executor_context: dict[str, object] = {"locale": locale}
     if context and context.get("last_location"):
         executor_context["last_location"] = context["last_location"]
+    _seed_executor_context(executor_context, context)
 
     # Classify intent once for the entire loop
     classified_intent, _confidence = classify_intent(text, locale)
