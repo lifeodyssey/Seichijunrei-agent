@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
+
+afterEach(cleanup);
 import ResultSheet from "@/components/layout/ResultSheet";
 import type { RuntimeResponse } from "@/lib/types";
 import { PointSelectionContext } from "@/contexts/PointSelectionContext";
