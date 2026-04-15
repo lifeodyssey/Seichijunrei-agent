@@ -51,6 +51,7 @@ Task 11 depends on everything above.
 ## Task 1: `agents/models.py` — Shared Type System
 
 **Files:**
+
 - Create: `agents/models.py`
 - Create: `tests/unit/test_models.py`
 
@@ -195,6 +196,7 @@ git commit -m "feat(models): add shared PlanStep, ExecutionPlan, RetrievalReques
 ## Task 2: `infrastructure/supabase/client.py` — Bangumi Title Resolution
 
 **Files:**
+
 - Modify: `infrastructure/supabase/client.py` (after the `list_bangumi` method)
 - Modify: `tests/unit/test_supabase_client.py`
 
@@ -304,6 +306,7 @@ git commit -m "feat(db): add find_bangumi_by_title and upsert_bangumi_title to S
 ## Task 3: `infrastructure/gateways/bangumi.py` — Title Search
 
 **Files:**
+
 - Modify: `infrastructure/gateways/bangumi.py`
 - Modify: `application/ports/bangumi_gateway.py` (add `search_by_title` to the port)
 - Modify: `tests/unit/test_gateway_contracts.py`
@@ -400,6 +403,7 @@ git commit -m "feat(gateway): add search_by_title to BangumiGateway port and ada
 ## Task 4: `agents/sql_agent.py` — Replace `IntentOutput` with `RetrievalRequest`
 
 **Files:**
+
 - Modify: `agents/sql_agent.py`
 - Modify: `tests/unit/test_sql_agent.py`
 
@@ -505,6 +509,7 @@ git commit -m "refactor(sql_agent): replace IntentOutput with RetrievalRequest"
 ## Task 5: `agents/retriever.py` — Replace `IntentOutput` with `RetrievalRequest`
 
 **Files:**
+
 - Modify: `agents/retriever.py`
 - Rewrite: `tests/unit/test_retriever.py`
 
@@ -588,6 +593,7 @@ async def execute(self, request: RetrievalRequest) -> RetrievalResult:
 ```
 
 For internal methods `_execute_sql`, `_execute_geo`, `_execute_hybrid`, `_execute_sql_with_fallback`:
+
 - Change signature from `(self, intent: IntentOutput)` to `(self, request: RetrievalRequest)`
 - Replace field accesses per the same table as Task 4
 
@@ -614,6 +620,7 @@ git commit -m "refactor(retriever): replace IntentOutput with RetrievalRequest"
 ## Task 6: `agents/executor_agent.py` — New Handler Dispatch + Remove LLM Message Call
 
 **Files:**
+
 - Rewrite: `agents/executor_agent.py`
 - Rewrite: `tests/unit/test_executor_agent.py`
 
@@ -1123,6 +1130,7 @@ git commit -m "refactor(executor): new handler dispatch for ToolName, remove LLM
 ## Task 7: `agents/planner_agent.py` — Rewrite as ReActPlannerAgent
 
 **Files:**
+
 - Rewrite: `agents/planner_agent.py`
 - Rewrite: `tests/unit/test_planner_agent.py`
 
@@ -1323,6 +1331,7 @@ git commit -m "feat(planner): rewrite as ReActPlannerAgent — LLM structured ou
 ## Task 8: `agents/pipeline.py` — Simplify
 
 **Files:**
+
 - Rewrite: `agents/pipeline.py`
 - Modify: `tests/unit/test_pipeline.py`
 
@@ -1481,6 +1490,7 @@ git commit -m "refactor(pipeline): simplify to create_plan → execute, drop cla
 ## Task 9: Delete `agents/intent_agent.py` and Fix All Imports
 
 **Files:**
+
 - Delete: `agents/intent_agent.py`
 - Delete: `tests/unit/test_intent_agent.py`
 - Scan and fix any remaining imports
@@ -1494,6 +1504,7 @@ grep -rn "intent_agent\|IntentOutput\|ExtractedParams\|classify_intent\|BANGUMI_
 - [ ] **Step 9.2: Fix any remaining references**
 
 If the scan finds any files still importing from `agents.intent_agent`, update them:
+
 - `from agents.intent_agent import IntentOutput` → delete the import (no longer needed)
 - Any test that still constructs `IntentOutput(...)` → rewrite to use `RetrievalRequest` or `PlanStep`
 
@@ -1518,6 +1529,7 @@ git commit -m "refactor: delete IntentAgent — absorbed into ReActPlannerAgent 
 ## Task 10: `interfaces/public_api.py` — Add `"en"` Locale + `ui` Field
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Modify: `tests/unit/test_public_api.py`
 
@@ -1736,6 +1748,7 @@ gh run watch
 **Goal:** Every `/v1/runtime` call writes `{query, plan_steps, result_status, latency_ms}` to a `request_log` table in Supabase.
 
 **Files:**
+
 - Create: `infrastructure/supabase/migrations/001_request_log.sql`
 - Modify: `infrastructure/supabase/client.py` (add `insert_request_log`)
 - Modify: `interfaces/public_api.py` (call `insert_request_log` after response)

@@ -13,6 +13,7 @@
 ## Context
 
 Current root has a lot of mixed concerns:
+
 - runtime code (`backend/`, `frontend/`, `worker/`)
 - infra files (`wrangler.toml`, `Dockerfile`, `Makefile`)
 - docs (`DEPLOYMENT.md`, `README*`, `docs/`)
@@ -40,12 +41,14 @@ The main issue is not hidden dot-directories; it is that long-lived docs, iterat
 ### Task 1: Define target structure
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Add repository map to README**
 
 Document top-level purpose of:
+
 - `backend/`
 - `frontend/`
 - `worker/`
@@ -56,6 +59,7 @@ Document top-level purpose of:
 - [ ] **Step 2: Add placement rules to CLAUDE.md**
 
 Rules such as:
+
 - runtime entrypoints stay at root or under `backend/interfaces/`
 - operational docs go under `docs/ops/`
 - iteration artifacts go under `docs/iterations/`
@@ -73,12 +77,14 @@ git commit -m "docs(repo): add repository map and file placement rules"
 ### Task 2: Create ops and iteration doc homes
 
 **Files:**
+
 - Create: `docs/ops/README.md`
 - Create: `docs/iterations/README.md`
 
 - [ ] **Step 1: Create `docs/ops/README.md`**
 
 Describe what belongs there:
+
 - deployment
 - Cloudflare hardening
 - rollback notes
@@ -87,6 +93,7 @@ Describe what belongs there:
 - [ ] **Step 2: Create `docs/iterations/README.md`**
 
 Describe what belongs there:
+
 - iteration task plans
 - progress logs
 - findings
@@ -104,6 +111,7 @@ git commit -m "docs(repo): create ops and iterations doc homes"
 ### Task 3: Move current iteration artifacts
 
 **Files:**
+
 - Move: `docs/task_plan.md`
 - Move: `docs/progress.md`
 - Move: `docs/findings.md`
@@ -111,6 +119,7 @@ git commit -m "docs(repo): create ops and iterations doc homes"
 - [ ] **Step 1: Move files under `docs/iterations/iter5/`**
 
 Target structure:
+
 - `docs/iterations/iter5/task_plan.md`
 - `docs/iterations/iter5/progress.md`
 - `docs/iterations/iter5/findings.md`
@@ -127,6 +136,7 @@ This file moved to `docs/iterations/iter5/task_plan.md`.
 - [ ] **Step 3: Update references**
 
 Search and update references in:
+
 - `CLAUDE.md`
 - `README.md`
 - plan files if they mention old paths
@@ -143,12 +153,14 @@ git commit -m "chore(repo): move iter5 execution artifacts under docs/iterations
 ### Task 4: Normalize deployment docs placement
 
 **Files:**
+
 - Move or cross-link: `DEPLOYMENT.md`
 - Create/Modify: `docs/ops/deployment.md`
 
 - [ ] **Step 1: Move long-form deployment doc under docs/ops**
 
 Preferred target:
+
 - `docs/ops/deployment.md`
 
 - [ ] **Step 2: Keep root `DEPLOYMENT.md` as a short pointer**
@@ -169,11 +181,13 @@ git commit -m "docs(repo): move deployment runbook under docs/ops"
 ### Task 5: Verify nothing runtime-critical moved incorrectly
 
 **Files:**
+
 - Verify only
 
 - [ ] **Step 1: Confirm root runtime files remain in place**
 
 Must remain at root:
+
 - `Dockerfile`
 - `Makefile`
 - `pyproject.toml`

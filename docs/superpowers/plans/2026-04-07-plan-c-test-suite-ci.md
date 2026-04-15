@@ -15,6 +15,7 @@
 ## Context
 
 After Plans A and B, the codebase has:
+
 - `backend/interfaces/fastapi_service.py` — FastAPI app with all routes
 - `backend/interfaces/schemas.py` — Pydantic request/response models
 - `backend/interfaces/dependencies.py` — DI providers
@@ -26,6 +27,7 @@ After Plans A and B, the codebase has:
 ### Task 1: Backend API contract tests
 
 **Files:**
+
 - Create: `backend/tests/integration/test_api_contract.py`
 - Create: `backend/tests/integration/test_sse_contract.py`
 - Modify: `backend/tests/integration/conftest.py` (create if missing)
@@ -282,6 +284,7 @@ git commit -m "test(api): add FastAPI contract tests for all endpoints + SSE"
 ### Task 2: Frontend component tests (Vitest + RTL)
 
 **Files:**
+
 - Create: `frontend/vitest.config.ts`
 - Modify: `frontend/package.json` (add dev deps + test script)
 - Create: `frontend/tests/setup.ts`
@@ -415,6 +418,7 @@ git commit -m "test(frontend): add Vitest + RTL setup with initial component tes
 ### Task 3: E2E tests with Playwright
 
 **Files:**
+
 - Create: `e2e/playwright.config.ts`
 - Create: `e2e/package.json`
 - Create: `e2e/tests/search-flow.spec.ts`
@@ -519,6 +523,7 @@ git commit -m "test(e2e): add Playwright E2E tests for search and conversation f
 ### Task 4: Update CI and final wiring
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `Makefile`
 - Modify: `CLAUDE.md`
@@ -527,10 +532,10 @@ git commit -m "test(e2e): add Playwright E2E tests for search and conversation f
 
 ```makefile
 test-frontend:
-	cd frontend && npm test
+  cd frontend && npm test
 
 test-e2e:
-	cd e2e && npx playwright test
+  cd e2e && npx playwright test
 ```
 
 - [ ] **Step 2: Update CI workflow**

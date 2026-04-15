@@ -123,6 +123,7 @@ interface PublicAPIResponse {
 ## Self-Evolve
 
 Every anime query triggers `resolve_anime` first:
+
 1. Fuzzy-match `bangumi` table (title / title_cn)
 2. On miss: query Bangumi.tv search API → upsert → return `bangumi_id`
 

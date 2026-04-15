@@ -8,27 +8,32 @@ Source: /office-hours + /plan-eng-review + /plan-design-review + /health + /cso 
 ## Active: feat/smart-route-planner (PR to main)
 
 ### Iter 1: Backend — route_optimizer + route_export + models
+
 - [ ] `backend/agents/route_optimizer.py` (NEW): cluster_by_location, nearest_neighbor_sort, compute_dwell, build_timed_itinerary, validate_coordinates, haversine_distance
 - [ ] `backend/agents/route_export.py` (NEW): build_google_maps_url, build_ics_calendar
 - [ ] `backend/agents/models.py`: add TimedStop, TransitLeg, TimedItinerary, LocationCluster
-- [ ] `backend/agents/executor_agent.py`: update _execute_plan_route + _execute_plan_selected
+- [ ] `backend/agents/executor_agent.py`: update `_execute_plan_route` + `_execute_plan_selected`
 
 ### Iter 2: Backend tests — full coverage
+
 - [ ] `backend/tests/unit/test_route_optimizer.py` (NEW): property tests + golden cases + edge cases
 - [ ] `backend/tests/unit/test_route_export.py` (NEW): URL format, .ics format, UTF-8
 
 ### Iter 3: Frontend — RoutePlannerWizard
+
 - [ ] `frontend/components/generative/RoutePlannerWizard.tsx` (NEW): map hero + collapsible spot drawer + timeline + export
 - [ ] `frontend/components/generative/registry.ts`: register wizard
 - [ ] `frontend/lib/types.ts`: add TypeScript interfaces
 - [ ] Mobile: vaul bottom sheet for timeline
 
 ### Iter 4: Integration + polish
+
 - [ ] RouteVisualization.tsx backward compat
 - [ ] Entrance animation (slide-up-fade)
 - [ ] Re-optimization fade + spinner UX
 
 ### Iter 5: PR
+
 - [ ] `make check` passes
 - [ ] QA smoke test via scripts/qa_auth.py
 - [ ] Create PR, CI passes
@@ -38,10 +43,12 @@ Source: /office-hours + /plan-eng-review + /plan-design-review + /health + /cso 
 ## Bundled fixes (same PR)
 
 From /cso security audit:
+
 - [ ] CORS: replace `*` with configurable origin in http_service.py:288
 - [ ] Dockerfile: add `USER appuser` directive
 
 From /qa:
+
 - [x] DB: conversations + user_memory tables applied to production
 - [x] .gitignore: add .env.test and .gstack/
 
@@ -50,19 +57,23 @@ From /qa:
 ## Backlog (separate PRs, after route planner ships)
 
 ### P2 — UX improvements
+
 - [ ] Mobile responsive on auth page (landing page doesn't stack on narrow screens)
 - [ ] Landing page headline: consider Japanese instead of "Anime Pilgrimage, The Journey"
 - [ ] Remove "Internal beta · 2026" footer or replace with warmer text
 
 ### P2 — Testing infrastructure
+
 - [ ] Encapsulate QA flow into `scripts/qa_smoke.sh` (magic link → login → test queries → screenshots)
 - [ ] Add geocoding.py unit tests (24% coverage)
 
 ### P3 — Phase A.5 upgrades (post-validation)
+
 - [ ] Google Maps Directions API for real walking times (replace Haversine when insufficient)
 - [ ] Apple Maps export URL (`maps://` scheme for iOS)
 
 ### P3 — Phase B features (after real usage feedback)
+
 - [ ] OR-Tools integration for TSP with time windows
 - [ ] Sun position calculation (latitude + date → optimal photo timing)
 - [ ] Multi-day trip support
@@ -71,6 +82,7 @@ From /qa:
 - [ ] Last-train constraint
 
 ### P4 — Future
+
 - [ ] Photo overlay / camera tool (native app, Phase 2)
 - [ ] Agent API for B2B (Ctrip integration)
 - [ ] Observability: enable OTel exporters in production

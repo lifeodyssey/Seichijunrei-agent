@@ -48,6 +48,7 @@ Task 11 (en.json) is independent throughout.
 > **SUPERSEDED:** This task originally specified a dark theme (`#0f0f11` bg, `#d4954a` primary). The shipped design uses a **light theme** (京吹夏季 / KyoAni summer palette: `oklch(98% 0.008 218)` bg, `oklch(60% 0.148 240)` primary). The tokens below are **historical** — see `frontend/app/globals.css` for current values.
 
 **Files:**
+
 - Modify: `frontend/app/globals.css`
 
 - [x] **Step 1.1: Replace `:root` tokens and remove light/dark split** *(completed — shipped as light theme)*
@@ -134,6 +135,7 @@ git commit -m "feat(theme): always-dark tokens, Shippori Mincho B1 display font"
 ## Task 2: `frontend/lib/types.ts` — Add `UIDescriptor`
 
 **Files:**
+
 - Modify: `frontend/lib/types.ts`
 
 - [ ] **Step 2.1: Add `UIDescriptor` interface and update `RuntimeResponse`**
@@ -198,6 +200,7 @@ git commit -m "feat(types): add UIDescriptor to RuntimeResponse, add 'en' locale
 ## Task 3: `frontend/components/generative/registry.ts` — Component Registry
 
 **Files:**
+
 - Create: `frontend/components/generative/registry.ts`
 
 - [ ] **Step 3.1: Create the registry**
@@ -270,6 +273,7 @@ git commit -m "feat(generative): add component registry for Generative UI patter
 ## Task 4: `GenerativeUIRenderer.tsx` + Delete `IntentRenderer.tsx`
 
 **Files:**
+
 - Create: `frontend/components/generative/GenerativeUIRenderer.tsx`
 - Delete: `frontend/components/generative/IntentRenderer.tsx`
 
@@ -356,6 +360,7 @@ git commit -m "feat(generative): add GenerativeUIRenderer (registry), delete Int
 ## Task 5: `frontend/components/layout/ResultPanel.tsx` — New Right Column
 
 **Files:**
+
 - Create: `frontend/components/layout/ResultPanel.tsx`
 
 - [ ] **Step 5.1: Create `ResultPanel.tsx`**
@@ -430,6 +435,7 @@ git commit -m "feat(layout): add ResultPanel — right column with empty state a
 ## Task 6: `frontend/components/layout/AppShell.tsx` — Three-Column Layout
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx`
 
 - [ ] **Step 6.1: Rewrite `AppShell.tsx`**
@@ -541,6 +547,7 @@ cd frontend && npx tsc --noEmit
 ## Task 7: `MessageList.tsx` + `MessageBubble.tsx` — ◈ Anchor Card
 
 **Files:**
+
 - Modify: `frontend/components/chat/MessageList.tsx`
 - Modify: `frontend/components/chat/MessageBubble.tsx`
 
@@ -832,6 +839,7 @@ git commit -m "feat(layout): three-column AppShell, ◈ anchor card in MessageBu
 ## Task 8: `PilgrimageGrid.tsx` — 4-Column Result Panel Layout
 
 **Files:**
+
 - Modify: `frontend/components/generative/PilgrimageGrid.tsx`
 
 - [ ] **Step 8.1: Rewrite `PilgrimageGrid.tsx`**
@@ -928,6 +936,7 @@ git commit -m "feat(grid): 4-col layout for result panel, remove raw intent badg
 ## Task 9: `RouteVisualization.tsx` — Map Fills Panel, List as Overlay
 
 **Files:**
+
 - Modify: `frontend/components/generative/RouteVisualization.tsx`
 
 - [ ] **Step 9.1: Rewrite `RouteVisualization.tsx`**
@@ -1015,6 +1024,7 @@ git commit -m "feat(route): fullscreen map with overlay route list in result pan
 ## Task 10: `NearbyMap.tsx` — 60/40 Map/List Split
 
 **Files:**
+
 - Modify: `frontend/components/generative/NearbyMap.tsx`
 
 - [ ] **Step 10.1: Rewrite `NearbyMap.tsx`**
@@ -1101,6 +1111,7 @@ git commit -m "feat(nearby): 60/40 map/list split in result panel, remove intent
 ## Task 11: `en.json` — English Dictionary
 
 **Files:**
+
 - Create: `frontend/app/[lang]/dictionaries/en.json`
 
 - [ ] **Step 11.1: Create `en.json`**
@@ -1246,6 +1257,7 @@ git tag iter2-frontend-complete
 **Goal:** The current `deploy.yml` only builds the Python container. It never runs `npm run build`, so `frontend/out` is never generated. Fix the pipeline, then deploy both backend and frontend together.
 
 **Files:**
+
 - Modify: `frontend/next.config.ts` — add `output: 'export'`
 - Modify: `.github/workflows/deploy.yml` — add frontend build step
 - Modify: `.github/workflows/ci.yml` — add frontend lint + build check

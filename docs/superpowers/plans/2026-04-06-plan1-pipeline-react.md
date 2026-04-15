@@ -35,6 +35,7 @@
 **Scope:** Two one-line fixes. The `plan_route` intent maps to the old `RouteVisualization` instead of `RoutePlannerWizard` in both frontend and backend.
 
 **Files:**
+
 - Modify: `frontend/components/generative/registry.ts:57-58`
 - Modify: `backend/interfaces/public_api.py:476-478`
 
@@ -93,6 +94,7 @@ git commit -m "fix(registry): map plan_route to RoutePlannerWizard in frontend +
 **Scope:** Add `ReactStep` (union of `PlanStep | DoneSignal`) and `Observation` model. These are the new types the planner outputs and receives.
 
 **Files:**
+
 - Modify: `backend/agents/models.py`
 - Test: `backend/tests/unit/test_models.py` (verify new models work)
 
@@ -221,6 +223,7 @@ git commit -m "feat(models): add ReactStep, DoneSignal, Observation for ReAct lo
 **Scope:** Add a method that converts a `StepResult` into an `Observation` string the planner can understand. The executor stays deterministic — no architecture change here.
 
 **Files:**
+
 - Modify: `backend/agents/executor_agent.py`
 - Test: `backend/tests/unit/test_executor_observation.py`
 
@@ -377,6 +380,7 @@ git commit -m "feat(executor): add format_observation for ReAct planner feedback
 **Scope:** Change the planner from outputting a full `ExecutionPlan` to outputting one `ReactStep` per call. Add a `step()` method that accepts conversation history (previous thoughts + observations). Keep `create_plan()` for backward compatibility.
 
 **Files:**
+
 - Modify: `backend/agents/planner_agent.py`
 - Test: `backend/tests/unit/test_planner_react.py`
 
@@ -613,6 +617,7 @@ git commit -m "feat(planner): add ReAct step() method for multi-turn reasoning"
 **Scope:** Replace `run_pipeline` with `react_loop` that yields `ReactStepEvent` objects. Keep `run_pipeline` as a wrapper for backward compat.
 
 **Files:**
+
 - Rewrite: `backend/agents/pipeline.py`
 - Test: `backend/tests/unit/test_pipeline_react.py`
 
@@ -1003,6 +1008,7 @@ git commit -m "feat(pipeline): ReAct loop with async generator + backward-compat
 **Scope:** Update `http_service.py` to use the ReAct loop's richer events for SSE streaming. Add `thought` and `observation` fields to SSE step events.
 
 **Files:**
+
 - Modify: `backend/interfaces/http_service.py:196-221` (SSE handler)
 - Modify: `backend/interfaces/public_api.py` (handle method needs to yield events)
 
@@ -1082,6 +1088,7 @@ git commit -m "feat(sse): stream ReAct thought + observation in step events, san
 **Scope:** Replace the `StepTrace` in MessageBubble with a collapsible `ThinkingProcess` that shows thought/action/observation for each ReAct step.
 
 **Files:**
+
 - Create: `frontend/components/chat/ThinkingProcess.tsx`
 - Modify: `frontend/components/chat/MessageBubble.tsx` (replace StepTrace)
 - Modify: `frontend/hooks/useChat.ts` (handle richer step data)

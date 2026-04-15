@@ -1,6 +1,8 @@
 # AGENTS.md
 
-This file provides repo-wide guidance for agentic coding tools (Codex, Claude Code, Cursor, etc.).
+This file provides repo-wide guidance for agentic coding tools such as Codex, Claude Code, and Cursor.
+
+Last updated: 2026-04-15
 
 ## Source Of Truth
 
@@ -20,7 +22,7 @@ Canonical docs (keep these accurate; avoid duplicating architecture narratives e
 ## Guardrails
 
 - Orchestration stays `ReActPlannerAgent → ExecutorAgent`; do not reintroduce an IntentAgent split.
-- `ExecutorAgent` must remain deterministic (no LLM calls during execution).
+- `ExecutorAgent` must remain deterministic (no LLM calls during execution). If a request would violate this constraint, explain why and ask the user to re-scope.
 - Auth is enforced at the Cloudflare Worker edge (`worker/worker.js`); the container trusts forwarded headers.
 - Frontend is a Next.js static export (`output: "export"`); avoid server-only Next.js features.
 - **No `Any`** in Python source — use `object` + `isinstance()` narrowing at trust boundaries.
@@ -71,6 +73,6 @@ backend/              # Python runtime
   utils/              # Logger
   tests/              # unit, integration, eval
 frontend/             # Next.js static export
-supabase/migrations/  # DDL migrations (timestamp-ordered)
+supabase/migrations/  # DDL (Data Definition Language) migrations (timestamp-ordered)
 worker/worker.js         # Cloudflare Worker (auth + routing)
 ```

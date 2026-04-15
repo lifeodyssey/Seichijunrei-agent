@@ -114,6 +114,7 @@ Map components (dynamic import, SSR: false):
 ### Architecture Evaluation
 
 **Strengths:**
+
 - Clean registry pattern for generative UI components (add new component = register in `registry.ts`)
 - Proper SSE streaming with abort controller support
 - Centralized API layer with consistent auth header injection
@@ -123,6 +124,7 @@ Map components (dynamic import, SSR: false):
 - Static export (`output: 'export'`) is correct for CF Worker deployment
 
 **Weaknesses:**
+
 - AppShell is a god component (467 lines, 11 `useState`, 5 `useEffect`, 8 `useCallback`)
 - AuthGate mixes landing page, auth modal, and scroll-reveal logic in one 466-line file
 - No error boundary anywhere in the tree
@@ -134,51 +136,60 @@ Map components (dynamic import, SSR: false):
 ## 2. Code Quality Review
 
 ### Issue #1 — P0 — AppShell god component
+
 **File:** `frontend/components/layout/AppShell.tsx`
 **Confidence:** 10/10
 
 AppShell has 11 `useState` calls, 5 `useEffect` calls, and 8 `useCallback` wrappers totaling 467 lines. It orchestrates chat, session, conversations, point selection, route sending, sidebar, drawers, slide-over, and fullscreen overlays. This is the single biggest risk for bugs and re-render cascading.
 
 ### Issue #2 — P0 — AuthGate god component
+
 **File:** `frontend/components/auth/AuthGate.tsx`
 **Confidence:** 10/10
 
 466 lines combining: landing hero section, comparison section, features section, footer, auth modal with magic link, scroll-reveal IntersectionObserver, and locale switcher. Should be decomposed into `LandingPage`, `AuthModal`, and `ScrollReveal` components.
 
 ### Issue #3 — P1 — MessageBubble oversized with inline sub-components
+
 **File:** `frontend/components/chat/MessageBubble.tsx`
 **Confidence:** 9/10
 
 368 lines. Contains 5 sub-functions (`ErrorDisplay`, `canShowAnchor`, `getResultCount`, `InlineSummaryCard`, `ResultAnchor`, `FeedbackButtons`). The inline sub-components should be extracted to separate files.
 
 ### Issue #4 — P1 — RoutePlannerWizard oversized with duplicated timeline UI
+
 **File:** `frontend/components/generative/RoutePlannerWizard.tsx`
 **Confidence:** 9/10
 
 445 lines. The timeline rendering is duplicated between `TimelineSidebar` (desktop) and the Drawer content (mobile) at lines 84-122 and 352-392 respectively. Extract a shared `TimelineStopList` component.
 
 ### Issue #5 — P1 — 6 `as unknown as` casts bypass type safety
+
 **Files:** `lib/api.ts:228,230`, `MessageBubble.tsx:208`, `AppShell.tsx:80,207`, `registry.ts:38`
 **Confidence:** 8/10
 
 These casts occur at trust boundaries (SSE parse, hydration, registry). Most are acceptable but the hydration casts in AppShell (lines 80 and 207) deserve runtime validation to prevent silent data corruption.
 
 ### Issue #6 — P2 — Module-level mutable state in useChat
+
 **File:** `frontend/hooks/useChat.ts:7`
 **Confidence:** 7/10
 
 `let msgCounter = 0` is a module-level mutable variable used for ID generation. In a static export this is fine, but it could cause ID collisions in SSR or concurrent rendering scenarios. Use `crypto.randomUUID()` or similar.
 
 ### Issue #7 — P2 — Hardcoded strings in several components
+
 **Files:** `RouteVisualization.tsx:58` ("在 Google Maps 中打开"), `RoutePlannerWizard.tsx:79,103,127-143,248,327,349,375-409`
 **Confidence:** 9/10
 
 Multiple Japanese strings are hardcoded instead of using i18n dictionary keys. This makes zh/en locales show Japanese text.
 
 ### Issue #8 — P2 — Inconsistent CSS approach
+
 **Confidence:** 7/10
 
 Three CSS strategies coexist:
+
 1. CSS custom properties via `var()` (primary approach, correct per AGENTS.md)
 2. Tailwind utility classes (via shadcn primitives)
 3. Hardcoded `bg-gray-200` in `ResultDrawer.tsx:63` and `SlideOverPanel.tsx:51-54`
@@ -186,12 +197,14 @@ Three CSS strategies coexist:
 The `bg-gray-200` instances break the palette consistency.
 
 ### Issue #9 — P2 — Unused `_pacing` and `_dict` variables
+
 **File:** `frontend/components/generative/RoutePlannerWizard.tsx:199,201`
 **Confidence:** 10/10
 
 `_dict` and `_pacing` are assigned but never used (prefixed with underscore to suppress lint, but the pacing Tabs UI changes are never propagated to any API call or re-render).
 
 ### Issue #10 — P2 — `parseResponseData` is defined but only used internally
+
 **File:** `frontend/lib/api.ts:27-34`
 **Confidence:** 6/10
 
@@ -275,16 +288,19 @@ lib/supabase.ts (partial)      [1]  │  components/layout/AppShell.tsx
 ```
 
 ### Issue #11 — P0 — Near-zero component test coverage
+
 **Confidence:** 10/10
 
 Zero component tests exist. All 27 component files and all 5 hooks are untested. The existing 13 tests cover only pure utility functions and API mocking. No React Testing Library, no `@testing-library/react`, no jsdom setup.
 
 ### Issue #12 — P1 — No E2E test infrastructure
+
 **Confidence:** 10/10
 
 No Playwright, Cypress, or similar E2E framework. Critical user flows (login, send message, view results, select points, create route) have no automated testing.
 
 ### Issue #13 — P1 — No test for type guards
+
 **File:** `frontend/lib/types.ts:217-235`
 **Confidence:** 8/10
 
@@ -295,35 +311,41 @@ No Playwright, Cypress, or similar E2E framework. Critical user flows (login, se
 ## 4. Performance Review
 
 ### Issue #14 — P1 — AppShell re-renders cascade to entire tree
+
 **File:** `frontend/components/layout/AppShell.tsx`
 **Confidence:** 8/10
 
 AppShell has 11 `useState` hooks. Any state change (e.g., `setActiveMessageId`, `setDrawerOpen`, `setSidebarOpen`) triggers a full re-render of: Sidebar, MessageList (all MessageBubbles), ChatInput, ResultDrawer, SlideOverPanel, and FullscreenOverlay. None of these child components are wrapped in `React.memo()`.
 
 ### Issue #15 — P1 — Messages list re-renders all bubbles on every state change
+
 **File:** `frontend/components/chat/MessageList.tsx`
 **Confidence:** 8/10
 
 `MessageBubble` is not memoized. During SSE streaming, `setMessages` is called for every step event, causing the entire message list to re-render. With many messages, this creates visible jank.
 
 ### Issue #16 — P2 — Leaflet map re-initialization
+
 **File:** `frontend/components/map/PilgrimageMap.tsx`
 **Confidence:** 7/10
 
 `PilgrimageMap` is dynamically imported but not memoized. Each render creates a new `MapContainer`. When the parent re-renders (e.g., AppShell state change), the map may re-initialize. The `FitBounds` effect depends on `[map, points]` which is stable, but the map container itself re-mounts if the parent unmounts/remounts.
 
 ### Issue #17 — P2 — External font loaded via CSS @import blocks rendering
+
 **File:** `frontend/app/globals.css:1`
 **Confidence:** 7/10
 
 Google Fonts are loaded via `@import url(...)` in CSS, which is render-blocking. Additionally, the Geist font is loaded via `next/font/google` in layout.tsx. This creates two separate font loading strategies, potentially causing FOIT/FOUT.
 
 ### Issue #18 — P2 — No image optimization
+
 **Confidence:** 8/10
 
 All images use raw `<img>` tags with `loading="lazy"` (e.g., PilgrimageGrid screenshots). `next/image` is not used anywhere. Given `output: 'export'`, the Next.js Image Optimization API is unavailable, so this is expected — but width/height attributes are missing, causing layout shifts (CLS).
 
 ### Issue #19 — P2 — Large Leaflet CSS imported globally
+
 **File:** `frontend/components/map/PilgrimageMap.tsx:7`
 **Confidence:** 6/10
 
@@ -336,35 +358,41 @@ All images use raw `<img>` tags with `loading="lazy"` (e.g., PilgrimageGrid scre
 ### Accessibility
 
 #### Issue #20 — P1 — No skip-to-content link
+
 **Confidence:** 9/10
 
 No skip navigation link exists. Keyboard users must tab through the entire sidebar and header to reach the chat input.
 
 #### Issue #21 — P1 — Chat message list has no ARIA live region
+
 **File:** `frontend/components/chat/MessageList.tsx`
 **Confidence:** 9/10
 
 New assistant messages are appended to the DOM without `aria-live` or `role="log"` attributes. Screen readers will not announce new messages.
 
 #### Issue #22 — P1 — PilgrimageGrid cards use button without accessible label
+
 **File:** `frontend/components/generative/PilgrimageGrid.tsx:27-94`
 **Confidence:** 8/10
 
 Each pilgrimage card is a `<button>` with `aria-pressed` but no `aria-label`. The accessible name comes from child text content, which may be truncated or in a language the screen reader doesn't support.
 
 #### Issue #23 — P2 — Sidebar conversation items are not keyboard-navigable list
+
 **File:** `frontend/components/layout/Sidebar.tsx:143-184`
 **Confidence:** 7/10
 
 Conversation items are `<div>` elements with `onClick` handlers but no `role="button"`, `tabIndex`, or keyboard event handlers. They are not focusable via Tab.
 
 #### Issue #24 — P2 — Auth modal has no focus trap
+
 **File:** `frontend/components/auth/AuthGate.tsx:372-450`
 **Confidence:** 8/10
 
 The auth modal overlay is a plain `<div>` with no focus trap. Tab can escape to the background content. Should use a dialog element or focus-trap library.
 
 #### Issue #25 — P2 — Color contrast potentially insufficient for muted text
+
 **File:** `frontend/app/globals.css`
 **Confidence:** 6/10
 
@@ -373,29 +401,34 @@ The auth modal overlay is a plain `<div>` with no focus trap. Tab can escape to 
 ### i18n
 
 #### Issue #26 — P1 — Hardcoded Japanese strings in RoutePlannerWizard
+
 **File:** `frontend/components/generative/RoutePlannerWizard.tsx`
 **Confidence:** 10/10
 
 At least 12 hardcoded Japanese strings: "タイムライン", "サマリー", "スポット", "所要時間", "移動距離", "ゆっくり", "普通", "詰め込み", "徒歩", "滞在", "スポット一覧", "タイムラインを開く". These bypass the i18n system and show Japanese for all locales.
 
 #### Issue #27 — P1 — Hardcoded Chinese string in RouteVisualization
+
 **File:** `frontend/components/generative/RouteVisualization.tsx:58`
 **Confidence:** 10/10
 
 `"在 Google Maps 中打开"` is hardcoded Chinese, visible to ja/en users.
 
 #### Issue #28 — P2 — ApiKeysPage is entirely in English
+
 **File:** `frontend/components/settings/ApiKeysPage.tsx`
 **Confidence:** 9/10
 
 All strings ("API Keys", "Create key", "Revoke", etc.) are hardcoded English. No i18n dictionary keys are used.
 
 #### Issue #29 — P2 — No RTL support consideration
+
 **Confidence:** 5/10
 
 Not critical currently (ja/zh/en are all LTR), but the architecture has no `dir` attribute or logical CSS properties for future RTL locales. Low priority.
 
 #### Issue #30 — P2 — Dictionary load race on initial mount
+
 **File:** `frontend/lib/i18n-context.tsx:24-29`
 **Confidence:** 7/10
 

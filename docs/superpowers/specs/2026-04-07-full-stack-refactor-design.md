@@ -138,6 +138,7 @@ Move `PublicAPIRequest`, `PublicAPIResponse`, `PublicAPIError` to `interfaces/sc
 **✅ P1-T2: Write FastAPI contract tests** (landed)
 
 Using `httpx.AsyncClient` + `FastAPI.TestClient`, assert every endpoint's request/response shape:
+
 - `GET /healthz` → 200, `{status, service, version}`
 - `POST /v1/runtime` → 200, `PublicAPIResponse` shape
 - `POST /v1/runtime/stream` → SSE with `event: planning`, `event: step`, `event: done`
@@ -157,6 +158,7 @@ These tests run against the FastAPI adapter (written in P2) but define the contr
 **✅ P2-T1: Create FastAPI adapter** (landed — partially; `dependencies.py` not created, deps are inline in `fastapi_service.py` which is 649L, above the 200L target)
 
 New `backend/interfaces/fastapi_service.py` with:
+
 - All endpoints matching current aiohttp surface (`/healthz`, `/v1/runtime`, `/v1/runtime/stream`, `/v1/conversations`, etc.)
 - FastAPI dependency injection for `RuntimeAPI`, `SupabaseClient`, `Settings`
 - `dependencies.py` for `Depends()` providers — **not created; deps live in fastapi_service.py**
@@ -182,6 +184,7 @@ New `backend/interfaces/fastapi_service.py` with:
 **✅ P2-T3: Decompose public_api.py** (landed — partially; `response_builder.py` and `session_facade.py` extracted, but `public_api.py` is still 545L, above the 300L target)
 
 Split into:
+
 - `schemas.py` — already done in P1-T1
 - `response_builder.py` — `_pipeline_result_to_public_response()`, `_application_error_response()`, `_build_message_for_result()`
 - `session_facade.py` — `_load_session_state()`, `_persist_session()`, `_persist_messages()`, `_persist_user_state()`, `_build_updated_session_state()`, `_compact_session_interactions()`, `_load_user_memory()`, `_maybe_persist_route()`
@@ -193,6 +196,7 @@ Split into:
 **✅ P2-T4: Decompose supabase/client.py into repositories** (landed — `client.py` at 181L, 7 repo files created)
 
 Split by domain:
+
 - `repositories/bangumi.py` — `get_bangumi`, `list_bangumi`, `upsert_bangumi`, `get_bangumi_by_area`, `find_bangumi_by_title`, `upsert_bangumi_title`
 - `repositories/points.py` — `get_points_by_bangumi`, `get_points_by_ids`, `search_points_by_location`, `upsert_point`, `upsert_points_batch`
 - `repositories/session.py` — `get_session`, `upsert_session`, `upsert_conversation`, `update_conversation_title`, `get_conversations`, `get_conversation`, `upsert_session_state`, `get_session_state`, `delete_session_state`
@@ -281,6 +285,7 @@ Add `index.ts` to each component subdirectory (`layout/`, `chat/`, `generative/`
 **P4-T1: Backend unit tests for new modules** (partial — `test_response_builder.py` and `test_session_facade.py` landed; `test_fastapi_service.py` and `tests/unit/repositories/` still missing)
 
 Write tests for the newly extracted modules:
+
 - ✅ `test_response_builder.py` — pipeline result → response conversion
 - ✅ `test_session_facade.py` — session state load/persist cycle
 - `test_fastapi_service.py` — route registration, middleware, error handlers
@@ -292,6 +297,7 @@ Write tests for the newly extracted modules:
 **✅ P4-T2: Backend integration tests (FastAPI contract)** (landed — `test_api_contract.py` and `test_sse_contract.py` exist)
 
 Finalize and run the P1-T2 contract tests against the real FastAPI app with mocked DB:
+
 - Every endpoint returns the correct shape
 - Error responses match `{error: {code, message}}`
 - SSE events arrive in order: `planning → step* → done`
@@ -303,6 +309,7 @@ Finalize and run the P1-T2 contract tests against the real FastAPI app with mock
 **P4-T3: Frontend component tests**
 
 Using Vitest + React Testing Library:
+
 - `MessageBubble.test.tsx` — renders text, anchor card, handles click
 - `PilgrimageGrid.test.tsx` — renders grid items, handles empty state
 - `AppShell.test.tsx` — three-column layout renders, mobile drawer triggers
@@ -315,6 +322,7 @@ Using Vitest + React Testing Library:
 **P4-T4: E2E tests with Playwright**
 
 Set up Playwright targeting the deployed staging or local dev environment:
+
 - `auth-flow.spec.ts` — magic link login → session created → sidebar shows history
 - `search-flow.spec.ts` — type anime name → results grid appears → click point shows detail
 - `route-planning.spec.ts` — select points → plan route → route visualization renders
@@ -392,6 +400,7 @@ Wave 6 (final):
 ## Verification Plan
 
 Each wave must pass before the next starts:
+
 - **Wave 1-2:** `make check` + `npm run build`
 - **Wave 3:** `make check` + all existing tests pass with new import paths
 - **Wave 4:** `make check` + `make serve` starts FastAPI + `make test-integration`

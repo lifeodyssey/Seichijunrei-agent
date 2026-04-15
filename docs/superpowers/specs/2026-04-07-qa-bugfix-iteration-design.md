@@ -14,6 +14,7 @@ Three open issues remain, all affecting core user experience.
 **Trigger:** User-reported production issues, confirmed by headless browser QA.
 
 **Already fixed (committed on main):**
+
 - `e004977` — `pipeline.py` now wraps search data under `"results"` key, route data under `"route"` key
 - `6ab37c2` — `.env.test.example` QA_SITE_URL updated to `seichijunrei.zhenjia.org`
 - Supabase Dashboard Site URL manually updated
@@ -39,6 +40,7 @@ Three open issues remain, all affecting core user experience.
 
 **Severity:** HIGH
 **Files:**
+
 - `frontend/components/layout/AppShell.tsx`
 - `frontend/hooks/useSession.ts` (read-only, for understanding)
 - `frontend/hooks/useChat.ts` (read-only, for understanding)
@@ -66,11 +68,13 @@ Page load
 
 **Solution:**
 Add a `useEffect` in `AppShell` that runs once on mount. If `sessionId` exists:
+
 1. Call `fetchConversationMessages(sessionId)`
 2. If messages found → hydrate them into the chat (reuse the hydration logic from `handleConversationSelect`)
 3. If empty response → call `clearSession()` so the user starts fresh
 
 **Acceptance Criteria:**
+
 - [ ] Returning user with stored session sees their last conversation messages
 - [ ] If stored session has no messages in DB, session is cleared and user starts fresh
 - [ ] Sidebar highlights the active conversation on load
@@ -78,6 +82,7 @@ Add a `useEffect` in `AppShell` that runs once on mount. If `sessionId` exists:
 - [ ] No double-fetch when clicking the already-active conversation in sidebar
 
 **Test:**
+
 1. Send a message → reload page → previous messages should appear
 2. Clear `conversation_messages` for a session → reload → should show welcome screen, not stale session
 
@@ -87,6 +92,7 @@ Add a `useEffect` in `AppShell` that runs once on mount. If `sessionId` exists:
 
 **Severity:** MEDIUM
 **Files:**
+
 - `backend/agents/planner_agent.py`
 
 **Problem:**
@@ -122,6 +128,7 @@ a bangumi_id. Skipping resolve_anime causes 0 results.
 
 **Option B — Deterministic guard in pipeline (medium risk):**
 In `pipeline.py`'s `react_loop`, after the first planner step, check:
+
 - If the emitted tool is `search_bangumi` and no `resolve_anime` has been observed yet
 - AND no `bangumi_id` is in the step params
 - Then inject a synthetic `resolve_anime` step before executing the `search_bangumi`
@@ -132,6 +139,7 @@ This acts as a safety net for when the LLM ignores the prompt.
 Apply Option A for the common case + Option B as a safety net.
 
 **Acceptance Criteria:**
+
 - [ ] "響け！ユーフォニアムの聖地" returns >0 results
 - [ ] "Your Name" still works (regression check)
 - [ ] "東京タワー周辺の聖地" (location query) does NOT trigger resolve_anime
@@ -144,6 +152,7 @@ Apply Option A for the common case + Option B as a safety net.
 
 **Severity:** MEDIUM (tech debt)
 **Files:**
+
 - `backend/interfaces/public_api.py` (line 571)
 - `frontend/components/generative/registry.ts` (read-only, for understanding)
 
@@ -179,6 +188,7 @@ Then migrate frontend renderers to read from `response.ui.props` instead of `res
 This is more work and doesn't add value — the data is already in `response.data`.
 
 **Acceptance Criteria:**
+
 - [ ] API response `ui` field either has no `props` key or has populated props
 - [ ] Frontend renders search results correctly (no regression from #1 fix)
 - [ ] SSE stream `done` event has consistent ui shape
@@ -187,17 +197,20 @@ This is more work and doesn't add value — the data is already in `response.dat
 
 ## Iteration Phases
 
-### Phase 1 (parallel — no file overlap):
+### Phase 1 (parallel — no file overlap)
+
 - **Task 1** (frontend: `AppShell.tsx`) — Session hydration
 - **Task 2** (backend: `planner_agent.py`, optionally `pipeline.py`) — resolve_anime enforcement
 
-### Phase 2 (after Phase 1 merges):
+### Phase 2 (after Phase 1 merges)
+
 - **Task 3** (backend: `public_api.py`) — ui.props cleanup
   - Depends on Task 1 being merged so we can verify end-to-end
 
 ## Verification Plan
 
 After all tasks merge:
+
 1. Deploy to production (`npx wrangler@4 deploy`)
 2. Run `/qa` against `seichijunrei.zhenjia.org`
 3. Verify:

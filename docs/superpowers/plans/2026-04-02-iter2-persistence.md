@@ -23,10 +23,10 @@
 | `infrastructure/supabase/migrations/006_user_memory.sql` | CREATE TABLE user_memory |
 | `infrastructure/supabase/client.py` | 5 new methods: upsert_conversation, update_conversation_title, get_conversations, upsert_user_memory, get_user_memory |
 | `interfaces/http_service.py` | Extract X-User-Id header; pass user_id to handle(); add GET /v1/conversations + PATCH /v1/conversations/{session_id} |
-| `interfaces/public_api.py` | RuntimeAPI.handle() gains user_id param; async title generation task; upsert conversation + user_memory after pipeline; extend _build_context_block call with user_memory |
-| `interfaces/public_api.py` | _build_context_block gains user_memory param; merges cross-session visited IDs |
+| `interfaces/public_api.py` | RuntimeAPI.handle() gains user_id param; async title generation task; upsert conversation + user_memory after pipeline; extend `_build_context_block` call with user_memory |
+| `interfaces/public_api.py` | `_build_context_block` gains user_memory param; merges cross-session visited IDs |
 | `agents/models.py` | RetrievalRequest gains force_refresh: bool = False |
-| `agents/retriever.py` | _execute_sql_with_fallback honors force_refresh |
+| `agents/retriever.py` | `_execute_sql_with_fallback` honors force_refresh |
 | `agents/planner_agent.py` | PLANNER_SYSTEM_PROMPT: search_bangumi gains force_refresh param note |
 | `frontend/lib/types.ts` | Add ConversationRecord interface |
 | `frontend/lib/api.ts` | fetchConversations(), patchConversationTitle() |
@@ -46,6 +46,7 @@
 ## Task 1: DB Migrations
 
 **Files:**
+
 - Create: `infrastructure/supabase/migrations/005_conversations.sql`
 - Create: `infrastructure/supabase/migrations/006_user_memory.sql`
 
@@ -107,6 +108,7 @@ git commit -m "feat(db): add conversations and user_memory tables"
 ## Task 2: SupabaseClient — New DB Methods
 
 **Files:**
+
 - Modify: `infrastructure/supabase/client.py`
 - Test: `tests/unit/test_supabase_client.py`
 
@@ -343,6 +345,7 @@ git commit -m "feat(db): add conversation and user_memory persistence methods"
 ## Task 3: User ID Propagation Through RuntimeAPI
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Modify: `interfaces/http_service.py`
 - Test: `tests/unit/test_public_api.py`
@@ -461,10 +464,12 @@ git commit -m "feat(api): propagate X-User-Id header through RuntimeAPI.handle"
 ## Task 4: Conversation Persistence + Async LLM Title Generation
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Test: `tests/unit/test_public_api.py`
 
 After the pipeline returns a response, we:
+
 1. Upsert a `conversations` row (every request).
 2. If this is the first interaction in the session, fire-and-forget an async task to generate a title.
 
@@ -506,7 +511,7 @@ class TestConversationPersistence:
 pytest tests/unit/test_public_api.py::TestConversationPersistence -v
 ```
 
-- [ ] **Step 4.3: Add _persist_conversation helper and title generation**
+- [ ] **Step 4.3: Add `_persist_conversation` helper and title generation**
 
 Add to `interfaces/public_api.py`:
 
@@ -591,6 +596,7 @@ git commit -m "feat(api): persist conversations and generate LLM titles asynchro
 ## Task 5: User Memory — Upsert After Pipeline
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Test: `tests/unit/test_public_api.py`
 
@@ -750,6 +756,7 @@ git commit -m "feat(api): upsert user_memory after pipeline when bangumi_id reso
 ## Task 6: Cross-Session context_block via user_memory
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Test: `tests/unit/test_public_api.py`
 
@@ -803,7 +810,7 @@ pytest tests/unit/test_public_api.py::TestBuildContextBlockWithUserMemory -v
 
 Expected: `TypeError` or assertion error because `_build_context_block` doesn't accept `user_memory` yet.
 
-- [ ] **Step 6.3: Update _build_context_block**
+- [ ] **Step 6.3: Update `_build_context_block`**
 
 In `interfaces/public_api.py`, update the function signature and body (this function was added in Iter 1):
 
@@ -892,6 +899,7 @@ git commit -m "feat(api): extend context_block with cross-session user_memory"
 ## Task 7: HTTP Endpoints — GET /v1/conversations + PATCH /v1/conversations/{session_id}
 
 **Files:**
+
 - Modify: `interfaces/http_service.py`
 - Test: `tests/integration/test_http_service.py`
 
@@ -1046,6 +1054,7 @@ git commit -m "feat(http): add GET /v1/conversations and PATCH /v1/conversations
 ## Task 8: Frontend Types + API Client
 
 **Files:**
+
 - Modify: `frontend/lib/types.ts`
 - Modify: `frontend/lib/api.ts`
 
@@ -1132,6 +1141,7 @@ git commit -m "feat(frontend): add ConversationRecord type and conversation API 
 ## Task 9: useConversationHistory Hook
 
 **Files:**
+
 - Create: `frontend/hooks/useConversationHistory.ts`
 
 - [ ] **Step 9.1: Create the hook**
@@ -1223,6 +1233,7 @@ git commit -m "feat(frontend): add useConversationHistory hook"
 ## Task 10: Sidebar + AppShell Refactor
 
 **Files:**
+
 - Modify: `frontend/components/layout/Sidebar.tsx`
 - Modify: `frontend/components/layout/AppShell.tsx`
 - Modify: `frontend/hooks/useChat.ts`
@@ -1571,6 +1582,7 @@ git commit -m "feat(frontend): replace route history with persistent conversatio
 ## Task 11: F2d — force_refresh Data Freshness
 
 **Files:**
+
 - Modify: `agents/models.py`
 - Modify: `agents/retriever.py`
 - Modify: `agents/planner_agent.py`
@@ -1666,7 +1678,7 @@ class RetrievalRequest(BaseModel):
     force_refresh: bool = False
 ```
 
-- [ ] **Step 11.4: Honor force_refresh in _execute_sql_with_fallback**
+- [ ] **Step 11.4: Honor force_refresh in `_execute_sql_with_fallback`**
 
 In `agents/retriever.py`, find `_execute_sql_with_fallback` and replace the early-return condition:
 
@@ -1734,7 +1746,7 @@ git commit -m "feat(retriever): add force_refresh to bypass DB-first short-circu
 | F2a: user can rename, PATCH API | Task 7 |
 | F2b: user_memory table | Task 1 |
 | F2b: upsert after each response | Task 5 |
-| F2b: _build_context_block merges user_memory | Task 6 |
+| F2b: `_build_context_block` merges user_memory | Task 6 |
 | F2c: sidebar shows conversation list | Task 10 |
 | F2c: useConversationHistory hook | Task 9 |
 | F2c: inline title rename | Task 10 |

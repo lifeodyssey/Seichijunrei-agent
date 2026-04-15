@@ -51,6 +51,7 @@ frontend/
 ```
 
 **Rules:**
+
 - Component file names: `PascalCase.tsx`
 - Hook file names: `camelCase.ts` prefixed with `use`
 - Utility file names: `camelCase.ts`
@@ -75,6 +76,7 @@ frontend/.env.local.example
 ```
 
 **Tasks:**
+
 - [ ] `npx create-next-app@latest frontend --typescript --tailwind --app --no-src-dir`
 - [ ] Install deps: `react-leaflet leaflet @types/leaflet`
 - [ ] Add `.env.local.example` with `NEXT_PUBLIC_RUNTIME_URL=http://localhost:8080`
@@ -123,6 +125,7 @@ interface RuntimeResponse {
 ```
 
 **Tasks:**
+
 - [ ] Write all types matching `interfaces/public_api.py` models exactly
 - [ ] Export a `ChatMessage` type for the frontend message list state
 
@@ -155,6 +158,7 @@ export function useSession()
 ```
 
 **Tasks:**
+
 - [ ] `sendMessage`: POST to `process.env.NEXT_PUBLIC_RUNTIME_URL + /v1/runtime`
 - [ ] Include `session_id` in body when present
 - [ ] `useSession`: initialize from `localStorage.getItem("seichi_session_id")`
@@ -187,6 +191,7 @@ interface ChatMessage {
 ```
 
 **Tasks:**
+
 - [ ] `useChat`: `messages[]`, `send(text)` → appends user msg, calls `api.sendMessage`, appends assistant msg
 - [ ] `ChatInput`: textarea + send button; `Enter` submits, `Shift+Enter` newlines
 - [ ] `MessageBubble`: right-aligned orange for user, left-aligned card for assistant
@@ -210,15 +215,18 @@ frontend/components/layout/ChatHeader.tsx
 ```
 
 **Layout breakpoints:**
+
 - Mobile (< 768px): sidebar hidden, full-width chat
 - Desktop (≥ 1024px): 260px sidebar + fill chat + optional 280px map panel
 
 **Sidebar contents:**
+
 - App logo + "聖地巡礼 AI"
 - Session history list from `route_history` (links to re-open context)
 - User profile placeholder at bottom
 
 **Tasks:**
+
 - [ ] `AppShell`: horizontal flex, renders `<Sidebar>` + `<main>` + optional `<MapPanel>`
 - [ ] `Sidebar`: reads `route_history` from last response; each item shows `bangumi_id` + `point_count`
 - [ ] `ChatHeader`: title + "地図を表示" toggle button
@@ -250,6 +258,7 @@ switch (response.intent) {
 ```
 
 **Tasks:**
+
 - [ ] Write switch with exhaustive check (`default: never`)
 - [ ] Pass `intent` badge color as prop to each child component
 
@@ -269,12 +278,14 @@ frontend/components/generative/PilgrimageGrid.tsx
 **Data source:** `data.results.rows[]` → `screenshot_url`, `name`, `cn_name`, `episode`, `title`
 
 **Layout:**
+
 - Intent badge (orange) + title (anime name) + result count
 - Responsive grid: 1 col mobile / 2 col tablet / 3 col desktop
 - Each card: `<img src={screenshot_url}>` + location name + episode badge
 - Empty state when `results.row_count === 0`
 
 **Tasks:**
+
 - [ ] Render grid of cards using `results.rows`
 - [ ] Episode badge: `第{episode}話`
 - [ ] Handle `data.status === "empty"` with a "見つかりませんでした" message
@@ -304,6 +315,7 @@ interface PilgrimageMapProps {
 ```
 
 **Tasks:**
+
 - [ ] Dynamic import (`next/dynamic`, `ssr: false`) — Leaflet requires browser
 - [ ] OpenStreetMap tiles: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
 - [ ] Auto-fit map bounds to all points (`map.fitBounds`)
@@ -326,11 +338,13 @@ frontend/components/generative/NearbyMap.tsx
 **Data source:** `data.results.rows[]` → sorted by `distance_m`
 
 **Layout:**
+
 - Intent badge (blue/info) + title (location name) + radius info
 - `<PilgrimageMap points={rows}>` at top
 - List below: location name + anime title + distance badge (e.g. `320m`)
 
 **Tasks:**
+
 - [ ] Sort rows by `distance_m` ascending
 - [ ] Format distance: `< 1000` → `{n}m`, `≥ 1000` → `{n/1000:.1f}km`
 - [ ] Click list item → pan map to that marker
@@ -351,11 +365,13 @@ frontend/components/generative/RouteVisualization.tsx
 **Data source:** `data.route.ordered_points[]` — already in travel order
 
 **Layout:**
+
 - Intent badge (green/success) + title + point count + estimated distance
 - `<PilgrimageMap points={ordered_points} route={ordered_points}>` (draws polyline)
 - Right panel: numbered list, stop name + anime + episode
 
 **Tasks:**
+
 - [ ] Pass `route` prop to `PilgrimageMap` so polyline is drawn
 - [ ] Number badges: `①` orange for first, dark for rest
 - [ ] Show `route.point_count` in header
@@ -376,15 +392,18 @@ frontend/components/generative/GeneralAnswer.tsx
 ```
 
 **Clarification:**
+
 - Info icon + question text + 3 suggestion buttons
 - Buttons: "作品名で探す" / "場所で探す" / "ルートを作る"
 - Clicking a button pre-fills ChatInput with a template query
 
 **GeneralAnswer:**
+
 - Renders `data.message` as plain text in a card
 - No special UI chrome
 
 **Tasks:**
+
 - [ ] `Clarification`: 3 `<button>` components that call `onSuggest(text)` prop
 - [ ] Wire `onSuggest` up through `useChat` to pre-fill and submit input
 - [ ] `GeneralAnswer`: simple `<p>` in a muted card
@@ -407,6 +426,7 @@ FEAT-01 → FEAT-02 → FEAT-03 → FEAT-04 → FEAT-05
 ```
 
 **Milestone gates:**
+
 - After FEAT-05: basic chat loop works against the live backend
 - After FEAT-07: bangumi search shows real anime screenshots on screen
 - After FEAT-10: route planning shows map + stops end to end

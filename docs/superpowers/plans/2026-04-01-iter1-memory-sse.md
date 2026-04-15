@@ -29,7 +29,7 @@
 | `frontend/components/chat/MessageBubble.tsx` | `ThinkingBar` → `StepTrace` |
 | `tests/unit/test_planner_agent.py` | Tests for context prefix injection |
 | `tests/unit/test_executor_agent.py` | Tests for origin-aware sort and on_step callback |
-| `tests/unit/test_public_api.py` | Tests for _extract_context_delta and _build_context_block |
+| `tests/unit/test_public_api.py` | Tests for `_extract_context_delta` and `_build_context_block` |
 | `tests/integration/test_http_service.py` | SSE endpoint smoke test |
 
 ---
@@ -37,10 +37,11 @@
 ## Task 1: F1a — context_delta extraction and context_block builder
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Test: `tests/unit/test_public_api.py`
 
-- [ ] **Step 1.1: Write failing tests for _extract_context_delta**
+- [ ] **Step 1.1: Write failing tests for `_extract_context_delta`**
 
 ```python
 # tests/unit/test_public_api.py — add to existing file
@@ -92,7 +93,7 @@ make test 2>&1 | grep "test_extract_context_delta"
 ```
 Expected: `ImportError: cannot import name '_extract_context_delta'`
 
-- [ ] **Step 1.3: Implement _extract_context_delta in public_api.py**
+- [ ] **Step 1.3: Implement `_extract_context_delta` in public_api.py**
 
 Add after the existing `_serialize_step_result` function (~line 447):
 
@@ -122,7 +123,7 @@ make test 2>&1 | grep "test_extract_context_delta"
 ```
 Expected: 3 passed
 
-- [ ] **Step 1.5: Write failing tests for _build_context_block**
+- [ ] **Step 1.5: Write failing tests for `_build_context_block`**
 
 ```python
 def test_build_context_block_from_interactions():
@@ -146,7 +147,7 @@ def test_build_context_block_returns_none_when_empty():
     assert _build_context_block({"interactions": [], "last_intent": None}) is None
 ```
 
-- [ ] **Step 1.6: Implement _build_context_block**
+- [ ] **Step 1.6: Implement `_build_context_block`**
 
 ```python
 def _build_context_block(session_state: dict[str, Any]) -> dict[str, Any] | None:
@@ -234,6 +235,7 @@ git commit -m "feat(memory): extract context_delta from pipeline result into ses
 ## Task 2: F1a — planner context injection
 
 **Files:**
+
 - Modify: `agents/planner_agent.py`, `agents/pipeline.py`, `interfaces/public_api.py`
 - Test: `tests/unit/test_planner_agent.py`
 
@@ -274,7 +276,7 @@ pytest tests/unit/test_planner_agent.py -v 2>&1 | tail -10
 ```
 Expected: `ImportError: cannot import name '_format_context_block'`
 
-- [ ] **Step 2.3: Add _format_context_block and update create_plan**
+- [ ] **Step 2.3: Add `_format_context_block` and update create_plan**
 
 In `agents/planner_agent.py`, add below the system prompt constant:
 
@@ -358,6 +360,7 @@ git commit -m "feat(memory): inject session context_block into planner prompt"
 ## Task 3: F1b — route origin + async nearest-neighbor sort
 
 **Files:**
+
 - Modify: `agents/executor_agent.py`, `agents/planner_agent.py` (system prompt)
 - Test: `tests/unit/test_executor_agent.py`
 
@@ -406,7 +409,7 @@ pytest tests/unit/test_executor_agent.py -k "nearest_neighbor" -v 2>&1 | tail -1
 ```
 Expected: `TypeError: _nearest_neighbor_sort() is not a coroutine`
 
-- [ ] **Step 3.3: Make _nearest_neighbor_sort async with origin support**
+- [ ] **Step 3.3: Make `_nearest_neighbor_sort` async with origin support**
 
 In `agents/executor_agent.py`, add import at top:
 
@@ -462,7 +465,7 @@ async def _nearest_neighbor_sort(
     return ordered + without_coords
 ```
 
-- [ ] **Step 3.4: Update _execute_plan_route to pass origin and await sort**
+- [ ] **Step 3.4: Update `_execute_plan_route` to pass origin and await sort**
 
 ```python
 async def _execute_plan_route(
@@ -550,6 +553,7 @@ git commit -m "feat(route): origin-aware nearest-neighbor sort for plan_route"
 ## Task 4: F1c — ExecutorAgent on_step callback
 
 **Files:**
+
 - Modify: `agents/executor_agent.py`
 - Test: `tests/unit/test_executor_agent.py`
 
@@ -650,6 +654,7 @@ git commit -m "feat(sse): add on_step progress callback to ExecutorAgent.execute
 ## Task 5: F1c — SSE HTTP endpoint
 
 **Files:**
+
 - Modify: `interfaces/http_service.py`
 - Test: `tests/integration/test_http_service.py`
 
@@ -686,7 +691,7 @@ make test-integration 2>&1 | grep "runtime_stream" | tail -5
 ```
 Expected: 404 or connection refused
 
-- [ ] **Step 5.3: Implement _handle_runtime_stream in http_service.py**
+- [ ] **Step 5.3: Implement `_handle_runtime_stream` in http_service.py**
 
 Add after the existing `_handle_runtime` function:
 
@@ -785,6 +790,7 @@ git commit -m "feat(sse): add POST /v1/runtime/stream SSE endpoint"
 ## Task 6: F1d — Frontend SSE client and StepTrace
 
 **Files:**
+
 - Modify: `frontend/lib/types.ts`, `frontend/lib/api.ts`, `frontend/hooks/useChat.ts`, `frontend/components/chat/MessageBubble.tsx`
 
 - [ ] **Step 6.1: Add SSE types to frontend/lib/types.ts**
@@ -994,6 +1000,7 @@ make serve
 ```
 
 Open app, send "帮我规划一下京吹的取景地". Verify:
+
 - StepTrace shows `● 动漫识别` → `✓ 动漫识别` → `● 搜索取景地` → etc. in real time
 - Second message "再找附近的景点" — planner response includes `last_location` from context
 - Route planning uses `last_location` as origin

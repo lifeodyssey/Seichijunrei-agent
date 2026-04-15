@@ -44,6 +44,7 @@ A proper eval pyramid lets you iterate on the agent in minutes instead of hours.
 ## Approaches Considered
 
 ### Approach A: Monorepo eval module (CHOSEN)
+
 All eval layers live in `backend/tests/eval/`, sharing dataset loader, baseline mechanism, and gate logic. Each layer is one file. Shared infrastructure is extracted to a common module.
 
 Effort: M (~40 min CC). Risk: Low.
@@ -51,6 +52,7 @@ Pros: minimal diff, DRY shared infra, one `make` target per layer.
 Cons: eval/ directory grows from 2 to ~8 files.
 
 ### Approach B: Eval as separate package
+
 Create `backend/eval/` as independent module with CLI entry point.
 
 Effort: L (~60 min CC). Risk: Medium.
@@ -58,6 +60,7 @@ Pros: conceptual separation, independent CI jobs.
 Cons: more boilerplate, pytest integration glue, higher complexity.
 
 ### Approach C: Minimal viable (planner + ReAct only)
+
 Only add `test_planner_quality.py` and `test_react_quality.py`.
 
 Effort: S (~20 min CC). Risk: Low.
@@ -176,6 +179,7 @@ test-eval-all:           # All layers
 **File:** `test_component_quality.py`
 
 **What it tests:**
+
 - `classify_intent(query, locale)` → expected intent (from `backend/agents/intent_classifier.py`)
 - `output_validator` behavior: given (history, intent, ReactStep), does it pass/reject correctly
   > [Note 2026-04-11]: The spec originally said "result_validator" but the actual implementation is an `@agent.output_validator` decorator in `planner_agent.py`. The test will need to extract or replicate the validator logic to test it independently.
@@ -191,6 +195,7 @@ actual_intent, confidence = classify_intent(case.query, case.locale)
 ```
 
 **Evaluators:**
+
 - `IntentClassifierAccuracy`: score 1.0 if classify_intent matches expected
 - `ValidatorBehavior`: For each case with `expected_steps`, construct two scenarios (tests `@agent.output_validator` from `planner_agent.py`):
   - **Positive**: build a history with all prerequisite steps completed, present a valid `done` ReactStep. Validator should accept.
@@ -208,6 +213,7 @@ actual_intent, confidence = classify_intent(case.query, case.locale)
 **File:** `test_planner_quality.py`
 
 **What it tests:**
+
 - Given a query, does `planner.step()` select the correct first tool?
 - Is the thought coherent?
 
@@ -225,6 +231,7 @@ react_step = await planner.step(
 ```
 
 **Evaluators:**
+
 - `FirstStepMatch`: score 1.0 if first action.tool == expected_steps[0]
 - `ThoughtRelevance`: score 1.0 if `thought` is non-empty, longer than 10 characters, and does not match a blocklist of boilerplate phrases (e.g., "I will help you", "Let me think", "Sure", "OK"). Score 0.0 otherwise.
 
@@ -239,6 +246,7 @@ react_step = await planner.step(
 **File:** `test_react_quality.py`
 
 **What it tests:**
+
 - Does the ReAct loop converge (reach `done`) within max_steps?
 - Is the final step sequence correct?
 - Does it recover from injected failures?
@@ -263,6 +271,7 @@ async for event in react_loop(
 ```
 
 **Evaluators:**
+
 - `StepsMatch`: score 1.0 if successful step tools == expected_steps (from current pipeline eval)
 - `Convergence`: score 1.0 if loop ended with "done" event (not max_steps timeout or error)
 - `Efficiency`: `score = min(1.0, len(expected_steps) / max(1, total_event_count))`. If total events <= expected + 1: score 1.0. If 2-3 extra: score 0.5. If 4+ extra: score 0.0.
@@ -273,6 +282,7 @@ async for event in react_loop(
 **Dataset usage:** Full `expected_steps` sequence, `expected_intent`, `context`. Cases with `inject_failure` field trigger failure injection.
 
 **Mock DB fidelity:** Layer 2 uses a fixture-based mock that returns realistic data keyed by `bangumi_id` from each dataset case. For search cases: mock returns 3-5 realistic point rows. For route cases: mock returns ordered points. For resolve cases: mock returns a valid `bangumi_id`. This ensures planner behavior matches production patterns (not empty-result divergence). The mock contract:
+
 - `find_bangumi_by_title(title)` -> returns `bangumi_id` from dataset case or `"262243"` as default
 - `query_bangumi_points(bangumi_id)` -> returns 3-5 fixture points with valid lat/lng
 - `search_points_by_location(lat, lng, radius)` -> returns 3 nearby fixture points
@@ -284,6 +294,7 @@ async for event in react_loop(
 **File:** `test_plan_quality.py` (no changes to eval logic)
 
 **Changes:**
+
 - Extract shared infrastructure to `eval_common.py`
 - Reuse shared baseline/gate mechanism
 - Add DX improvements (precheck, progress, timeout)
@@ -324,13 +335,16 @@ CASE_TIMEOUT_SECONDS = 60  # single case max
 ## DX Improvements
 
 ### 1. Model precheck (before any eval)
+
 One lightweight API call before running 163 cases. Catches:
+
 - Missing/invalid API key
 - Exhausted quota
 - Network/proxy issues
 - Wrong base_url
 
 ### 2. Per-case progress
+
 Use pydantic_evals callback or custom wrapper to show:
 ```
 [  42/163] search-ja-07  ✓  (1.2s)
@@ -338,13 +352,16 @@ Use pydantic_evals callback or custom wrapper to show:
 ```
 
 ### 3. Per-case timeout
+
 `asyncio.timeout(60)` around each case evaluation. Prevents one stuck case from blocking the entire run.
 
 ### 4. First-run baseline + gate in one pass
+
 Current: first run creates baseline (SKIP), second run enforces gate.
 New: first run creates baseline AND reports scores. Second run enforces gate. No behavioral change, but clearer messaging.
 
 ### 5. Proxy-safe by default
+
 `_clear_proxy_env()` and `trust_env=False` already implemented in `base.py`. Eval common reuses this.
 
 ## Dataset Extensions
@@ -367,10 +384,12 @@ Add these fields to `plan_quality_v1.json` cases (optional, backward-compatible)
 ```
 
 New optional fields:
+
 - `inject_failure`: tells Layer 2 to mock a failure on specified tool/attempt
 - `validator_expect`: tells Layer 1a what the validator should do (accept/reject)
 
 **Dataset migration plan:** Before implementing Layer 1a, audit the 163 cases:
+
 1. Verify all cases have `expected_intent` (current dataset already has this on all cases)
 2. Add 5-10 `inject_failure` cases covering each tool type that can fail: `resolve_anime` (API miss), `search_bangumi` (empty result), `search_nearby` (no nearby points), `plan_route` (insufficient points)
 3. Cases without `expected_intent` (if any found) are skipped by Layer 1a with a logged warning
@@ -382,19 +401,19 @@ New optional fields:
 
 ```makefile
 test-eval-components:
-	$(PYTEST) backend/tests/eval/test_component_quality.py -q --no-cov
+  $(PYTEST) backend/tests/eval/test_component_quality.py -q --no-cov
 
 test-eval-planner:
-	EVAL_MODEL=$${EVAL_MODEL:-google-gla:gemini-3.1-pro-preview} $(PYTEST) backend/tests/eval/test_planner_quality.py -q -m integration --no-cov
+  EVAL_MODEL=$${EVAL_MODEL:-google-gla:gemini-3.1-pro-preview} $(PYTEST) backend/tests/eval/test_planner_quality.py -q -m integration --no-cov
 
 test-eval-react:
-	EVAL_MODEL=$${EVAL_MODEL:-google-gla:gemini-3.1-pro-preview} $(PYTEST) backend/tests/eval/test_react_quality.py -q -m integration --no-cov
+  EVAL_MODEL=$${EVAL_MODEL:-google-gla:gemini-3.1-pro-preview} $(PYTEST) backend/tests/eval/test_react_quality.py -q -m integration --no-cov
 
 test-eval-fast:
-	$(MAKE) test-eval-components test-eval-planner
+  $(MAKE) test-eval-components test-eval-planner
 
 test-eval-all:
-	$(MAKE) test-eval-fast test-eval-react test-eval
+  $(MAKE) test-eval-fast test-eval-react test-eval
 ```
 
 ## Implementation Order

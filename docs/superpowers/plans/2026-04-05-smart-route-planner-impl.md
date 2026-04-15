@@ -17,7 +17,7 @@
 | `backend/agents/models.py` | Modify | Add TimedStop, TransitLeg, TimedItinerary, LocationCluster models |
 | `backend/agents/route_optimizer.py` | Create | Haversine, clustering, sorting, dwell time, itinerary builder |
 | `backend/agents/route_export.py` | Create | Google Maps URL builder, .ics calendar generator |
-| `backend/agents/executor_agent.py` | Modify | Wire route_optimizer into _execute_plan_route, backward compat |
+| `backend/agents/executor_agent.py` | Modify | Wire route_optimizer into `_execute_plan_route`, backward compat |
 | `backend/tests/unit/test_route_optimizer.py` | Create | Unit + property tests for all optimizer functions |
 | `backend/tests/unit/test_route_export.py` | Create | Unit tests for export functions |
 | `frontend/lib/types.ts` | Modify | Add TimedItinerary, TimedStop, TransitLeg TS interfaces |
@@ -33,11 +33,13 @@
 **Scope:** Define the data models that flow through the entire pipeline. Every subsequent task depends on these types.
 
 **AC:**
+
 - TimedStop, TransitLeg, TimedItinerary, LocationCluster models exist in models.py
 - `make typecheck` passes
 - No `Any` types (project rule)
 
 **Files:**
+
 - Modify: `backend/agents/models.py:1-63`
 
 **Prompt:**
@@ -61,6 +63,7 @@ Import `Literal` from typing (already imported on line 9). Use `Field(default_fa
 **Scope:** Pure functions for distance calculation and location clustering. No I/O, no DB, no LLM.
 
 **AC:**
+
 - `haversine_distance(lat1, lon1, lat2, lon2)` returns meters (float)
 - `validate_coordinates(rows)` splits into valid/invalid lists, rejecting (0,0) and out-of-range
 - `cluster_by_location(rows, threshold_m=50)` returns list[LocationCluster] using union-find
@@ -68,6 +71,7 @@ Import `Literal` from typing (already imported on line 9). Use `Field(default_fa
 - `make typecheck` passes
 
 **Files:**
+
 - Create: `backend/agents/route_optimizer.py`
 - Test: `backend/tests/unit/test_route_optimizer.py`
 
@@ -106,6 +110,7 @@ Import `LocationCluster` from `backend.agents.models`. No external deps beyond s
 **Scope:** Add nearest-neighbor sort, dwell time calculation, and timed itinerary construction.
 
 **AC:**
+
 - `nearest_neighbor_sort(clusters, origin)` returns ordered list with stable tiebreaker (cluster_id)
 - `compute_dwell_minutes(photo_count, pacing)` returns int using formula: base = max(photo_count * 3, 8), then chill 1.5x / normal 1.0x / packed 0.6x, rounded to int
 - `build_timed_itinerary(clusters, start_time, pacing)` returns TimedItinerary with monotonic arrival times
@@ -114,6 +119,7 @@ Import `LocationCluster` from `backend.agents.models`. No external deps beyond s
 - Property tests: arrival times are monotonic, no duplicate cluster_ids in output
 
 **Files:**
+
 - Modify: `backend/agents/route_optimizer.py`
 - Test: `backend/tests/unit/test_route_optimizer.py`
 
@@ -151,12 +157,14 @@ Add to `backend/agents/route_optimizer.py`:
 **Scope:** Pure serialization functions for Google Maps URL and .ics calendar.
 
 **AC:**
+
 - `build_google_maps_url(stops)` returns a single URL for ≤10 stops, list of URLs for >10
 - URL format: `https://www.google.com/maps/dir/{lat1},{lng1}/{lat2},{lng2}/...`
 - `build_ics_calendar(itinerary, title)` returns valid .ics string with VEVENT per stop
 - .ics has correct DTSTART/DTEND, Japanese names in SUMMARY, UTF-8
 
 **Files:**
+
 - Create: `backend/agents/route_export.py`
 - Create: `backend/tests/unit/test_route_export.py`
 
@@ -190,6 +198,7 @@ Import TimedStop, TimedItinerary from `backend.agents.models`.
 **Scope:** Update `_execute_plan_route` and `_execute_plan_selected` to use route_optimizer + route_export. Backward-compatible response (add timed_itinerary, keep ordered_points).
 
 **AC:**
+
 - `_execute_plan_route` returns `{ordered_points, timed_itinerary, point_count, status, summary, export_google_maps_url, export_ics}`
 - `_execute_plan_selected` reuses the same route_optimizer path (DRY)
 - Old `_nearest_neighbor_sort` function (lines 545-587) deleted, replaced by route_optimizer
@@ -197,8 +206,9 @@ Import TimedStop, TimedItinerary from `backend.agents.models`.
 - `make check` passes
 
 **Files:**
-- Modify: `backend/agents/executor_agent.py:280-378` (_execute_plan_route + _execute_plan_selected)
-- Delete: `backend/agents/executor_agent.py:545-587` (_nearest_neighbor_sort)
+
+- Modify: `backend/agents/executor_agent.py:280-378` (`_execute_plan_route` + `_execute_plan_selected`)
+- Delete: `backend/agents/executor_agent.py:545-587` (`_nearest_neighbor_sort`)
 
 **Prompt:**
 In `backend/agents/executor_agent.py`:
@@ -234,11 +244,13 @@ In `backend/agents/executor_agent.py`:
 **Scope:** Frontend type definitions mirroring backend models.
 
 **AC:**
+
 - TimedStop, TransitLeg, TimedItinerary, LocationCluster interfaces in types.ts
 - `isTimedRouteData` type guard distinguishes wizard data from legacy route data
 - `npm run build` passes
 
 **Files:**
+
 - Modify: `frontend/lib/types.ts:64-79` (after RouteData interface)
 
 **Prompt:**
@@ -261,6 +273,7 @@ In `frontend/lib/types.ts`, after the `RouteData` interface (line 79), add:
 **Scope:** The main UI component. Renders in Result Panel when timed_itinerary is present.
 
 **AC:**
+
 - Desktop: map hero (70%+) + timeline sidebar (240px) + collapsible spot drawer (shadcn Sheet)
 - Pacing toggle via shadcn Tabs (ゆっくり/普通/詰め込み)
 - Export buttons: Google Maps (opens URL), Calendar (triggers download)
@@ -270,6 +283,7 @@ In `frontend/lib/types.ts`, after the `RouteData` interface (line 79), add:
 - `npm run build` passes
 
 **Files:**
+
 - Create: `frontend/components/generative/RoutePlannerWizard.tsx`
 
 **Prompt:**
@@ -278,6 +292,7 @@ Create `frontend/components/generative/RoutePlannerWizard.tsx`:
 Props: `{ data: RouteData }` (same as RouteVisualization)
 
 Layout (desktop):
+
 - Outer: `flex h-full flex-col overflow-hidden rounded-2xl border`
 - Toolbar: flex row, justify-between. Left: shadcn Tabs for pacing + transport buttons. Right: export buttons.
 - Content: flex row. Left: map (flex-1, PilgrimageMap with route). Right: timeline (w-[240px]).
@@ -302,12 +317,14 @@ Use CSS variables from globals.css (`--color-primary`, `--color-bg`, `--color-bo
 **Scope:** Wire the wizard into the generative UI system.
 
 **AC:**
+
 - `plan_route` intent renders RoutePlannerWizard when `timed_itinerary` present
 - Falls back to RouteVisualization when `timed_itinerary` absent (backward compat)
 - `VISUAL_COMPONENTS` includes RoutePlannerWizard
 - `npm run build` passes
 
 **Files:**
+
 - Modify: `frontend/components/generative/registry.ts:1-76`
 
 **Prompt:**
@@ -338,18 +355,21 @@ In `frontend/components/generative/registry.ts`:
 **Scope:** Add responsive mobile layout using vaul drawer for timeline.
 
 **AC:**
+
 - Below 1024px: map full-width, timeline in vaul bottom sheet
 - Export buttons in bottom sheet footer
 - Spot drawer trigger in bottom sheet
 - Uses `useMediaQuery` hook (existing in codebase)
 
 **Files:**
+
 - Modify: `frontend/components/generative/RoutePlannerWizard.tsx`
 
 **Prompt:**
 In RoutePlannerWizard.tsx, import `useMediaQuery` from `../../hooks/useMediaQuery` and `Drawer` from `vaul`.
 
 When `isMobile = useMediaQuery("(max-width: 1023px)")`:
+
 - Hide the desktop timeline sidebar
 - Show a vaul Drawer at the bottom with the timeline content + export buttons + spot toggle
 - Map takes full width
@@ -367,16 +387,19 @@ When `isMobile = useMediaQuery("(max-width: 1023px)")`:
 **Scope:** Security fixes from /cso audit.
 
 **AC:**
+
 - CORS origin configurable via env var `CORS_ALLOWED_ORIGIN` (default: `*` for dev, set in production)
 - Dockerfile runs as non-root user `appuser`
 - `make check` passes
 
 **Files:**
+
 - Modify: `backend/interfaces/http_service.py:288`
 - Modify: `backend/config/settings.py` (add cors_allowed_origin field)
 - Modify: `Dockerfile:20-38`
 
 **Prompt:**
+
 1. In `backend/config/settings.py`, add `cors_allowed_origin: str = "*"` to Settings class.
 
 2. In `backend/interfaces/http_service.py:288`, replace hardcoded `"*"` with `request.app[_SETTINGS_KEY].cors_allowed_origin`.
@@ -400,6 +423,7 @@ When `isMobile = useMediaQuery("(max-width: 1023px)")`:
 **Scope:** Verify everything works together, create PR.
 
 **AC:**
+
 - `make check` passes (lint + typecheck + all tests)
 - `cd frontend && npm run build` passes
 - QA smoke test via `python scripts/qa_auth.py` + headless browser
@@ -415,6 +439,7 @@ When `isMobile = useMediaQuery("(max-width: 1023px)")`:
   git push -u origin feat/smart-route-planner
   gh pr create --title "feat: smart route planner with timed itinerary" --body "..."
   ```
+
 - [ ] Step 5: Verify CI passes on PR (no CD trigger)
 
 ---
@@ -448,6 +473,7 @@ Task 5: Wire executor           Task 8: Registry
 **Lane C (fixes):** Task 10 (independent, can start immediately)
 
 **Execution order:**
+
 1. Launch Lane A + Lane C in parallel worktrees
 2. After Task 1 completes (models defined), launch Lane B
 3. Merge all lanes

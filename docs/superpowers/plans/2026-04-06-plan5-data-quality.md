@@ -30,6 +30,7 @@
 **Scope:** Bangumi titles are currently stored as the numeric ID (e.g., "115908" instead of "響け！ユーフォニアム"). The `/lite` endpoint has the real title, city, and cover image.
 
 **Files:**
+
 - Modify: `backend/clients/anitabi.py`
 - Modify: `backend/agents/retriever.py`
 
@@ -134,6 +135,7 @@ make test
 **Scope:** Remove the undocumented `/near` endpoint dependency. When location search returns few results, use the ReAct CLARIFY tool to ask the user which anime they're looking for.
 
 **Files:**
+
 - Modify: `backend/clients/anitabi.py`
 - Modify: `backend/agents/retriever.py`
 - Modify: `backend/agents/planner_agent.py` (prompt update)
@@ -215,6 +217,7 @@ make typecheck
 **Scope:** Many Anitabi spots have `name = "不明"` (unknown). Display the city/area instead using a baked-in Japan region lookup table.
 
 **Files:**
+
 - Create: `frontend/lib/japanRegions.ts`
 - Modify: `frontend/components/generative/PilgrimageGrid.tsx`
 
@@ -304,6 +307,7 @@ grep -n "image\|photo\|screenshot\|source\|type\|category" backend/infrastructur
 If possible, make a test call to `https://api.anitabi.cn/bangumi/115908/points/detail` and inspect the JSON for any field distinguishing screenshots from user photos.
 
 Look for fields like:
+
 - `image_type` / `img_type`
 - `source` / `src`
 - `is_screenshot` / `screenshot`
@@ -314,6 +318,7 @@ Look for fields like:
 If field exists: add a badge to PilgrimageGrid photo cards ("截图" vs "实拍").
 
 If field does NOT exist: document as known limitation. The images at Anitabi typically follow a pattern:
+
 - Left image = anime screenshot
 - Right image = real photo
 - They're often paired side-by-side in the source data

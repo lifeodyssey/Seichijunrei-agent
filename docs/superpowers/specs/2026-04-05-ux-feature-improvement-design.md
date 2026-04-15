@@ -25,25 +25,31 @@ All phases execute in isolated git worktrees via `superpowers:using-git-worktree
 git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
 cd ~/.claude/skills/gstack && ./setup
 ```
+
 - Append `## gstack` section to `CLAUDE.md` listing available skills
 
 ### 0b. Clean root directory (partially landed)
 
 **✅ Delete empty shell directories** (only contain `__pycache__`) (landed):
+
 - `agents/`, `clients/`, `config/`, `domain/`, `services/`, `utils/`
 
 **Delete build artifacts** (NOT landed — `coverage.xml` and `htmlcov/` still in root):
+
 - `coverage.xml`, `htmlcov/`, `__pycache__/`
 
 **Move working files under iteration docs** (NOT landed — still in root):
+
 - `findings.md` → `docs/iterations/iter5/findings.md`
 - `progress.md` → `docs/iterations/iter5/progress.md`
 - `task_plan.md` → `docs/iterations/iter5/task_plan.md`
 
 **✅ Delete stray files** (landed):
+
 - `untitled.pen`
 
 **✅ Investigate before deleting** (landed — all removed):
+
 - `infrastructure/mcp_servers/` — check if referenced anywhere
 - `interfaces/a2a_server/`, `interfaces/a2ui_web/` — check if used
 - `application/ports/`, `application/use_cases/` — hexagonal architecture remnants
@@ -52,6 +58,7 @@ cd ~/.claude/skills/gstack && ./setup
 - `images/` — generated screenshots, likely safe to delete
 
 **✅ Update `.gitignore`** (landed):
+
 - Add `__pycache__/`, `htmlcov/`, `coverage.xml`, `.superpowers/`
 
 ### ✅ 0c. Clean up stale git branches (landed)
@@ -59,6 +66,7 @@ cd ~/.claude/skills/gstack && ./setup
 **Delete local branches** (all merged or abandoned, `main` is the only active branch):
 
 Local branches to delete (30+):
+
 - `codex/*` (8 branches): `refactor-backend`, `refactor-frontend`, `refactor-worker-ci`, `refactor-integrate`, `iter3-compact-selection-frontend`, `iter3-compact-selection-backend`, `iter2-persistence`, `iter2-persistence-frontend`, `greeting-onboarding`, `iter1-memory-sse`, `supabase-migration-workflow`, `frontend-ux-polish`, `iter3-compact-selection`
 - `worktree-frontend-ux-polish`
 - `integration/iter1`
@@ -67,6 +75,7 @@ Local branches to delete (30+):
 - `refactor/v2-architecture-plan`
 
 **Delete remote branches** (stale remote-only branches):
+
 - `origin/feat/*` (10+): `arch-foundation`, `infra-session-observability`, `a2ui-a2a-server`, `testing-contracts-coverage`, `planner-hybrid-router`, `stream3-a2ui`, `stream1-infra`, `stream2-location`, `intent-router`, `planner`, `a2ui-a2a`, `sprint1-foundation`
 - `origin/fix/*`: `ci-black-formatting`, `code-review-security-and-bugs`
 - `origin/backup/pre-restructure-20251130`
@@ -148,11 +157,13 @@ When ambiguous → ask; when clear → proceed directly.
 ## ✅ Phase 3: Cloudflare Image Proxy (Worker + Backend) (landed)
 
 ### Why
+
 Frontend currently loads images directly from `https://image.anitabi.cn/screenshot/...`. This is slow for users (no CDN edge caching, no compression), and if Anitabi's image server is slow or down, our images break. By proxying through our CF Worker, images get cached at Cloudflare's 300+ edge nodes worldwide.
 
 ### 3a. Worker route — `worker/worker.js`
 
 The Worker currently has 3 routing paths (line 162-198):
+
 1. `/healthz` → container (no auth)
 2. `/v1/*` → container (with auth)
 3. Everything else → `env.ASSETS` (static frontend)
@@ -232,17 +243,20 @@ function shouldProxyToContainer(pathname) {
 | **命中率** | 热门图片高，冷门图片可能 miss | 100%（永久存储） |
 
 **我们选边缘缓存的原因：**
+
 - **零成本** — Worker Free plan 就包含 Cache API
 - **自动地理分布** — 日本用户命中东京边缘，欧美用户命中当地边缘
 - **图片源是 Anitabi** — 他们的服务器还在，只是慢。我们加速而非替代
 - **即使缓存失效** — 下次请求会重新从 Anitabi 拉取并缓存，用户无感
 
 **如果将来需要持久化（Anitabi 下线/图片消失），可升级到 R2：**
+
 - 在 Worker 中 miss 时，先查 R2，再查 Anitabi
 - 拉到图片后同时写入 R2 + 边缘缓存
 - 但目前没必要，边缘缓存足够
 
 **缓存 TTL：**
+
 - `s-maxage=2592000` (30 天): CF 边缘节点缓存 30 天。同一边缘的所有用户直接命中。
 - `max-age=604800` (7 天): 用户浏览器本地缓存 7 天。重复访问零网络请求。
 - 巡礼截图是不变的（URL 对应固定图片），长 TTL 安全。
@@ -250,6 +264,7 @@ function shouldProxyToContainer(pathname) {
 ### 3b. Backend URL rewriting — `backend/agents/executor_agent.py`
 
 Images are stored in DB as `points.image` column, projected as `screenshot_url` in SQL queries. Current values look like:
+
 - Full URL: `https://image.anitabi.cn/screenshot/12345.jpg`
 - Relative path: `screenshot/12345.jpg` (prefixed at gateway level in `anitabi.py:186`)
 
@@ -270,10 +285,12 @@ def _rewrite_image_urls(rows: list[dict[str, object]]) -> list[dict[str, object]
 ```
 
 **Apply in these locations:**
+
 1. `_build_query_payload()` (~line 458) — after building `retrieval` result, call `_rewrite_image_urls(retrieval["rows"])`
 2. `_execute_plan_route()` / `_execute_plan_selected()` — rewrite `ordered_points` before returning
 
 **Why rewrite at executor boundary (not SQL or gateway):**
+
 - DB stores clean upstream URLs — useful for debugging, re-proxying, data exports
 - If proxy is ever removed, only this one function changes
 - Gateway layer stays pure (just fetches + normalizes data)
@@ -283,6 +300,7 @@ def _rewrite_image_urls(rows: list[dict[str, object]]) -> list[dict[str, object]
 `PilgrimageGrid.tsx` already uses `<img src={point.screenshot_url}>`. Since we're rewriting the URL server-side from `https://image.anitabi.cn/screenshot/abc.jpg` to `/img/screenshot/abc.jpg`, the frontend just works — relative URLs resolve to the same CF Worker origin.
 
 **Verify:**
+
 1. `wrangler dev` locally → visit `/img/screenshot/` path → confirm image loads
 2. Check response headers: `CF-Cache-Status: HIT` on second request
 3. `make check` passes (backend URL rewriting doesn't break tests)
@@ -298,6 +316,7 @@ In `frontend/` directory:
 ```bash
 npx shadcn@latest init
 ```
+
 - Configure: TypeScript, Tailwind v4, `app/globals.css`, `components/ui/`, no dark mode
 - Map existing CSS variables (`--color-bg`, `--color-primary`, etc.) to shadcn expected variables in `globals.css`
 

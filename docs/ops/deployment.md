@@ -175,6 +175,7 @@ npx wrangler@4 deploy
 ```
 
 **CF Worker routing** (`worker/worker.js`):
+
 - `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → FastAPI service on port 8080)
 - Everything else → `ASSETS` (Next.js static export from `frontend/out/`)
 

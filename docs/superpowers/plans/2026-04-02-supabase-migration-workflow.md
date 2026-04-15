@@ -34,6 +34,7 @@
 ## Task 1: Introduce Supabase CLI Project Structure
 
 **Files:**
+
 - Create: `supabase/config.toml`
 - Create: `supabase/.gitignore`
 - Modify: `Makefile`
@@ -95,22 +96,22 @@ Append to `Makefile`:
 .PHONY: db-link db-diff db-pull db-push db-push-dry db-reset
 
 db-link:
-	supabase link --project-ref $$SUPABASE_PROJECT_REF
+  supabase link --project-ref $$SUPABASE_PROJECT_REF
 
 db-diff:
-	supabase db diff -f $$NAME --schema public
+  supabase db diff -f $$NAME --schema public
 
 db-pull:
-	supabase db pull $$NAME --schema public
+  supabase db pull $$NAME --schema public
 
 db-push-dry:
-	supabase db push --dry-run
+  supabase db push --dry-run
 
 db-push:
-	supabase db push
+  supabase db push
 
 db-reset:
-	supabase db reset
+  supabase db reset
 ```
 
 - [ ] **Step 5: Document the developer commands in `README.md`**
@@ -163,6 +164,7 @@ git commit -m "chore: add supabase cli project scaffold"
 ## Task 2: Capture the Live Baseline and Repair Migration History
 
 **Files:**
+
 - Create: `supabase/migrations/20260402120000_remote_schema.sql`
 
 - [ ] **Step 1: Link the repo to the hosted Supabase project**
@@ -249,6 +251,7 @@ git commit -m "chore: baseline live supabase schema"
 ## Task 3: Port Repo-Owned Drift Into Post-Baseline Supabase Migrations
 
 **Files:**
+
 - Create: `supabase/migrations/20260402123000_points_alignment.sql`
 - Create: `supabase/migrations/20260402124000_operational_tables.sql`
 - Modify: `infrastructure/supabase/migrations/005_points_schema_alignment.sql`
@@ -350,6 +353,7 @@ git commit -m "chore: port repo schema changes to supabase migrations"
 ## Task 4: Add CI Migration Validation
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Add Supabase CLI setup to CI**
@@ -425,6 +429,7 @@ git commit -m "ci: add supabase migration validation"
 ## Task 5: Add a Dedicated Deploy-Time `db push` Stage
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml`
 
 - [ ] **Step 1: Add a database job that runs before Cloudflare deploy**
@@ -498,6 +503,7 @@ git commit -m "ci: add deploy-time supabase db push stage"
 ## Task 6: Final Verification and Legacy Path Cleanup
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/superpowers/specs/2026-04-02-supabase-migration-workflow-design.md`
 

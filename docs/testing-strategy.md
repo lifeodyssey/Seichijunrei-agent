@@ -62,6 +62,7 @@ Stack: FastAPI + asyncpg + Pydantic AI (backend), Next.js + React (frontend), Cl
 **What to test:** Single function/class input→output mapping, boundary values, null, error paths.
 
 **Scope:**
+
 - Executor handlers (resolve_anime, search_bangumi, plan_route, etc.)
 - Type guards (isSearchData, isRouteData, etc.)
 - Result validator rules
@@ -71,6 +72,7 @@ Stack: FastAPI + asyncpg + Pydantic AI (backend), Next.js + React (frontend), Cl
 - Session facade
 
 **Mock strategy:**
+
 - DB → `AsyncMock` (mock `SupabaseClient` methods)
 - External API gateway → `MagicMock`
 - LLM → not involved (executor has no LLM calls)
@@ -148,12 +150,14 @@ class PipelineResultFactory(factory.Factory):
 **What to test:** Component interaction, boundary crossing (DB, HTTP, SSE).
 
 **Scope:**
+
 - DB CRUD (retriever queries, write-through, session persistence)
 - API contract (HTTP status codes, response shape, header validation)
 - SSE contract (event order: planning → step* → done, payload format)
 - Auth middleware (X-User-Id header injection, API key validation)
 
 **Mock strategy:**
+
 - DB → **testcontainers real PostgreSQL** (not mocked)
 - LLM → `TestModel` or `AsyncMock` returning fixed `ExecutionPlan`
 - External API → `respx` HTTP-level mock
@@ -197,11 +201,13 @@ def test_runtime_endpoint():
 **What to test:** Full HTTP request path including auth, session management, data persistence.
 
 **Difference from integration tests:**
+
 - Integration tests mock `RuntimeAPI.handle` — only verify HTTP shape
 - API tests **do NOT mock RuntimeAPI** — but mock LLM via TestModel
 - API tests verify: request → middleware → RuntimeAPI → pipeline (TestModel) → DB write → response
 
 **Scope:**
+
 - POST /v1/runtime — with real DB, verify session creation and message persistence
 - POST /v1/runtime/stream — SSE event stream completeness
 - GET /v1/conversations — session list correctness
@@ -217,6 +223,7 @@ def test_runtime_endpoint():
 **What to test:** Pure functions and utility logic.
 
 **Scope:**
+
 - `lib/types.ts` — type guards (isSearchData, isRouteData, isQAData, isTimedRouteData)
 - `lib/api.ts` — hydrateResponseData, request header construction, error handling
 - SSE parsing logic
@@ -229,6 +236,7 @@ def test_runtime_endpoint():
 **What to test:** React component rendering and user interaction.
 
 **Scope:**
+
 - `MessageBubble` — render different response types (search/route/clarify/error)
 - `PilgrimageGrid` — grouping display, tab switching (By Episode / By Area)
 - `AppShell` — three-column layout, message selection, activeMessageId state
@@ -264,6 +272,7 @@ afterAll(() => server.close())
 ```
 
 **Why MSW over `vi.mock('../lib/api')`:**
+
 - MSW intercepts at the network layer, covering fetch logic in `api.ts` (headers, error handling)
 - Changing an API path without updating the mock causes test failure (good)
 - Same handlers reusable in Storybook and dev
@@ -491,6 +500,7 @@ Weekly CI run without cassettes verifies APIs haven't changed.
 ### Evaluator-Generated Edge Cases
 
 Beyond AC-defined scenarios, Evaluator proactively generates:
+
 - Empty input / very long input (1000 chars)
 - Special characters (emoji, HTML tags, SQL injection attempts)
 - Rapid-fire 10 messages
@@ -701,12 +711,14 @@ The following is embedded directly in Executor and Reviewer prompts. No runtime 
 ### Code Review (by priority)
 
 **P0 — Must fix:**
+
 - Security vulnerabilities (SQL injection, XSS, hardcoded secrets)
 - Crash bugs (null pointer, unhandled exceptions)
 - Data loss risk (missing transactions, race conditions)
 - `Any` type introduced
 
 **P1 — Should fix:**
+
 - SOLID violation
 - Clean Code rule violation (method > 10 lines, deep nesting)
 - Missing corresponding test (Quality Ratchet: every AC must have a test)
@@ -714,6 +726,7 @@ The following is embedded directly in Executor and Reviewer prompts. No runtime 
 - Unclear naming
 
 **P2 — Suggested:**
+
 - Code duplication (extractable helper)
 - Performance optimization opportunity
 - Better data structure choice

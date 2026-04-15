@@ -122,6 +122,7 @@ This is a valid approach for three fixed strategies. However:
 **Issue 3: Raw SQL in retriever.** Lines 400-404 execute `UPDATE bangumi SET points_count = $1 WHERE id = $2` directly against the pool. This leaks infrastructure concerns into the agents layer.
 
 **Recommendation:**
+
 1. Extract `_write_through_bangumi_points`, `_ensure_bangumi_record`, `_load_bangumi_metadata`, `_fetch_bangumi_lite`, `_persist_points`, `_update_bangumi_points_count` into a dedicated `BangumiWriteThroughService` in the application layer. This is a use case, not a retrieval strategy.
 2. Replace `AnitabiClient()` direct instantiation with the injected `AnitabiGateway` port.
 3. Move raw SQL (`UPDATE bangumi SET points_count`) into `BangumiRepository`.
@@ -152,6 +153,7 @@ def _get_runtime_api(request: Request) -> RuntimeAPI:
 ```
 
 **Issue 1: No FastAPI `Depends()` for core services.** `RuntimeAPI` and `db` are pulled from `request.app.state` via module-level helpers, not via FastAPI's dependency injection system. This means:
+
 - No lazy instantiation or scoping
 - No override mechanism via `app.dependency_overrides` for testing
 - Endpoints like `handle_get_conversations` call `_get_db_from_request` + `_require_db_method` manually
@@ -161,6 +163,7 @@ def _get_runtime_api(request: Request) -> RuntimeAPI:
 **Issue 3: `_require_db_method` is runtime duck-typing.** Instead of a typed dependency, the service checks `hasattr(db, method_name)` at request time and raises HTTP 500 if missing. This should be a startup-time guarantee.
 
 **Recommendation:**
+
 1. Create FastAPI dependency providers:
    ```python
    async def get_runtime_api(request: Request) -> RuntimeAPI:
@@ -169,6 +172,7 @@ def _get_runtime_api(request: Request) -> RuntimeAPI:
    async def get_db(request: Request) -> RuntimeDBPort:
        return cast(RuntimeDBPort, request.app.state.db_client)
    ```
+
 2. Use `Depends(get_runtime_api)` in endpoint signatures instead of `request: Request` + manual extraction.
 3. Move `_require_db_method` checks to startup validation (assert all required methods exist before serving traffic).
 
@@ -178,14 +182,15 @@ def _get_runtime_api(request: Request) -> RuntimeAPI:
 
 **Status: MOSTLY CORRECT with specific violations**
 
-#### Correct separations:
+#### Correct separations
+
 - `domain/entities.py` has zero imports from other layers
 - `application/ports/` defines Protocol interfaces for external gateways
 - `application/use_cases/` depends only on ports and domain entities
 - `infrastructure/gateways/` implements the port protocols
 - `interfaces/schemas.py` is pure Pydantic with no business logic
 
-#### Violations:
+#### Violations
 
 **Violation 1: `agents/retriever.py` imports concrete infrastructure types.**
 
@@ -258,6 +263,7 @@ The `finally` block in `handle()` (lines 238-289) does request logging and messa
 **Status: GOOD for protocols, WEAK for db typing**
 
 The `application/ports/` layer correctly defines narrow protocols:
+
 - `BangumiGateway`: 3 methods
 - `AnitabiGateway`: 3 methods
 - `SessionStore`: 3 methods (get/set/delete)
@@ -350,7 +356,8 @@ Each consumer declares a Protocol with only its required methods. `SupabaseClien
                          └─────────────────────────────────────────────────────┘
 ```
 
-### Key changes from current to proposed:
+### Key changes from current to proposed
+
 1. `RuntimeAPI` moves from `interfaces/` to `application/` (it is orchestration, not transport)
 2. Write-through, title generation, compaction become explicit use cases
 3. `db: object` replaced with narrow Protocol ports
@@ -365,10 +372,12 @@ Each consumer declares a Protocol with only its required methods. `SupabaseClien
 ### R1: Eliminate `db: object` typing (HIGH PRIORITY)
 
 **Files to create:**
+
 - `backend/application/ports/runtime_db.py` -- `RuntimeDBPort` Protocol
 - `backend/application/ports/retriever_db.py` -- `RetrieverDBPort` Protocol
 
 **Files to modify:**
+
 - `backend/interfaces/public_api.py` -- type `db` as `RuntimeDBPort`
 - `backend/agents/retriever.py` -- type `db` as `RetrieverDBPort`
 - `backend/agents/executor_agent.py` -- type `db` with appropriate port
@@ -380,6 +389,7 @@ Each consumer declares a Protocol with only its required methods. `SupabaseClien
 **Create:** `backend/application/use_cases/write_through_bangumi.py`
 
 Move these methods from `Retriever`:
+
 - `_write_through_bangumi_points`
 - `_ensure_bangumi_record`
 - `_load_bangumi_metadata`
@@ -438,6 +448,7 @@ This enables `app.dependency_overrides[get_runtime_api] = lambda: mock_api` in t
 **File:** `backend/interfaces/session_facade.py`
 
 Move `compact_session_interactions()` and `generate_and_save_title()` to:
+
 - `backend/application/use_cases/compact_session.py`
 - `backend/application/use_cases/generate_title.py`
 
@@ -446,6 +457,7 @@ These use LLM agents and are business logic, not interface concerns.
 ### R6: Decompose `RuntimeAPI.handle()` (LOW PRIORITY)
 
 The 200-line `handle()` method has clear phases:
+
 1. Load session
 2. Execute pipeline
 3. Build response
@@ -494,7 +506,8 @@ Extract step 4 into a `_persist_pipeline_results()` method or a `PostPipelineHoo
 
 ## 6. Summary of Findings
 
-### What is working well:
+### What is working well
+
 1. **Layer separation exists** -- domain, application, agents, infrastructure, interfaces are all distinct directories with mostly correct responsibilities
 2. **Protocol-based ports** for external gateways (Bangumi, Anitabi, SessionStore)
 3. **Facade decomposition** -- `public_api.py` correctly delegates to `response_builder.py` and `session_facade.py`
@@ -502,14 +515,15 @@ Extract step 4 into a `_persist_pipeline_results()` method or a `PostPipelineHoo
 5. **Deterministic executor** with no LLM calls (static message templates)
 6. **Domain entities** are pure and framework-independent
 
-### What needs attention:
+### What needs attention
+
 1. **`db: object` typing** is the single biggest architectural debt -- it eliminates type safety and hides contracts across the entire backend
 2. **Retriever is doing too much** -- strategy dispatch + write-through + metadata enrichment + raw SQL should be separated
 3. **Concrete infrastructure imports in agents layer** violate dependency direction
 4. **FastAPI DI underutilized** -- only auth context uses `Depends()`
 5. **LLM-dependent code in interfaces layer** (session_facade title/compaction) should be application use cases
 
-### Prioritized action items:
+### Prioritized action items
 
 | Priority | Item | Effort | Impact |
 |---|---|---|---|

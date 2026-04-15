@@ -72,39 +72,47 @@ AI should not be the first thing the user sees.
 ### `/design`
 
 Role:
+
 - explain the product in one screen
 - offer 3 starting paths
 - expose saved routes as a continuation path
 
 Primary action:
+
 - choose one way to start browsing
 
 ### `/design/explore`
 
 Role:
+
 - browse a title’s scene collection
 - compare scenes and build a shortlist
 
 Primary action:
+
 - add scenes into today’s shortlist
 
 ### `/design/nearby`
 
 Role:
+
 - browse what is worth visiting near the current station
 - make an immediate local decision
 
 Primary action:
+
 - start a light route from current location
 
 ### `/design/route`
 
 Role:
+
 - arrange sequence
 - inspect map and total effort
 - apply AI route edits
 
 Primary action:
+
 - finalize or refine the day’s route
 
 ## Design Principles

@@ -35,6 +35,7 @@
 ## Task 1: Add `isVisualResponse` to `registry.ts` + simplify renderers
 
 **Files:**
+
 - Modify: `frontend/components/generative/registry.ts`
 
 - [ ] **Step 1.1: Add `VISUAL_COMPONENTS` set and `isVisualResponse` helper**
@@ -103,6 +104,7 @@ git commit -m "refactor(registry): add isVisualResponse helper; remove dead ui.p
 ## Task 2: Sync `Intent` type with backend
 
 **Files:**
+
 - Modify: `frontend/lib/types.ts`
 
 - [ ] **Step 2.1: Update Intent union (lines 9–14)**
@@ -145,6 +147,7 @@ git commit -m "fix(types): sync Intent type with backend actual values"
 ## Task 3: Add CSS keyframes
 
 **Files:**
+
 - Modify: `frontend/app/globals.css`
 
 - [ ] **Step 3.1: Add keyframes after the existing `slide-up-fade` block (after line 74)**
@@ -173,6 +176,7 @@ git commit -m "style: add panel-slide-in and pulse-skeleton keyframes"
 ## Task 4: Thread `AbortSignal` through api → useChat
 
 **Files:**
+
 - Modify: `frontend/lib/api.ts`
 - Modify: `frontend/hooks/useChat.ts`
 
@@ -260,6 +264,7 @@ git commit -m "fix(useChat): wire AbortController signal; handle AbortError clea
 ## Task 5: Core AppShell layout fixes
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx`
 
 This task fixes Bug 1 (wrong `hasResponse`), Bug 2 (stale loading data), adds smooth transition, and wires bangumiTitleMap + onSuggest.
@@ -463,6 +468,7 @@ git commit -m "fix(AppShell): hasVisualResponse; suppress stale panel during loa
 ## Task 6: ResultPanel loading skeleton
 
 **Files:**
+
 - Modify: `frontend/components/layout/ResultPanel.tsx`
 
 - [ ] **Step 6.1: Add `loading` prop and skeleton branch**
@@ -533,6 +539,7 @@ git commit -m "feat(ResultPanel): loading skeleton state via loading prop"
 ## Task 7: ResultDrawer — thread `loading` prop
 
 **Files:**
+
 - Modify: `frontend/components/layout/ResultDrawer.tsx`
 
 - [ ] **Step 7.1: Add `loading` prop and pass to ResultPanel**
@@ -577,6 +584,7 @@ git commit -m "feat(ResultDrawer): thread loading prop to ResultPanel"
 ## Task 8: Sidebar — show anime title instead of bangumi_id
 
 **Files:**
+
 - Modify: `frontend/components/layout/Sidebar.tsx`
 
 - [ ] **Step 8.1: Add `bangumiTitleMap` to props and update route history render**
@@ -623,6 +631,7 @@ git commit -m "fix(Sidebar): show anime title from bangumiTitleMap instead of ra
 ## Task 9: MessageBubble — visual-only anchor + hover feedback buttons
 
 **Files:**
+
 - Modify: `frontend/components/chat/MessageBubble.tsx`
 
 - [ ] **Step 9.1: Import `isVisualResponse` and fix `canShowAnchor`**
@@ -692,6 +701,7 @@ git commit -m "fix(MessageBubble): anchor only for visual responses; feedback bu
 ## Task 10: MessageList — empty state onboarding
 
 **Files:**
+
 - Modify: `frontend/components/chat/MessageList.tsx`
 
 - [ ] **Step 10.1: Add `onSuggest` prop and update empty state**
@@ -759,6 +769,7 @@ git commit -m "feat(MessageList): show example queries in empty state for onboar
 ## Task 11: ChatInput — auto-grow, remove prefill, loading dots
 
 **Files:**
+
 - Modify: `frontend/components/chat/ChatInput.tsx`
 
 - [ ] **Step 11.1: Rewrite ChatInput with all three improvements**
@@ -877,6 +888,7 @@ git commit -m "feat(ChatInput): auto-grow textarea; loading dots; remove vestigi
 ## Task 12: PilgrimageGrid — image fallback placeholder
 
 **Files:**
+
 - Modify: `frontend/components/generative/PilgrimageGrid.tsx`
 
 - [ ] **Step 12.1: Extract `PilgrimageCard` sub-component with `imgError` state**
@@ -987,6 +999,7 @@ git commit -m "fix(PilgrimageGrid): show 聖 placeholder when screenshot fails t
 ## Task 13: Update AGENTS.md
 
 **Files:**
+
 - Modify: `frontend/AGENTS.md`
 
 - [ ] **Step 13.1: Update the Design System section**

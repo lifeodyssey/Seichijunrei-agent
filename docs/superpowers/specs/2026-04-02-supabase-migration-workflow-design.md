@@ -288,10 +288,13 @@ Recommended rollout order:
 ## References
 
 - Supabase Database Migrations:
-  https://supabase.com/docs/guides/deployment/database-migrations
+  <https://supabase.com/docs/guides/deployment/database-migrations>
+
 - Supabase CLI `db push` / `db pull` / `db diff` / `migration list`:
-  https://supabase.com/docs/reference/cli/supabase-db-pull
+  <https://supabase.com/docs/reference/cli/supabase-db-pull>
+
 - Supabase CLI `migration repair`:
-  https://supabase.com/docs/reference/cli/supabase-migration-up
+  <https://supabase.com/docs/reference/cli/supabase-migration-up>
+
 - Supabase local development overview:
-  https://supabase.com/docs/guides/local-development/overview
+  <https://supabase.com/docs/guides/local-development/overview>

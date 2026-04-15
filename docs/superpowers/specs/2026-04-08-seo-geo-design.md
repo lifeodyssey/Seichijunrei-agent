@@ -7,6 +7,7 @@
 SEO audit on 2026-04-08 scored the site **35/100**. AI visibility score: **~5/100**. The site is a client-side SPA behind auth. Google and AI crawlers see a loading spinner and nothing else. Zero backlinks, no sitemap, no structured data, no public content pages.
 
 **Current state:**
+
 - Title + meta description exist (Japanese only)
 - OG tags partially set (no og:image)
 - No sitemap.xml
@@ -17,6 +18,7 @@ SEO audit on 2026-04-08 scored the site **35/100**. AI visibility score: **~5/10
 - Zero presence in AI responses for anime pilgrimage queries
 
 **Competitors with strong SEO/GEO:**
+
 - Anitabi.cn — indexed anime spot database, appears in AI responses
 - Butaitanbou.com — Japanese anime pilgrimage blog, ranks well
 - Individual travel blog posts dominate search results
@@ -50,6 +52,7 @@ SEO audit on 2026-04-08 scored the site **35/100**. AI visibility score: **~5/10
 - Ensure AI training bots are not blocked (check content-signal headers)
 
 **AC:**
+
 - [ ] `https://seichijunrei.zhenjia.org/sitemap.xml` returns valid XML
 - [ ] `https://seichijunrei.zhenjia.org/robots.txt` includes Sitemap directive
 
@@ -88,6 +91,7 @@ Also add Organization schema:
 ```
 
 **AC:**
+
 - [ ] JSON-LD visible in page source
 - [ ] Google Rich Results Test validates schema
 
@@ -100,6 +104,7 @@ Also add Organization schema:
 - Add `twitter:image`, `twitter:card: summary_large_image`
 
 **AC:**
+
 - [ ] Social share preview shows image on Twitter/LINE/WeChat
 - [ ] og:locale set for ja, alternates for zh/en
 
@@ -116,6 +121,7 @@ Add to head:
 ```
 
 **AC:**
+
 - [ ] hreflang tags in page source
 - [ ] Google sees 3 language versions
 
@@ -130,6 +136,7 @@ Add to head:
 - Longer, keyword-rich, includes anime titles that people search for
 
 **AC:**
+
 - [ ] Title 50-60 chars
 - [ ] Description 120-160 chars with target keywords
 
@@ -164,6 +171,7 @@ Add FAQ JSON-LD:
 ```
 
 **AC:**
+
 - [ ] FAQ schema validates in Google Rich Results Test
 - [ ] Content answers questions AI models commonly receive
 

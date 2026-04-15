@@ -46,6 +46,7 @@
 ### Task 1: Session summary field + compact function
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Test: `tests/unit/test_public_api.py`
 
@@ -232,6 +233,7 @@ git commit -m "feat(api): add LLM compact — session summary when interactions 
 ### Task 2: Trigger compact in RuntimeAPI.handle + update prompt format
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Modify: `agents/planner_agent.py`
 - Test: `tests/unit/test_public_api.py`
@@ -346,6 +348,7 @@ git commit -m "feat(api): trigger compact task at 8 interactions; include summar
 ### Task 3: get_points_by_ids in SupabaseClient
 
 **Files:**
+
 - Modify: `infrastructure/supabase/client.py`
 - Test: `tests/unit/test_supabase_client.py`
 
@@ -412,9 +415,10 @@ git commit -m "feat(db): add get_points_by_ids for direct point selection routin
 
 ---
 
-### Task 4: ToolName.PLAN_SELECTED + _execute_plan_selected
+### Task 4: ToolName.PLAN_SELECTED + `_execute_plan_selected`
 
 **Files:**
+
 - Modify: `agents/models.py`
 - Modify: `agents/executor_agent.py`
 - Test: `tests/unit/test_executor_agent.py`
@@ -524,7 +528,7 @@ async def _execute_plan_selected(
     )
 ```
 
-- [ ] **Step 4.5: Register handler + update _build_output + _infer_primary_tool + _MESSAGES**
+- [ ] **Step 4.5: Register handler + update `_build_output` + `_infer_primary_tool` + `_MESSAGES`**
 
 In `_execute_step` dispatch table, add:
 ```python
@@ -585,6 +589,7 @@ git commit -m "feat(executor): add plan_selected tool for direct point-ID routin
 ### Task 5: PublicAPIRequest.selected_point_ids + pipeline bypass
 
 **Files:**
+
 - Modify: `interfaces/public_api.py`
 - Modify: `agents/pipeline.py`
 - Test: `tests/unit/test_public_api.py`
@@ -765,6 +770,7 @@ git commit -m "feat(api): add selected_point_ids bypass path for direct point ro
 ### Task 6: Frontend — registry + PointSelectionContext + hook
 
 **Files:**
+
 - Modify: `frontend/components/generative/registry.ts`
 - Create: `frontend/contexts/PointSelectionContext.tsx`
 - Create: `frontend/hooks/usePointSelection.ts`
@@ -853,6 +859,7 @@ git commit -m "feat(frontend): add PointSelectionContext and plan_selected inten
 ### Task 7: PilgrimageGrid + NearbyMap selection mode
 
 **Files:**
+
 - Modify: `frontend/components/generative/PilgrimageGrid.tsx`
 - Modify: `frontend/components/generative/NearbyMap.tsx`
 
@@ -1017,6 +1024,7 @@ git commit -m "feat(frontend): add selection checkboxes to PilgrimageGrid and Ne
 ### Task 8: SelectionBar component + ResultPanel integration
 
 **Files:**
+
 - Create: `frontend/components/generative/SelectionBar.tsx`
 - Modify: `frontend/components/layout/ResultPanel.tsx`
 - Modify: `frontend/lib/api.ts`
@@ -1172,6 +1180,7 @@ git commit -m "feat(frontend): add SelectionBar and sendSelectedRoute API"
 ### Task 9: AppShell — provide context + wire handleRouteSelected
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx`
 
 - [ ] **Step 9.1: Wire up PointSelectionContext in AppShell**

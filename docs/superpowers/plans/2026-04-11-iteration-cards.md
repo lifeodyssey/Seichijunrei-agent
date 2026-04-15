@@ -1,6 +1,7 @@
 # Iteration 10: Combined Execution Plan
 
 Specs:
+
 - `docs/superpowers/specs/2026-04-11-bug03-route-planning-fix-design.md` (BUG-03 Wave 2-3)
 - `docs/superpowers/specs/2026-04-11-refactor-remaining-design.md`
 - `docs/superpowers/specs/2026-04-11-test-infra-remaining-design.md`
@@ -11,6 +12,7 @@ Date: 2026-04-11
 Status: PENDING APPROVAL
 
 ## Iteration Config
+
 - executor_model: gpt-5.2 --effort xhigh (via codex exec)
 - reviewer_model: gpt-5.2 (via codex review) + claude (via coderabbit)
 - tester_model: claude-opus-4-6 (via browse/qa)
@@ -33,6 +35,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 ## Cards
 
 ### Card B2: Inject session search data into executor context
+
 - **Scope:** Seed executor_context with session's last search results at pipeline startup
 - **Files changed:**
   - backend/agents/pipeline.py (modify)
@@ -47,6 +50,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card B5: Handle clarify SSE event in frontend API layer
+
 - **Scope:** sendMessageStream consumer handles step event with tool==="clarify" as completion with needs_clarification. NOTE: `response_builder.py:49-53` only extracts `results` and `route` from final_output — clarify `question`/`options` get dropped from the `done` event. Frontend must capture clarify data from the intermediate `step` event payload.
 - **Files changed:**
   - frontend/lib/api.ts (modify)
@@ -60,6 +64,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card B3: Update planner validator to accept session-satisfied dependencies
+
 - **Scope:** Validator accepts plan_route when search_bangumi exists in executor_context (session)
 - **Files changed:**
   - backend/agents/planner_agent.py (modify)
@@ -75,6 +80,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card B6: Render clarification bubble in MessageBubble
+
 - **Scope:** Render needs_clarification as question with tappable option buttons
 - **Files changed:**
   - frontend/components/chat/MessageBubble.tsx (modify)
@@ -91,6 +97,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card R1: Split frontend/lib/api.ts into api/ module
+
 - **Scope:** Create `frontend/lib/api/` directory with 6 files. Delete original `api.ts`. Update all imports.
 - **Files changed:**
   - frontend/lib/api/index.ts (new)
@@ -113,6 +120,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card R2: Split frontend/lib/types.ts into types/ module
+
 - **Scope:** Create `frontend/lib/types/` directory with 4 files. Delete original. Update imports.
 - **Files changed:**
   - frontend/lib/types/index.ts (new)
@@ -132,6 +140,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card R3: Write test_fastapi_service.py
+
 - **Scope:** Unit tests for FastAPI route handlers, app creation, exception handlers, CORS.
 - **Files changed:**
   - backend/tests/unit/test_fastapi_service.py (new)
@@ -149,9 +158,10 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card R4: Write repository unit tests
+
 - **Scope:** One test file per supabase repository (7 repos, mock pool).
 - **Files changed:**
-  - backend/tests/unit/repositories/__init__.py (new)
+  - backend/tests/unit/repositories/`__init__.py` (new)
   - backend/tests/unit/repositories/test_bangumi_repo.py (new)
   - backend/tests/unit/repositories/test_points_repo.py (new)
   - backend/tests/unit/repositories/test_session_repo.py (new)
@@ -173,12 +183,13 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T1: Migrate test_api_contract.py to testcontainer DB
-- **Scope:** Replace _mock_db() with tc_db fixture. RuntimeAPI mock stays.
+
+- **Scope:** Replace `_mock_db`() with tc_db fixture. RuntimeAPI mock stays.
 - **Files changed:**
   - backend/tests/integration/test_api_contract.py (modify)
 - **AC:**
   - [ ] All existing tests pass with testcontainer DB -> integration
-  - [ ] _build_app() accepts tc_db fixture -> integration
+  - [ ] `_build_app`() accepts tc_db fixture -> integration
   - [ ] Empty DB table assertions still pass -> integration
   - [ ] 400/422 error shape tests still pass -> integration
   - [ ] DB connection failure raises clear fixture error -> integration
@@ -188,7 +199,8 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T2: Migrate test_sse_contract.py to testcontainer DB
-- **Scope:** Replace _mock_db() with tc_db fixture. RuntimeAPI mock stays.
+
+- **Scope:** Replace `_mock_db`() with tc_db fixture. RuntimeAPI mock stays.
 - **Files changed:**
   - backend/tests/integration/test_sse_contract.py (modify)
 - **AC:**
@@ -202,6 +214,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T3: Vitest + MSW setup for frontend
+
 - **Scope:** Install Vitest, RTL, MSW, jsdom. Create config, MSW setup, fixtures.
 - **Files changed:**
   - frontend/package.json (modify)
@@ -221,6 +234,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card S_ALL: SEO + GEO foundation (sitemap, meta, JSON-LD, OG, hreflang, FAQ)
+
 - **Scope:** All 6 SEO tasks in one card since they all touch layout.tsx.
 - **Files changed:**
   - frontend/public/sitemap.xml (new)
@@ -244,6 +258,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card E1: Shared eval infrastructure (eval_common.py)
+
 - **Scope:** Extract dataset loader, baseline management, gate enforcement from test_plan_quality.py.
 - **Files changed:**
   - backend/tests/eval/eval_common.py (new)
@@ -262,6 +277,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T4: Frontend component tests (MessageBubble, PilgrimageGrid, AppShell)
+
 - **Scope:** Write component tests using RTL.
 - **Files changed:**
   - frontend/tests/components/MessageBubble.test.tsx (new)
@@ -281,6 +297,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T5: Frontend hook tests (useChat, useSession)
+
 - **Scope:** Test hooks using renderHook.
 - **Files changed:**
   - frontend/tests/hooks/useChat.test.ts (new)
@@ -299,6 +316,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card E2: Layer 1a — Component eval (deterministic)
+
 - **Scope:** test_component_quality.py + Makefile target.
 - **Files changed:**
   - backend/tests/eval/test_component_quality.py (new)
@@ -316,6 +334,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card E3: Layer 1b — Planner eval (single LLM call)
+
 - **Scope:** test_planner_quality.py + Makefile target.
 - **Files changed:**
   - backend/tests/eval/test_planner_quality.py (new)
@@ -332,6 +351,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card E4: Layer 2 — ReAct loop eval (multi-LLM)
+
 - **Scope:** test_react_quality.py + Makefile target.
 - **Files changed:**
   - backend/tests/eval/test_react_quality.py (new)
@@ -348,6 +368,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card T6: Playwright E2E setup + 4 journey tests
+
 - **Scope:** Install Playwright, config, auth fixture, 4 specs.
 - **Files changed:**
   - package.json (modify — root)
@@ -370,6 +391,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** full
 
 ### Card E5: Makefile integration + Layer 1a in stable CI
+
 - **Scope:** Composite Make targets, test-eval-components in make test.
 - **Files changed:**
   - Makefile (modify)
@@ -385,6 +407,7 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 - **Review mode:** light
 
 ### Card R5+T7: CI pipeline — frontend-test + e2e-local + playwright jobs
+
 - **Scope:** Merged R5 + T7 since both touch ci.yml.
 - **Files changed:**
   - .github/workflows/ci.yml (modify)
@@ -403,13 +426,14 @@ Eval tasks E2/E3/E4 all modify `Makefile`. Executed sequentially within wave.
 
 ## Wave Graph
 
-### File overlap analysis:
+### File overlap analysis
+
 - B2: pipeline.py | B3: pipeline.py + planner_agent.py — CONFLICT on pipeline.py
 - B5: api.ts | R1: api.ts — CONFLICT, B5 must merge first
 - E2/E3/E4/E5: Makefile — sequential
 - R5+T7: ci.yml — merged into one card
 
-### Wave assignment:
+### Wave assignment
 
 ```
 Wave 1:  [B2: pipeline inject]  ||  [B5: clarify handler]  ||  [R2: types split]
@@ -438,7 +462,7 @@ Wave 5:  [E5: eval makefile]   ||  [R5+T7: ci gates]
          RETRO
 ```
 
-### Execution diagram:
+### Execution diagram
 
 ```
 Wave 1 (10):  B2 || B5 || R2 || R3 || R4 || T1 || T2 || T3 || S_ALL || E1

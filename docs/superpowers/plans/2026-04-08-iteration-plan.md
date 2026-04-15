@@ -53,17 +53,20 @@ Iter 11 (E2E + production validation)
 | T05 | Session hydration JSON.parse + error handling | `api.ts`, `AppShell.tsx` | agent-4 |
 
 ### Dependencies
+
 - None (all touch different files)
 
 ### Agent Prompts
 
 **Agent-1 (T01 — Waitlist):**
+
 - Remove waitlist gate from AuthGate.tsx login flow (lines 101-108)
 - Keep waitlist table insert for analytics, remove status check
 - Remove tab switcher UI (single auth flow: email → magic link)
 - AC: new email gets magic link immediately, no "pending review" error
 
 **Agent-2 (T02 — ReAct Retry):**
+
 - Replace `return` with `continue` in pipeline.py:232-239
 - Add `failure_count` tracker, max 2 consecutive failures → hard stop
 - Feed failure observation back to planner as history entry
@@ -71,11 +74,13 @@ Iter 11 (E2E + production validation)
 - AC: step failure → planner sees it → recovers → final result correct
 
 **Agent-3 (T04 — Loading State):**
+
 - In ThinkingProcess.tsx, when `isStreaming && steps.length === 0`, show "Thinking..." pulse
 - Add i18n key `chat.thinking` to all 3 locale dictionaries
 - AC: no blank bubble, pulse transitions to steps when first step arrives
 
 **Agent-4 (T05 — Session Hydration):**
+
 - In api.ts, parse response_data: `typeof m.response_data === 'string' ? JSON.parse(m.response_data) : m.response_data`
 - In AppShell.tsx hydration useEffect: add sessionId to deps, add console.error in catch
 - Handle null/undefined response_data gracefully (text-only message)
@@ -89,6 +94,7 @@ cd frontend && npm run build  # static export
 Manual: new user signup, step failure recovery, loading state, session restore
 
 ### Merge Strategy
+
 - Create 4 branches, 4 PRs
 - Wait 10 min for CodeRabbit/Qodo comments
 - Fix all review feedback (never accept as-is)
@@ -123,6 +129,7 @@ Manual: new user signup, step failure recovery, loading state, session restore
 | TI-3 | Migrate eval to testcontainer | `test_plan_quality.py` | agent-7 |
 
 ### Agent Grouping
+
 - Agent-1: T06 (route intent + dedup guards in pipeline.py)
 - Agent-2: T09 (mobile sidebar variant prop)
 - Agent-3: T10 + T12 (both in AppShell/AuthGate area, small changes)
@@ -132,6 +139,7 @@ Manual: new user signup, step failure recovery, loading state, session restore
 - Agent-7: TI-3 (migrate eval tests)
 
 ### Merge Order
+
 1. First wave: agent-2, agent-4, agent-5 (no dependencies on Iter 6 specifics)
 2. Second wave: agent-1 (needs T02), agent-3 (needs T01+T05), agent-6 (needs TI-1), agent-7 (needs TI-1)
 
@@ -216,6 +224,7 @@ Manual: new user signup, step failure recovery, loading state, session restore
 | SEO-6 | AI visibility content strategy | docs only (no code) | agent-5 |
 
 ### Parallelism
+
 - Track A and B are fully independent (different files)
 - Within Track A: FR-1 and FR-2 touch different files, can parallelize
 - Within Track B: SEO-1 through SEO-5 mostly same file (layout.tsx), should be one agent
@@ -243,6 +252,7 @@ Manual: new user signup, step failure recovery, loading state, session restore
 | T19 | Route history clickable | `Sidebar.tsx` |
 
 ### Grouping
+
 - Agent-1: T03 (spot detail view, largest change)
 - Agent-2: T07 + T08 (pacing + i18n, same file)
 - Agent-3: T15 (session delete, full stack)
@@ -266,12 +276,14 @@ Manual: new user signup, step failure recovery, loading state, session restore
 | TI-7 | CI pipeline update | `.github/workflows/ci.yml` |
 
 ### E2E Flows
+
 1. Auth flow: magic link → session → sidebar history
 2. Search flow: anime name → results grid → spot detail
 3. Route planning: select spots → plan → route visualization
 4. Conversation: send → new chat → click old → history restored
 
 ### CI Pipeline Additions
+
 - Unit tests (existing)
 - Integration tests with Docker postgres service
 - Eval gate (gemini-2.5-pro + testcontainer)
@@ -295,6 +307,7 @@ git worktree list
 ```
 
 ### Per-Iteration Rules
+
 1. Rebase all worktree branches from main before starting
 2. Run `ruff format` before every commit
 3. Wait 10 min for CodeRabbit/Qodo comments after PR creation

@@ -3,6 +3,7 @@
 **Date:** 2026-04-09
 **Scope:** Consolidated synthesis of completed 2026-04-09 review reports under `docs/superpowers/reviews/`
 **Sources included:**
+
 - `docs/superpowers/reviews/2026-04-09-eng-review-solid-refactor.md`
 - `docs/superpowers/reviews/2026-04-09-distill-simplification.md`
 - `docs/superpowers/reviews/2026-04-09-design-patterns-review.md`
@@ -45,11 +46,13 @@ The most important cross-report conclusion is this: the next wave of work should
 This is the clearest consensus across all reports.
 
 On the backend, the same three files are repeatedly identified as structural hotspots:
+
 - `backend/interfaces/fastapi_service.py`
 - `backend/interfaces/public_api.py`
 - `backend/agents/retriever.py`
 
 On the frontend, the same pattern appears in:
+
 - `frontend/components/layout/AppShell.tsx`
 - `frontend/components/auth/AuthGate.tsx`
 - `frontend/components/chat/MessageBubble.tsx`
@@ -62,12 +65,14 @@ The shared failure mode is not simply “large files”. It is **too much orches
 This shows up differently in each stack, but the pattern is the same.
 
 Backend:
+
 - `db: object` plus repeated `getattr(...)` / duck-typing
 - direct imports of concrete infrastructure from the agents layer
 - raw SQL escaping into `retriever.py`
 - private attribute reach-ins like `getattr(runtime_api, "_db", None)`
 
 Frontend:
+
 - multiple `as unknown as` casts at runtime boundaries
 - hydration-time casts without validation
 - module-level mutable ID state in `useChat`
@@ -82,12 +87,14 @@ The backend review finds real but bounded gaps: repositories, some use cases, ge
 The frontend review finds a systemic gap: almost the entire interactive surface is effectively untested. This is the most urgent quality imbalance in the whole codebase.
 
 The synthesis view is simple:
+
 - backend needs **targeted gap filling**
 - frontend needs **baseline testing infrastructure plus core flow coverage**
 
 ### 4. Non-functional requirements are being handled late instead of by default
 
 Multiple reports independently surface issues that are not feature logic bugs, but still user-visible quality problems:
+
 - accessibility gaps
 - incomplete i18n
 - silent background failures
@@ -100,6 +107,7 @@ These are not edge polish items anymore. They are now part of core product corre
 ### 5. The architecture is better than the current confidence level suggests
 
 This matters because the reports are not saying “rewrite it”. They are saying:
+
 - keep the backend architecture direction
 - stop letting a few files accumulate all the policy
 - formalize contracts already implicit in the code
@@ -127,6 +135,7 @@ That is a refactor-and-harden roadmap, not a rebuild.
 This is the most repeated backend finding across the SOLID review, design-patterns review, and backend architecture review.
 
 Why it matters:
+
 - hides required contracts
 - defeats static checking
 - forces runtime duck-typing
@@ -134,6 +143,7 @@ Why it matters:
 - encourages service-locator style access
 
 Consensus recommendation:
+
 - introduce narrow DB Protocols or Ports per consumer, not one giant catch-all type
 - type `RuntimeAPI`, `Retriever`, and `ExecutorAgent` against those ports
 - remove repeated `getattr(..., None)` guards from hot paths
@@ -141,6 +151,7 @@ Consensus recommendation:
 #### 2. `retriever.py` is doing two jobs, and maybe three
 
 Independent reports agree that `Retriever` currently mixes:
+
 - strategy selection
 - SQL/geo/hybrid execution
 - write-through backfill behavior
@@ -149,6 +160,7 @@ Independent reports agree that `Retriever` currently mixes:
 - even raw SQL in one path
 
 Consensus recommendation:
+
 - keep `Retriever` as orchestrator / strategy dispatch
 - extract write-through and enrichment into an application-layer service or use case
 - move raw SQL back into repositories
@@ -159,6 +171,7 @@ Consensus recommendation:
 The reports differ on exact targets, but agree on the direction.
 
 `fastapi_service.py` currently mixes too many concerns:
+
 - app factory / lifespan
 - routes
 - request models
@@ -168,6 +181,7 @@ The reports differ on exact targets, but agree on the direction.
 - helper functions
 
 `RuntimeAPI.handle()` inside `public_api.py` currently mixes too many phases:
+
 - session load
 - pipeline execution
 - response assembly
@@ -176,6 +190,7 @@ The reports differ on exact targets, but agree on the direction.
 - request logging / telemetry
 
 Consensus recommendation:
+
 - split route concerns by domain and move cross-cutting helpers out of the router file
 - extract persistence orchestration out of `RuntimeAPI.handle()`
 - keep top-level orchestration visible, but flatten and isolate side-effect-heavy phases
@@ -183,6 +198,7 @@ Consensus recommendation:
 #### 4. Backend risk is now mostly operational and architectural, not algorithmic
 
 The backend reports do not show a broken core architecture. They show a mature system starting to hit “scale of maintenance” issues:
+
 - in-memory session fallback can silently become production behavior if misconfigured
 - module-level retrieval cache creates test/loop coupling
 - `threading.Lock` in async cache code is an awkward fit
@@ -225,12 +241,14 @@ This is a good sign overall. The system is past “is this architecture viable?�
 This is the frontend equivalent of the backend orchestration problem.
 
 Most repeated hotspots:
+
 - `AppShell.tsx` as the state/orchestration hub
 - `AuthGate.tsx` mixing landing page, modal, and behavior concerns
 - `MessageBubble.tsx` carrying multiple inline sub-components and rules
 - `RoutePlannerWizard.tsx` carrying duplicated UI and too much rendering logic
 
 Consensus recommendation:
+
 - separate page/layout orchestration from reusable interaction pieces
 - move inline sub-components into explicit files
 - isolate overlay/result routing and route-planning timeline rendering
@@ -240,6 +258,7 @@ Consensus recommendation:
 This is not a small gap. It is foundational.
 
 The frontend report’s numbers are severe:
+
 - 3 test files total
 - 13 tests total
 - ~3/48 source files covered
@@ -250,6 +269,7 @@ The frontend report’s numbers are severe:
 - no visual regression coverage
 
 Consensus recommendation:
+
 - first add a component/hook test stack
 - then cover the highest-value user flows with E2E tests
 - do not wait for large refactors before building the safety net
@@ -257,6 +277,7 @@ Consensus recommendation:
 #### 3. i18n and accessibility are product correctness issues now, not later polish
 
 The frontend report surfaces a broad group of user-visible issues:
+
 - hardcoded Japanese/Chinese/English strings bypassing dictionaries
 - flash of Japanese before locale dictionary load for non-ja users
 - no skip link
@@ -269,12 +290,14 @@ These are important because they are visible to real users immediately and compo
 #### 4. Current performance issues mostly come from render topology, not expensive algorithms
 
 The main frontend performance issues are architectural:
+
 - `AppShell` state changes fan out across too much of the tree
 - message streaming causes too many re-renders
 - map lifecycle is fragile around parent re-renders
 - font loading and image sizing cause avoidable rendering/layout costs
 
 Consensus recommendation:
+
 - reduce render fan-out by splitting state responsibilities first
 - then memoize stable leaf components
 - then clean up asset loading and map lifecycle edges
@@ -303,11 +326,13 @@ Consensus recommendation:
 ### 1. Both stacks rely too much on “this should be fine” boundaries
 
 Backend version:
+
 - duck-typed DB calls
 - private attribute reach-ins
 - concrete imports across architectural layers
 
 Frontend version:
+
 - trust-me casts
 - hydration assumptions without validation
 - large shared state hubs
@@ -317,16 +342,19 @@ This is the same engineering smell expressed in two ecosystems: hidden contracts
 ### 2. Both stacks are strongest in core intent, weaker in operational follow-through
 
 Backend intent is good:
+
 - clear layering
 - deterministic executor
 - repository extraction
 
 Frontend intent is good:
+
 - registry-driven generative UI
 - centralized API layer
 - clear chat/result split
 
 But in both stacks, follow-through on correctness mechanisms lags behind:
+
 - explicit contracts
 - failure isolation
 - robust test coverage
@@ -344,6 +372,7 @@ The reviews do **not** say the domain model is incoherent. They say the code clo
 The next increment of engineering leverage does not come from adding more patterns. It comes from making the current patterns explicit and testable.
 
 That means:
+
 - fewer hidden interfaces
 - fewer giant orchestrators
 - more coverage of user-visible flows
@@ -369,6 +398,7 @@ That means:
 ### Quick wins summary
 
 These are high-value items that can land quickly without waiting for deeper restructuring:
+
 - frontend i18n string cleanup and locale-load correctness
 - frontend accessibility baseline fixes
 - backend session-fallback warning and error counters on swallowed exceptions
@@ -379,6 +409,7 @@ These are high-value items that can land quickly without waiting for deeper rest
 ### Structural refactors summary
 
 These are the changes most likely to improve long-term velocity and defect rate:
+
 - frontend test infrastructure + E2E baseline
 - backend DB port/protocol typing
 - backend retriever decomposition
@@ -462,6 +493,7 @@ The backend is closer to “tighten and scale” than “rethink architecture”
 The shared priority is to stop letting convenience substitute for contracts and tests.
 
 If only a few things happen next, they should be:
+
 1. frontend testing baseline
 2. backend DB port typing
 3. retriever and UI orchestrator decomposition

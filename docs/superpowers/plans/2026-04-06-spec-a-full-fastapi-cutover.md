@@ -13,6 +13,7 @@
 ## Context
 
 The repo currently has a partially written `backend/interfaces/fastapi_service.py`, but production still runs `backend/interfaces/http_service.py` via:
+
 - `pyproject.toml:50`
 - `Makefile:45`
 - `Dockerfile:41`
@@ -20,6 +21,7 @@ The repo currently has a partially written `backend/interfaces/fastapi_service.p
 - `backend/interfaces/__init__.py:3`
 
 A full cutover is preferred over coexistence. The main risk is not route coverage but **contract drift**:
+
 - SSE must remain truly incremental
 - error JSON shape must stay compatible with the frontend
 - Worker auth headers (`X-User-Id`, `X-User-Type`) must still be trusted and read correctly
@@ -47,6 +49,7 @@ A full cutover is preferred over coexistence. The main risk is not route coverag
 ### Task 1: Lock transport contract before cutting over
 
 **Files:**
+
 - Modify: `backend/tests/unit/test_http_service.py`
 - Modify: `backend/tests/integration/test_http_service.py`
 - Modify: `backend/tests/unit/test_error_sanitization.py`
@@ -54,6 +57,7 @@ A full cutover is preferred over coexistence. The main risk is not route coverag
 - [ ] **Step 1: Rename test modules to adapter-neutral names**
 
 Rename tests so they assert transport contract, not aiohttp implementation naming:
+
 - `backend/tests/unit/test_http_service.py` → `backend/tests/unit/test_runtime_service.py`
 - `backend/tests/integration/test_http_service.py` → `backend/tests/integration/test_runtime_service.py`
 
@@ -112,11 +116,13 @@ git commit -m "test(api): lock runtime transport contract before FastAPI cutover
 ### Task 2: Finalize `fastapi_service.py` to parity
 
 **Files:**
+
 - Modify: `backend/interfaces/fastapi_service.py`
 
 - [ ] **Step 1: Ensure all endpoints match current surface**
 
 Required endpoints:
+
 - `GET /`
 - `GET /healthz`
 - `POST /v1/runtime`
@@ -192,6 +198,7 @@ git commit -m "feat(api): finalize FastAPI runtime adapter with SSE parity"
 ### Task 3: Switch runtime entrypoints
 
 **Files:**
+
 - Modify: `pyproject.toml`
 - Modify: `Makefile`
 - Modify: `Dockerfile`
@@ -256,6 +263,7 @@ git commit -m "refactor(api): switch runtime entrypoints from aiohttp to FastAPI
 ### Task 4: Update CI and deployment assumptions
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `.github/workflows/dependabot-agent.yml`
 - Modify: `DEPLOYMENT.md`
@@ -294,6 +302,7 @@ git commit -m "chore(ci): update checks and docs for FastAPI runtime"
 ### Task 5: Remove old aiohttp adapter
 
 **Files:**
+
 - Delete or reduce: `backend/interfaces/http_service.py`
 
 - [ ] **Step 1: Decide deletion vs deprecation shim**
@@ -323,6 +332,7 @@ git commit -m "refactor(api): retire aiohttp runtime adapter"
 ### Task 6: Full verification
 
 **Files:**
+
 - Verify only
 
 - [ ] **Step 1: Run backend checks**

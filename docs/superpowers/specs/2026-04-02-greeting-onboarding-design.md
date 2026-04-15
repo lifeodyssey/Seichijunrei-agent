@@ -4,6 +4,7 @@
 **Status:** Design confirmed, implemented (see `greet_user` + frontend empty state)
 **Type:** Focused feature spec
 **Related canonical specs:**
+
 - `docs/superpowers/specs/2026-03-31-seichijunrei-redesign-design.md`
 - `docs/superpowers/specs/2026-04-01-frontend-memory-arch.md`
 
@@ -80,9 +81,11 @@ When the user sends a greeting or asks what the assistant is:
 ### 4.1 Empty Chat Panel
 
 Current behavior:
+
 - `MessageList` renders only a low-contrast placeholder string when `messages.length === 0`.
 
 New behavior:
+
 - Replace the plain placeholder with an onboarding card in the chat panel.
 - The card should contain:
   - product name
@@ -95,6 +98,7 @@ Example zh copy direction:
 > 我是圣地巡礼，可以帮你找动漫取景地、按地点探索附近场景、或者规划一条顺路巡礼路线。
 
 Quick actions should feel task-oriented rather than marketing-oriented:
+
 - Search by anime
 - Search by location
 - Ask for route planning
@@ -114,6 +118,7 @@ Example zh response shape:
 > 我是圣地巡礼，专门帮你查动漫取景地和安排行程。你可以让我按作品找场景、按地点看附近圣地，或者直接帮你排巡礼路线。比如你可以问我：“吹响吧！上低音号有哪些场景？”、“宇治站附近有什么取景地？”或者“从京都站出发排一条巡礼路线”。
 
 Tone requirements:
+
 - warm and concise
 - practical, not overly role-played
 - grounded in actual product capabilities
@@ -172,6 +177,7 @@ return StepResult(
 ```
 
 `_build_output()` treats `greet_user` the same way it currently treats plain answer content:
+
 - `message` comes from step data
 - `status = "info"`
 - no `results`
@@ -213,6 +219,7 @@ Public API response contract for ephemeral greeting:
 ```
 
 This keeps frontend behavior simple:
+
 - greeting shows as a normal assistant message
 - no persistent session starts
 - the next real search request can still start a fresh session
@@ -222,6 +229,7 @@ This keeps frontend behavior simple:
 If the message contains both a greeting and a real task, the real task wins.
 
 Examples:
+
 - `hi` -> `greet_user`
 - `你是谁` -> `greet_user`
 - `你好，帮我找宇治站附近的场景` -> `search_nearby`
@@ -238,6 +246,7 @@ This prevents greeting detection from swallowing real intent.
 Replace the current empty-state placeholder in `MessageList.tsx` with a small onboarding card component.
 
 Recommended contents:
+
 - title: existing localized product name
 - body: existing or slightly expanded welcome subtitle
 - three clickable example prompts
@@ -253,6 +262,7 @@ This card belongs in the chat column, not the result panel.
 No new greeting-specific visual component is needed.
 
 Greeting responses should behave like non-visual answer responses:
+
 - remain in chat
 - do not force-open the visual result panel
 - reuse the same visual/non-visual routing logic being defined in frontend polish work
@@ -270,6 +280,7 @@ To avoid future confusion, this feature follows this priority order:
 5. **Session context and user message text** affect runtime behavior within the above constraints.
 
 Important:
+
 - `use superpowers` is a development workflow rule.
 - It should **not** be inserted into the runtime system prompt for end-user conversations.
 
@@ -328,6 +339,7 @@ Important:
 If the planner starts mapping real search queries into `greet_user`, the product becomes less useful.
 
 Guardrail:
+
 - make mixed-query precedence explicit in the prompt
 - add tests for greeting-plus-task inputs
 
@@ -336,6 +348,7 @@ Guardrail:
 If `RuntimeAPI.handle()` still allocates session IDs before intent inspection, greeting responses will silently pollute history.
 
 Guardrail:
+
 - treat ephemeral intent handling as a first-class branch in the interface layer
 - test `session_id is None` and verify no persistence calls fire
 
@@ -344,6 +357,7 @@ Guardrail:
 The frontend onboarding card and backend greeting text may drift apart.
 
 Guardrail:
+
 - align both around the same three core capabilities:
   - search by anime
   - search by location

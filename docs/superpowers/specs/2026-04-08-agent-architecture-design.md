@@ -9,6 +9,7 @@
 The current ReAct pipeline has a foundational flaw: it aborts on any step failure instead of letting the planner recover. This cascades into 3 bolted-on deterministic guards, duplicate results, broken route planning, and invisible reasoning. Session testing revealed 8 architecture-level issues (issue #60).
 
 **Current architecture problems:**
+
 1. ReAct loop aborts on step failure (pipeline.py:232-239) — no retry, no recovery
 2. 3 overlapping guards bypass the planner — fragile, non-composable
 3. Step dependencies are implicit — plan_route silently fails when search hasn't run
@@ -17,6 +18,7 @@ The current ReAct pipeline has a foundational flaw: it aborts on any step failur
 6. Every query makes 2-3 sequential Gemini 2.5 Pro calls ($0.02, 8-15 seconds)
 
 **Design decisions from /office-hours:**
+
 - Keep full LLM for all queries (not hybrid deterministic)
 - Streaming hybrid visibility: natural language thoughts + tool progress
 - Intent classifier for known patterns, planner for novel queries
@@ -198,6 +200,7 @@ The planner's `thought` field is the user-facing message. Tool steps appear as c
 ### 6. Remove All Deterministic Guards
 
 Delete these code blocks from `pipeline.py`:
+
 - Lines 74-126: post-done search_bangumi injection guard
 - Lines 143-199: pre-execution resolve_anime injection guard
 
@@ -206,22 +209,26 @@ These are replaced by the `result_validator` which achieves the same goal throug
 ## Migration Plan
 
 ### Phase 1: Foundation (no behavior change)
+
 - Add `intent_classifier.py`
 - Add `STEP_DEPENDENCIES` to `models.py`
 - Add `result_validator` to step agent (alongside existing guards)
 - Add `failure_count` and `continue` on failure in react_loop
 
 ### Phase 2: Cutover
+
 - Remove all 3 deterministic guards
 - Verify `result_validator` catches all cases guards caught
 - Run eval (160 cases) against both versions, compare scores
 
 ### Phase 3: User Visibility
+
 - Rewrite `ThinkingProcess.tsx` for streaming thoughts
 - Update SSE event format to include `thought` field
 - Update `MessageBubble.tsx` to show thoughts above tool steps
 
 ### Phase 4: Eval-Driven Verification
+
 - Run 160 eval cases with both gemini-2.5-pro and local model
 - Gate: score >= baseline for all 4 evaluators
 - Add specific cases for: failure recovery, route after search, premature done rejection

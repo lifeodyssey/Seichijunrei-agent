@@ -3,6 +3,7 @@
 **Date:** 2026-04-09
 **Scope:** Backend interfaces + retriever layer
 **Files reviewed:**
+
 - `backend/interfaces/fastapi_service.py` (643 lines)
 - `backend/agents/retriever.py` (551 lines)
 - `backend/interfaces/public_api.py` (542 lines)
@@ -418,9 +419,11 @@ backend/interfaces/
 **Impact:** Fixes the `db: object` anti-pattern across all three files (~20 `getattr` call sites).
 **Effort:** ~2 hours.
 **Files to create:**
+
 - `backend/application/ports/database.py`
 
 **Files to modify:**
+
 - `backend/infrastructure/supabase/client.py` — verify it satisfies the protocol
 - `backend/agents/retriever.py` — replace `db: object` with `DatabasePort`
 - `backend/interfaces/public_api.py` — replace `db: object` with `DatabasePort`
@@ -433,6 +436,7 @@ backend/interfaces/
 **Impact:** Enables adding new retrieval strategies without editing existing code. Reduces the 378L God Object to ~100L.
 **Effort:** ~3 hours.
 **Files to create:**
+
 - `backend/agents/retrieval/base.py`
 - `backend/agents/retrieval/sql_strategy.py`
 - `backend/agents/retrieval/geo_strategy.py`
@@ -447,6 +451,7 @@ backend/interfaces/
 **Impact:** Each resource domain gets its own router file. New endpoints added by creating a file, not editing a 643L module.
 **Effort:** ~2 hours.
 **Files to create:**
+
 - `backend/interfaces/routers/health.py`
 - `backend/interfaces/routers/runtime.py`
 - `backend/interfaces/routers/conversations.py`
@@ -457,6 +462,7 @@ backend/interfaces/
 - `backend/interfaces/middleware/error_handlers.py`
 
 **Files to modify:**
+
 - `backend/interfaces/schemas.py` — absorb `ConversationPatchRequest`, `FeedbackRequest`
 - `backend/interfaces/fastapi_service.py` — reduce to factory only
 
@@ -467,6 +473,7 @@ backend/interfaces/
 **Impact:** Reduces `handle()` from 210L to ~60L. Persistence logic becomes independently testable.
 **Effort:** ~2 hours.
 **Files to create:**
+
 - `backend/interfaces/persistence/orchestrator.py`
 - `backend/interfaces/persistence/message_repo.py`
 - `backend/interfaces/persistence/route_repo.py`

@@ -82,11 +82,13 @@ async def db(pg_container):
 ### Task 1: Testcontainer Conftest + Seed Data ✅ (landed)
 
 **Files:**
+
 - Create: `backend/tests/conftest_db.py` (testcontainer fixtures)
 - Create: `backend/tests/fixtures/seed.sql` (exported from production)
 - Modify: `pyproject.toml` (add testcontainers dep)
 
 Steps:
+
 1. Add `testcontainers[postgres]>=4.0` to dev dependencies
 2. Export seed data from production: 10 anime from `bangumi` table, ~50 spots from `points` table
 3. Create conftest with `pg_container` and `db` fixtures
@@ -95,6 +97,7 @@ Steps:
 6. Verify: `uv run pytest backend/tests/integration/ -x -q` passes with real DB
 
 **AC:**
+
 - [x] `pg_container` fixture spins up PostgreSQL 16 (uses `postgis/postgis:16-3.4`)
 - [x] Migrations applied automatically (with pgvector line filtering)
 - [x] Seed data loaded (10 anime, ~50 spots)
@@ -103,6 +106,7 @@ Steps:
 ### Task 2: Migrate Integration Tests to Testcontainer (partial)
 
 **Files:**
+
 - Modify: `backend/tests/integration/test_runtime_acceptance.py` ✅ (uses `tc_db` fixture)
 - Modify: `backend/tests/integration/test_api_contract.py` -- still uses `MagicMock`
 - Modify: `backend/tests/integration/test_sse_contract.py` -- still uses `MagicMock`
@@ -112,6 +116,7 @@ Steps:
 Replace `MagicMock` DB with the `db` fixture from Task 1. Tests now run against real PostgreSQL.
 
 **AC:**
+
 - [ ] All integration tests use testcontainer DB -- **partial: only `test_runtime_acceptance.py`**
 - [ ] No `MagicMock` for DB in integration tests -- **not yet: 2 files still use MagicMock**
 - [ ] `uv run pytest backend/tests/integration/ -x -q` passes
@@ -119,11 +124,13 @@ Replace `MagicMock` DB with the `db` fixture from Task 1. Tests now run against 
 ### Task 3: Migrate Eval to Testcontainer
 
 **Files:**
+
 - Modify: `backend/tests/eval/test_plan_quality.py`
 
 Replace `MagicMock` DB in `evaluate_plan()` with the `db` fixture. `OutcomeEvaluator` now tests against real data (row_count > 0 for known anime).
 
 **AC:**
+
 - [ ] Eval uses testcontainer DB
 - [ ] `OutcomeEvaluator` scores > 0 for known anime queries
 - [ ] `EVAL_MODEL=gemini-2.5-pro uv run python backend/tests/eval/test_plan_quality.py` runs successfully
@@ -131,6 +138,7 @@ Replace `MagicMock` DB in `evaluate_plan()` with the `db` fixture. `OutcomeEvalu
 ### Task 4: Generate 111 New Eval Cases (49 → 160)
 
 **Files:**
+
 - Modify: `backend/tests/eval/datasets/plan_quality_v1.json`
 
 Dispatch 10 parallel agents, one per category:
@@ -173,6 +181,7 @@ Multi-turn cases add `context` field:
 ```
 
 **AC:**
+
 - [ ] Dataset has 160 total cases
 - [ ] All 11 categories represented
 - [ ] Each case has valid expected_steps and expected_intent
@@ -181,6 +190,7 @@ Multi-turn cases add `context` field:
 ### Task 5: Playwright E2E Setup
 
 **Files:**
+
 - Create: `e2e/playwright.config.ts` (local)
 - Create: `e2e/playwright.prod.config.ts` (production)
 - Create: `e2e/fixtures/auth.ts` (magic link helper)
@@ -198,10 +208,12 @@ Multi-turn cases add `context` field:
 4. **Conversation:** Send message → start new chat → click old conversation → history restored
 
 **Two configs:**
+
 - `playwright.config.ts`: `baseURL: 'http://localhost:3000'` (local dev server)
 - `playwright.prod.config.ts`: `baseURL: 'https://seichijunrei.zhenjia.org'` (production)
 
 **AC:**
+
 - [ ] `npx playwright test` passes against local dev server
 - [ ] `npx playwright test --config=e2e/playwright.prod.config.ts` passes against production
 - [ ] All 4 flows tested
@@ -210,6 +222,7 @@ Multi-turn cases add `context` field:
 ### Task 6: Frontend Component Tests
 
 **Files:**
+
 - Create: `frontend/vitest.config.ts`
 - Create: `frontend/tests/components/MessageBubble.test.tsx`
 - Create: `frontend/tests/components/PilgrimageGrid.test.tsx`
@@ -219,6 +232,7 @@ Multi-turn cases add `context` field:
 - Modify: `frontend/package.json` (add vitest, @testing-library/react)
 
 **AC:**
+
 - [ ] Vitest configured for Next.js
 - [ ] 5 test files with meaningful assertions
 - [ ] `cd frontend && npm test` passes
@@ -226,9 +240,11 @@ Multi-turn cases add `context` field:
 ### Task 7: CI Pipeline Update
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 Add:
+
 - Integration tests with Docker service (postgres:16-alpine)
 - Eval gate with `GEMINI_API_KEY` secret and testcontainer
 - Frontend component tests (`npm test`)
@@ -267,6 +283,7 @@ e2e-production:
 **Eval baseline:** Store per-model baselines in `backend/tests/eval/baselines/gemini-2.5-pro.json`. Gate: `score >= baseline - 10pp`.
 
 **AC:**
+
 - [ ] CI runs unit + integration + eval + frontend tests + E2E on every PR
 - [ ] Post-deploy E2E runs against production
 - [ ] Eval gate blocks PRs that regress planner quality
@@ -298,6 +315,7 @@ Phase 3 (after Phase 2):
 ## Verification
 
 After all tasks:
+
 1. `uv run pytest backend/tests/unit -x -q` — 420+ tests pass (mock)
 2. `uv run pytest backend/tests/integration/ -x -q` — 40+ tests pass (testcontainer)
 3. `EVAL_MODEL=gemini-2.5-pro uv run python backend/tests/eval/test_plan_quality.py` — 160 cases scored

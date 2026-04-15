@@ -13,12 +13,14 @@
 ## Context
 
 Current Cloudflare topology is already deployed and working:
+
 - `wrangler.toml` routes `seichijunrei.zhenjia.org/*`
 - static frontend served from `ASSETS`
 - `/v1/*` and `/healthz` proxied by `worker/worker.js` to `CONTAINER`
 - Worker authenticates JWT or `sk_` API key, then injects `X-User-Id` / `X-User-Type`
 
 What is missing is hardening and operational clarity:
+
 - no codified WAF policy for `/v1/*`
 - no AI Gateway insertion path documented or wired
 - env/secret boundary between Worker and container is broader than necessary
@@ -39,12 +41,14 @@ What is missing is hardening and operational clarity:
 ### Task 1: Document the current edge topology precisely
 
 **Files:**
+
 - Modify: `DEPLOYMENT.md`
 - Create: `docs/ops/cloudflare-hardening.md`
 
 - [ ] **Step 1: Add request flow diagram**
 
 Document:
+
 - Browser → Worker route match
 - Static assets → `ASSETS`
 - `/v1/*` → auth in Worker → `CONTAINER`
@@ -53,6 +57,7 @@ Document:
 - [ ] **Step 2: Add auth flow**
 
 Document JWT flow and API key flow with references to stable symbols/search terms instead of brittle line numbers:
+
 - JWT validation path: `validateJwt()` in `worker/worker.js`
 - API key validation path: `validateApiKey()` in `worker/worker.js`
 - identity forwarding path: `authenticate()` and the `forwardedHeaders` / `X-User-Id` / `X-User-Type` proxy block in `worker/worker.js`
@@ -69,6 +74,7 @@ git commit -m "docs(infra): document Cloudflare request and auth topology"
 ### Task 2: Tighten Worker/container env contract
 
 **Files:**
+
 - Modify: `worker/worker.js`
 - Modify: `wrangler.toml`
 - Modify: `DEPLOYMENT.md`
@@ -76,6 +82,7 @@ git commit -m "docs(infra): document Cloudflare request and auth topology"
 - [ ] **Step 1: Review `CONTAINER_ENV_KEYS` and trim if possible**
 
 Current list is broad. Split into:
+
 - required runtime keys
 - optional observability keys
 - legacy/deferred keys
@@ -85,6 +92,7 @@ At minimum, add grouping comments and remove obviously unused legacy keys if con
 - [ ] **Step 2: Document source of truth for secrets**
 
 Make clear which are:
+
 - Worker-only secrets (`SUPABASE_ANON_KEY` for JWT validation, service role for API key validation)
 - Container runtime secrets (`SUPABASE_DB_URL`, provider keys)
 - Frontend build-time envs (`NEXT_PUBLIC_*`)
@@ -101,11 +109,13 @@ git commit -m "chore(infra): clarify Worker and container env boundaries"
 ### Task 3: Add WAF hardening runbook
 
 **Files:**
+
 - Create: `docs/ops/cloudflare-hardening.md`
 
 - [ ] **Step 1: Add `/v1/*` rate-limit rule spec**
 
 Document exact dashboard rule:
+
 - match: `seichijunrei.zhenjia.org/v1/*`
 - rate: 60 req/min/IP
 - action: block with 429
@@ -113,6 +123,7 @@ Document exact dashboard rule:
 - [ ] **Step 2: Add prompt-injection edge filter**
 
 Document custom WAF rule for obvious strings:
+
 - `ignore previous instructions`
 - `system prompt`
 - `output your prompt`
@@ -123,6 +134,7 @@ Document as a coarse filter only — application-level guardrails still required
 - [ ] **Step 3: Add rollback steps**
 
 If WAF blocks legitimate traffic:
+
 1. disable custom rule
 2. keep rate limit only
 3. inspect Worker logs
@@ -139,6 +151,7 @@ git commit -m "docs(infra): add WAF hardening and rollback runbook"
 ### Task 4: Add AI Gateway integration plan
 
 **Files:**
+
 - Modify: `DEPLOYMENT.md`
 - Modify: `docs/ops/cloudflare-hardening.md`
 
@@ -166,12 +179,14 @@ git commit -m "docs(infra): define AI Gateway insertion path"
 ### Task 5: Deployment and rollback clarity
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `DEPLOYMENT.md`
 
 - [ ] **Step 1: Document exact deploy order**
 
 Current order:
+
 1. build frontend
 2. apply Supabase migrations
 3. `wrangler deploy`
@@ -179,6 +194,7 @@ Current order:
 - [ ] **Step 2: Add rollback section**
 
 Rollback paths:
+
 - revert main and re-run deploy workflow
 - restore previous worker/container via Wrangler deployment history if needed
 - disable WAF changes separately from app rollback
@@ -197,6 +213,7 @@ git commit -m "docs(infra): add deploy and rollback sequence"
 - [ ] **Step 1: Validate docs against live config**
 
 Cross-check:
+
 - `wrangler.toml`
 - `worker/worker.js`
 - `.github/workflows/ci.yml`

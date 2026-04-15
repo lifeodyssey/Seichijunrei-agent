@@ -40,6 +40,7 @@ The wedge is replacing "Anitabi → copy addresses → Google Maps → manual re
 ## Cross-Model Perspective
 
 Codex cold read validated all 5 premises and proposed:
+
 - **"Director Mode"** — cinematic shooting schedule optimizing sun position, shadows, crowd avoidance. AR-guided vantage point matching ("2.3m left, tilt down 6°"). This is the Phase 2 vision.
 - **Key insight:** "The one line that reveals excitement: 'an Ultimate version with photo overlay for on-site shooting.'" The planner is the wedge, but the photo tool is the soul of the project.
 - **Technical suggestion:** OR-Tools for time-window optimization + OpenTripPlanner for transit matrices. Agrees Google Maps Directions API is simpler for MVP.
@@ -48,6 +49,7 @@ Codex cold read validated all 5 premises and proposed:
 ## Approaches Considered
 
 ### Approach A: Smart Route Planner (Minimal Viable)
+
 Upgrade `plan_route` from nearest-neighbor to time-aware optimization. Add transit time estimation via Haversine heuristic, must-visit/skip constraints, and one-click Google Maps export.
 
 **Effort:** M (1-2 weeks)
@@ -57,6 +59,7 @@ Upgrade `plan_route` from nearest-neighbor to time-aware optimization. Add trans
 **Reuses:** Existing `plan_route` handler (`backend/agents/executor_agent.py`), PostGIS nearby queries, Anitabi data pipeline, `RouteVisualization.tsx` component.
 
 ### Approach B: Intelligence Layer + Planner (Ideal Architecture)
+
 Full "smart layer": time-of-day awareness (sun position estimation), transit constraints (last train), multi-day trip support, wizard UI for plan customization (lock spots, set pacing chill/normal/packed, compare route variants). Uses OR-Tools for constrained optimization.
 
 **Effort:** L (3-4 weeks)
@@ -66,6 +69,7 @@ Full "smart layer": time-of-day awareness (sun position estimation), transit con
 **Reuses:** Everything from A, plus adds OR-Tools, transit API integration, new `RoutePlannerWizard` component.
 
 ### Approach C: Scene-First Discovery (Creative/Lateral)
+
 Instead of starting from anime title, start from location. "I'm in Kamakura — show me every anime set here with screenshots I can recreate." Flip from planner to discovery engine.
 
 **Effort:** S-M (1-2 weeks)
@@ -83,6 +87,7 @@ Ship Approach A in 1-2 weeks. It solves the immediate pain point and is usable o
 ### Phase A Implementation (1-2 weeks)
 
 **Backend changes:**
+
 1. **Upgrade `_execute_plan_route` in place** (`backend/agents/executor_agent.py`):
    - Replace nearest-neighbor with **2-opt** heuristic (sufficient for <30 spots; Christofides is Phase B upgrade if quality proves insufficient)
    - Add `locked_order` support (user-pinned spots maintain position in optimized sequence)
@@ -121,6 +126,7 @@ Ship Approach A in 1-2 weeks. It solves the immediate pain point and is usable o
 3. **Dwell time estimation** (deterministic, no LLM):
 
    Dwell time is NOT a flat value per spot. It's computed from spot metadata:
+
    - **Base dwell** = `photo_count * base_per_photo` (each photo angle takes time to frame + shoot)
    - If `photo_count` is unknown or 0, use `default_base` minutes
    - Pacing preset applies a **multiplier** to the base:
@@ -138,6 +144,7 @@ Ship Approach A in 1-2 weeks. It solves the immediate pain point and is usable o
    - Both included in `TimedItinerary` response as `export_google_maps_url` and `export_ics` fields
 
 **Frontend changes:**
+
 5. **New `RoutePlannerWizard.tsx` component** (register in `registry.ts`):
    - Spot list with lock/skip/drag-reorder + anime screenshot thumbnails
    - Pacing selector (ゆっくり/普通/詰め込み)

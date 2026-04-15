@@ -30,6 +30,7 @@ Read these files before starting:
 ### Task 1: Split `lib/api.ts` into `lib/api/` module
 
 **Files:**
+
 - Create: `frontend/lib/api/client.ts`
 - Create: `frontend/lib/api/runtime.ts`
 - Create: `frontend/lib/api/conversations.ts`
@@ -171,6 +172,7 @@ git commit -m "refactor(frontend): split api.ts into api/ module with barrel exp
 ### Task 2: Split `lib/types.ts` into `lib/types/` module
 
 **Files:**
+
 - Create: `frontend/lib/types/api.ts`
 - Create: `frontend/lib/types/domain.ts`
 - Create: `frontend/lib/types/index.ts`
@@ -263,6 +265,7 @@ git commit -m "refactor(frontend): split types.ts into types/ module with barrel
 ### Task 3: Add barrel exports to component directories
 
 **Files:**
+
 - Create: `frontend/components/layout/index.ts`
 - Create: `frontend/components/chat/index.ts`
 - Create: `frontend/components/generative/index.ts`
@@ -328,6 +331,7 @@ git commit -m "refactor(frontend): add barrel exports to all component directori
 ### Task 4: Hook naming & dead code audit
 
 **Files:**
+
 - Possibly modify: `frontend/hooks/useConversationHistory.ts`
 - Possibly modify: `frontend/lib/conversation-history.ts`
 - Possibly delete: `frontend/lib/japanRegions.ts`

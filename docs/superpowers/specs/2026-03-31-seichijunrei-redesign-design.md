@@ -60,6 +60,7 @@ planner_agent = Agent(
 ```
 
 System prompt rules:
+
 - No hardcoded anime list
 - For any anime query: always emit `resolve_anime` as the first step
 - `resolve_anime` is DB-first (Supabase `bangumi` table), then Bangumi.tv API on miss
@@ -138,11 +139,13 @@ Backend sets `ui.component` and `ui.props` based on intent. Frontend uses regist
 ```
 
 Chat panel rules:
+
 - Bot messages: text summary only (1-2 sentences) + `◈ N results →` anchor card below
 - **No intent components render inside chat bubbles**
 - Clicking a `◈` anchor activates the corresponding result in the Result Panel
 
 Result Panel rules:
+
 - Always shows the "active" result (defaults to latest)
 - Clicking an older `◈` anchor switches it
 - Independent scroll area
@@ -228,6 +231,7 @@ Adding a new component = register it. No routing logic changes.
 ### 2.5 Mobile (Deferred to Iter 3)
 
 Decision: **Bottom Sheet** (Google Maps / Airbnb pattern). On mobile:
+
 - Chat panel takes full screen
 - Result panel slides up as a draggable bottom sheet when a `◈` anchor is tapped
 - Uses a gesture library (e.g. `@radix-ui/react-dialog` or `vaul`)
@@ -239,6 +243,7 @@ Not implemented until Iter 3.
 ## 3. Multilingual Support
 
 **Scope:**
+
 - A (query/response language): ja / zh / en — backend locale parameter, already partially implemented
 - B (UI text translation): all UI strings in `dictionaries/{ja,zh,en}.json`
 - C (SEO routing `/en/`, `/ja/`, `/zh/`): already in place via `[lang]` route
@@ -256,12 +261,14 @@ C (SEO) is already implemented — no additional work needed.
 Every iteration: write eval → develop → verify eval passes.
 
 ### Iter 0 — Infrastructure (no feature changes)
+
 - Write eval dataset: 50 queries × 3 locales × expected plan structure
 - Add request logging: every request writes `{plan, result, latency}` to DB
 - Add 👍👎 feedback endpoint writing to DB with session context
 - **No changes to PlannerAgent or any agent**
 
 ### Iter 1 — Backend
+
 - Eval first: run Iter 0 dataset against current baseline, record pass rate
 - Rewrite PlannerAgent → ReActPlannerAgent
 - Add `resolve_anime` tool + `search_by_title` to BangumiGateway
@@ -270,6 +277,7 @@ Every iteration: write eval → develop → verify eval passes.
 - Verify: eval pass rate ≥ baseline; new English eval cases pass
 
 ### Iter 2 — Frontend
+
 - Eval first: E2E smoke test (send query → result panel has content)
 - Three-column layout + ResultPanel + GenerativeUIRenderer
 - Dark theme token replacement
@@ -278,6 +286,7 @@ Every iteration: write eval → develop → verify eval passes.
 - Verify: smoke test passes; no visual regression
 
 ### Iter 3 — Eval Loop Closure
+
 - Expand dataset with real negative-feedback cases from Iter 0 collection
 - LLM auto-scoring for plan quality (online monitoring)
 - Negative feedback → auto-suggest prompt improvements

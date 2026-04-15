@@ -69,6 +69,7 @@ Read these files before starting any task — they are the primary inputs:
 ### Task 1: Extract Pydantic schemas to `schemas.py`
 
 **Files:**
+
 - Create: `backend/interfaces/schemas.py`
 - Modify: `backend/interfaces/public_api.py`
 - Modify: `backend/interfaces/__init__.py`
@@ -232,6 +233,7 @@ git commit -m "refactor(api): extract Pydantic schemas to interfaces/schemas.py"
 ### Task 2: Decompose `supabase/client.py` into repositories
 
 **Files:**
+
 - Create: `backend/infrastructure/supabase/repositories/__init__.py`
 - Create: `backend/infrastructure/supabase/repositories/bangumi.py`
 - Create: `backend/infrastructure/supabase/repositories/points.py`
@@ -956,6 +958,7 @@ git commit -m "refactor(db): decompose SupabaseClient into domain repositories"
 ### Task 3: Decompose `executor_agent.py` into handlers
 
 **Files:**
+
 - Create: `backend/agents/messages.py`
 - Create: `backend/agents/handlers/__init__.py`
 - Create: `backend/agents/handlers/resolve_anime.py`
@@ -1176,6 +1179,7 @@ git commit -m "refactor(agents): decompose executor into per-tool handler module
 ### Task 4: Decompose `public_api.py` into response_builder + session_facade
 
 **Files:**
+
 - Create: `backend/interfaces/response_builder.py`
 - Create: `backend/interfaces/session_facade.py`
 - Modify: `backend/interfaces/public_api.py`
@@ -1183,6 +1187,7 @@ git commit -m "refactor(agents): decompose executor into per-tool handler module
 - [ ] **Step 1: Create `backend/interfaces/response_builder.py`**
 
 Move these functions from `public_api.py`:
+
 - `_UI_MAP`
 - `_pipeline_result_to_public_response()`
 - `_application_error_response()`
@@ -1698,6 +1703,7 @@ git commit -m "refactor(api): decompose public_api into response_builder + sessi
 ### Task 5: Create FastAPI adapter
 
 **Files:**
+
 - Create: `backend/interfaces/fastapi_service.py`
 - Create: `backend/interfaces/dependencies.py`
 - Modify: `pyproject.toml`
@@ -2088,6 +2094,7 @@ git commit -m "feat(api): add FastAPI runtime adapter with all endpoints"
 ### Task 6: Switch entrypoints and remove aiohttp adapter
 
 **Files:**
+
 - Modify: `pyproject.toml`
 - Modify: `Dockerfile`
 - Modify: `backend/interfaces/__init__.py`

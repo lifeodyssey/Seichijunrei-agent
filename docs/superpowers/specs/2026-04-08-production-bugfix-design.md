@@ -50,7 +50,7 @@ This spec consolidates all 35 findings into 20 actionable tasks, ordered by laun
 | Session hydration JSON.parse (response_data is string) | Bug #11, Arch finding | T05 |
 | Route intent inferred wrong (search_bangumi not plan_route) | Bug #5 revised root cause | T06 |
 | Duplicate results from guard double-fire | Bug #7 | T06 |
-| Pacing selector non-functional (_pacing never sent) | Journey 3 | T07 |
+| Pacing selector non-functional (`_pacing` never sent) | Journey 3 | T07 |
 | Route timeline hardcoded Japanese | Journey 3 | T08 |
 | Mobile sidebar hidden lg:flex conflict | Journey 5, Bug #13 | T09 |
 | Result panel auto-open on visual response | Bug #2, Journey 2 | T10 |
@@ -102,6 +102,7 @@ const { error } = await authClient.auth.signInWithOtp({ email: normalizedEmail, 
 Also update the tab UI: remove the waitlist/login tab switcher. Single flow: enter email, get magic link.
 
 **AC:**
+
 - [ ] New user enters email on landing page and receives magic link without manual approval
 - [ ] No "pending review" or "not registered" error for new emails
 - [ ] Waitlist table still receives inserts (for analytics) but does not gate login
@@ -144,6 +145,7 @@ If a tool fails, analyze the error. Common recoveries:
 ```
 
 **AC:**
+
 - [ ] "plan a route for Your Name from Shinjuku" where plan_route fails first (no spots loaded) -> planner recovers: resolve -> search -> plan_route
 - [ ] Step failure observation visible in debug/streaming output
 - [ ] Max 2 failures then hard stop with error message (no infinite loop)
@@ -160,6 +162,7 @@ If a tool fails, analyze the error. Common recoveries:
 **Root cause:** Clicking a spot card in PilgrimageGrid only toggles its selection state (for route planning). There is no way to view details about an individual spot — photo, address, anime episode reference, map position.
 
 **Fix:** Add a spot detail sheet/modal that opens on card tap (or a dedicated "info" button to avoid conflicting with selection). The detail view should show:
+
 - Spot photo (via `/img/` proxy)
 - Location name + address
 - Anime title + episode reference (if available)
@@ -169,6 +172,7 @@ If a tool fails, analyze the error. Common recoveries:
 Register as `SpotDetail` component in registry.ts if it needs to be a standalone view, or implement as an inline expansion within PilgrimageGrid.
 
 **AC:**
+
 - [ ] Tapping a spot card opens a detail view with photo, name, address, and map pin
 - [ ] Detail view has a close/back action
 - [ ] Selection state (for route planning) is not broken by detail view interaction
@@ -199,6 +203,7 @@ if (steps.length === 0) {
 ```
 
 **AC:**
+
 - [ ] Sending a message shows "Thinking..." indicator immediately (no blank bubble)
 - [ ] Indicator transitions to step-by-step display once first step arrives
 - [ ] Indicator disappears when streaming completes with no steps (edge case: greet_user)
@@ -230,6 +235,7 @@ data: typeof m.response_data === 'string' ? JSON.parse(m.response_data) : m.resp
 3. Handle pre-migration conversations: if `JSON.parse` throws, show the conversation with text-only messages (no result panel data).
 
 **AC:**
+
 - [ ] Clicking a conversation in sidebar loads its messages with full result data
 - [ ] Old conversations (pre-migration or null response_data) show text-only gracefully
 - [ ] Console shows diagnostic info on hydration failure
@@ -258,6 +264,7 @@ data: typeof m.response_data === 'string' ? JSON.parse(m.response_data) : m.resp
 3. Make intent inference deterministic: if `plan_route` succeeded, intent is always `plan_route` regardless of order.
 
 **AC:**
+
 - [ ] "新宿出発で君の名はのルートを教えて" returns intent=plan_route with RoutePlannerWizard UI
 - [ ] No duplicate search results for any query
 - [ ] Intent inference picks the highest-priority tool: plan_route > plan_selected > search_nearby > search_bangumi
@@ -266,19 +273,21 @@ data: typeof m.response_data === 'string' ? JSON.parse(m.response_data) : m.resp
 
 ### T07: Pacing Selector Non-Functional
 
-**Findings:** _pacing state never sent to backend (Journey 3)
+**Findings:** `_pacing` state never sent to backend (Journey 3)
 **Severity:** MEDIUM
 **Files:** `frontend/components/generative/RoutePlannerWizard.tsx`
 
 **Root cause:** RoutePlannerWizard.tsx:201-203 — `_pacing` state is declared with `useState` and updated by `setPacing`, but the value is never read or sent to the backend. The pacing selector UI exists but changing it has no effect on the displayed route.
 
 **Fix:** Either:
+
 - (A) Wire `_pacing` to re-sort/re-time the itinerary client-side (adjust `duration_minutes` per stop based on pacing multiplier), or
 - (B) Remove the pacing selector UI until backend supports it (avoid confusing users with non-functional controls)
 
 Recommended: option (A) with client-side multipliers: chill=1.5x, normal=1.0x, packed=0.7x applied to `duration_minutes`.
 
 **AC:**
+
 - [ ] Changing pacing selector visibly adjusts time estimates in the timeline
 - [ ] OR pacing selector is removed/disabled with no dead UI
 
@@ -295,6 +304,7 @@ Recommended: option (A) with client-side multipliers: chill=1.5x, normal=1.0x, p
 **Fix:** Use `useDict()` hook and add timeline-specific strings to the i18n dictionaries. Replace all hardcoded Japanese strings with dictionary lookups.
 
 **AC:**
+
 - [ ] Route timeline renders in the user's browser language (en/zh/ja)
 - [ ] No hardcoded Japanese strings in RoutePlannerWizard
 
@@ -319,6 +329,7 @@ Recommended: option (A) with client-side multipliers: chill=1.5x, normal=1.0x, p
 ```
 
 **AC:**
+
 - [ ] Mobile hamburger opens overlay with visible conversation list
 - [ ] Desktop sidebar unchanged (hidden below lg, visible at lg+)
 - [ ] Conversations load and display (or show loading state) in mobile overlay
@@ -345,6 +356,7 @@ if (response && isVisualResponse(response)) {
 Where `isVisualResponse` checks if `response.ui` is in `["PilgrimageGrid", "NearbyMap", "RoutePlannerWizard"]`.
 
 **AC:**
+
 - [ ] Search/route/nearby results auto-open in the result panel
 - [ ] On mobile, drawer auto-opens
 - [ ] User can still close and re-open manually via anchor card
@@ -378,6 +390,7 @@ if (landingQuery) {
 ```
 
 **AC:**
+
 - [ ] User's intended query (if typed before auth) is preserved after login
 - [ ] Pre-filled input is editable before sending
 - [ ] Works for both new signups and returning logins
@@ -395,6 +408,7 @@ if (landingQuery) {
 **Fix:** Remove `hidden sm:block` from the login button. Ensure it has `min-h-[44px]` tap target for mobile.
 
 **AC:**
+
 - [ ] Login button visible on all screen sizes
 - [ ] Tap target meets 44px minimum on mobile
 - [ ] Both "Join beta" and "Login" accessible on mobile header
@@ -410,12 +424,14 @@ if (landingQuery) {
 **Root cause:** Language switcher was added in PR #57 to both ChatHeader and Sidebar bottom. Since i18n uses `detectLocale()` from browser settings and chat responses follow user input language, manual switchers are redundant and confusing.
 
 **Fix:**
+
 - Remove language switcher component from ChatHeader
 - Remove language switcher from Sidebar bottom
 - Remove `persistLocale()` and associated localStorage key
 - Keep `detectLocale()` for browser auto-detect
 
 **AC:**
+
 - [ ] No manual language toggle anywhere in UI
 - [ ] UI language follows browser setting
 - [ ] Chat responses follow user input language (already handled by locale param)
@@ -431,12 +447,14 @@ if (landingQuery) {
 **Root cause:** useConversationHistory.ts:23,44,49 — all `.catch(() => {})` blocks silently discard errors. When `fetchConversations()` fails (auth header missing, network error), the sidebar shows an empty list with no feedback.
 
 **Fix:**
+
 1. Add `error` state to the hook: `const [error, setError] = useState<string | null>(null)`
 2. Populate error state in catch blocks: `.catch((e) => { setError(e.message); console.error("fetchConversations failed:", e); })`
 3. Return `error` and `isLoading` from the hook
 4. Show error/loading state in Sidebar when conversations is empty
 
 **AC:**
+
 - [ ] API failure shows "Could not load conversations" in sidebar (not blank)
 - [ ] Loading state visible while fetch is in progress
 - [ ] Console logs diagnostic info on failure
@@ -453,6 +471,7 @@ if (landingQuery) {
 **Findings:** No delete functionality anywhere (Bug #10, Journey 4)
 **Severity:** MEDIUM
 **Files:**
+
 - `backend/interfaces/fastapi_service.py` — add `DELETE /v1/conversations/{id}`
 - `backend/infrastructure/supabase/repositories/session.py` — add `delete_conversation`
 - `frontend/lib/api.ts` — add `deleteConversation()`
@@ -462,12 +481,14 @@ if (landingQuery) {
 **Root cause:** No delete functionality exists at any layer.
 
 **Fix:** Implement full-stack conversation delete:
+
 1. Backend: `DELETE /v1/conversations/{id}` endpoint that deletes the conversation and its messages from Supabase
 2. Frontend hook: `deleteConversation(id)` method that calls the API and removes from local state
 3. Sidebar UI: trash icon on hover (desktop) or swipe-to-delete (mobile)
 4. If the deleted conversation is currently active, reset to new conversation state
 
 **AC:**
+
 - [ ] User can delete conversations from sidebar
 - [ ] `DELETE /v1/conversations/{id}` removes conversation + messages from DB
 - [ ] Deleted conversation disappears from sidebar immediately (optimistic update)
@@ -484,12 +505,14 @@ if (landingQuery) {
 **Root cause:** registry.ts has `onSuggest` callback support, but only the Clarification component uses it. PilgrimageGrid and RoutePlannerWizard offer no follow-up actions.
 
 **Fix:** Add suggested follow-up pills below results:
+
 - **PilgrimageGrid:** "Plan a route with these spots", "Show nearby spots", "Tell me more about this anime"
 - **RoutePlannerWizard:** "Export to Google Maps", "Search for more spots", "Adjust the route"
 
 Use the existing `onSuggest` callback pattern to send the query to the chat input.
 
 **AC:**
+
 - [ ] 2-3 follow-up pills appear below PilgrimageGrid results
 - [ ] 2-3 follow-up pills appear below RoutePlannerWizard
 - [ ] Clicking a pill sends the query to the chat input
@@ -506,10 +529,12 @@ Use the existing `onSuggest` callback pattern to send the query to the chat inpu
 **Root cause:** AuthGate.tsx:240 — pin popup uses `style={{ background: "var(--color-card)" }}` as a placeholder div. No `<img>` tag. The comparison section (Anime x Reality) was in the mockup but not implemented because Unsplash URLs were excluded from production.
 
 **Fix:**
+
 - Replace gray placeholder divs with `<img>` tags using `/img/` proxy URLs for Anitabi photos (already configured in worker.js): `/img/screenshot/xxx.jpg` for Your Name, Euphonium, Violet Evergarden
 - Add the Anime x Reality comparison section with real photos via `/img/` proxy or curated photos in `public/landing/`
 
 **AC:**
+
 - [ ] Pin hover popups show real anime location photos
 - [ ] Comparison section visible below hero with real photos
 - [ ] No external URL dependencies (use `/img/` proxy or `public/`)
@@ -525,11 +550,13 @@ Use the existing `onSuggest` callback pattern to send the query to the chat inpu
 **Root cause:** RoutePlannerWizard.tsx:45 — when the route has no waypoints or the Google Maps URL construction fails, the export button does nothing. No error message, no toast.
 
 **Fix:** Add validation before export:
+
 - If route has 0 waypoints, show toast: "No waypoints to export"
 - If URL exceeds Google Maps character limit (~8192), show toast: "Too many waypoints for Google Maps — try selecting fewer stops"
 - On successful export, open in new tab with `target="_blank"`
 
 **AC:**
+
 - [ ] Empty route shows informative error message (not silent fail)
 - [ ] Successful export opens Google Maps in new tab
 - [ ] Over-limit routes show helpful message
@@ -547,6 +574,7 @@ Use the existing `onSuggest` callback pattern to send the query to the chat inpu
 **Fix:** Add `onClick` handler that loads the conversation containing that route and sets the route result as the active message in the result panel.
 
 **AC:**
+
 - [ ] Clicking a route history item loads the associated conversation
 - [ ] Route result displays in the result panel
 - [ ] Current conversation state is saved before switching
@@ -598,6 +626,7 @@ T07 (pacing) ───────→ T08 (timeline i18n — same file, do toget
 ### Per-Task Verification
 
 Each task PR must pass:
+
 1. `uv run pytest backend/tests/unit -x -q` (if backend changes)
 2. `cd frontend && npm run build` (if frontend changes)
 3. Manual test of the specific AC items

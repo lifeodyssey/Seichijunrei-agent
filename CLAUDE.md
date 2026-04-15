@@ -31,6 +31,7 @@ make check                # lint + typecheck + test
 ```
 
 Notes:
+
 - pytest is configured with `--asyncio-mode=auto`
 - stable test gates: `backend/tests/unit` and `backend/tests/integration`
 - `backend/tests/eval` depends on external model availability — intentionally separate
@@ -85,7 +86,7 @@ DB is source of truth. No hardcoded anime list in code.
 ### Infrastructure
 
 - `backend/infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
-- `supabase/migrations/` — DDL migrations (apply in order before each deploy)
+- `supabase/migrations/` — DDL (Data Definition Language) migrations (apply in order before each deploy)
 - `backend/infrastructure/session/` — in-memory session backend
 - `backend/infrastructure/observability/` — OpenTelemetry setup
 - `backend/infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi
@@ -95,7 +96,7 @@ DB is source of truth. No hardcoded anime list in code.
 Auth is enforced in the Cloudflare Worker (`worker/worker.js`) before reaching the container.
 
 - Human users: `Authorization: Bearer <supabase_jwt>` (magic-link session)
-- Agent/CLI users: `Authorization: Bearer sk_<hex>` (API key — stored as SHA-256 hash in `api_keys` table)
+- Agent/CLI users: `Authorization: Bearer sk_<hex>` (API key — stored as SHA-256 (Secure Hash Algorithm, 256-bit) hash in `api_keys` table)
 - `/healthz` and static frontend assets: no auth required
 - Container trusts `X-User-Id` and `X-User-Type` headers set by the Worker
 
@@ -112,6 +113,7 @@ Three-column layout (light theme — 京吹夏季 palette, KyoAni-inspired):
 ```
 
 Key components:
+
 - `frontend/components/layout/AppShell.tsx` — three-column, `activeMessageId` state
 - `frontend/components/layout/ResultPanel.tsx` — renders active result via `GenerativeUIRenderer`
 - `frontend/components/generative/registry.ts` — `COMPONENT_REGISTRY: Record<string, ComponentRenderer>`
@@ -120,6 +122,7 @@ Key components:
 - Mobile: `ResultDrawer` (vaul bottom sheet) activated by `◈` anchor tap
 
 Design tokens (`frontend/app/globals.css`):
+
 - `--color-bg: oklch(98% 0.008 218)` · `--color-primary: oklch(60% 0.148 240)` · `--app-font-display: "Shippori Mincho B1"`
 - Light theme — no dark mode toggle, no `@media (prefers-color-scheme)` conditional
 
@@ -142,9 +145,10 @@ Design tokens (`frontend/app/globals.css`):
 ## Deployment
 
 - Container: Python FastAPI service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
-- Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
+- Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → Cloudflare ASSETS binding
 - Worker: `worker/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
-- Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
+- Deploy: GitHub Actions `deploy.yml`
+- Deploy locally: `npx wrangler@4 deploy`
 - DB migrations: apply `supabase/migrations/` in order before each deploy (see `docs/ops/deployment.md`)
 
 ## File Placement
@@ -194,11 +198,12 @@ After all waves:
 - Use `subagent_type="reviewer"` for Reviewer (has Read/Grep/Bash but no Write/Edit)
 - Use `isolation="worktree"` for Executor agents
 - In worktrees: use `uv tool run ruff format` (not `uv run ruff format`)
-- Reviewer must check Codecov patch coverage >= 95% (P1 if below)
+- Reviewer should check Codecov patch coverage >= 95% (P1 if below), unless the change is doc-only or Codecov is unavailable.
 
 ### Quality Ratchet
 
-Every AC in a card must have:
+Every acceptance criterion (AC) in a card must have:
+
 - A test type annotation (`-> unit | integration | eval | browser | api`)
 - A corresponding test in the PR diff
 - Reviewer verifies: `ac_total == ac_with_test`
@@ -210,6 +215,7 @@ Every AC in a card must have:
 ### Specs Index
 
 All specs at `docs/superpowers/specs/`. Status:
+
 - **LANDED**: redesign-03/31, memory-04/01, compact-04/01, greeting-04/02, supabase-04/02, qa-bugfix-04/07, agent-arch-04/08, frontend-redesign-04/08, production-bugfix-04/08
 - **IN PROGRESS**: bug03-route-planning-04/11 (Wave 1 merged, Waves 2-3 pending)
 - **READY (harness format)**: refactor-remaining-04/11, test-infra-remaining-04/11, seo-geo-harness-04/11, layered-eval-harness-04/11
@@ -221,7 +227,7 @@ See `docs/testing-strategy.md` for the full test pyramid, mock rules, coverage t
 
 ## gstack
 
-Use `/browse` from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+Use `/browse` from gstack for all web browsing. If `/browse` is unavailable or the user explicitly requests a different method, ask for confirmation before using alternatives. Do not use `mcp__claude-in-chrome__*` tools.
 
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /retro, /investigate, /document-release, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn.
 
@@ -231,17 +237,18 @@ If gstack skills aren't working, run `cd ~/.claude/skills/gstack && ./setup` to 
 
 - Prefer updating the current runtime; do not reintroduce alternate stacks
 - Keep retrieval deterministic unless a task explicitly changes that rule
-- ExecutorAgent must not make LLM calls — use static `_MESSAGES` templates
+- ExecutorAgent must not make LLM calls — use static `_MESSAGES` templates. If a request would require LLM calls during execution, explain the constraint and propose an alternative.
 - Adding a new UI component = register in `frontend/components/generative/registry.ts` only
 - Run `make check` before and after any change
 
 ## Skill routing
 
-When the user's request matches an available skill, ALWAYS invoke it using the Skill
-tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
+When the user's request matches an available skill, invoke it using the Skill
+tool as your first action when practical. If the user explicitly asks not to use a skill (or it conflicts with higher-priority instructions), explain and proceed without it.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
 Key routing rules:
+
 - Product ideas, "is this worth building", brainstorming → invoke office-hours
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship

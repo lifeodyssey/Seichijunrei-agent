@@ -47,6 +47,7 @@ Phase 3 (after Phase 1):
 ### Task 1: Landing Page — Map Hero
 
 **Files:**
+
 - Rewrite: `frontend/components/auth/AuthGate.tsx`
 - Modify: `frontend/lib/dictionaries/ja.json`, `zh.json`, `en.json` (add landing keys)
 - Reference mockup: `.superpowers/brainstorm/68620-1775618015/content/variant-final-map-hero.html`
@@ -84,6 +85,7 @@ Add equivalent keys to `zh.json` and `en.json` using text from the mockup.
 - [ ] **Step 3: Rewrite AuthGate.tsx**
 
 Replace the current sparse layout with the map hero from the mockup. Key elements:
+
 - Sticky header with logo, language switcher, Join beta CTA
 - Full-viewport hero with abstract Japan shape (CSS gradient + border-radius)
 - Pulsing pin markers (CSS-only `@keyframes pulse`)
@@ -129,6 +131,7 @@ git commit -m "feat(landing): map hero with chat input, i18n, scroll animations"
 ### Task 2: Touch Targets + Interaction States
 
 **Files:**
+
 - Modify: `frontend/app/globals.css`
 
 - [ ] **Step 1: Add global touch target and interaction rules**
@@ -184,6 +187,7 @@ git commit -m "style: global 44px touch targets, focus-visible, hover-lift"
 ### Task 3: Mobile Layout
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx`
 - Modify: `frontend/components/layout/ResultDrawer.tsx`
 - Modify: `frontend/components/chat/MessageBubble.tsx`
@@ -206,6 +210,7 @@ style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
 - [ ] **Step 4: Redesign anchor card in MessageBubble**
 
 Replace the current `◈` anchor with a larger card matching the mobile mockup:
+
 - 📍 icon in 36px blue rounded square
 - Title: "君の名は。 → 111 spots"
 - Subtitle: "タップして結果を表示" (use i18n key `chat.tap_to_view`)
@@ -245,6 +250,7 @@ git commit -m "feat(mobile): overlay sidebar, safe-area input, anchor card redes
 ### Task 4: Sidebar Conversation History
 
 **Files:**
+
 - Modify: `frontend/components/layout/Sidebar.tsx`
 - Modify: `frontend/hooks/useConversationHistory.ts`
 
@@ -271,6 +277,7 @@ function relativeTime(dateStr: string, locale: string): string {
 - [ ] **Step 3: Redesign conversation list item**
 
 Each item shows:
+
 - Icon: `🗾` (default) or `📍` (if `first_query` contains route/ルート/路线)
 - Title: `first_query` truncated to 25 chars (not `title`)
 - Meta line: `relativeTime(updated_at)` · `N spots` (from session data if available)
@@ -294,6 +301,7 @@ git commit -m "feat(sidebar): relative time, first_query title, route icon"
 ### Task 5: Loading States + Animations
 
 **Files:**
+
 - Modify: `frontend/components/chat/MessageBubble.tsx`
 - Modify: `frontend/components/generative/PilgrimageGrid.tsx`
 - Modify: `frontend/app/globals.css`
@@ -368,6 +376,7 @@ git commit -m "feat(polish): skeleton loading, message animation, result slide-i
 ### Task 6: Language Switcher Position
 
 **Files:**
+
 - Modify: `frontend/components/layout/ChatHeader.tsx`
 
 - [ ] **Step 1: Read ChatHeader.tsx**
@@ -411,6 +420,7 @@ git commit -m "feat(i18n): language switcher in chat header"
 ### Task 7: Fix ReAct Eval Harness
 
 **Files:**
+
 - Modify: `backend/tests/eval/test_plan_quality.py`
 
 - [ ] **Step 1: Fix step extraction to read step_results**
@@ -555,6 +565,7 @@ Run `/qa` skill against production to verify everything end-to-end:
 ```
 
 This will:
+
 1. Phase 3.5 API smoke test (healthz + runtime + SSE)
 2. Browser test: landing page renders with map hero, pins, chat input
 3. Auth flow: magic link → authenticated app

@@ -37,6 +37,7 @@
 **Scope:** The wizard currently renders as a card. It needs to render inside a fullscreen overlay with Leaflet map (hero, flex-1), numbered markers, polyline, timeline sidebar, and export buttons.
 
 **Files:**
+
 - Modify: `frontend/components/generative/RoutePlannerWizard.tsx`
 - Create: `frontend/components/layout/FullscreenOverlay.tsx`
 
@@ -136,6 +137,7 @@ Layout inside fullscreen:
 ```
 
 Key implementation points:
+
 - `MapContainer` with `center` from first stop's lat/lng, `zoom` from data or 13
 - Custom numbered `DivIcon` markers: `L.divIcon({ html: '<div class="marker-number">1</div>' })`
 - `Polyline` connecting all stops in order
@@ -185,6 +187,7 @@ Or add to `globals.css`:
 - [ ] **Step 6: Mobile rendering in vaul bottom sheet**
 
 When viewport < 768px, RoutePlannerWizard renders inside `ResultDrawer` (vaul):
+
 - Map takes full width above (50vh)
 - Timeline in the vaul sheet below (draggable)
 - Export bar at bottom of sheet
@@ -205,6 +208,7 @@ Expected: no type errors, static export succeeds.
 ### Task 3 (spec): Locale switcher fix — 44px touch targets
 
 **Files:**
+
 - Modify: `frontend/components/layout/Sidebar.tsx`
 - Modify: `frontend/app/globals.css`
 
@@ -251,11 +255,13 @@ Open in browser at 375px width. All locale buttons should be >= 44px height. Use
 ### Task 4 (spec): Send button sizing and contrast
 
 **Files:**
+
 - Modify: `frontend/components/chat/ChatInput.tsx`
 
 - [ ] **Step 1: Redesign ChatInput as ChatGPT-style card**
 
 The input bar becomes a rounded card with:
+
 - Outer container: `rounded-2xl bg-white border shadow-sm p-3 max-w-[680px] mx-auto`
 - Inner: `textarea` (auto-grow, min 1 row, max 6 rows) + circular send button
 - Send button: 44px circle, `var(--color-primary)` background when text present, muted when empty
@@ -293,6 +299,7 @@ Visually confirm: 44px height, solid primary color when text entered, disabled s
 ### Task 5 (spec): Empty result panel state → empty chat state
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx` (or wherever the empty chat view renders)
 
 - [ ] **Step 1: Add empty state to chat area**
@@ -311,6 +318,7 @@ Since we're removing the permanent ResultPanel, the empty state now lives in the
 ```
 
 Add i18n keys:
+
 - `en.json`: `"chat.empty_hint": "Search for anime pilgrimage spots or plan a route"`
 - `ja.json`: `"chat.empty_hint": "聖地を検索するか、ルートを計画しましょう"`
 - `zh.json`: `"chat.empty_hint": "搜索动漫圣地或规划路线"`
@@ -320,6 +328,7 @@ Add i18n keys:
 ### Task 12 (spec): ResultPanel click-to-open only
 
 **Files:**
+
 - Modify: `frontend/components/layout/AppShell.tsx`
 
 - [ ] **Step 1: Remove auto-open logic**
@@ -345,6 +354,7 @@ Send a search query. The slide-over panel should NOT open automatically. Only op
 ### Task 13 (spec): Footer cleanup
 
 **Files:**
+
 - Modify: `frontend/components/auth/LandingPage.tsx` (or wherever footer is)
 
 - [ ] **Step 1: Remove "Internal beta · 2026" text**
@@ -368,6 +378,7 @@ Find the footer on the landing page. Replace with `聖地巡礼 beta` or remove 
 Since we're replacing ResultPanel with SlideOverPanel, this task is about the slide-over transition.
 
 **Files:**
+
 - Create: `frontend/components/layout/SlideOverPanel.tsx`
 
 - [ ] **Step 1: Create SlideOverPanel**
@@ -443,6 +454,7 @@ In the SlideOverPanel, show a skeleton shimmer while content loads:
 ### Task 27 (spec): Map trackpad scroll/zoom capture
 
 **Files:**
+
 - Modify: `frontend/components/generative/RoutePlannerWizard.tsx`
 - Modify: `frontend/app/globals.css`
 
@@ -487,6 +499,7 @@ Small map previews in inline cards should have zoom disabled:
 ### AppShell integration: Wire it all together
 
 **Files:**
+
 - Rewrite: `frontend/components/layout/AppShell.tsx`
 
 - [ ] **Step 1: Remove three-column layout**
@@ -607,6 +620,7 @@ cd frontend && npm run build
 ```
 
 Expected:
+
 - Chat is centered, max-width 680px
 - No permanent right panel
 - Sidebar collapses with ☰

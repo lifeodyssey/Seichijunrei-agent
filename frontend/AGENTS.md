@@ -1,4 +1,5 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may
@@ -10,6 +11,7 @@ all differ from your training data. Read the relevant guide in
 Three-column layout: `AppShell` (sidebar + chat + result panel).
 
 Key components and their responsibilities:
+
 - `components/layout/AppShell.tsx` — layout root; owns `activeMessageId` state
 - `components/layout/ResultPanel.tsx` — right column; renders active result
 - `components/layout/ResultDrawer.tsx` — mobile bottom sheet (vaul); wraps ResultPanel

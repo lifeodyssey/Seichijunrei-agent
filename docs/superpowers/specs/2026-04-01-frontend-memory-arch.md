@@ -69,6 +69,7 @@ Planner 是 structured-output oracle，不是对话伙伴。多轮模式下 LLM 
 ```
 
 `context_delta` 提取规则（`public_api.py` 中实现 `_extract_context_delta`）：
+
 - `resolve_anime` step 成功 → 取 `step.data["bangumi_id"]` 和 `step.data["title"]`
 - `search_bangumi` step 成功且无 resolve step → 取 `step.data.get("bangumi_id")`
 - `search_nearby` step → 取 `step.params["location"]`
@@ -290,6 +291,7 @@ export function useConversationHistory(userId: string | null) {
 ```
 
 **Sidebar 改动：**
+
 - 显示 `conversations` 列表（title + created_at）
 - 点击标题可 inline 编辑（blur 触发 PATCH `/v1/conversations/:id`）
 - 移除现有 `routeHistory` props
@@ -323,8 +325,8 @@ if sql_result.row_count > 0 and not request.force_refresh:
 
 | Feature | 描述 | 文件 |
 |---------|------|------|
-| F1a | context_delta schema + _build_context_block + planner 注入 | `agents/models.py`, `interfaces/public_api.py`, `agents/planner_agent.py`, `agents/pipeline.py` |
-| F1b | plan_route origin + async _nearest_neighbor_sort | `agents/executor_agent.py`, planner system prompt |
+| F1a | context_delta schema + `_build_context_block` + planner 注入 | `agents/models.py`, `interfaces/public_api.py`, `agents/planner_agent.py`, `agents/pipeline.py` |
+| F1b | plan_route origin + async `_nearest_neighbor_sort` | `agents/executor_agent.py`, planner system prompt |
 | F1c | SSE 端点 + ExecutorAgent progress callback | `interfaces/http_service.py`, `agents/executor_agent.py` |
 | F1d | 前端 SSE client + StepTrace 组件 | `frontend/lib/api.ts`, `frontend/hooks/useChat.ts`, `frontend/components/chat/MessageBubble.tsx`, `frontend/lib/types.ts` |
 
@@ -359,12 +361,14 @@ if sql_result.row_count > 0 and not request.force_refresh:
 ## Acceptance Criteria（顶层）
 
 **Iter 1 完成标准：**
+
 - [ ] 用户说"再找几个那附近的景点"，planner 能理解"那附近"指上轮 location
 - [ ] 规划路线时，系统自动以 context 里的 last_location 作为出发地
 - [ ] 前端发送请求后，聊天区域实时显示每个执行步骤（SSE）
 - [ ] `make test` 全绿
 
 **Iter 2 完成标准：**
+
 - [ ] 刷新页面后侧边栏仍然显示历史对话列表
 - [ ] 首次对话后，侧边栏标题由 LLM 自动生成
 - [ ] 用户可以点击标题修改

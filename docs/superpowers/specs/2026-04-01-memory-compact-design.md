@@ -57,11 +57,13 @@ visited_bangumi_ids: [105, 372]
 ```
 
 **优点：**
+
 - 无额外 LLM 调用，确定性，零延迟增加
 - context 大小可控（固定结构），永远不会撑爆 prompt
 - 跨会话只需把 `user_memory` 持久化到 Supabase
 
 **缺点：**
+
 - 需要维护提炼规则（哪些字段有用）
 - 自由文本的细节（"用户提到想避开太远的地方"）丢失
 
@@ -72,10 +74,12 @@ visited_bangumi_ids: [105, 372]
 把最近 N 轮原始用户消息拼入 prompt；超出 token 阈值时 LLM 压缩旧轮次为摘要。
 
 **优点：**
+
 - 保真度高，能捕捉自由文本里的细节
 - compact 逻辑与 Claude Code 自身行为一致，符合直觉
 
 **缺点：**
+
 - compact 触发时需同步 LLM 调用，增加单次响应延迟
 - 需要 token 计数逻辑（tokenizer 依赖）
 - compact 结果质量依赖模型，不确定性更高
@@ -95,6 +99,7 @@ visited_bangumi_ids: [105, 372]
 **目标：** 解决同一会话内的指代问题（"那附近"、"同一部动漫"）。
 
 **变更范围：**
+
 - `interfaces/public_api.py` — `run_pipeline` 新增 `context` 参数
 - `agents/pipeline.py` — 把 `context_block` 传入 planner
 - `agents/planner_agent.py` — `create_plan(text, locale, context=None)` 在 prompt 前缀注入 context
@@ -146,6 +151,7 @@ visited_bangumi_ids: [105, 372]
 #### 2a — 后端：user_memory 表
 
 **变更范围：**
+
 - Supabase 新表 `user_memory`：
   ```sql
   user_id        text  PK
@@ -154,6 +160,7 @@ visited_bangumi_ids: [105, 372]
   preferences    jsonb   -- 未来扩展：偏好标签等
   updated_at     timestamptz
   ```
+
 - `interfaces/public_api.py` — 每次响应后 upsert `user_memory`（本轮新出现的动漫/地点）
 - `_build_context_block` — 合并 session state + `user_memory`（跨会话部分）
 
@@ -196,6 +203,7 @@ function useRouteHistory(userId: string | null) {
 ```
 
 **变更范围：**
+
 - `frontend/hooks/useRouteHistory.ts` — 新 hook，封装 Supabase 查询
 - `frontend/lib/api.ts` — `fetchRouteHistory(userId)` 查询 `routes` 表
 - `frontend/components/layout/AppShell.tsx` — 用 `useRouteHistory` 替换当前 `useMemo` 推导

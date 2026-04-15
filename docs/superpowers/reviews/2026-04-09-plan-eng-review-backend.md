@@ -70,23 +70,28 @@
 Dependencies flow correctly downward in the vast majority of cases.
 
 **Issue #1 (P2, confidence 8/10): `sql_agent.py` creates LLM agents for location resolution**
+
 - File: `backend/agents/sql_agent.py:138-148`
 - `resolve_location()` instantiates a Pydantic AI agent to fuzzy-match location names.
   This means the "deterministic SQL layer" makes LLM calls, creating a hidden
   dependency on model availability and adding ~1s latency for every unknown location.
+
 - Recommendation: Move LLM-based location resolution to the planner or a dedicated
   geocoding step. Keep `resolve_location` purely dictionary + Google Geocoding.
 
 **Issue #2 (P2, confidence 7/10): `session_facade.py` makes LLM calls**
+
 - File: `backend/interfaces/session_facade.py:263,312`
 - `compact_session_interactions()` and `generate_and_save_title()` call
   `create_agent()` to summarize sessions and generate titles. These are
   fire-and-forget `asyncio.create_task` calls from the interface layer.
+
 - While acceptable for background work, these LLM calls silently degrade
   the interface layer's determinism. If the LLM is down, sessions never
   compact and titles never generate without error propagation.
 
 **Issue #3 (P1, confidence 9/10): Module-level singleton state in `retriever.py`**
+
 - File: `backend/agents/retriever.py:36-38`
 - `_SHARED_RETRIEVAL_CACHE` is a module-level `ResponseCache`. This is
   effectively a global singleton. Tests that import this module share
@@ -100,9 +105,11 @@ The separation between agents, application, and infrastructure is well done.
 - **Ports/Adapters pattern** is correctly applied: `AnitabiGateway` and
   `BangumiGateway` are Protocols in `application/ports/`, with concrete
   implementations in `infrastructure/gateways/`.
+
 - **Use cases** (`fetch_bangumi_points`, `get_bangumi_subject`,
   `search_bangumi_subjects`) are minimal callable dataclasses --
   clean and focused.
+
 - **SupabaseClient** uses a repository delegation pattern via `__getattr__`,
   which keeps the client interface backward-compatible while keeping
   repository code modular.
@@ -141,6 +148,7 @@ PipelineResult --> response_builder --> PublicAPIResponse
 ```
 
 **Issue #4 (P2, confidence 8/10): `pipeline.py` accesses `executor._execute_step()` directly**
+
 - File: `backend/agents/pipeline.py:107`
 - The `react_loop` function calls `executor._execute_step()` (private method)
   instead of going through `executor.execute()`. This bypasses the
@@ -149,15 +157,18 @@ PipelineResult --> response_builder --> PublicAPIResponse
 ### 1.5 Scaling Bottlenecks
 
 **Issue #5 (P1, confidence 9/10): In-memory session store in production**
+
 - The `InMemorySessionStore` does not persist across container restarts.
   While `SupabaseSessionStore` is available, the factory silently falls
   back to in-memory when no DB is provided. A misconfigured deploy loses
   all active sessions.
+
 - The `SupabaseSessionStore` has a FIFO cache (dict, not LRU) that may
   grow to 256 entries. For high-traffic deploys this is fine, but there
   is no TTL-based eviction -- stale entries persist until pushed out.
 
 **Issue #6 (P2, confidence 7/10): `ResponseCache` uses `threading.Lock` in async code**
+
 - File: `backend/services/cache.py:78,126,162`
 - `ResponseCache` wraps an `OrderedDict` with `threading.Lock`. In an
   async context this blocks the event loop during every cache read/write.
@@ -178,8 +189,10 @@ PipelineResult --> response_builder --> PublicAPIResponse
 | `clients/base.py`           | 533   | Over 500  |
 
 **Issue #7 (P2, confidence 9/10): 4 files exceed the 500-line project guideline**
+
 - `fastapi_service.py` is the worst offender (643 lines). It mixes route
   handlers, exception handlers, middleware, lifespan management, and helpers.
+
 - `base.py` (HTTP client) has 533 lines but is cohesive -- acceptable as-is.
 - Recommendation: Extract `create_fastapi_app`, middleware, and exception
   handlers into separate modules.
@@ -187,13 +200,16 @@ PipelineResult --> response_builder --> PublicAPIResponse
 ### 2.2 DRY Violations
 
 **Issue #8 (P2, confidence 8/10): Gateway adapter duplication**
+
 - Files: `infrastructure/gateways/bangumi.py`, `infrastructure/gateways/anitabi.py`
 - Both gateways repeat the same pattern: check if `self._client` exists,
   use it; otherwise `async with Client() as client:`. This 4-line block
   is duplicated 6 times across the two files.
+
 - A mixin or base adapter class could eliminate this.
 
 **Issue #9 (P2, confidence 7/10): Coordinate validation exists in two places**
+
 - `domain/entities.py:38-47` (Coordinates model with validators)
 - `agents/route_optimizer.py:38-81` (validate_coordinates function)
 - The Coordinates model already validates ranges, but `validate_coordinates()`
@@ -208,10 +224,12 @@ Error handling is generally excellent:
 - Gateway adapters properly translate `APIError` to `ApplicationError` subtypes
 - FastAPI exception handlers catch `RequestValidationError`, `ValidationError`,
   `HTTPException`, and generic `Exception` with proper error codes
+
 - Pipeline failures propagate as `StepResult(success=False)` and the ReAct
   loop retries up to 2 consecutive failures
 
 **Issue #10 (P2, confidence 8/10): Silent exception swallowing in `public_api.py`**
+
 - File: `backend/interfaces/public_api.py:258-273,308-309`
 - Multiple `except Exception:` blocks with only `logger.warning()` --
   user message persistence, request log insertion, and user memory operations
@@ -224,6 +242,7 @@ Error handling is generally excellent:
 - Private helpers prefixed with `_` consistently
 - Handler module follows a clean pattern: each handler is a single `execute()`
   function with the same signature
+
 - `ToolName` enum provides a single source of truth for tool identifiers
 
 ### 2.5 Type Safety
@@ -304,31 +323,38 @@ Legend: *** = thorough, ** = adequate, * = minimal, - = missing
 ### 3.2 Coverage Gaps
 
 **Issue #11 (P1, confidence 10/10): No unit tests for Supabase repositories**
+
 - Files: `repositories/bangumi.py`, `repositories/points.py`,
   `repositories/feedback.py`, `repositories/routes.py`,
   `repositories/session.py`, `repositories/messages.py`,
   `repositories/user_memory.py`
+
 - These 7 repository modules contain raw SQL and are only tested at the
   integration level (which requires a running Postgres with PostGIS).
+
 - Risk: SQL typos, wrong column names, or missing ON CONFLICT clauses
   would only be caught in integration tests.
 
 **Issue #12 (P2, confidence 9/10): No unit tests for `application/use_cases/`**
+
 - `FetchBangumiPoints`, `GetBangumiSubject`, `SearchBangumiSubjects` are
   untested callable dataclasses. While trivial, they should have at minimum
   a smoke test ensuring correct delegation.
 
 **Issue #13 (P2, confidence 8/10): `geocoding.py` gateway has no test**
+
 - File: `backend/infrastructure/gateways/geocoding.py`
 - Google Geocoding gateway has no unit test. HTTP responses should be
   mocked to verify candidate parsing and error handling.
 
 **Issue #14 (P2, confidence 8/10): `sql_agent.py` test coverage is minimal**
+
 - File: `backend/tests/unit/test_sql_agent.py` (only 86 lines)
 - The SQLAgent generates parameterized SQL for 3 different query types
   plus location resolution. Current tests barely cover the happy path.
 
 **Issue #15 (P2, confidence 7/10): `test_points_schema_alignment.py` is empty**
+
 - File: `backend/tests/unit/test_points_schema_alignment.py` (0 lines)
 - This appears to be a placeholder that was never implemented.
 
@@ -339,24 +365,30 @@ Legend: *** = thorough, ** = adequate, * = minimal, - = missing
 ### 4.1 Query Patterns
 
 **Issue #16 (P1, confidence 9/10): O(n^2) clustering algorithm**
+
 - File: `backend/agents/route_optimizer.py:136-145`
 - `cluster_by_location()` compares every pair of points with `haversine_distance()`.
   For n=200 points this is 19,900 distance calculations. While currently
   bounded by `_DEFAULT_GEO_LIMIT = 200`, this could become slow if limits increase.
+
 - Recommendation: Use a spatial index (R-tree) or grid-based approach.
   For typical sizes (<200) this is acceptable but should be documented.
 
 **Issue #17 (P2, confidence 8/10): `resolve_location()` makes 3 sequential network calls**
+
 - File: `backend/agents/sql_agent.py:119-172`
 - Resolution order: dict lookup -> LLM agent call -> Google Geocoding API.
   If the dict misses and the LLM fails, the user waits for both to timeout
   before falling back to geocoding.
+
 - The LLM call in particular is wasteful for most well-known locations.
   Consider expanding `KNOWN_LOCATIONS` dict or caching LLM results.
 
 **Issue #18 (P2, confidence 7/10): No connection pooling for external HTTP clients**
+
 - Each `BangumiClientGateway` and `AnitabiClientGateway` call creates a fresh
   `aiohttp.ClientSession` (via `async with Client() as client:`).
+
 - File: `infrastructure/gateways/bangumi.py:54`, `anitabi.py:44`
 - Creating/destroying TCP connections per call adds latency and is wasteful.
 - The gateway docstring acknowledges this ("avoids cross-loop session issues")
@@ -373,6 +405,7 @@ Caching is implemented at two levels:
    `RetrievalResult` objects. Only caches non-empty successful results.
 
 **Issue #19 (P2, confidence 7/10): Cache uses `datetime.now()` (no timezone)**
+
 - File: `backend/services/cache.py:42`
 - `CacheEntry.is_expired()` uses `datetime.now()` without timezone.
   All other code uses `datetime.now(UTC)`. While this is consistent
@@ -384,6 +417,7 @@ Caching is implemented at two levels:
 - All SQL uses parameterized queries (no string interpolation) -- safe and performant
 - PostGIS spatial queries use `ST_DWithin` with geography type -- optimal for
   radius searches
+
 - `upsert_points_batch` uses `executemany` inside a transaction -- efficient batch writes
 - Points table joins with bangumi table on every query -- index on
   `points.bangumi_id` is critical (assumed from schema but not verified in code)
@@ -431,16 +465,19 @@ domain/
 ### 5.2 Dependency Direction Violations
 
 **Issue #20 (P2, confidence 8/10): `clients/anitabi.py` imports `domain/entities.py`**
+
 - File: `backend/clients/anitabi.py:22-25`
 - The client layer (infrastructure adapter) imports domain entities
   (`Point`, `Station`, `Coordinates`). In strict Clean Architecture,
   clients should return raw dicts and let use cases / gateways map to
   domain entities.
+
 - The `AnitabiClient.get_bangumi_points()` method returns `list[Point]`,
   which means the HTTP client knows about domain models. This is a
   pragmatic shortcut but technically violates dependency direction.
 
 **Issue #21 (P2, confidence 7/10): `agents/retriever.py` imports concrete gateway implementations**
+
 - File: `backend/agents/retriever.py:26-29`
 - The Retriever directly imports `AnitabiClientGateway`, `BangumiClientGateway`,
   and `AnitabiClient` -- concrete infrastructure types. It should depend
@@ -461,11 +498,14 @@ domain/
 | opentelemetry-api   | >=1.39.0    | Floor    | Active     |
 
 **Issue #22 (P2, confidence 6/10): No upper bounds on dependency versions**
+
 - All dependencies use `>=` floor pins only. A major version bump in
   `pydantic-ai` or `fastapi` could silently break the build.
+
 - Recommendation: Use `>=X,<Y` or a lockfile for reproducible deploys.
 
 **Issue #23 (P2, confidence 7/10): `httpx` is declared but not imported anywhere in source**
+
 - `httpx>=0.28.0` is in `dependencies` but no backend source file imports it.
   It may be a transitive dependency of pydantic-ai but should be verified.
 
@@ -477,6 +517,7 @@ domain/
 
 - Auth is enforced in the Cloudflare Worker (`worker/worker.js`) before
   reaching the container -- correct trust boundary
+
 - Container trusts `X-User-Id` / `X-User-Type` headers from the Worker
 - FastAPI dependency injection properly extracts and validates headers
 - `_require_trusted_user` rejects requests without `X-User-Id`
@@ -486,9 +527,11 @@ domain/
 - All SQL uses asyncpg parameterized queries (`$1`, `$2`, ...)
 - `_validate_columns()` in `helpers.py` rejects unknown column names,
   preventing column-injection in dynamic upsert queries
+
 - `find_bangumi_by_title` uses `ILIKE $1` with parameter binding -- safe
 
 **Issue #24 (P1, confidence 8/10): Dynamic SQL column construction in `upsert_bangumi`**
+
 - File: `infrastructure/supabase/repositories/bangumi.py:31-41`
 - While `_validate_columns` checks against an allowlist, the column names
   themselves are interpolated into SQL strings (not parameterized). This is
