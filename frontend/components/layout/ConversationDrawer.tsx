@@ -56,7 +56,7 @@ export default function ConversationDrawer({
 
       {/* Drawer panel */}
       <div
-        className="fixed inset-y-0 left-0 z-50 flex flex-col bg-white shadow-xl"
+        className="fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--color-bg)] shadow-xl"
         style={{ width: 280 }}
         role="dialog"
         aria-label="Conversation history"

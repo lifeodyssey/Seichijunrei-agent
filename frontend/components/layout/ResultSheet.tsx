@@ -42,7 +42,7 @@ export default function ResultSheet({
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-black/60" />
         <Drawer.Content
-          className="fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-white border-t border-[var(--color-border)]"
+          className="fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-[var(--color-card)] border-t border-[var(--color-border)]"
           style={{ borderRadius: "16px 16px 0 0", maxHeight: "90vh" }}
           aria-label="Result panel"
           role="region"
