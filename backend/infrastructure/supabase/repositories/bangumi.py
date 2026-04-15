@@ -40,12 +40,26 @@ class BangumiRepository:
         )
         await self._pool.execute(sql, bangumi_id, *fields.values())
 
+    async def list_popular(self, *, limit: int = 8) -> list[dict[str, object]]:
+        """List popular bangumi by rating, only those with points."""
+        rows = await self._pool.fetch(
+            """SELECT id, title, title_cn, cover_url, city, points_count, rating
+               FROM bangumi
+               WHERE points_count > 0
+               ORDER BY rating DESC NULLS LAST
+               LIMIT $1""",
+            limit,
+        )
+        return [dict(r) for r in rows]
+
     async def get_bangumi_by_area(
         self, lat: float, lng: float, radius_m: int = 50000
     ) -> list[dict[str, object]]:
         """Find bangumi whose known points are near a location."""
         rows = await self._pool.fetch(
-            """SELECT DISTINCT b.id AS bangumi_id, b.title AS bangumi_title, b.city
+            """SELECT DISTINCT b.id AS bangumi_id, b.title AS bangumi_title,
+                      b.title_cn, b.cover_url, b.city,
+                      COUNT(p.id) AS points_count
                FROM points p
                JOIN bangumi b ON p.bangumi_id = b.id
                WHERE ST_DWithin(
@@ -56,6 +70,7 @@ class BangumiRepository:
                    ST_MakePoint($1, $2)::geography,
                    $3
                )
+               GROUP BY b.id, b.title, b.title_cn, b.cover_url, b.city
                LIMIT 10""",
             lng,
             lat,

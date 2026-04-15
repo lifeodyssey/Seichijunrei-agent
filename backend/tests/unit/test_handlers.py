@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from backend.agents.handlers.answer_question import execute, execute_clarify
+from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
 from backend.agents.handlers.search_bangumi import execute as execute_search
 from backend.agents.models import PlanStep, ToolName
@@ -197,6 +198,81 @@ class TestAnswerQuestion:
         result = await execute(step, {}, MagicMock(), MagicMock())
 
         assert result["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# plan_route — coordinate origin path
+# ---------------------------------------------------------------------------
+
+_SAMPLE_ROWS = [
+    {"id": "p1", "name": "Spot A", "latitude": 34.88, "longitude": 135.80},
+    {"id": "p2", "name": "Spot B", "latitude": 34.89, "longitude": 135.81},
+]
+
+
+class TestPlanRouteCoordinateOrigin:
+    async def test_coordinate_origin_skips_resolve_location(self) -> None:
+        """When origin_lat/origin_lng are in context, resolve_location is NOT called."""
+        step = _step(ToolName.PLAN_ROUTE, {})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _SAMPLE_ROWS},
+            "origin_lat": 34.9,
+            "origin_lng": 135.8,
+        }
+
+        with patch(
+            "backend.agents.handlers.plan_route.resolve_location"
+        ) as mock_resolve:
+            result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        mock_resolve.assert_not_called()
+        assert result["success"] is True
+
+    async def test_coordinate_origin_takes_precedence_over_text_origin(self) -> None:
+        """Coordinate origin takes precedence when both are present."""
+        step = _step(ToolName.PLAN_ROUTE, {"origin": "京都駅"})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _SAMPLE_ROWS},
+            "origin_lat": 34.9,
+            "origin_lng": 135.8,
+        }
+
+        with patch(
+            "backend.agents.handlers.plan_route.resolve_location"
+        ) as mock_resolve:
+            result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        mock_resolve.assert_not_called()
+        assert result["success"] is True
+
+    async def test_text_origin_still_used_when_no_coords(self) -> None:
+        """When no coordinate origin, text origin is still resolved (existing path)."""
+        step = _step(ToolName.PLAN_ROUTE, {"origin": "宇治駅"})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _SAMPLE_ROWS},
+        }
+
+        with patch(
+            "backend.agents.handlers.plan_route.resolve_location",
+            new=AsyncMock(return_value=None),
+        ) as mock_resolve:
+            result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        mock_resolve.assert_awaited_once()
+        assert result["success"] is True
+
+    async def test_no_rows_returns_error_regardless_of_coords(self) -> None:
+        """No rows → error even when coords are present."""
+        step = _step(ToolName.PLAN_ROUTE, {})
+        context: dict[str, object] = {
+            "origin_lat": 34.9,
+            "origin_lng": 135.8,
+        }
+
+        result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        assert result["success"] is False
+        assert "No points to route" in result["error"]
 
 
 class TestClarify:

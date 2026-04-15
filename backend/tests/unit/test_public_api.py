@@ -100,6 +100,36 @@ class TestPublicAPIRequest:
         with pytest.raises(ValidationError):
             PublicAPIRequest(text="   ")
 
+    def test_accepts_origin_lat_lng(self) -> None:
+        req = PublicAPIRequest(text="hello", origin_lat=34.9, origin_lng=135.8)
+        assert req.origin_lat == 34.9
+        assert req.origin_lng == 135.8
+
+    def test_origin_lat_without_origin_lng_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=34.9)
+
+    def test_origin_lng_without_origin_lat_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lng=135.8)
+
+    def test_origin_lat_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=91.0, origin_lng=135.8)
+
+    def test_origin_lat_negative_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=-91.0, origin_lng=135.8)
+
+    def test_origin_lng_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=34.9, origin_lng=181.0)
+
+    def test_origin_coords_both_none_allowed(self) -> None:
+        req = PublicAPIRequest(text="hello")
+        assert req.origin_lat is None
+        assert req.origin_lng is None
+
 
 class TestContextExtraction:
     def test_extract_context_delta_from_resolve_anime(self) -> None:

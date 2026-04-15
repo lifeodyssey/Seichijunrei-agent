@@ -39,6 +39,18 @@ class PublicAPIRequest(BaseModel):
         default=None,
         description="Optional departure location for selected-point routing.",
     )
+    origin_lat: float | None = Field(
+        default=None,
+        ge=-90.0,
+        le=90.0,
+        description="Optional departure latitude for coordinate-based origin.",
+    )
+    origin_lng: float | None = Field(
+        default=None,
+        ge=-180.0,
+        le=180.0,
+        description="Optional departure longitude for coordinate-based origin.",
+    )
 
     @model_validator(mode="after")
     def validate_request(self) -> PublicAPIRequest:
@@ -57,6 +69,11 @@ class PublicAPIRequest(BaseModel):
         if not self.text and not self.selected_point_ids:
             raise ValueError(
                 "text cannot be blank unless selected_point_ids is provided"
+            )
+        # Coordinate origin fields must be provided together
+        if (self.origin_lat is None) != (self.origin_lng is None):
+            raise ValueError(
+                "origin_lat and origin_lng must both be provided or both omitted"
             )
         return self
 

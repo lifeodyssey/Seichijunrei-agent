@@ -325,3 +325,174 @@ async def test_patch_conversation_valid_returns_200() -> None:
     body = resp.json()
     assert body["ok"] is True
     db.update_conversation_title.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# AC: GET /v1/bangumi/popular
+# ---------------------------------------------------------------------------
+
+
+def _build_stub_db_with_bangumi() -> MagicMock:
+    db = _build_stub_db()
+    db.list_popular = AsyncMock(
+        return_value=[
+            {
+                "id": "115908",
+                "title": "Liz and the Blue Bird",
+                "title_cn": "利兹与青鸟",
+                "cover_url": "https://example.com/cover.jpg",
+                "city": "Kyoto",
+                "points_count": 5,
+                "rating": 9.0,
+            }
+        ]
+    )
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    return db
+
+
+async def test_popular_returns_200_with_bangumi_array() -> None:
+    """GET /v1/bangumi/popular?limit=8 returns {bangumi: [...]} with correct fields."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular?limit=8")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "bangumi" in body
+    assert len(body["bangumi"]) == 1
+    item = body["bangumi"][0]
+    assert item["id"] == "115908"
+    assert item["title"] == "Liz and the Blue Bird"
+    assert item["title_cn"] == "利兹与青鸟"
+    assert item["cover_url"] == "https://example.com/cover.jpg"
+    assert item["city"] == "Kyoto"
+    assert item["points_count"] == 5
+    assert item["rating"] == 9.0
+
+
+async def test_popular_default_limit_is_8() -> None:
+    """Omitting limit defaults to 8."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular")
+
+    assert resp.status_code == 200
+    db.list_popular.assert_awaited_once()
+    called_limit = (
+        db.list_popular.await_args.kwargs.get("limit")
+        or db.list_popular.await_args.args[0]
+    )
+    assert called_limit == 8
+
+
+async def test_popular_negative_limit_returns_422() -> None:
+    """Negative limit returns 422."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular?limit=-1")
+
+    assert resp.status_code == 422
+
+
+async def test_popular_non_integer_limit_returns_422() -> None:
+    """Non-integer limit returns 422."""
+    db = _build_stub_db_with_bangumi()
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular?limit=abc")
+
+    assert resp.status_code == 422
+
+
+async def test_popular_empty_db_returns_empty_array() -> None:
+    """No bangumi in DB returns {bangumi: []}."""
+    db = _build_stub_db()
+    db.list_popular = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/popular")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == {"bangumi": []}
+
+
+# ---------------------------------------------------------------------------
+# AC: GET /v1/bangumi/nearby
+# ---------------------------------------------------------------------------
+
+
+async def test_nearby_returns_200_with_bangumi_array() -> None:
+    """GET /v1/bangumi/nearby?lat=...&lng=...&radius_m=... returns grouped bangumi."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(
+        return_value=[
+            {
+                "bangumi_id": "115908",
+                "bangumi_title": "Liz and the Blue Bird",
+                "city": "Kyoto",
+                "cover_url": "https://example.com/cover.jpg",
+                "title_cn": "利兹与青鸟",
+                "points_count": 3,
+            }
+        ]
+    )
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=34.9&lng=135.8&radius_m=50000")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "bangumi" in body
+    assert len(body["bangumi"]) == 1
+    item = body["bangumi"][0]
+    assert item["bangumi_id"] == "115908"
+    assert item["points_count"] == 3
+
+
+async def test_nearby_empty_returns_empty_array() -> None:
+    """No points within radius returns {bangumi: []}."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=0.0&lng=0.0&radius_m=1000")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body == {"bangumi": []}
+
+
+async def test_nearby_lat_out_of_range_returns_422() -> None:
+    """lat > 90 returns 422."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lat=91.0&lng=135.8&radius_m=50000")
+
+    assert resp.status_code == 422
+
+
+async def test_nearby_missing_lat_returns_422() -> None:
+    """Missing lat returns 422."""
+    db = _build_stub_db()
+    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    app, _ = _build_app(db=db)
+
+    async with _async_client(app) as client:
+        resp = await client.get("/v1/bangumi/nearby?lng=135.8&radius_m=50000")
+
+    assert resp.status_code == 422
