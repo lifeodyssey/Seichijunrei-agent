@@ -53,9 +53,10 @@ function buildEpRanges(points: PilgrimagePoint[]): string[] {
     }
   }
   // Sort ranges numerically by their start episode.
+  // Extract the first run of digits (e.g. "EP 5-8" → "5") for comparison.
   return Array.from(ranges).sort((a, b) => {
-    const numA = parseInt(a.replace(/\D.*/, ""), 10);
-    const numB = parseInt(b.replace(/\D.*/, ""), 10);
+    const numA = parseInt(a.match(/\d+/)?.[0] ?? "0", 10);
+    const numB = parseInt(b.match(/\d+/)?.[0] ?? "0", 10);
     return numA - numB;
   });
 }
