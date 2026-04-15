@@ -9,11 +9,9 @@ import { useLocale } from "../../lib/i18n-context";
 import {
   buildSelectedRouteActionText,
   fetchConversationMessages,
-  fetchRouteHistory,
   hydrateResponseData,
   sendSelectedRoute,
 } from "../../lib/api";
-import type { RouteHistoryEntry } from "../../lib/api";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { isVisualResponse } from "../generative/registry";
@@ -43,19 +41,13 @@ export default function AppShell() {
     toggle,
     clear: clearSelectedPoints,
   } = usePointSelection();
-  const { conversations, upsert: upsertConversation, rename: renameConversation } =
-    useConversationHistory();
+  const { upsert: upsertConversation } = useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [routes, setRoutes] = useState<RouteHistoryEntry[]>([]);
   const [routeSending, setRouteSending] = useState(false);
   const lastSyncedResponseIdRef = useRef<string | null>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
   const isSending = sending || routeSending;
-
-  useEffect(() => {
-    fetchRouteHistory().then(setRoutes).catch(() => {});
-  }, []);
 
   // Hydrate messages on mount when a stored session exists
   useEffect(() => {
