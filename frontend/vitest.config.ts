@@ -13,6 +13,7 @@ export default defineConfig({
       "**/tests/conversation-api.test.ts",
       "**/tests/conversation-history.test.ts",
       "**/tests/supabase-config.test.ts",
+      "**/tests/type-guards.test.ts",
     ],
   },
   resolve: {
