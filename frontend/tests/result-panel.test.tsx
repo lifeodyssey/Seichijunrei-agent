@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { ReactNode } from "react";
 import ResultPanel from "@/components/layout/ResultPanel";
-import type { RuntimeResponse } from "@/lib/types";
+import type { RuntimeResponse, PilgrimagePoint } from "@/lib/types";
 import { PointSelectionContext } from "@/contexts/PointSelectionContext";
 import defaultDict from "@/lib/dictionaries/ja.json";
 
@@ -78,7 +78,7 @@ vi.mock("next/dynamic", () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeSearchResponse(rows: Partial<typeof POINT>[] = [POINT]): RuntimeResponse {
+function makeSearchResponse(rows: Partial<PilgrimagePoint>[] = [POINT]): RuntimeResponse {
   return {
     success: true,
     status: "ok",
@@ -101,7 +101,7 @@ function makeSearchResponse(rows: Partial<typeof POINT>[] = [POINT]): RuntimeRes
   };
 }
 
-const POINT = {
+const POINT: PilgrimagePoint = {
   id: "pt-001",
   name: "宇治駅",
   name_cn: null,

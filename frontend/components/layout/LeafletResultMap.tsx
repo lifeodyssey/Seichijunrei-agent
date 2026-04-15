@@ -17,6 +17,67 @@ interface LeafletResultMapProps {
   onToggle: (id: string) => void;
 }
 
+type LeafletModule = typeof import("leaflet");
+
+function buildPopupEl(name: string): HTMLElement {
+  const strong = document.createElement("strong");
+  strong.textContent = name; // textContent auto-escapes — no XSS risk
+  strong.style.fontSize = "13px";
+  const wrap = document.createElement("div");
+  wrap.style.padding = "4px 2px";
+  wrap.appendChild(strong);
+  return wrap;
+}
+
+function initLeafletMap(
+  container: HTMLElement,
+  points: PilgrimagePoint[],
+  L: LeafletModule,
+  onToggle: (id: string) => void,
+): LeafletMap {
+  // Default marker icon fix for bundled environments.
+  const iconDefault = L.Icon.Default as unknown as { _getIconUrl?: unknown };
+  delete iconDefault._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+    iconUrl: "/leaflet/marker-icon.png",
+    shadowUrl: "/leaflet/marker-shadow.png",
+  });
+
+  const validPoints = points.filter(
+    (p) => p.latitude !== 0 && p.longitude !== 0,
+  );
+
+  const center: [number, number] =
+    validPoints.length > 0
+      ? [validPoints[0].latitude, validPoints[0].longitude]
+      : [35.6895, 139.6917]; // Tokyo fallback
+
+  const map = L.map(container, { center, zoom: 13, zoomControl: true });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:
+      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  for (const point of validPoints) {
+    const marker = L.marker([point.latitude, point.longitude]);
+    marker.bindPopup(buildPopupEl(point.name));
+    marker.on("click", () => onToggle(point.id));
+    marker.addTo(map);
+  }
+
+  if (validPoints.length > 1) {
+    const bounds = L.latLngBounds(
+      validPoints.map((p) => [p.latitude, p.longitude] as [number, number]),
+    );
+    map.fitBounds(bounds, { padding: [32, 32] });
+  }
+
+  return map;
+}
+
 export default function LeafletResultMap({
   points,
   selectedIds,
@@ -31,53 +92,7 @@ export default function LeafletResultMap({
     // Dynamic import inside effect so SSR never touches Leaflet.
     import("leaflet").then((L) => {
       if (!containerRef.current || mapRef.current) return;
-
-      // Default marker icon fix for bundled environments.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const iconDefault = L.Icon.Default as unknown as { _getIconUrl?: unknown };
-      delete iconDefault._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "/leaflet/marker-icon-2x.png",
-        iconUrl: "/leaflet/marker-icon.png",
-        shadowUrl: "/leaflet/marker-shadow.png",
-      });
-
-      const validPoints = points.filter(
-        (p) => p.latitude !== 0 && p.longitude !== 0,
-      );
-
-      const center: [number, number] =
-        validPoints.length > 0
-          ? [validPoints[0].latitude, validPoints[0].longitude]
-          : [35.6895, 139.6917]; // Tokyo fallback
-
-      const map = L.map(containerRef.current!, {
-        center,
-        zoom: 13,
-        zoomControl: true,
-      });
-
-      mapRef.current = map;
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
-
-      for (const point of validPoints) {
-        const marker = L.marker([point.latitude, point.longitude]);
-        marker.bindPopup(`<div style="padding:4px 2px"><strong style="font-size:13px">${point.name}</strong></div>`);
-        marker.on("click", () => onToggle(point.id));
-        marker.addTo(map);
-      }
-
-      if (validPoints.length > 1) {
-        const bounds = L.latLngBounds(
-          validPoints.map((p) => [p.latitude, p.longitude] as [number, number]),
-        );
-        map.fitBounds(bounds, { padding: [32, 32] });
-      }
+      mapRef.current = initLeafletMap(containerRef.current, points, L, onToggle);
     });
 
     return () => {
