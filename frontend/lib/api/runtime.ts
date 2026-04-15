@@ -1,13 +1,9 @@
 import type {
   ClarifyData,
-  ConversationRecord,
   RuntimeRequest,
   RuntimeResponse,
-} from "./types";
-import { getSupabaseClient } from "./supabase";
-
-const RUNTIME_URL =
-  (process.env.NEXT_PUBLIC_RUNTIME_URL ?? "").replace(/\/$/, "");
+} from "../types";
+import { RUNTIME_URL, getAuthHeaders } from "./client";
 
 const SELECTED_ROUTE_ACTION_TEXT = {
   ja: {
@@ -24,58 +20,27 @@ const SELECTED_ROUTE_ACTION_TEXT = {
   },
 } as const;
 
-/** Safely parse response_data which may be a JSON string, object, or null. */
-function parseResponseData(raw: unknown): Record<string, unknown> | null {
-  if (!raw) return null;
-  if (typeof raw === "string") {
-    try { return JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
-  }
-  if (typeof raw === "object") return raw as Record<string, unknown>;
-  return null;
-}
+export type StreamEventPayload = {
+  event?: string;
+  tool?: string;
+  status?: "running" | "done";
+  message?: string;
+} & Record<string, unknown>;
 
-/**
- * Convert DB-stored response_data into a RuntimeResponse-shaped object.
- *
- * DB stores: { intent, success, final_output: { results, status, message, ... } }
- * Frontend expects: RuntimeResponse { intent, success, status, message, data: { results | route } }
- *
- * This bridges the gap so hydrated messages render correctly.
- */
-export function hydrateResponseData(
-  raw: Record<string, unknown> | null,
-): Record<string, unknown> | undefined {
-  if (!raw) return undefined;
-  // If it already looks like a RuntimeResponse (has 'data' key), pass through
-  if ("data" in raw && raw.data != null) return raw;
-  // Convert from DB format: extract final_output as data
-  const finalOutput = raw.final_output;
-  if (finalOutput != null && typeof finalOutput === "object") {
-    return {
-      ...raw,
-      data: finalOutput,
-    };
-  }
-  return raw;
-}
+export function buildSelectedRouteActionText(
+  pointCount: number,
+  origin?: string | null,
+  locale: RuntimeRequest["locale"] = "ja",
+): string {
+  const templates = SELECTED_ROUTE_ACTION_TEXT[locale ?? "ja"];
+  const normalizedOrigin = origin?.trim();
+  const template = normalizedOrigin
+    ? templates.withOrigin
+    : templates.withoutOrigin;
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return {};
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) return {};
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${session.access_token}`,
-  };
-  // In production, Cloudflare Worker injects X-User-Id after JWT validation.
-  // For local dev (no Worker), inject it from the session so the backend
-  // doesn't reject requests with 400 "X-User-Id header required."
-  if (session.user?.id) {
-    headers["X-User-Id"] = session.user.id;
-    headers["X-User-Type"] = "human";
-  }
-  return headers;
+  return template
+    .replace("{count}", String(pointCount))
+    .replace("{origin}", normalizedOrigin ?? "");
 }
 
 /**
@@ -107,22 +72,6 @@ export async function sendMessage(
   }
 
   return res.json() as Promise<RuntimeResponse>;
-}
-
-export function buildSelectedRouteActionText(
-  pointCount: number,
-  origin?: string | null,
-  locale: RuntimeRequest["locale"] = "ja",
-): string {
-  const templates = SELECTED_ROUTE_ACTION_TEXT[locale ?? "ja"];
-  const normalizedOrigin = origin?.trim();
-  const template = normalizedOrigin
-    ? templates.withOrigin
-    : templates.withoutOrigin;
-
-  return template
-    .replace("{count}", String(pointCount))
-    .replace("{origin}", normalizedOrigin ?? "");
 }
 
 export async function sendSelectedRoute(
@@ -180,14 +129,7 @@ function applyClarifyOverride(
   return { ...response, status: "needs_clarification", data };
 }
 
-type StreamEventPayload = {
-  event?: string;
-  tool?: string;
-  status?: "running" | "done";
-  message?: string;
-} & Record<string, unknown>;
-
-function parseSSEChunk(chunk: string): {
+export function parseSSEChunk(chunk: string): {
   buffer: string;
   events: Array<{ event?: string; payload: StreamEventPayload }>;
 } {
@@ -311,107 +253,4 @@ export async function sendMessageStream(
   if (parsed) return parsed;
 
   throw new Error("Stream ended without done event");
-}
-
-/**
- * Submit user feedback (thumbs up/down) for a response.
- */
-export async function submitFeedback(params: {
-  session_id?: string | null;
-  query_text: string;
-  intent: string;
-  rating: "good" | "bad";
-  comment?: string;
-}): Promise<{ feedback_id: string }> {
-  const res = await fetch(`${RUNTIME_URL}/v1/feedback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
-    body: JSON.stringify(params),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Feedback submission failed (${res.status})`);
-  }
-
-  return res.json();
-}
-
-export async function fetchConversations(): Promise<ConversationRecord[]> {
-  const authHeaders = await getAuthHeaders();
-  if (!authHeaders.Authorization) return [];
-
-  const res = await fetch(`${RUNTIME_URL}/v1/conversations`, {
-    headers: authHeaders,
-  });
-
-  if (!res.ok) return [];
-  return res.json() as Promise<ConversationRecord[]>;
-}
-
-export interface ConversationMessage {
-  role: "user" | "assistant";
-  content: string;
-  data: Record<string, unknown> | null;
-  timestamp: string;
-}
-
-export async function fetchConversationMessages(
-  sessionId: string,
-): Promise<ConversationMessage[]> {
-  const res = await fetch(
-    `${RUNTIME_URL}/v1/conversations/${encodeURIComponent(sessionId)}/messages`,
-    { headers: await getAuthHeaders() },
-  );
-
-  if (!res.ok) return [];
-  const data: { messages: Array<{ role: string; content: string; response_data: unknown; created_at: string }> } = await res.json();
-  return data.messages.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content,
-    data: parseResponseData(m.response_data),
-    timestamp: m.created_at,
-  }));
-}
-
-export interface RouteHistoryEntry {
-  id: string;
-  bangumi_id: string;
-  bangumi_title: string | null;
-  origin_station: string | null;
-  point_count: number;
-  created_at: string;
-}
-
-export async function fetchRouteHistory(): Promise<RouteHistoryEntry[]> {
-  const authHeaders = await getAuthHeaders();
-  if (!authHeaders.Authorization) return [];
-
-  const res = await fetch(`${RUNTIME_URL}/v1/routes`, {
-    headers: authHeaders,
-  });
-
-  if (!res.ok) return [];
-  const data: { routes: RouteHistoryEntry[] } = await res.json();
-  return data.routes;
-}
-
-export async function patchConversationTitle(
-  sessionId: string,
-  title: string,
-): Promise<void> {
-  const res = await fetch(
-    `${RUNTIME_URL}/v1/conversations/${encodeURIComponent(sessionId)}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(await getAuthHeaders()),
-      },
-      body: JSON.stringify({ title }),
-    },
-  );
-
-  if (!res.ok) {
-    throw new Error(`Rename failed (${res.status})`);
-  }
 }
