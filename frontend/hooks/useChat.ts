@@ -39,7 +39,7 @@ export function useChat(
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, coords?: { lat: number; lng: number } | null) => {
       if (!text.trim() || sending) return;
 
       const userMsg: ChatMessage = {
@@ -90,6 +90,7 @@ export function useChat(
             );
           },
           controller.signal,
+          coords,
         );
 
         // Guard: fetch resolved but session was cleared (abort fired after completion)

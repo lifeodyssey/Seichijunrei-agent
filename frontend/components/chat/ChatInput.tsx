@@ -29,10 +29,6 @@ export default function ChatInput({
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
-  const [_acquiredCoords, setAcquiredCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
 
   const geoSupported =
     typeof navigator !== "undefined" && !!navigator.geolocation;
@@ -74,7 +70,6 @@ export default function ChatInput({
   const hasText = text.trim().length > 0;
 
   function handleCoordsAcquired(lat: number, lng: number) {
-    setAcquiredCoords({ lat, lng });
     setShowLocationPrompt(false);
     onLocationAcquired?.(lat, lng);
   }

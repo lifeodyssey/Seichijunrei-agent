@@ -190,10 +190,15 @@ export async function sendMessageStream(
   locale?: RuntimeRequest["locale"],
   onStep?: (tool: string, status: "running" | "done", thought?: string, observation?: string) => void,
   signal?: AbortSignal,
+  coords?: { lat: number; lng: number } | null,
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
   if (sessionId) body.session_id = sessionId;
   if (locale) body.locale = locale;
+  if (coords) {
+    body.origin_lat = coords.lat;
+    body.origin_lng = coords.lng;
+  }
 
   const res = await fetch(`${RUNTIME_URL}/v1/runtime/stream`, {
     method: "POST",
