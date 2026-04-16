@@ -154,6 +154,7 @@
   },
   "clarification": {
     "examples_label": "例如：",
+    "search_all": "搜索所有作品",
     "suggestions": [
       {
         "label": "按作品搜索",

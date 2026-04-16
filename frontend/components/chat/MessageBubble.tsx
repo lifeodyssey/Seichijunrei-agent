@@ -3,10 +3,12 @@
 import { useState } from "react";
 import type { ChatMessage, ErrorCode, RuntimeResponse } from "../../lib/types";
 import ThinkingProcess from "./ThinkingProcess";
-import { isQAData, isRouteData, isSearchData } from "../../lib/types";
+import { isQAData, isRouteData, isSearchData, isClarifyData } from "../../lib/types";
+import type { ClarifyCandidate } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
 import { submitFeedback } from "../../lib/api";
 import { useDict } from "../../lib/i18n-context";
+import Clarification from "../generative/Clarification";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -15,6 +17,7 @@ interface MessageBubbleProps {
   isActive?: boolean;
   onOpenDrawer?: () => void;
   onRetry?: () => void;
+  onSuggest?: (text: string) => void;
 }
 
 export default function MessageBubble({
@@ -24,6 +27,7 @@ export default function MessageBubble({
   isActive = false,
   onOpenDrawer,
   onRetry,
+  onSuggest,
 }: MessageBubbleProps) {
   const dict = useDict();
   const t = dict.chat;
@@ -41,6 +45,10 @@ export default function MessageBubble({
     );
   }
 
+  // Determine if this response is a clarification (needs_clarification)
+  const isClarification =
+    message.response != null && isClarifyData(message.response.data);
+
   return (
     <div
       className="group flex flex-col gap-2.5"
@@ -54,6 +62,12 @@ export default function MessageBubble({
         <ThinkingProcess steps={message.steps ?? []} isStreaming={true} />
       ) : message.errorCode ? (
         <ErrorDisplay errorCode={message.errorCode} errorDict={dict.error} onRetry={onRetry} />
+      ) : isClarification && message.response != null ? (
+        // Render Clarification component inline for needs_clarification responses
+        <ClarificationBubble
+          response={message.response}
+          onSuggest={onSuggest}
+        />
       ) : (
         <>
           {message.text && (
@@ -80,6 +94,38 @@ export default function MessageBubble({
         </>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ClarificationBubble — inline Clarification for needs_clarification responses
+// ---------------------------------------------------------------------------
+
+function ClarificationBubble({
+  response,
+  onSuggest,
+}: {
+  response: RuntimeResponse;
+  onSuggest?: (text: string) => void;
+}) {
+  const data = response.data;
+  const clarifyData = isClarifyData(data) ? data : null;
+  const options =
+    clarifyData != null && Array.isArray(clarifyData.options)
+      ? (clarifyData.options as string[])
+      : undefined;
+  const candidates =
+    clarifyData != null && Array.isArray(clarifyData.candidates)
+      ? (clarifyData.candidates as ClarifyCandidate[])
+      : undefined;
+
+  return (
+    <Clarification
+      message={response.message}
+      options={options}
+      candidates={candidates}
+      onSuggest={onSuggest}
+    />
   );
 }
 

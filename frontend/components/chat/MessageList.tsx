@@ -96,6 +96,7 @@ export default function MessageList({
               onActivate={onActivate}
               isActive={msg.id === activeMessageId}
               onOpenDrawer={onOpenDrawer}
+              onSuggest={onSuggest}
             />
           </div>
         ))}
