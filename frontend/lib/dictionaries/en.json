@@ -154,6 +154,7 @@
   },
   "clarification": {
     "examples_label": "For example:",
+    "search_all": "Search all titles",
     "suggestions": [
       {
         "label": "Search by anime",
