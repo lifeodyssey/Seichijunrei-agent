@@ -113,7 +113,9 @@
     "tab_episode": "按集数",
     "tab_area": "按地区",
     "other_label": "其他",
-    "unknown_area": "未知"
+    "unknown_area": "未知",
+    "empty_hint": "来探索圣地吧",
+    "empty_subtitle": "输入动漫标题，巡礼地点将显示在这里"
   },
   "route": {
     "no_results": "无法创建路线。",

@@ -193,7 +193,7 @@ export default function ResultPanel({
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
         {selectionBar}
-        <ResultPanelEmptyState onSuggest={onSuggest} />
+        <ResultPanelEmptyState />
       </section>
     );
   }

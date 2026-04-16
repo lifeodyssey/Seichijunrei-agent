@@ -7,16 +7,13 @@ import { render, screen, cleanup } from "@testing-library/react";
 import AppShell from "../components/layout/AppShell";
 
 // Mock all child components so layout tests focus purely on layout structure
-vi.mock("../components/layout/ChatHeader", () => ({
-  default: () => <div data-testid="mock-chat-header" />,
+vi.mock("../components/chat/ChatPanel", () => ({
+  default: () => <div data-testid="mock-chat-panel" />,
 }));
-vi.mock("../components/chat/MessageList", () => ({
-  default: () => <div data-testid="mock-message-list" />,
+vi.mock("../components/layout/ResultSheet", () => ({
+  default: () => null,
 }));
-vi.mock("../components/chat/ChatInput", () => ({
-  default: () => <div data-testid="mock-chat-input" />,
-}));
-vi.mock("../components/layout/ResultDrawer", () => ({
+vi.mock("../components/layout/ConversationDrawer", () => ({
   default: () => null,
 }));
 vi.mock("../components/layout/ResultPanel", () => ({

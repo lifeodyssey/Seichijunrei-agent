@@ -113,7 +113,9 @@
     "tab_episode": "By Episode",
     "tab_area": "By Area",
     "other_label": "Other",
-    "unknown_area": "Unknown"
+    "unknown_area": "Unknown",
+    "empty_hint": "Discover pilgrimage spots",
+    "empty_subtitle": "Search for an anime title and pilgrimage locations will appear here"
   },
   "route": {
     "no_results": "Could not create a route.",

@@ -160,15 +160,8 @@ describe("ResultPanel", () => {
           <ResultPanel activeResponse={null} />
         </SelectionWrapper>,
       );
-      // "聖地を探してみよう" or the welcome_subtitle — panel must display guide text
-      // We assert that some landmark hint copy appears (welcome_subtitle or chat.empty_hint).
-      const hint = screen.queryByText(defaultDict.chat.welcome_subtitle);
-      if (!hint) {
-        // Also acceptable: the empty_hint text
-        expect(screen.queryByText(defaultDict.chat.empty_hint)).not.toBeNull();
-      } else {
-        expect(hint).toBeInTheDocument();
-      }
+      // Empty state shows the grid.empty_hint text
+      expect(screen.getByText(defaultDict.grid.empty_hint)).toBeInTheDocument();
     });
 
     it("does not show selection bar when no points are selected", () => {

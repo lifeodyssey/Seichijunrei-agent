@@ -16,16 +16,16 @@ import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { isVisualResponse } from "../generative/registry";
 import { isRouteData, type RuntimeResponse } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
 import IconSidebar from "./IconSidebar";
-import ChatHeader from "./ChatHeader";
-import MessageList from "../chat/MessageList";
-import ChatInput from "../chat/ChatInput";
+import ChatPanel from "../chat/ChatPanel";
 import ResultSheet from "./ResultSheet";
 import ConversationDrawer from "./ConversationDrawer";
 import ResultPanel from "./ResultPanel";
 
 export default function AppShell() {
   const locale = useLocale();
+  const dict = useDict();
   const isMobile = useMediaQuery("(max-width: 1023px)");
   const { sessionId, setSessionId, clearSession } = useSession();
   const {
@@ -304,28 +304,19 @@ export default function AppShell() {
         {/* Chat panel — 360px on desktop, full-width on mobile */}
         <div
           data-testid="chat-panel"
-          className={[
-            "flex min-h-0 flex-col bg-[var(--color-bg)]",
-            isMobile
-              ? "flex-1"
-              : "w-[360px] min-w-[360px] shrink-0 border-r border-[var(--color-border)]",
-          ].join(" ")}
+          className={isMobile ? "flex min-h-0 flex-1 flex-col" : undefined}
         >
-          <ChatHeader
-            onNewChat={isMobile ? handleNewChat : undefined}
-            onMenuToggle={undefined}
-          />
-          <MessageList
+          <ChatPanel
             messages={messages}
-            onActivate={handleActivate}
+            sending={isSending}
             activeMessageId={activeMessageId}
+            dict={dict}
+            locale={locale}
+            onSend={handleSend}
+            onActivate={handleActivate}
             onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
             onSuggest={handleSend}
-          />
-          <ChatInput
-            onSend={handleSend}
-            disabled={isSending}
-            showQuickActions={isMobile && messages.length === 0}
+            isMobile={isMobile}
           />
         </div>
 

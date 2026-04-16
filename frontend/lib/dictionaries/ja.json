@@ -113,7 +113,9 @@
     "tab_episode": "集数別",
     "tab_area": "地域別",
     "other_label": "その他",
-    "unknown_area": "不明"
+    "unknown_area": "不明",
+    "empty_hint": "聖地を探してみよう",
+    "empty_subtitle": "アニメのタイトルを入力すると、聖地巡礼スポットがここに表示されます"
   },
   "route": {
     "no_results": "ルートを作成できませんでした。",
