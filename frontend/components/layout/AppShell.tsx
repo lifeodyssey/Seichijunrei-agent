@@ -291,7 +291,7 @@ export default function AppShell() {
       <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
 
         {/* Icon sidebar — 56px, hidden on mobile (<1024px) */}
-        <div className={isMobile ? "hidden" : undefined}>
+        <div className={isMobile ? "hidden" : "flex"}>
           <IconSidebar
             onNewChat={handleNewChat}
             onSectionClick={(section) => {
@@ -304,7 +304,7 @@ export default function AppShell() {
         {/* Chat panel — 360px on desktop, full-width on mobile */}
         <div
           data-testid="chat-panel"
-          className={isMobile ? "flex min-h-0 flex-1 flex-col" : undefined}
+          className={isMobile ? "flex min-h-0 flex-1 flex-col" : "flex"}
         >
           <ChatPanel
             messages={messages}
