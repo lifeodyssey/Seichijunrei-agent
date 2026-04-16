@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import dynamic from "next/dynamic";
 import { useDict } from "../../lib/i18n-context";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
+import NearbyChips, { groupByAnime } from "./NearbyChips";
 
 const PilgrimageMap = dynamic(() => import("../map/PilgrimageMap"), { ssr: false });
 
@@ -20,6 +22,9 @@ export default function NearbyMap({ data }: NearbyMapProps) {
   const { map: t } = useDict();
   const { selectedIds, toggle } = usePointSelectionContext();
   const { results } = data;
+
+  const [activeAnimeId, setActiveAnimeId] = useState<string | null>(null);
+
   const sorted = [...results.rows].sort(
     (a, b) => (a.distance_m ?? Infinity) - (b.distance_m ?? Infinity),
   );
@@ -32,18 +37,31 @@ export default function NearbyMap({ data }: NearbyMapProps) {
     );
   }
 
+  const animeGroups = groupByAnime(sorted);
+
+  const filtered =
+    activeAnimeId != null
+      ? sorted.filter((p) => (p.bangumi_id ?? "") === activeAnimeId)
+      : sorted;
+
   return (
     <div className="flex h-full flex-col gap-3">
       <p className="text-xs text-[var(--color-muted-fg)]">
         {t.count.replace("{count}", String(results.row_count))}
       </p>
 
+      <NearbyChips
+        groups={animeGroups}
+        activeId={activeAnimeId}
+        onSelect={setActiveAnimeId}
+      />
+
       <div className="overflow-hidden rounded-lg border border-[var(--color-border)]" style={{ flex: "0 0 60%" }}>
-        <PilgrimageMap points={sorted} height="100%" />
+        <PilgrimageMap points={filtered} height="100%" />
       </div>
 
       <div className="flex-1 overflow-y-auto divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
-        {sorted.map((point: PilgrimagePoint) => (
+        {filtered.map((point: PilgrimagePoint) => (
           <button
             key={point.id}
             type="button"
