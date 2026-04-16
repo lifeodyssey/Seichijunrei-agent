@@ -3,9 +3,21 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai import ModelRetry
 
-from backend.agents.models import ExecutionPlan, ToolName
-from backend.agents.planner_agent import PLANNER_SYSTEM_PROMPT, ReActPlannerAgent
+from backend.agents.intent_classifier import QueryIntent
+from backend.agents.models import (
+    DoneSignal,
+    ExecutionPlan,
+    PlanStep,
+    ReactStep,
+    ToolName,
+)
+from backend.agents.planner_agent import (
+    PLANNER_SYSTEM_PROMPT,
+    ReActDeps,
+    ReActPlannerAgent,
+)
 
 
 @pytest.fixture
@@ -191,3 +203,254 @@ class TestReActPlannerAgent:
             assert "[context]" in call_args
             assert "anime: 響け！ユーフォニアム (bangumi_id: 253)" in call_args
             assert "visited_ids: 253, 105" in call_args
+
+
+class TestReActOutputValidatorSessionDeps:
+    """Tests for validator's session-satisfied dependency logic.
+
+    The output_validator should accept plan_route when search_bangumi was
+    satisfied in a prior interaction (stored in session context), not just
+    in the current-turn history.
+    """
+
+    def _make_run_context(
+        self,
+        deps: ReActDeps,
+    ) -> MagicMock:
+        """Return a minimal RunContext-like mock for the validator."""
+        from pydantic_ai import RunContext
+
+        ctx = MagicMock(spec=RunContext)
+        ctx.deps = deps
+        return ctx
+
+    async def test_validator_accepts_plan_route_when_search_bangumi_in_session(
+        self,
+    ) -> None:
+        """AC: Validator accepts plan_route when search_bangumi exists in
+        session context (not current plan).  -> unit
+        """
+        # Session context has last_search_data with a search_bangumi entry,
+        # simulating a prior successful search in a previous interaction.
+        session_context: dict[str, object] = {
+            "last_search_data": {
+                "search_bangumi": {
+                    "rows": [{"bangumi_id": "115908", "title": "Your Name"}],
+                    "row_count": 1,
+                }
+            }
+        }
+        # Current-turn history is empty — search_bangumi not run THIS turn.
+        deps = ReActDeps(
+            history=[],
+            session_context=session_context,
+        )
+        ctx = self._make_run_context(deps)
+
+        plan_route_step = ReactStep(
+            thought="User wants a route; prior search exists in session.",
+            action=PlanStep(
+                tool=ToolName.PLAN_ROUTE,
+                params={"origin": None},
+            ),
+        )
+
+        # Build a real agent instance to get the registered validator function.
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
+            captured_validator: list[object] = []
+
+            def capture_decorator(fn: object) -> object:
+                captured_validator.append(fn)
+                return fn
+
+            mock_step_agent = MagicMock()
+            mock_step_agent.output_validator = MagicMock(side_effect=capture_decorator)
+            mock_create.return_value = MagicMock()
+            mock_agent_cls.return_value = mock_step_agent
+
+            ReActPlannerAgent()
+
+        assert captured_validator, "output_validator decorator was not called"
+        validator_fn = captured_validator[0]
+
+        # Should NOT raise ModelRetry — dependency satisfied via session.
+        result = await validator_fn(ctx, plan_route_step)  # type: ignore[operator]
+        assert result is plan_route_step
+
+    async def test_validator_rejects_plan_route_when_no_search_bangumi_anywhere(
+        self,
+    ) -> None:
+        """AC: Validator still rejects plan_route when search_bangumi is
+        neither in current plan nor session.  -> unit
+        """
+        # No session context and no current-turn history with search_bangumi.
+        deps = ReActDeps(
+            history=[],
+            session_context=None,
+        )
+        ctx = self._make_run_context(deps)
+
+        plan_route_step = ReactStep(
+            thought="User wants route but no prior search anywhere.",
+            action=PlanStep(
+                tool=ToolName.PLAN_ROUTE,
+                params={"origin": None},
+            ),
+        )
+
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
+            captured_validator: list[object] = []
+
+            def capture_decorator(fn: object) -> object:
+                captured_validator.append(fn)
+                return fn
+
+            mock_step_agent = MagicMock()
+            mock_step_agent.output_validator = MagicMock(side_effect=capture_decorator)
+            mock_create.return_value = MagicMock()
+            mock_agent_cls.return_value = mock_step_agent
+
+            ReActPlannerAgent()
+
+        assert captured_validator
+        validator_fn = captured_validator[0]
+
+        with pytest.raises(ModelRetry):
+            await validator_fn(ctx, plan_route_step)  # type: ignore[operator]
+
+    async def test_session_context_is_passed_to_planner_deps(self) -> None:
+        """AC: Session context with prior search_bangumi data is passed to
+        planner (via ReActDeps.session_context).  -> unit
+        """
+        from backend.agents.models import DoneSignal
+        from backend.agents.pipeline import react_loop
+
+        session_context: dict[str, object] = {
+            "last_search_data": {
+                "search_bangumi": {
+                    "rows": [{"bangumi_id": "253", "title": "Hibike"}],
+                    "row_count": 1,
+                }
+            }
+        }
+
+        done_step = ReactStep(
+            thought="done",
+            done=DoneSignal(message="Here is your route."),
+        )
+
+        mock_planner = AsyncMock()
+        mock_planner.step = AsyncMock(return_value=done_step)
+        mock_executor = MagicMock()
+        mock_executor._execute_step = AsyncMock()
+
+        events = []
+        async for event in react_loop(
+            text="plan a route",
+            planner=mock_planner,
+            executor=mock_executor,
+            locale="ja",
+            context=session_context,
+        ):
+            events.append(event)
+
+        assert mock_planner.step.called
+        call_kwargs = mock_planner.step.call_args.kwargs
+        # Pipeline must pass context through to the planner.step() call.
+        assert call_kwargs.get("context") is session_context
+
+
+class TestDonePathValidatorSessionContext:
+    """Tests for the done-path validator checking session context.
+
+    The done validator must accept a done signal when search_bangumi was
+    completed in a prior session interaction (session context), not just in
+    the current-turn history.
+    """
+
+    def _make_run_context(self, deps: ReActDeps) -> MagicMock:
+        from pydantic_ai import RunContext
+
+        ctx = MagicMock(spec=RunContext)
+        ctx.deps = deps
+        return ctx
+
+    def _capture_validator(self) -> object:
+        """Build a real ReActPlannerAgent and capture the registered validator."""
+        captured: list[object] = []
+
+        def capture_decorator(fn: object) -> object:
+            captured.append(fn)
+            return fn
+
+        with (
+            patch("backend.agents.planner_agent.create_agent") as mock_create,
+            patch("backend.agents.planner_agent.Agent") as mock_agent_cls,
+        ):
+            mock_step_agent = MagicMock()
+            mock_step_agent.output_validator = MagicMock(side_effect=capture_decorator)
+            mock_create.return_value = MagicMock()
+            mock_agent_cls.return_value = mock_step_agent
+
+            ReActPlannerAgent()
+
+        assert captured, "output_validator decorator was not called"
+        return captured[0]
+
+    async def test_done_accepted_when_search_bangumi_in_session(self) -> None:
+        """AC: done signal is accepted when search_bangumi is in session context
+        but not in current-turn history.  -> unit
+        """
+        session_context: dict[str, object] = {
+            "last_search_data": {
+                "search_bangumi": {
+                    "rows": [{"bangumi_id": "115908", "title": "Your Name"}],
+                    "row_count": 1,
+                }
+            }
+        }
+        # No search_bangumi in current-turn history.
+        deps = ReActDeps(
+            history=[],
+            session_context=session_context,
+            classified_intent=QueryIntent.ANIME_SEARCH,
+        )
+        ctx = self._make_run_context(deps)
+
+        done_step = ReactStep(
+            thought="search_bangumi was completed in a prior turn; returning results.",
+            done=DoneSignal(message="Found 42 pilgrimage spots from previous search."),
+        )
+
+        validator_fn = self._capture_validator()
+
+        # Must not raise ModelRetry — search_bangumi is satisfied via session.
+        result = await validator_fn(ctx, done_step)  # type: ignore[operator]
+        assert result is done_step
+
+    async def test_done_rejected_when_search_bangumi_absent_everywhere(self) -> None:
+        """AC: done signal is still rejected when search_bangumi is absent from
+        both current-turn history and session context.  -> unit
+        """
+        deps = ReActDeps(
+            history=[],
+            session_context=None,
+            classified_intent=QueryIntent.ANIME_SEARCH,
+        )
+        ctx = self._make_run_context(deps)
+
+        done_step = ReactStep(
+            thought="Trying to finish with no search at all.",
+            done=DoneSignal(message="Here are the spots."),
+        )
+
+        validator_fn = self._capture_validator()
+
+        with pytest.raises(ModelRetry):
+            await validator_fn(ctx, done_step)  # type: ignore[operator]
