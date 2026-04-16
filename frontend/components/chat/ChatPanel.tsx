@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ChatMessage } from "../../lib/types";
 import type { Dict, Locale } from "../../lib/i18n";
 import WelcomeScreen from "./WelcomeScreen";
@@ -12,7 +13,7 @@ interface ChatPanelProps {
   activeMessageId: string | null;
   dict: Dict;
   locale: Locale;
-  onSend: (text: string) => void;
+  onSend: (text: string, coords?: { lat: number; lng: number } | null) => void;
   onActivate: (messageId: string) => void;
   onOpenDrawer?: () => void;
   onSuggest?: (text: string) => void;
@@ -36,12 +37,24 @@ export default function ChatPanel({
   isMobile = false,
 }: ChatPanelProps) {
   const isEmpty = messages.length === 0;
+  const [acquiredCoords, setAcquiredCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  function handleLocationAcquired(lat: number, lng: number) {
+    setAcquiredCoords({ lat, lng });
+  }
+
+  function handleSend(text: string) {
+    onSend(text, acquiredCoords);
+  }
 
   return (
     <div className="flex min-h-0 w-[360px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]">
       {isEmpty ? (
         <div className="flex min-h-0 flex-1 overflow-y-auto">
-          <WelcomeScreen onSend={onSend} dict={dict} locale={locale} />
+          <WelcomeScreen onSend={handleSend} dict={dict} locale={locale} />
         </div>
       ) : (
         <MessageList
@@ -49,13 +62,14 @@ export default function ChatPanel({
           onActivate={onActivate}
           activeMessageId={activeMessageId}
           onOpenDrawer={isMobile ? onOpenDrawer : undefined}
-          onSuggest={onSuggest ?? onSend}
+          onSuggest={onSuggest ?? handleSend}
         />
       )}
       <ChatInput
-        onSend={onSend}
+        onSend={handleSend}
         disabled={sending}
         showQuickActions={isMobile && isEmpty}
+        onLocationAcquired={handleLocationAcquired}
       />
     </div>
   );
