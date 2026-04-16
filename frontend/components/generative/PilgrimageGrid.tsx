@@ -7,6 +7,7 @@ import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { resolveUnknownName } from "../../lib/japanRegions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import SourceBadge from "./SourceBadge";
 
 function PilgrimageCard({
   point,
@@ -22,6 +23,12 @@ function PilgrimageCard({
   onToggle: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
+
+  // Treat empty string as absent — same as null for rendering purposes.
+  const hasImage = Boolean(point.screenshot_url) && !imgError;
+
+  // City display: fall back to "---" when origin is null or empty.
+  const cityLabel = point.origin || "---";
 
   return (
     <button
@@ -52,10 +59,10 @@ function PilgrimageCard({
           idx === 0 ? "aspect-video" : "aspect-[4/3]"
         }`}
       >
-        {point.screenshot_url && !imgError ? (
+        {hasImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={point.screenshot_url}
+            src={point.screenshot_url!}
             alt={point.name_cn || point.name}
             className="h-full w-full object-cover"
             loading="lazy"
@@ -73,21 +80,32 @@ function PilgrimageCard({
             </span>
           </div>
         )}
+
+        {/* Source badge overlaid on the image area */}
+        <SourceBadge
+          screenshotUrl={point.screenshot_url}
+          episode={point.episode}
+          episodeLabel={
+            point.episode != null && point.episode !== 0
+              ? episodeLabel.replace("{ep}", String(point.episode))
+              : undefined
+          }
+        />
       </div>
 
-      {point.episode != null && point.episode !== 0 && (
-        <span className="absolute bottom-2 left-2 rounded-sm bg-black/60 px-1.5 py-0.5 text-[10px] text-white/80">
-          {episodeLabel.replace("{ep}", String(point.episode))}
-        </span>
-      )}
-
-      <div className="pb-2 pt-1.5">
+      <div className="pb-2 pt-1.5 px-1">
         <p className="truncate text-xs font-light text-[var(--color-fg)]">
           {(point.name_cn && point.name_cn !== "不明" ? point.name_cn : null)
             || (point.name && point.name !== "不明" ? point.name : null)
             || resolveUnknownName(point.latitude, point.longitude)
             || point.name_cn
             || point.name}
+        </p>
+        <p
+          data-testid="city-label"
+          className="truncate text-[10px] font-light text-[var(--color-muted-fg)]"
+        >
+          {cityLabel}
         </p>
       </div>
     </button>
