@@ -52,10 +52,15 @@ export async function sendMessage(
   sessionId?: string | null,
   locale?: RuntimeRequest["locale"],
   signal?: AbortSignal,
+  coords?: { origin_lat: number; origin_lng: number } | null,
 ): Promise<RuntimeResponse> {
   const body: RuntimeRequest = { text };
   if (sessionId) body.session_id = sessionId;
   if (locale) body.locale = locale;
+  if (coords) {
+    body.origin_lat = coords.origin_lat;
+    body.origin_lng = coords.origin_lng;
+  }
 
   const res = await fetch(`${RUNTIME_URL}/v1/runtime`, {
     method: "POST",
