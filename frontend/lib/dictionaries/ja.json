@@ -152,6 +152,14 @@
     "action_route_desc": "行きたいスポットで巡礼ルートを組む",
     "popular_label": "人気の作品"
   },
+  "location": {
+    "use_current": "現在地を使う",
+    "enter_station": "駅名を入力",
+    "acquiring": "位置情報を取得中...",
+    "denied": "位置情報が拒否されました",
+    "timeout": "位置情報の取得がタイムアウトしました",
+    "not_supported": "お使いのブラウザは位置情報に対応していません"
+  },
   "clarification": {
     "examples_label": "例えば：",
     "search_all": "全作品まとめて検索",

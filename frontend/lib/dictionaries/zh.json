@@ -152,6 +152,14 @@
     "action_route_desc": "按心仪景点规划巡礼路线",
     "popular_label": "热门作品"
   },
+  "location": {
+    "use_current": "使用当前位置",
+    "enter_station": "输入站名",
+    "acquiring": "正在获取位置...",
+    "denied": "位置权限被拒绝",
+    "timeout": "位置获取超时",
+    "not_supported": "您的浏览器不支持定位功能"
+  },
   "clarification": {
     "examples_label": "例如：",
     "search_all": "搜索所有作品",
