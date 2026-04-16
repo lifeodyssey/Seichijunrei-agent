@@ -94,3 +94,9 @@ images/
 .venv
 node_modules
 .gstack/
+
+# Sandbox artifacts
+.pg-wheels/
+.sandbox-env/
+.sandbox-venv/
+.remember/

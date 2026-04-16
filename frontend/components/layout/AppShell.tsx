@@ -20,7 +20,8 @@ import IconSidebar from "./IconSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
-import ResultDrawer from "./ResultDrawer";
+import ResultSheet from "./ResultSheet";
+import ConversationDrawer from "./ConversationDrawer";
 import ResultPanel from "./ResultPanel";
 
 export default function AppShell() {
@@ -346,7 +347,7 @@ export default function AppShell() {
 
         {/* Mobile: vaul bottom sheet for results */}
         {isMobile && (
-          <ResultDrawer
+          <ResultSheet
             response={activeResponse}
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
