@@ -49,7 +49,7 @@ export default function SourceBadge({
 
   const sourceIcon = isUserPhoto(screenshotUrl) ? "📷" : "🎬";
 
-  const showEpisodeBadge = episode != null && episode !== 0;
+  const showEpisodeBadge = typeof episode === "number" && episode > 0;
 
   const episodeLabel =
     episodeLabelProp ??

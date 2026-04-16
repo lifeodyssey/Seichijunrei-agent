@@ -86,7 +86,7 @@ function PilgrimageCard({
           screenshotUrl={point.screenshot_url}
           episode={point.episode}
           episodeLabel={
-            point.episode != null && point.episode !== 0
+            typeof point.episode === "number" && point.episode > 0
               ? episodeLabel.replace("{ep}", String(point.episode))
               : undefined
           }
