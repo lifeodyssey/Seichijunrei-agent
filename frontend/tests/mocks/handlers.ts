@@ -36,4 +36,8 @@ export const handlers = [
   http.patch(`${BASE_URL}/v1/conversations/:sessionId`, () => {
     return new HttpResponse(null, { status: 204 });
   }),
+
+  http.get(`${BASE_URL}/v1/bangumi/popular`, () => {
+    return HttpResponse.json({ bangumi: [] });
+  }),
 ];
