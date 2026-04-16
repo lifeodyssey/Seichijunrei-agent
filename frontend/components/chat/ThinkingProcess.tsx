@@ -55,9 +55,6 @@ export default function ThinkingProcess({
     );
   }
 
-  // Latest thought from the most recent step
-  const latestThought = [...steps].reverse().find((s) => s.thought)?.thought;
-
   // Summary for collapsed state
   const completedSteps = steps.filter((s) => s.status === "done");
   const failedSteps = steps.filter((s) => s.status === "failed");
