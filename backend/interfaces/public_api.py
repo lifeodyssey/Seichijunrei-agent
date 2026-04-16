@@ -114,6 +114,11 @@ class RuntimeAPI:
                 context_delta: dict[str, object] = {}
                 user_memory = await self._load_user_memory(user_id)
                 context = build_context_block(previous_state, user_memory=user_memory)
+                if request.origin_lat is not None and request.origin_lng is not None:
+                    if context is None:
+                        context = {}
+                    context["origin_lat"] = request.origin_lat
+                    context["origin_lng"] = request.origin_lng
                 synthetic_plan = (
                     build_selected_points_plan(request)
                     if request.selected_point_ids
@@ -186,6 +191,7 @@ class RuntimeAPI:
                 if result is not None:
                     route_record = await self._maybe_persist_route(
                         session_id=session_id,
+                        request=request,
                         result=result,
                         response=response,
                     )
@@ -420,6 +426,7 @@ class RuntimeAPI:
         self,
         *,
         session_id: str,
+        request: PublicAPIRequest,
         result: PipelineResult,
         response: PublicAPIResponse,
     ) -> dict[str, object] | None:
@@ -449,10 +456,20 @@ class RuntimeAPI:
         if not bangumi_id:
             return None
 
+        origin_station = plan_params.get("origin")
+        if not isinstance(origin_station, str):
+            origin_station = None
+        if (
+            origin_station is None
+            and request.origin_lat is not None
+            and request.origin_lng is not None
+        ):
+            origin_station = f"{request.origin_lat},{request.origin_lng}"
+
         route_record = {
             "route_id": None,
             "bangumi_id": bangumi_id,
-            "origin_station": plan_params.get("origin"),
+            "origin_station": origin_station,
             "point_count": len(point_ids),
             "status": response.status,
             "created_at": datetime.now(UTC).isoformat(),
@@ -469,7 +486,9 @@ class RuntimeAPI:
                     "results": response.data.get("results"),
                     "route": route_data,
                 },
-                origin_station=plan_params.get("origin"),
+                origin_station=origin_station,
+                origin_lat=request.origin_lat,
+                origin_lon=request.origin_lng,
             )
             route_record["route_id"] = route_id
 

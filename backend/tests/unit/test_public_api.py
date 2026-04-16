@@ -100,6 +100,36 @@ class TestPublicAPIRequest:
         with pytest.raises(ValidationError):
             PublicAPIRequest(text="   ")
 
+    def test_accepts_origin_lat_lng(self) -> None:
+        req = PublicAPIRequest(text="hello", origin_lat=34.9, origin_lng=135.8)
+        assert req.origin_lat == 34.9
+        assert req.origin_lng == 135.8
+
+    def test_origin_lat_without_origin_lng_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=34.9)
+
+    def test_origin_lng_without_origin_lat_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lng=135.8)
+
+    def test_origin_lat_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=91.0, origin_lng=135.8)
+
+    def test_origin_lat_negative_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=-91.0, origin_lng=135.8)
+
+    def test_origin_lng_out_of_range_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            PublicAPIRequest(text="hello", origin_lat=34.9, origin_lng=181.0)
+
+    def test_origin_coords_both_none_allowed(self) -> None:
+        req = PublicAPIRequest(text="hello")
+        assert req.origin_lat is None
+        assert req.origin_lng is None
+
 
 class TestContextExtraction:
     def test_extract_context_delta_from_resolve_anime(self) -> None:
@@ -403,6 +433,59 @@ class TestRuntimeAPI:
         assert len(response.debug["step_results"]) == 0  # mock doesn't execute steps
         assert response.route_history[0]["route_id"] == "route-1"
         mock_db.save_route.assert_awaited_once()
+
+    async def test_handle_preserves_coordinate_origin_in_route_history(self, mock_db):
+        result = _make_result(
+            intent="plan_route",
+            steps=[PlanStep(tool=ToolName.PLAN_ROUTE, params={})],
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "ルートを作成しました。",
+                "results": {
+                    "rows": [{"id": "1", "bangumi_id": "115908"}],
+                    "row_count": 1,
+                },
+                "route": {
+                    "ordered_points": [
+                        {
+                            "id": "1",
+                            "name": "A",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        },
+                        {
+                            "id": "2",
+                            "name": "B",
+                            "latitude": 34.89,
+                            "longitude": 135.81,
+                        },
+                    ],
+                    "point_count": 2,
+                },
+            },
+        )
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            return result
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db)
+            response = await api.handle(
+                PublicAPIRequest(
+                    text="从当前位置出发去吹响的圣地",
+                    origin_lat=34.9,
+                    origin_lng=135.8,
+                )
+            )
+
+        assert response.route_history[0]["origin_station"] == "34.9,135.8"
+        save_route_kwargs = mock_db.save_route.await_args.kwargs
+        assert save_route_kwargs["origin_station"] == "34.9,135.8"
+        assert save_route_kwargs["origin_lat"] == 34.9
+        assert save_route_kwargs["origin_lon"] == 135.8
 
     async def test_request_log_called_after_response(self, monkeypatch):
         """insert_request_log is called once after a successful pipeline run."""
@@ -1002,3 +1085,57 @@ class TestBuildContextBlockWithUserMemory:
             "last_intent": None,
             "visited_bangumi_ids": ["105"],
         }
+
+
+# ---------------------------------------------------------------------------
+# Finding 1: origin_lat/origin_lng injected into pipeline context
+# ---------------------------------------------------------------------------
+
+
+class TestOriginCoordinatesWiredToContext:
+    async def test_origin_lat_lng_injected_when_provided(self, mock_db):
+        """Finding 1: origin_lat/lng on request are forwarded to pipeline context."""
+        captured: dict[str, object] = {}
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            captured["context"] = context
+            return _make_result(locale=locale)
+
+        request = PublicAPIRequest(
+            text="聖地巡礼",
+            origin_lat=34.9,
+            origin_lng=135.8,
+        )
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(request)
+
+        ctx = captured.get("context")
+        assert isinstance(ctx, dict)
+        assert ctx.get("origin_lat") == 34.9
+        assert ctx.get("origin_lng") == 135.8
+
+    async def test_origin_coords_not_injected_when_absent(self, mock_db):
+        """When origin_lat/lng are not set, context does not contain those keys."""
+        captured: dict[str, object] = {}
+
+        async def _fake(
+            text, db, *, model=None, locale="ja", context=None, on_step=None
+        ):
+            captured["context"] = context
+            return _make_result(locale=locale)
+
+        request = PublicAPIRequest(text="聖地巡礼")
+
+        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+            await api.handle(request)
+
+        ctx = captured.get("context")
+        # context may be None (no session state) or a dict without origin keys
+        if isinstance(ctx, dict):
+            assert "origin_lat" not in ctx
+            assert "origin_lng" not in ctx

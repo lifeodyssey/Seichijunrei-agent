@@ -26,6 +26,15 @@ async def execute(
         return {"tool": "plan_route", "success": False, "error": "No points to route"}
 
     params = step.params or {}
+
+    # Coordinate origin takes precedence over text origin — skip LLM-based resolution
+    coord_lat = context.get("origin_lat")
+    coord_lng = context.get("origin_lng")
+    if isinstance(coord_lat, (int, float)) and isinstance(coord_lng, (int, float)):
+        # Forward coordinate as "lat,lng" string so it survives into route history
+        origin: str | None = f"{coord_lat},{coord_lng}"
+        return optimize_route(rows, params, origin, tool_name="plan_route")
+
     origin_raw = params.get("origin") or context.get("last_location")
     origin = origin_raw if isinstance(origin_raw, str) else None
 

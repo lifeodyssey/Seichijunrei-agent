@@ -287,6 +287,7 @@ def build_timed_itinerary(
     clusters: list[LocationCluster],
     start_time: str = "09:00",
     pacing: str = "normal",
+    origin: tuple[float, float] | None = None,
 ) -> TimedItinerary:
     """Build a :class:`TimedItinerary` from *clusters*.
 
@@ -307,7 +308,7 @@ def build_timed_itinerary(
     if not clusters:
         return TimedItinerary(pacing=safe_pacing, start_time=start_time)
 
-    sorted_clusters = nearest_neighbor_sort(clusters)
+    sorted_clusters = nearest_neighbor_sort(clusters, origin=origin)
     transit_buffer = _TRANSIT_BUFFERS.get(safe_pacing, 1.0)
 
     stops: list[TimedStop] = []
