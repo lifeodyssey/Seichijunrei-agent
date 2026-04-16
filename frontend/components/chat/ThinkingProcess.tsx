@@ -20,6 +20,18 @@ const TOOL_ICONS: Record<string, string> = {
   clarify: "\u2753",
 };
 
+/** User-friendly tool labels (not raw LLM thoughts) */
+const TOOL_LABELS: Record<string, string> = {
+  resolve_anime: "Resolving anime title...",
+  search_bangumi: "Searching pilgrimage spots...",
+  search_nearby: "Searching nearby spots...",
+  plan_route: "Planning route...",
+  plan_selected: "Planning route...",
+  greet_user: "Responding...",
+  answer_question: "Answering...",
+  clarify: "Checking details...",
+};
+
 const STATUS_INDICATOR: Record<string, string> = {
   running: "\u23F3",
   done: "\u2713",
@@ -55,7 +67,7 @@ export default function ThinkingProcess({
 
   return (
     <div className="mb-2">
-      {/* Main thought line — natural language from planner */}
+      {/* Main status line — user-friendly labels, not raw LLM thoughts */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-1.5 text-xs text-[var(--color-muted-fg)] hover:text-[var(--color-fg)] transition-colors"
@@ -66,7 +78,7 @@ export default function ThinkingProcess({
         </span>
         <span>
           {isStreaming
-            ? latestThought || t.chat?.thinking || "Thinking..."
+            ? TOOL_LABELS[steps[steps.length - 1]?.tool] || t.chat?.thinking || "Thinking..."
             : summary || t.chat?.thought_complete || "Done"}
         </span>
         {failedSteps.length > 0 && !isStreaming && (
@@ -104,7 +116,7 @@ export default function ThinkingProcess({
                         : undefined
                     }
                   >
-                    {step.thought || step.tool}
+                    {TOOL_LABELS[step.tool] || step.tool}
                   </span>
                   <span
                     className={isRunning ? "text-[var(--color-primary)]" : ""}

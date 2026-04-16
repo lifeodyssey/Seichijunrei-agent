@@ -109,9 +109,9 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
             className="flex gap-2 overflow-x-auto pb-1"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
-            {popular.map((item) => (
+            {popular.map((item, idx) => (
               <button
-                key={item.bangumi_id}
+                key={`${item.bangumi_id}-${idx}`}
                 type="button"
                 onClick={() => onSend(
                   locale === "ja"

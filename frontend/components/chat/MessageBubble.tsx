@@ -64,14 +64,6 @@ export default function MessageBubble({
             </p>
           )}
           {message.response && canShowAnchor(message.response) && (
-            <>
-              <InlineSummaryCard
-                response={message.response}
-                messageId={message.id}
-                onActivate={onActivate}
-                onOpenDrawer={onOpenDrawer}
-                cardDict={dict.card}
-              />
               <ResultAnchor
                 label={t.anchor_results.replace(
                   "{count}",
@@ -83,7 +75,6 @@ export default function MessageBubble({
                 isActive={isActive}
                 onOpenDrawer={onOpenDrawer}
               />
-            </>
           )}
           {message.response && !message.loading && (
             <FeedbackButtons message={message} userQuery={userQuery ?? ""} />

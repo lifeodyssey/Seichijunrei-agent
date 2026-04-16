@@ -42,9 +42,10 @@ export default function AppShell() {
     toggle,
     clear: clearSelectedPoints,
   } = usePointSelection();
-  const { upsert: upsertConversation } = useConversationHistory();
+  const { conversations, upsert: upsertConversation } = useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
   const [routeSending, setRouteSending] = useState(false);
   const lastSyncedResponseIdRef = useRef<string | null>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
@@ -294,9 +295,8 @@ export default function AppShell() {
           <IconSidebar
             onNewChat={handleNewChat}
             onSectionClick={(section) => {
-              // Section navigation is handled via the icon rail
               if (section === "search") handleNewChat();
-              // TODO: wire history section click in Wave 2 (ConversationDrawer integration)
+              if (section === "history") setConversationDrawerOpen(true);
             }}
           />
         </div>
@@ -348,6 +348,25 @@ export default function AppShell() {
             loading={isSending}
           />
         )}
+        {/* Conversation history drawer */}
+        <ConversationDrawer
+          open={conversationDrawerOpen}
+          onClose={() => setConversationDrawerOpen(false)}
+          conversations={conversations}
+          activeSessionId={sessionId}
+          onSelectConversation={(id) => {
+            setConversationDrawerOpen(false);
+            clearChat();
+            clearSelectedPoints();
+            setActiveMessageId(null);
+            setDrawerOpen(false);
+            setSessionId(id);
+          }}
+          onNewChat={() => {
+            setConversationDrawerOpen(false);
+            handleNewChat();
+          }}
+        />
       </div>
     </PointSelectionContext.Provider>
   );
