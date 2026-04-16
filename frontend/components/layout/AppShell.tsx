@@ -9,23 +9,19 @@ import { useLocale } from "../../lib/i18n-context";
 import {
   buildSelectedRouteActionText,
   fetchConversationMessages,
-  fetchRouteHistory,
   hydrateResponseData,
   sendSelectedRoute,
 } from "../../lib/api";
-import type { RouteHistoryEntry } from "../../lib/api";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { isVisualResponse } from "../generative/registry";
-import { isRouteData, isSearchData, type RuntimeResponse } from "../../lib/types";
-import Sidebar from "./Sidebar";
+import { isRouteData, type RuntimeResponse } from "../../lib/types";
+import IconSidebar from "./IconSidebar";
 import ChatHeader from "./ChatHeader";
 import MessageList from "../chat/MessageList";
 import ChatInput from "../chat/ChatInput";
 import ResultDrawer from "./ResultDrawer";
-import { SlideOverPanel } from "./SlideOverPanel";
-import { FullscreenOverlay } from "./FullscreenOverlay";
-import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
+import ResultPanel from "./ResultPanel";
 
 export default function AppShell() {
   const locale = useLocale();
@@ -45,22 +41,13 @@ export default function AppShell() {
     toggle,
     clear: clearSelectedPoints,
   } = usePointSelection();
-  const { conversations, upsert: upsertConversation, rename: renameConversation } =
-    useConversationHistory();
+  const { upsert: upsertConversation } = useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [routes, setRoutes] = useState<RouteHistoryEntry[]>([]);
   const [routeSending, setRouteSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-  const [slideOverOpen, setSlideOverOpen] = useState(false);
-  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const lastSyncedResponseIdRef = useRef<string | null>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
   const isSending = sending || routeSending;
-
-  useEffect(() => {
-    fetchRouteHistory().then(setRoutes).catch(() => {});
-  }, []);
 
   // Hydrate messages on mount when a stored session exists
   useEffect(() => {
@@ -150,21 +137,6 @@ export default function AppShell() {
     return "";
   }, [messages]);
 
-  // Determine overlay type from active response
-  const openOverlayForResponse = useCallback((response: RuntimeResponse | null) => {
-    if (!response) return;
-    if (isRouteData(response.data)) {
-      setFullscreenOpen(true);
-      setSlideOverOpen(false);
-    } else if (isSearchData(response.data)) {
-      setSlideOverOpen(true);
-      setFullscreenOpen(false);
-    } else {
-      setSlideOverOpen(true);
-      setFullscreenOpen(false);
-    }
-  }, []);
-
   // Auto-open result panel when a visual response arrives
   useEffect(() => {
     if (messages.length === 0) return;
@@ -178,45 +150,9 @@ export default function AppShell() {
       setActiveMessageId(last.id);
       if (isMobile) {
         setDrawerOpen(true);
-      } else {
-        openOverlayForResponse(last.response);
       }
     }
-  }, [messages, isMobile, openOverlayForResponse]);
-
-  const handleConversationSelect = useCallback(
-    async (selectedSessionId: string) => {
-      if (selectedSessionId === sessionId) return;
-      routeAbortRef.current?.abort();
-      routeAbortRef.current = null;
-      setRouteSending(false);
-      clearChat();
-      clearSelectedPoints();
-      setActiveMessageId(null);
-      setDrawerOpen(false);
-      setSlideOverOpen(false);
-      setFullscreenOpen(false);
-      setSessionId(selectedSessionId);
-      lastSyncedResponseIdRef.current = null;
-
-      try {
-        const msgs = await fetchConversationMessages(selectedSessionId);
-        const hydrated = msgs.map((m, i) => ({
-          id: `hydrated-${i}-${Date.now()}`,
-          role: m.role,
-          text: m.content,
-          response: hydrateResponseData(m.data) as RuntimeResponse | undefined,
-          timestamp: new Date(m.timestamp).getTime(),
-        }));
-        if (hydrated.length > 0) {
-          appendMessages(...hydrated);
-        }
-      } catch {
-        // Best-effort hydration; silent on failure
-      }
-    },
-    [appendMessages, clearChat, clearSelectedPoints, sessionId, setSessionId],
-  );
+  }, [messages, isMobile]);
 
   const handleNewChat = useCallback(() => {
     routeAbortRef.current?.abort();
@@ -228,39 +164,25 @@ export default function AppShell() {
     lastSyncedResponseIdRef.current = null;
     setActiveMessageId(null);
     setDrawerOpen(false);
-    setSlideOverOpen(false);
-    setFullscreenOpen(false);
   }, [clearChat, clearSelectedPoints, clearSession]);
 
   const handleActivate = useCallback((messageId: string) => {
     setActiveMessageId((current) => {
       const newId = current === messageId ? null : messageId;
-      if (newId) {
-        // Find the message to determine which overlay to open
-        const msg = messages.find((m) => m.id === newId);
-        if (msg?.response) {
-          if (isMobile) {
-            setDrawerOpen(true);
-          } else {
-            openOverlayForResponse(msg.response);
-          }
-        }
-      } else {
-        setSlideOverOpen(false);
-        setFullscreenOpen(false);
+      if (newId && isMobile) {
+        setDrawerOpen(true);
+      } else if (!newId) {
         setDrawerOpen(false);
       }
       return newId;
     });
-  }, [isMobile, messages, openOverlayForResponse]);
+  }, [isMobile]);
 
   const handleSend = useCallback(
     (text: string) => {
       clearSelectedPoints();
       setActiveMessageId(null);
       setDrawerOpen(false);
-      setSlideOverOpen(false);
-      setFullscreenOpen(false);
       send(text);
     },
     [clearSelectedPoints, send],
@@ -295,8 +217,6 @@ export default function AppShell() {
       clearSelectedPoints();
       setActiveMessageId(null);
       setDrawerOpen(false);
-      setSlideOverOpen(false);
-      setFullscreenOpen(false);
       appendMessages(userMessage, placeholder);
       setRouteSending(true);
 
@@ -357,67 +277,42 @@ export default function AppShell() {
     ],
   );
 
-  const handleCloseSlideOver = useCallback(() => {
-    setSlideOverOpen(false);
-    setActiveMessageId(null);
-  }, []);
-
-  const handleCloseFullscreen = useCallback(() => {
-    setFullscreenOpen(false);
-    setActiveMessageId(null);
-  }, []);
-
   const handleOpenDrawer = useCallback(() => {
     setDrawerOpen(true);
   }, []);
 
+  // Determine whether the result panel should show route or search data
+  const isRouteResult = activeResponse?.data ? isRouteData(activeResponse.data) : false;
+
   return (
     <PointSelectionContext.Provider value={{ selectedIds, toggle, clear: clearSelectedPoints }}>
       <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
-        {/* Sidebar — collapsible on desktop, overlay on mobile */}
-        {!isMobile && sidebarOpen && (
-          <Sidebar
-            conversations={conversations}
-            activeSessionId={sessionId}
-            onNewChat={handleNewChat}
-            onRenameConversation={renameConversation}
-            onSelectConversation={handleConversationSelect}
-            routes={routes}
-            onCollapse={() => setSidebarOpen(false)}
-          />
-        )}
-        {isMobile && sidebarOpen && (
-          <>
-            {/* Dark backdrop */}
-            <div
-              className="fixed inset-0 z-40 bg-black/30"
-              onClick={() => setSidebarOpen(false)}
-              style={{ animation: "fade-in 200ms ease both" }}
-            />
-            {/* Sidebar overlay */}
-            <div
-              className="fixed inset-y-0 left-0 z-50 w-[280px] bg-[var(--color-bg)] shadow-xl"
-              style={{ animation: "slide-in-left 250ms var(--ease-out-quint) both" }}
-            >
-              <Sidebar
-                conversations={conversations}
-                activeSessionId={sessionId}
-                onNewChat={() => { handleNewChat(); setSidebarOpen(false); }}
-                onRenameConversation={renameConversation}
-                onSelectConversation={(id) => { handleConversationSelect(id); setSidebarOpen(false); }}
-                routes={routes}
-                onCollapse={() => setSidebarOpen(false)}
-                variant="mobile"
-              />
-            </div>
-          </>
-        )}
 
-        {/* Main chat area — takes full width */}
-        <main className="flex min-h-0 flex-1 flex-col bg-[var(--color-bg)]">
+        {/* Icon sidebar — 56px, hidden on mobile (<1024px) */}
+        <div className={isMobile ? "hidden" : undefined}>
+          <IconSidebar
+            onNewChat={handleNewChat}
+            onSectionClick={(section) => {
+              // Section navigation is handled via the icon rail
+              if (section === "search") handleNewChat();
+              // TODO: wire history section click in Wave 2 (ConversationDrawer integration)
+            }}
+          />
+        </div>
+
+        {/* Chat panel — 360px on desktop, full-width on mobile */}
+        <div
+          data-testid="chat-panel"
+          className={[
+            "flex min-h-0 flex-col bg-[var(--color-bg)]",
+            isMobile
+              ? "flex-1"
+              : "w-[360px] min-w-[360px] shrink-0 border-r border-[var(--color-border)]",
+          ].join(" ")}
+        >
           <ChatHeader
             onNewChat={isMobile ? handleNewChat : undefined}
-            onMenuToggle={!sidebarOpen || isMobile ? () => setSidebarOpen((s) => !s) : undefined}
+            onMenuToggle={undefined}
           />
           <MessageList
             messages={messages}
@@ -426,10 +321,30 @@ export default function AppShell() {
             onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
             onSuggest={handleSend}
           />
-          <ChatInput onSend={handleSend} disabled={isSending} showQuickActions={isMobile && messages.length === 0} />
-        </main>
+          <ChatInput
+            onSend={handleSend}
+            disabled={isSending}
+            showQuickActions={isMobile && messages.length === 0}
+          />
+        </div>
 
-        {/* Mobile: vaul bottom sheet */}
+        {/* Result panel — flex-1, desktop only */}
+        {!isMobile && (
+          <div
+            data-testid="result-panel"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          >
+            <ResultPanel
+              activeResponse={activeResponse}
+              onSuggest={handleSend}
+              onRouteSelected={handleRouteSelected}
+              defaultOrigin={defaultOrigin}
+              loading={isSending && (isRouteResult || !activeResponse)}
+            />
+          </div>
+        )}
+
+        {/* Mobile: vaul bottom sheet for results */}
         {isMobile && (
           <ResultDrawer
             response={activeResponse}
@@ -440,26 +355,6 @@ export default function AppShell() {
             defaultOrigin={defaultOrigin}
             loading={isSending}
           />
-        )}
-
-        {/* Desktop: Slide-over for search results */}
-        {!isMobile && (
-          <SlideOverPanel open={slideOverOpen} onClose={handleCloseSlideOver} loading={isSending && slideOverOpen}>
-            {activeResponse && (
-              <GenerativeUIRenderer response={activeResponse} onSuggest={handleSend} />
-            )}
-          </SlideOverPanel>
-        )}
-
-        {/* Desktop: Fullscreen for route results */}
-        {!isMobile && (
-          <FullscreenOverlay open={fullscreenOpen} onClose={handleCloseFullscreen}>
-            {activeResponse && (
-              <div className="h-full">
-                <GenerativeUIRenderer response={activeResponse} onSuggest={handleSend} />
-              </div>
-            )}
-          </FullscreenOverlay>
         )}
       </div>
     </PointSelectionContext.Provider>
