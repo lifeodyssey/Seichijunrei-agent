@@ -14,6 +14,7 @@ export type {
   TimedItinerary,
   QAData,
   ClarifyData,
+  ClarifyCandidate,
   TimedRouteData,
 } from "./domain";
 

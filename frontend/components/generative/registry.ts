@@ -1,6 +1,7 @@
 import { createElement, type ReactNode } from "react";
 import type { RuntimeResponse } from "../../lib/types";
-import { isQAData, isRouteData, isSearchData } from "../../lib/types";
+import { isQAData, isRouteData, isSearchData, isClarifyData } from "../../lib/types";
+import type { ClarifyCandidate } from "../../lib/types";
 import PilgrimageGrid from "./PilgrimageGrid";
 import NearbyMap from "./NearbyMap";
 import RouteVisualization from "./RouteVisualization";
@@ -38,9 +39,14 @@ export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
     const data = response.data as unknown as Record<string, unknown>;
     const options =
       Array.isArray(data?.options) ? (data.options as string[]) : undefined;
+    // Extract rich candidates if available (ClarifyData.candidates)
+    const candidates = isClarifyData(response.data) && Array.isArray(response.data.candidates)
+      ? (response.data.candidates as ClarifyCandidate[])
+      : undefined;
     return createElement(Clarification, {
       message: response.message,
       options,
+      candidates,
       onSuggest,
     });
   },

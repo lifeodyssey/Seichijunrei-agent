@@ -154,6 +154,7 @@
   },
   "clarification": {
     "examples_label": "例えば：",
+    "search_all": "全作品まとめて検索",
     "suggestions": [
       {
         "label": "作品名で探す",
