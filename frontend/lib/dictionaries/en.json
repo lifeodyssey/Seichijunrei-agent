@@ -53,7 +53,8 @@
       "steps_title": "3 steps to start your pilgrimage",
       "steps_sub": "Just enter an anime title — we handle the rest.",
       "scroll_hint": "Scroll down",
-      "login": "Log in"
+      "login": "Log in",
+      "search_button": "Search"
     }
   },
   "auth": {

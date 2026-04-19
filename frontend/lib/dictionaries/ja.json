@@ -53,7 +53,8 @@
       "steps_title": "3ステップで巡礼",
       "steps_sub": "作品名を入力するだけ。あとは全部おまかせ。",
       "scroll_hint": "下にスクロール",
-      "login": "ログイン"
+      "login": "ログイン",
+      "search_button": "検索"
     }
   },
   "auth": {

@@ -316,7 +316,7 @@ export default function AuthGate() {
           {/* Search bar */}
           <form
             onSubmit={handleSearchSubmit}
-            className="mt-8 flex overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.05)] transition-shadow focus-within:border-[var(--color-primary)] focus-within:shadow-[0_4px_28px_rgba(74,130,220,0.15)]"
+            className="mt-8 flex overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_4px_24px_rgba(0,0,0,0.05)] transition-shadow focus-within:border-[var(--color-primary)] focus-within:shadow-[0_4px_28px_rgba(74,130,220,0.15)]"
             style={{
               animation: "seichi-fade-up 0.8s ease-out 0.2s backwards",
               transitionDuration: "300ms",
@@ -335,7 +335,7 @@ export default function AuthGate() {
               className="min-h-[52px] min-w-[44px] bg-[var(--color-primary)] px-6 text-[14px] font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90"
               style={{ fontFamily: "var(--app-font-body)" }}
             >
-              検索
+              {landing.search_button}
             </button>
           </form>
         </div>
@@ -421,7 +421,7 @@ export default function AuthGate() {
             <div
               key={step.num}
               ref={addRevealRef}
-              className="seichi-reveal-pop rounded-xl border border-[var(--color-border)] bg-white p-[28px_24px] transition-transform hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
+              className="seichi-reveal-pop rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-[28px_24px] transition-transform hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
               style={{ animationDelay: `${i * 0.1}s` }}
             >
               <div

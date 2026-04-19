@@ -53,7 +53,8 @@
       "steps_title": "三步开始巡礼",
       "steps_sub": "输入作品名，其余交给我们。",
       "scroll_hint": "向下滚动",
-      "login": "登录"
+      "login": "登录",
+      "search_button": "搜索"
     }
   },
   "auth": {
