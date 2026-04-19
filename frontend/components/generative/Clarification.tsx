@@ -138,7 +138,7 @@ function CandidateCard({
           {candidate.title}
         </span>
         <span className="text-[11px] text-[var(--color-muted-fg)]">
-          {candidate.spot_count} スポット · {candidate.city}
+          {candidate.spot_count} {dict.clarification.spot_label ?? "spots"} · {candidate.city}
         </span>
       </span>
 
