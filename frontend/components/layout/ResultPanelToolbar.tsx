@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { cn } from "@/lib/utils";
 
 type ViewMode = "grid" | "map";
 
@@ -12,18 +12,10 @@ interface ResultPanelToolbarProps {
   onEpRangeChange: (range: string | null) => void;
 }
 
-function chipStyle(active: boolean): CSSProperties {
+function chipClass(active: boolean): string {
   return active
-    ? {
-        background: "var(--color-primary)",
-        color: "var(--color-bg)",
-        borderColor: "var(--color-primary)",
-      }
-    : {
-        background: "var(--color-bg)",
-        color: "var(--color-muted-fg)",
-        borderColor: "var(--color-border)",
-      };
+    ? "bg-[var(--color-primary)] text-[var(--color-bg)] border-[var(--color-primary)]"
+    : "bg-[var(--color-bg)] text-[var(--color-muted-fg)] border-[var(--color-border)]";
 }
 
 export function ResultPanelToolbar({
@@ -40,8 +32,10 @@ export function ResultPanelToolbar({
         <div className="flex items-center gap-1.5 overflow-x-auto">
           <button
             onClick={() => onEpRangeChange(null)}
-            className="shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150"
-            style={chipStyle(activeEpRange === null)}
+            className={cn(
+              "shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150",
+              chipClass(activeEpRange === null)
+            )}
           >
             すべて
           </button>
@@ -49,8 +43,10 @@ export function ResultPanelToolbar({
             <button
               key={range}
               onClick={() => onEpRangeChange(range)}
-              className="shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150"
-              style={chipStyle(activeEpRange === range)}
+              className={cn(
+                "shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150",
+                chipClass(activeEpRange === range)
+              )}
             >
               {range}
             </button>
@@ -62,38 +58,27 @@ export function ResultPanelToolbar({
       <div className="flex-1" />
 
       {/* Grid / map pill toggle */}
-      <div
-        className="flex shrink-0 gap-0.5 rounded-lg p-0.5"
-        style={{ background: "var(--color-card)" }}
-      >
+      <div className="flex shrink-0 gap-0.5 rounded-lg bg-[var(--color-card)] p-0.5">
         <button
           onClick={() => onViewChange("grid")}
-          className="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150"
-          style={
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
             view === "grid"
-              ? {
-                  background: "var(--color-bg)",
-                  color: "var(--color-fg)",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                }
-              : { background: "transparent", color: "var(--color-muted-fg)" }
-          }
+              ? "bg-[var(--color-bg)] text-[var(--color-fg)] shadow-[0_1px_3px_oklch(0%_0_0_/_0.08)]"
+              : "bg-transparent text-[var(--color-muted-fg)]"
+          )}
         >
           <span>📷</span>
           グリッド
         </button>
         <button
           onClick={() => onViewChange("map")}
-          className="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150"
-          style={
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
             view === "map"
-              ? {
-                  background: "var(--color-bg)",
-                  color: "var(--color-fg)",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                }
-              : { background: "transparent", color: "var(--color-muted-fg)" }
-          }
+              ? "bg-[var(--color-bg)] text-[var(--color-fg)] shadow-[0_1px_3px_oklch(0%_0_0_/_0.08)]"
+              : "bg-transparent text-[var(--color-muted-fg)]"
+          )}
         >
           <span>🗺</span>
           マップ

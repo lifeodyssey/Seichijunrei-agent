@@ -72,9 +72,9 @@ export default function ResultSheet({
               <GenerativeUIRenderer response={response} onSuggest={onSuggest} />
             ) : loading ? (
               <div className="space-y-4 animate-pulse">
-                <div className="h-6 bg-gray-200 rounded w-3/4" />
-                <div className="h-48 bg-gray-200 rounded" />
-                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-6 bg-[var(--color-muted)] rounded w-3/4" />
+                <div className="h-48 bg-[var(--color-muted)] rounded" />
+                <div className="h-4 bg-[var(--color-muted)] rounded w-1/2" />
               </div>
             ) : null}
           </div>

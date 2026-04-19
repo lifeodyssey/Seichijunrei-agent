@@ -31,7 +31,7 @@ export default function MessageList({
     return (
       <div className="flex flex-1 items-center justify-center px-6 py-8">
         <div
-          className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-card)_88%,white)] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)]"
+          className="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-card)_88%,white)] p-6 shadow-[0_24px_80px_oklch(20%_0.025_238_/_0.06)]"
           style={{ animation: "slide-up-fade 400ms var(--ease-out-quint) both" }}
         >
           <div className="space-y-3">

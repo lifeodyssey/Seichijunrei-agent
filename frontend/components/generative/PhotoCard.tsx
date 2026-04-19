@@ -2,6 +2,7 @@
 
 import type { PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // EpisodeBadge
@@ -11,14 +12,7 @@ export function EpisodeBadge({ episode }: { episode: number | null }) {
   const { grid: t } = useDict();
   if (episode == null) return null;
   return (
-    <span
-      className="absolute left-2 top-2 rounded-[5px] px-2 py-0.5 text-[10px] font-semibold tracking-wide"
-      style={{
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(4px)",
-        color: "var(--color-bg)",
-      }}
-    >
+    <span className="absolute left-2 top-2 rounded-[5px] bg-black/55 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--color-bg)] backdrop-blur-[4px]">
       {t.episode.replace("{ep}", String(episode))}
     </span>
   );
@@ -37,8 +31,10 @@ interface PhotoCardProps {
 export function PhotoCard({ point, selected, onToggle }: PhotoCardProps) {
   return (
     <div
-      className="group relative cursor-pointer overflow-hidden rounded-[10px] bg-[var(--color-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
-      style={{ border: `2px solid ${selected ? "var(--color-primary)" : "transparent"}` }}
+      className={cn(
+        "group relative cursor-pointer overflow-hidden rounded-[10px] border-2 bg-[var(--color-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+        selected ? "border-[var(--color-primary)]" : "border-transparent"
+      )}
       onClick={() => onToggle(point.id)}
       role="button"
       tabIndex={0}
@@ -51,7 +47,7 @@ export function PhotoCard({ point, selected, onToggle }: PhotoCardProps) {
       }}
     >
       {/* Image — 16/10 aspect ratio */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: "16/10" }}>
+      <div className="relative aspect-[16/10] overflow-hidden">
         {point.screenshot_url ? (
           <img
             src={point.screenshot_url}
@@ -63,10 +59,7 @@ export function PhotoCard({ point, selected, onToggle }: PhotoCardProps) {
         )}
         <EpisodeBadge episode={point.episode} />
         {selected && (
-          <div
-            className="absolute right-2 top-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold"
-            style={{ color: "var(--color-bg)" }}
-          >
+          <div className="absolute right-2 top-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-[var(--color-bg)]">
             ✓
           </div>
         )}

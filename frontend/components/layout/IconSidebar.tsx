@@ -11,6 +11,7 @@
  */
 
 import type { MouseEvent } from "react";
+import { cn } from "@/lib/utils";
 
 export type SidebarSection = "search" | "routes" | "history" | "settings";
 
@@ -34,25 +35,12 @@ function NavButton({ label, active = false, onClick, children }: NavButtonProps)
       aria-label={label}
       data-active={active ? "true" : "false"}
       onClick={onClick}
-      className="nav-button"
-      style={{
-        width: 38,
-        height: 38,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 8,
-        border: "none",
-        background: active
-          ? "var(--color-sidebar-active, oklch(93% 0.025 240))"
-          : "transparent",
-        color: active
-          ? "var(--color-primary, oklch(60% 0.148 240))"
-          : "var(--color-muted-fg, oklch(54% 0.032 228))",
-        cursor: "pointer",
-        transition: "background 0.15s, color 0.15s",
-        flexShrink: 0,
-      }}
+      className={cn(
+        "nav-button flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border-none cursor-pointer transition-colors duration-150",
+        active
+          ? "bg-[var(--color-sidebar-active)] text-[var(--color-primary)]"
+          : "bg-transparent text-[var(--color-muted-fg)]"
+      )}
     >
       {children}
     </button>
@@ -67,40 +55,14 @@ export default function IconSidebar({
   return (
     <aside
       data-testid="icon-sidebar"
-      style={{
-        width: 56,
-        minWidth: 56,
-        background: "var(--color-bg)",
-        borderRight: "1px solid var(--color-border, oklch(85% 0.022 222))",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "14px 0",
-        gap: 4,
-      }}
+      className="flex w-14 min-w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg)] py-3.5"
     >
       {/* Logo mark */}
       <button
         type="button"
         aria-label="聖地巡礼 home"
         onClick={onNewChat}
-        style={{
-          fontFamily: "var(--app-font-display, 'Shippori Mincho B1', Georgia, serif)",
-          fontSize: 20,
-          fontWeight: 800,
-          color: "var(--color-primary, oklch(60% 0.148 240))",
-          width: 38,
-          height: 38,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 10,
-          background: "var(--color-sidebar-active, oklch(93% 0.025 240))",
-          marginBottom: 12,
-          cursor: "pointer",
-          border: "none",
-          flexShrink: 0,
-        }}
+        className="mb-3 flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center rounded-[10px] border-none bg-[var(--color-sidebar-active)] font-[family-name:var(--app-font-display)] text-xl font-extrabold text-[var(--color-primary)]"
       >
         聖
       </button>
@@ -155,7 +117,7 @@ export default function IconSidebar({
       </NavButton>
 
       {/* Spacer */}
-      <div style={{ flex: 1 }} aria-hidden />
+      <div className="flex-1" aria-hidden />
 
       {/* Settings */}
       <NavButton

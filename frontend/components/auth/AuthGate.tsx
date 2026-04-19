@@ -129,9 +129,9 @@ export default function AuthGate() {
       <header
         className="fixed inset-x-0 top-0 z-50 flex items-center justify-between border-b px-4 py-3 sm:px-8"
         style={{
-          background: "rgba(248,250,252,0.85)",
+          background: "color-mix(in oklch, var(--color-bg) 85%, transparent)",
           backdropFilter: "blur(16px)",
-          borderColor: "rgba(200,210,220,0.3)",
+          borderColor: "color-mix(in oklch, var(--color-border) 30%, transparent)",
           animation: "seichi-fade-up 0.6s ease-out",
         }}
       >
@@ -152,7 +152,7 @@ export default function AuthGate() {
                 className="min-h-[44px] min-w-[44px] rounded px-2.5 py-1 text-xs font-medium transition-all"
                 style={{
                   transitionDuration: "var(--duration-fast)",
-                  background: locale === l ? "white" : "transparent",
+                  background: locale === l ? "var(--color-bg)" : "transparent",
                   color: locale === l ? "var(--color-fg)" : "var(--color-muted-fg)",
                   boxShadow: locale === l ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                   fontFamily: "var(--app-font-body)",
@@ -212,7 +212,7 @@ export default function AuthGate() {
               />
               {pinLabel && (
                 <div
-                  className="pointer-events-none absolute bottom-[18px] left-1/2 hidden -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-white p-1 opacity-0 shadow-lg transition-all group-hover:translate-y-0 group-hover:opacity-100 sm:block"
+                  className="pointer-events-none absolute bottom-[18px] left-1/2 hidden -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-[var(--color-bg)] p-1 opacity-0 shadow-lg transition-all group-hover:translate-y-0 group-hover:opacity-100 sm:block"
                   style={{ transitionDuration: "250ms" }}
                 >
                   <div
@@ -245,7 +245,7 @@ export default function AuthGate() {
 
           {/* Chat input */}
           <div
-            className="mt-7 flex overflow-hidden rounded-[10px] border border-[var(--color-border)] bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-shadow focus-within:border-[var(--color-primary)] focus-within:shadow-[0_4px_24px_rgba(74,130,220,0.15)]"
+            className="mt-7 flex overflow-hidden rounded-[10px] border border-[var(--color-border)] bg-[var(--color-bg)] shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition-shadow focus-within:border-[var(--color-primary)] focus-within:shadow-[0_4px_24px_rgba(74,130,220,0.15)]"
             style={{ animation: "seichi-fade-up 0.8s ease-out 0.2s backwards", transitionDuration: "300ms" }}
           >
             <input

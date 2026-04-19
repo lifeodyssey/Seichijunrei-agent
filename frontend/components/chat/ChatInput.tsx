@@ -72,7 +72,7 @@ export default function ChatInput({ onSend, disabled, showQuickActions }: ChatIn
               key={action.label}
               type="button"
               onClick={() => onSend(action.query)}
-              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-white px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
               style={{ minHeight: "44px", transitionDuration: "var(--duration-fast)" }}
             >
               <span>{action.icon}</span>
@@ -82,7 +82,7 @@ export default function ChatInput({ onSend, disabled, showQuickActions }: ChatIn
         </div>
       )}
       <div
-        className="mx-auto flex w-full max-w-[680px] items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-white p-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
+        className="mx-auto flex w-full max-w-[680px] items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
         style={{ transitionDuration: "var(--duration-fast)" }}
       >
         <textarea
@@ -100,7 +100,7 @@ export default function ChatInput({ onSend, disabled, showQuickActions }: ChatIn
         <button
           onClick={handleSubmit}
           disabled={disabled || !hasText}
-          className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 disabled:bg-gray-200 disabled:text-gray-400 bg-[var(--color-primary)] text-white hover:opacity-90"
+          className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 disabled:bg-[var(--color-muted)] disabled:text-[var(--color-muted-fg)] bg-[var(--color-primary)] text-white hover:opacity-90"
           aria-label={t.send}
         >
           {disabled ? (

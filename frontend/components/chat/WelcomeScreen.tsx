@@ -81,7 +81,7 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
             key={action.label}
             type="button"
             onClick={() => onSend(action.query)}
-            className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-card)]"
+            className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-left shadow-sm transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-card)]"
             style={{ transitionDuration: "var(--duration-fast)" }}
           >
             <span className="mt-0.5 text-lg leading-none" aria-hidden="true">
@@ -120,7 +120,7 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
                     ? `${item.title}的取景地在哪`
                     : `Show me pilgrimage spots for ${item.title}`,
                 )}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-white px-3 py-1.5 text-xs text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
                 style={{ transitionDuration: "var(--duration-fast)" }}
               >
                 {item.cover_url && (
