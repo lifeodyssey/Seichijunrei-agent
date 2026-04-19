@@ -32,10 +32,29 @@
     "feat_series": "按作品浏览",
     "feat_series_desc": "按动漫作品浏览所有取景地。",
     "login": "登录",
-    "join_beta": "加入测试",
     "pin_yourname": "你的名字 · 新宿",
     "pin_euphonium": "吹响上低音号 · 宇治",
-    "pin_violet": "紫罗兰永恒花园 · 京都"
+    "pin_violet": "紫罗兰永恒花园 · 京都",
+    "landing": {
+      "hero_title": "聖地巡礼",
+      "hero_subtitle": "探索动漫圣地，踏上巡礼之旅",
+      "search_placeholder": "搜索动漫圣地...",
+      "stats_spots": "取景地",
+      "stats_anime": "动漫",
+      "stats_prefectures": "都道府县",
+      "step1_title": "搜索作品",
+      "step1_desc": "通过动漫名称搜索取景地",
+      "step2_title": "发现景点",
+      "step2_desc": "在地图上确认实际位置",
+      "step3_title": "规划路线",
+      "step3_desc": "自动生成最优巡礼路线",
+      "gallery_title": "热门作品",
+      "gallery_sub": "从经典到最新，圣地巡礼必选",
+      "steps_title": "三步开始巡礼",
+      "steps_sub": "输入作品名，其余交给我们。",
+      "scroll_hint": "向下滚动",
+      "login": "登录"
+    }
   },
   "auth": {
     "title": "圣地巡礼",
