@@ -129,6 +129,14 @@ export interface QAData {
   message: string;
 }
 
+/** A candidate item in a clarification response. */
+export interface ClarifyCandidate {
+  title: string;
+  cover_url: string | null;
+  spot_count: number;
+  city: string;
+}
+
 /** data shape when intent = clarify (SSE clarify event merged into response) */
 export interface ClarifyData {
   intent: string;
@@ -137,6 +145,7 @@ export interface ClarifyData {
   message: string;
   question: string;
   options: string[];
+  candidates?: ClarifyCandidate[];
 }
 
 export type TimedRouteData = RouteData & {

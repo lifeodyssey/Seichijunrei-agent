@@ -154,6 +154,7 @@
   },
   "clarification": {
     "examples_label": "For example:",
+    "search_all": "Search all titles",
     "suggestions": [
       {
         "label": "Search by anime",
@@ -167,6 +168,7 @@
         "label": "Plan a route",
         "query": "Plan a route for Hibike Euphonium spots from Kyoto"
       }
-    ]
+    ],
+    "spot_label": "spots"
   }
 }

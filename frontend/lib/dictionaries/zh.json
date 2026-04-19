@@ -154,6 +154,7 @@
   },
   "clarification": {
     "examples_label": "例如：",
+    "search_all": "搜索所有作品",
     "suggestions": [
       {
         "label": "按作品搜索",
@@ -167,6 +168,7 @@
         "label": "规划路线",
         "query": "从新宿出发去你的名字取景地的路线"
       }
-    ]
+    ],
+    "spot_label": "景点"
   }
 }
