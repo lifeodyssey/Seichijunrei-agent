@@ -190,7 +190,7 @@ After all waves:
 
 ### Agent Dispatch Rules
 
-- Use `subagent_type="coder"` with `model="sonnet"` for Executor agents. **NEVER use `subagent_type="executor"`** — it lacks Bash permission and will fail silently in worktrees.
+- Use `subagent_type="executor"` with `model="sonnet"` for Executor agents (reads `.claude/agents/executor.md`; has Bash, Read, Write, Edit, Glob, Grep, Skill, LSP).
 - Use `subagent_type="reviewer"` for Reviewer (has Read/Grep/Bash but no Write/Edit)
 - Use `isolation="worktree"` for Executor agents when creating new branches. For fixes on existing worktrees, omit `isolation` and pass the worktree path explicitly in the prompt.
 - In worktrees: use `uv tool run ruff format` (not `uv run ruff format`)
