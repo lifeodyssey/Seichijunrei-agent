@@ -57,8 +57,10 @@ async function renderAndOpenModal(dict: Dict) {
     ).not.toBeInTheDocument();
   });
 
-  // Click the header login link to open the modal
-  const loginTrigger = screen.getByText(dict.landing_hero.login);
+  // Click the header login link to open the modal.
+  // PR #129 moved login trigger to dict.landing_hero.landing.login
+  const loginText = dict.landing_hero.landing.login;
+  const loginTrigger = screen.getByText(loginText);
   await act(async () => {
     fireEvent.click(loginTrigger);
   });
@@ -158,7 +160,7 @@ describe("Login modal — auth not configured", () => {
     render(<AuthGate />);
 
     // No loading state when unconfigured — modal trigger is visible immediately
-    const loginTrigger = screen.getByText(dict.landing_hero.login);
+    const loginTrigger = screen.getByText(dict.landing_hero.landing.login);
     await act(async () => {
       fireEvent.click(loginTrigger);
     });
