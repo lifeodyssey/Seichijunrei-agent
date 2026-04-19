@@ -190,11 +190,11 @@ After all waves:
 
 ### Agent Dispatch Rules
 
-- Use `subagent_type="coder"` with `model="sonnet"` for Executor agents
+- Use `subagent_type="coder"` with `model="sonnet"` for Executor agents. **NEVER use `subagent_type="executor"`** — it lacks Bash permission and will fail silently in worktrees.
 - Use `subagent_type="reviewer"` for Reviewer (has Read/Grep/Bash but no Write/Edit)
-- Use `isolation="worktree"` for Executor agents
+- Use `isolation="worktree"` for Executor agents when creating new branches. For fixes on existing worktrees, omit `isolation` and pass the worktree path explicitly in the prompt.
 - In worktrees: use `uv tool run ruff format` (not `uv run ruff format`)
-- Reviewer must check Codecov patch coverage >= 95% (P1 if below)
+- Reviewer should check Codecov patch coverage >= 95% (P1 if below), unless the change is doc-only or Codecov is unavailable.
 
 ### Quality Ratchet
 
