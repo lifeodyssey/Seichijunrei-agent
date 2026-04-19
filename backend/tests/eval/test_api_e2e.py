@@ -145,12 +145,12 @@ async def test_bangumi_search_message_respects_locale_zh(db: SupabaseClient):
     assert result.success
     assert result.intent == "search_by_bangumi"
     msg = result.final_output.get("message", "")
-    if msg:  # empty message is acceptable for success cases
-        import re
+    assert msg, "Expected non-empty message for locale=zh bangumi search"
+    import re
 
-        assert re.search(r"[\u4e00-\u9fff]", msg), (
-            f"Expected Chinese in message, got: {msg}"
-        )
+    assert re.search(r"[\u4e00-\u9fff]", msg), (
+        f"Expected Chinese in message, got: {msg}"
+    )
 
 
 async def test_route_message_respects_locale_ja(db: SupabaseClient):
@@ -162,9 +162,9 @@ async def test_route_message_respects_locale_ja(db: SupabaseClient):
     assert result.success
     assert result.intent == "plan_route"
     msg = result.final_output.get("message", "")
-    if msg:
-        import re
+    assert msg, "Expected non-empty message for locale=ja route planning"
+    import re
 
-        assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
-            f"Expected Japanese in message, got: {msg}"
-        )
+    assert re.search(r"[\u3040-\u30ff\u4e00-\u9fff]", msg), (
+        f"Expected Japanese in message, got: {msg}"
+    )

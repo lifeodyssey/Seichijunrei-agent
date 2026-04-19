@@ -81,12 +81,7 @@ describe("ConversationDrawer", () => {
       />,
     );
 
-    // getByTestId throws when multiple match — use getAllByTestId and find the active one
-    const items = screen.getAllByTestId("conversation-item-sess-001");
-    // One of the items should have the active bg class
-    const activeItem = items.find((el) =>
-      el.className.includes("bg-[var(--color-primary)]"),
-    );
-    expect(activeItem).toBeDefined();
+    const item = screen.getByTestId("conversation-item-sess-001");
+    expect(item).toHaveAttribute("data-active", "true");
   });
 });

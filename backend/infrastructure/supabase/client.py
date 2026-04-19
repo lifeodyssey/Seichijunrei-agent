@@ -94,39 +94,60 @@ class SupabaseClient:
         self._messages = MessagesRepository(pool)
 
     @property
-    def bangumi(self) -> BangumiRepository:  # noqa: S101
-        assert self._bangumi is not None
-        return self._bangumi  # noqa: S101, E702
+    def bangumi(self) -> BangumiRepository:
+        if self._bangumi is None:
+            raise RuntimeError(
+                "BangumiRepository not initialized — call connect() first"
+            )
+        return self._bangumi
 
     @property
     def points(self) -> PointsRepository:
-        assert self._points is not None
-        return self._points  # noqa: S101, E702
+        if self._points is None:
+            raise RuntimeError(
+                "PointsRepository not initialized — call connect() first"
+            )
+        return self._points
 
     @property
     def session(self) -> SessionRepository:
-        assert self._session is not None
-        return self._session  # noqa: S101, E702
+        if self._session is None:
+            raise RuntimeError(
+                "SessionRepository not initialized — call connect() first"
+            )
+        return self._session
 
     @property
     def feedback(self) -> FeedbackRepository:
-        assert self._feedback is not None
-        return self._feedback  # noqa: S101, E702
+        if self._feedback is None:
+            raise RuntimeError(
+                "FeedbackRepository not initialized — call connect() first"
+            )
+        return self._feedback
 
     @property
     def user_memory(self) -> UserMemoryRepository:
-        assert self._user_memory is not None
-        return self._user_memory  # noqa: S101, E702
+        if self._user_memory is None:
+            raise RuntimeError(
+                "UserMemoryRepository not initialized — call connect() first"
+            )
+        return self._user_memory
 
     @property
     def routes(self) -> RoutesRepository:
-        assert self._routes is not None
-        return self._routes  # noqa: S101, E702
+        if self._routes is None:
+            raise RuntimeError(
+                "RoutesRepository not initialized — call connect() first"
+            )
+        return self._routes
 
     @property
     def messages(self) -> MessagesRepository:
-        assert self._messages is not None
-        return self._messages  # noqa: S101, E702
+        if self._messages is None:
+            raise RuntimeError(
+                "MessagesRepository not initialized — call connect() first"
+            )
+        return self._messages
 
     # --- Explicit delegation for frequently-used methods (mypy-visible) ---
 

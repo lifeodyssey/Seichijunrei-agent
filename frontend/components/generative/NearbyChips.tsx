@@ -25,6 +25,7 @@ interface NearbyChipsProps {
 // Color palette — cycles through 6 distinct hues matching map pin colors.
 // ---------------------------------------------------------------------------
 
+// TODO: replace with design system CSS variables
 export const CHIP_COLORS: {
   bg: string;
   text: string;

@@ -20,6 +20,7 @@ const TOOL_ICONS: Record<string, string> = {
   clarify: "\u2753",
 };
 
+// TODO: move to i18n dictionary
 /** User-friendly tool labels (not raw LLM thoughts) */
 const TOOL_LABELS: Record<string, string> = {
   resolve_anime: "Resolving anime title...",

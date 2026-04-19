@@ -112,10 +112,10 @@ class TestResponseCache:
         await cache.set("key2", {"data": "value2"})
         await cache.set("key3", {"data": "value3"})
 
-        # Verify they exist
-        assert await cache.get("key1") is not None
-        assert await cache.get("key2") is not None
-        assert await cache.get("key3") is not None
+        # Verify they exist with correct values
+        assert await cache.get("key1") == {"data": "value1"}
+        assert await cache.get("key2") == {"data": "value2"}
+        assert await cache.get("key3") == {"data": "value3"}
 
         # Clear all
         await cache.clear()

@@ -175,11 +175,10 @@ describe("Clarification (card layout)", () => {
       candidates: [CANDIDATE_WITH_COVER],
       onSuggest,
     });
-    // Simulate img error
+    // Simulate img error — img must exist since candidate has cover_url
     const img = screen.queryByAltText(CANDIDATE_WITH_COVER.title);
-    if (img) {
-      fireEvent.error(img);
-    }
+    expect(img).toBeTruthy();
+    fireEvent.error(img!);
     // Card button must still be present and clickable
     const card = screen.getByRole("button", { name: /涼宮ハルヒの憂鬱/ });
     fireEvent.click(card);

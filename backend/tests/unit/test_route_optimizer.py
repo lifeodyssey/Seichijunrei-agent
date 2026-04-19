@@ -46,63 +46,63 @@ def test_haversine_short_distance() -> None:
 def test_validate_rejects_null_island() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 0.0, "longitude": 0.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row, got {len(invalid)}"
 
 
 def test_validate_keeps_valid() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 35.0, "longitude": 139.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 1
-    assert len(invalid) == 0
+    assert len(valid) == 1, f"Expected 1 valid row, got {len(valid)}"
+    assert len(invalid) == 0, f"Expected no invalid rows, got {len(invalid)}"
 
 
 def test_validate_rejects_missing_lat() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "longitude": 139.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows for missing lat, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row for missing lat, got {len(invalid)}"
 
 
 def test_validate_rejects_missing_lng() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 35.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows for missing lng, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row for missing lng, got {len(invalid)}"
 
 
 def test_validate_rejects_out_of_range_lat() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 100.0, "longitude": 139.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows for out-of-range lat, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row for out-of-range lat, got {len(invalid)}"
 
 
 def test_validate_rejects_out_of_range_lng() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 35.0, "longitude": 200.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows for out-of-range lng, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row for out-of-range lng, got {len(invalid)}"
 
 
 def test_validate_rejects_non_numeric() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": "bad", "longitude": 139.0}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 0
-    assert len(invalid) == 1
+    assert len(valid) == 0, f"Expected no valid rows for non-numeric lat, got {len(valid)}"
+    assert len(invalid) == 1, f"Expected 1 invalid row for non-numeric lat, got {len(invalid)}"
 
 
 def test_validate_accepts_int_coords() -> None:
     rows: list[dict[str, object]] = [{"id": "a", "latitude": 35, "longitude": 139}]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 1
-    assert len(invalid) == 0
+    assert len(valid) == 1, f"Expected 1 valid row for int coords, got {len(valid)}"
+    assert len(invalid) == 0, f"Expected no invalid rows for int coords, got {len(invalid)}"
 
 
 def test_validate_empty_input() -> None:
     valid, invalid = validate_coordinates([])
-    assert valid == []
-    assert invalid == []
+    assert valid == [], f"Expected empty valid list, got {valid}"
+    assert invalid == [], f"Expected empty invalid list, got {invalid}"
 
 
 def test_validate_mixed_rows() -> None:
@@ -112,8 +112,8 @@ def test_validate_mixed_rows() -> None:
         {"id": "missing", "longitude": 139.0},
     ]
     valid, invalid = validate_coordinates(rows)
-    assert len(valid) == 1
-    assert len(invalid) == 2
+    assert len(valid) == 1, f"Expected 1 valid row in mixed input, got {len(valid)}"
+    assert len(invalid) == 2, f"Expected 2 invalid rows in mixed input, got {len(invalid)}"
 
 
 # ── Clustering tests ─────────────────────────────────────────────────

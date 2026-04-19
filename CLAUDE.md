@@ -227,6 +227,38 @@ Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-desig
 
 If gstack skills aren't working, run `cd ~/.claude/skills/gstack && ./setup` to rebuild.
 
+## Code Quality Standards
+
+### 1-10-50 Rule (Clean Code)
+- Functions: max 10 lines. Extract method if longer.
+- Classes: max 50 lines (imports excluded). Split if larger.
+- Files: max 300 lines. Module is doing too much if larger.
+- Indentation: max 2 levels. Flatten with early return or extract.
+
+### Type Safety
+- No `dict[str, object]` — use dataclass or Pydantic model
+- No `assert` for runtime validation — use `if not x: raise ValueError(...)`
+- No bare `str` for IDs/statuses — use NewType, Literal, or Enum
+- No `Any` type — use `object` + `isinstance()` narrowing
+
+### Design Tokens (Frontend)
+- No `bg-white` — use `bg-[var(--color-bg)]`
+- No `bg-gray-*` — use `bg-[var(--color-muted)]`
+- No inline `style={}` for static values — use Tailwind classes with `cn()`
+- No hardcoded Tailwind palette colors — reference CSS variables from `globals.css`
+
+### Test Quality
+- No timing-dependent assertions — mock the clock
+- No conditional logic in tests — split into separate tests
+- No `assert x is not None` — assert specific values
+- No CSS class assertions — test behavior via roles/labels/text
+- Max 200 lines per test file. Max 5 mocks per test.
+
+### TDD Skills
+- Backend: invoke `/backend-tdd` before writing Python code
+- Frontend: invoke `/frontend-tdd` before writing React/TypeScript code
+- Agent definitions: `.claude/agents/executor.md` (implements), `.claude/agents/reviewer.md` (reviews)
+
 ## Working Expectations
 
 - Prefer updating the current runtime; do not reintroduce alternate stacks

@@ -8,7 +8,6 @@ import type {
   TimedStop,
   TransitLeg,
 } from "../../lib/types";
-import { useDict } from "../../lib/i18n-context";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Drawer } from "vaul";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -196,9 +195,8 @@ interface RoutePlannerWizardProps {
 }
 
 export default function RoutePlannerWizard({ data }: RoutePlannerWizardProps) {
-  const _dict = useDict();
   const isMobile = useMediaQuery("(max-width: 1023px)");
-  const [_pacing, setPacing] = useState<"chill" | "normal" | "packed">(
+  const [, setPacing] = useState<"chill" | "normal" | "packed">(
     data.route.timed_itinerary?.pacing ?? "normal",
   );
   const [drawerOpen, setDrawerOpen] = useState(false);

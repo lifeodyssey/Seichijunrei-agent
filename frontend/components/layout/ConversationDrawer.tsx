@@ -31,6 +31,7 @@ function ConversationItem({ record, isActive, onSelect }: ConversationItemProps)
     <div
       key={record.session_id}
       data-testid={`conversation-item-${record.session_id}`}
+      data-active={isActive || undefined}
       className={[
         "mb-0.5 flex items-start gap-2 rounded-lg px-3 py-2.5 cursor-pointer transition",
         isActive

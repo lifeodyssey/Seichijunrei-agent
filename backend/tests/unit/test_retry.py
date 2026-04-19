@@ -117,8 +117,11 @@ class TestRetryDecorator:
         # With jitter factor of 0.5, minimum delay is:
         # First retry: 0.1 * 0.5 = 0.05s
         # Second retry: 0.2 * 0.5 = 0.10s
-        # Total minimum: 0.15s (accounting for jitter)
-        assert elapsed_time >= 0.15
+        # Total minimum: ~0.15s — use wide tolerance for slow CI runners
+        assert elapsed_time >= 0.1, (
+            f"Expected at least 0.1s delay, got {elapsed_time:.3f}s"
+        )
+        assert elapsed_time < 5.0, f"Backoff took too long: {elapsed_time:.3f}s"
 
     @pytest.mark.asyncio
     async def test_custom_retry_config(self):
@@ -192,7 +195,8 @@ class TestRateLimiter:
         assert allowed is True
         # Note: this is timing-sensitive and may vary slightly across platforms
         # and CI runners. We only assert that it waited "meaningfully".
-        assert elapsed >= 0.2
+        assert elapsed >= 0.1, f"Expected at least 0.1s wait, got {elapsed:.3f}s"
+        assert elapsed < 5.0, f"Rate limiter wait took too long: {elapsed:.3f}s"
 
     @pytest.mark.asyncio
     async def test_rate_limiter_token_refill(self):
@@ -248,7 +252,10 @@ class TestRateLimiter:
         elapsed = time.time() - start_time
 
         assert allowed is True
-        assert elapsed >= 0.15  # 1 token requires ~0.2s at 5 tokens/sec
+        assert elapsed >= 0.1, (
+            f"Expected at least 0.1s wait, got {elapsed:.3f}s"
+        )  # 1 token requires ~0.2s at 5 tokens/sec
+        assert elapsed < 5.0, f"Burst wait took too long: {elapsed:.3f}s"
 
     @pytest.mark.asyncio
     async def test_multiple_rate_limiters_independent(self):

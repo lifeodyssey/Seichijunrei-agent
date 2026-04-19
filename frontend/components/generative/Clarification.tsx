@@ -106,6 +106,7 @@ function CandidateCard({
   onSelect: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
+  const { clarification: t } = useDict();
 
   return (
     <button
@@ -138,7 +139,7 @@ function CandidateCard({
           {candidate.title}
         </span>
         <span className="text-[11px] text-[var(--color-muted-fg)]">
-          {candidate.spot_count} {dict.clarification.spot_label ?? "spots"} · {candidate.city}
+          {candidate.spot_count} {t.spot_label ?? "spots"} · {candidate.city}
         </span>
       </span>
 

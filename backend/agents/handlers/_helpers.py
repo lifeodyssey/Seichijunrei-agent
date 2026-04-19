@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from backend.agents.retriever import RetrievalResult
 from backend.agents.route_export import build_google_maps_url, build_ics_calendar
 from backend.agents.route_optimizer import (
@@ -9,6 +11,28 @@ from backend.agents.route_optimizer import (
     cluster_by_location,
     validate_coordinates,
 )
+
+
+@dataclass(frozen=True)
+class RoutePlanParams:
+    """Typed parameters for route optimization, replacing raw dict extraction."""
+
+    origin: str | None
+    pacing: str  # "normal" | "chill" | "packed"
+    start_time: str
+
+    @classmethod
+    def from_raw(cls, params: dict[str, object], origin: str | None) -> RoutePlanParams:
+        pacing_raw = params.get("pacing")
+        pacing = (
+            pacing_raw
+            if isinstance(pacing_raw, str)
+            and pacing_raw in ("chill", "normal", "packed")
+            else "normal"
+        )
+        start_raw = params.get("start_time")
+        start_time = start_raw if isinstance(start_raw, str) else "09:00"
+        return cls(origin=origin, pacing=pacing, start_time=start_time)
 
 
 def rewrite_image_urls(rows: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -81,17 +105,12 @@ def optimize_route(
     # 2. Cluster by location
     clusters = cluster_by_location(valid_rows, threshold_m=50.0)
 
-    # 3. Read pacing/start_time from params (wizard re-optimization) or defaults
-    pacing_raw = params.get("pacing")
-    pacing = (
-        pacing_raw
-        if isinstance(pacing_raw, str) and pacing_raw in ("chill", "normal", "packed")
-        else "normal"
-    )
-    start_raw = params.get("start_time")
-    start_time = start_raw if isinstance(start_raw, str) else "09:00"
+    # 3. Extract typed route params
+    rp = RoutePlanParams.from_raw(params, origin)
+    pacing = rp.pacing
+    start_time = rp.start_time
 
-    route_origin = _parse_coordinate_origin(origin)
+    route_origin = _parse_coordinate_origin(rp.origin)
 
     # 4. Build timed itinerary (includes nearest-neighbor sort internally)
     try:

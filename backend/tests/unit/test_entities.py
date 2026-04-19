@@ -428,8 +428,8 @@ class TestRoute:
         )
         assert route.points_count == 4
 
-    def test_route_bangumi_grouping(self, sample_route_data):
-        """Test grouping points by bangumi."""
+    def test_route_groups_points_by_bangumi(self, sample_route_data):
+        """Test that route groups points into the correct number of bangumi groups."""
         station, segments = sample_route_data
 
         route = Route(
@@ -440,11 +440,41 @@ class TestRoute:
         )
 
         groups = route.get_bangumi_groups()
-        assert len(groups) == 2
-        assert "BG001" in groups
-        assert "BG002" in groups
-        assert len(groups["BG001"]) == 2  # First 2 points
-        assert len(groups["BG002"]) == 2  # Last 2 points
+        assert len(groups) == 2, f"Expected 2 bangumi groups, got {len(groups)}"
+
+    def test_route_group_keys_match_bangumi_ids(self, sample_route_data):
+        """Test that bangumi group keys match the bangumi IDs in the route."""
+        station, segments = sample_route_data
+
+        route = Route(
+            origin=station,
+            segments=segments,
+            total_distance_km=10.5,
+            total_duration_minutes=90,
+        )
+
+        groups = route.get_bangumi_groups()
+        assert "BG001" in groups, "Expected BG001 in bangumi groups"
+        assert "BG002" in groups, "Expected BG002 in bangumi groups"
+
+    def test_route_group_counts_match_points(self, sample_route_data):
+        """Test that each bangumi group contains the correct number of points."""
+        station, segments = sample_route_data
+
+        route = Route(
+            origin=station,
+            segments=segments,
+            total_distance_km=10.5,
+            total_duration_minutes=90,
+        )
+
+        groups = route.get_bangumi_groups()
+        assert len(groups["BG001"]) == 2, (
+            f"Expected 2 points in BG001, got {len(groups['BG001'])}"
+        )
+        assert len(groups["BG002"]) == 2, (
+            f"Expected 2 points in BG002, got {len(groups['BG002'])}"
+        )
 
 
 class TestSeichijunreiSession:

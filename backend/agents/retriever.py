@@ -247,7 +247,8 @@ class Retriever:
             return sql_result, metadata
 
         bangumi_id = request.bangumi_id
-        assert bangumi_id is not None
+        if bangumi_id is None:
+            raise ValueError("bangumi_id required for fallback retrieval")
 
         fallback_meta = await self._write_through_bangumi_points(bangumi_id)
         metadata.update(fallback_meta)

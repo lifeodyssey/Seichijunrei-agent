@@ -90,7 +90,7 @@ describe("AppShell layout", () => {
 
   it("renders without crashing", () => {
     const { container } = render(<AppShell />);
-    expect(container.firstChild).not.toBeNull();
+    expect(container.firstChild).toBeInTheDocument();
   });
 
   it("renders icon sidebar on desktop viewport", () => {
@@ -113,9 +113,9 @@ describe("AppShell layout", () => {
     const sidebar = container.querySelector("[data-testid='icon-sidebar']");
     const chatPanel = container.querySelector("[data-testid='chat-panel']");
     const resultPanel = container.querySelector("[data-testid='result-panel']");
-    expect(sidebar).not.toBeNull();
-    expect(chatPanel).not.toBeNull();
-    expect(resultPanel).not.toBeNull();
+    expect(sidebar).toBeInTheDocument();
+    expect(chatPanel).toBeInTheDocument();
+    expect(resultPanel).toBeInTheDocument();
   });
 
   it("does not render old 240px text sidebar", () => {
@@ -137,6 +137,6 @@ describe("AppShell mobile layout", () => {
     // and test that AppShell accepts the mobile state without crashing.
     // Full responsive behaviour is verified in browser AC tests.
     const { container } = render(<AppShell />);
-    expect(container.firstChild).not.toBeNull();
+    expect(container.firstChild).toBeInTheDocument();
   });
 });
