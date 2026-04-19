@@ -58,12 +58,12 @@
     }
   },
   "auth": {
-    "title": "圣地巡礼",
-    "subtitle": "内测版",
+    "title": "登录",
+    "subtitle": "输入邮箱地址获取登录链接",
     "tab_waitlist": "申请内测",
     "tab_login": "登录",
     "email_label": "邮箱地址",
-    "email_placeholder": "you@example.com",
+    "email_placeholder": "邮箱地址",
     "submitting": "提交中...",
     "btn_waitlist": "申请内测资格",
     "btn_login": "发送登录链接",

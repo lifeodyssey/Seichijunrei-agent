@@ -58,12 +58,12 @@
     }
   },
   "auth": {
-    "title": "Seichijunrei",
-    "subtitle": "Internal beta",
+    "title": "Log in",
+    "subtitle": "Enter your email to receive a login link",
     "tab_waitlist": "Join beta",
     "tab_login": "Log in",
     "email_label": "Email address",
-    "email_placeholder": "you@example.com",
+    "email_placeholder": "Email address",
     "submitting": "Sending...",
     "btn_waitlist": "Request access",
     "btn_login": "Send login link",
