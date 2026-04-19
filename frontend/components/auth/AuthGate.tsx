@@ -252,7 +252,7 @@ export default function AuthGate() {
           data-testid="floating-cards"
           className="pointer-events-none absolute inset-0 overflow-hidden"
         >
-          {FLOAT_CARDS.map((card, i) => (
+          {FLOAT_CARDS.map((card) => (
             <div
               key={card.cls}
               className="absolute overflow-hidden rounded-xl"
