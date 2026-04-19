@@ -12,7 +12,8 @@ Three-column layout: `AppShell` (sidebar + chat + result panel).
 Key components and their responsibilities:
 - `components/layout/AppShell.tsx` — layout root; owns `activeMessageId` state
 - `components/layout/ResultPanel.tsx` — right column; renders active result
-- `components/layout/ResultDrawer.tsx` — mobile bottom sheet (vaul); wraps ResultPanel
+- `components/layout/ConversationDrawer.tsx` — mobile bottom sheet (vaul); conversation history
+- `components/layout/ResultSheet.tsx` — mobile result sheet
 - `components/generative/registry.ts` — `COMPONENT_REGISTRY`; add new components here
 - `components/generative/GenerativeUIRenderer.tsx` — registry lookup; entry point for all results
 - `components/chat/MessageBubble.tsx` — bot messages: text + `◈` anchor only (no inline results)

@@ -1,288 +1,226 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working in this repository.
+This file provides guidance to Claude Code and other agentic tools working in this repository.
 
 ## What This Repo Is
 
 Seichijunrei is an anime pilgrimage search and route planning service.
 
-**Implementation status:** Core runtime + Cloudflare deploy path are in place. ReAct agent architecture v2 deployed. Active work lives in `docs/superpowers/specs/` (see Harness Engineering System below for status) and `docs/superpowers/plans/` (implementation cards).
+Implementation status: Core runtime + Cloudflare deploy path in place. ReAct agent v2 deployed.
 
-## Current Commands
+## Source Of Truth
 
-```bash
-# Setup
-make dev
+- Runtime entry: `backend/interfaces/fastapi_service.py` → `public_api.py` → `agents/pipeline.py`
+- Shared types: `backend/agents/models.py`
+- Frontend tokens: `frontend/app/globals.css`
+- Deploy wiring: `wrangler.toml` + `worker/worker.js`
+- Frontend conventions: `frontend/AGENTS.md`
+- Detailed architecture: `docs/ARCHITECTURE.md`
+- Deployment ops: `docs/ops/deployment.md`
+- Testing strategy: `docs/testing-strategy.md`
 
-# Runtime
-make serve
+## Directory Structure
 
-# Tests
-make test                 # unit tests
-make test-integration     # stable integration acceptance tests
-make test-all             # unit + integration
-make test-eval            # model-backed evals (separate from stable CI)
-
-# Code quality
-make lint                 # ruff check + format check
-make format               # ruff auto-format + fix
-make typecheck            # mypy strict type check
-make check                # lint + typecheck + test
+```
+backend/              # Python runtime
+  agents/             # AI agents (planner, executor, retriever)
+  domain/             # Entities, value objects, LLM schemas
+  infrastructure/     # External adapters (DB, observability, gateways)
+  interfaces/         # API surface (fastapi_service, public_api)
+  tests/              # unit, integration, eval
+frontend/             # Next.js static export
+supabase/migrations/  # DDL migrations (timestamp-ordered)
+worker/worker.js      # Cloudflare Worker (auth + routing)
 ```
 
+## Commands
+
+```bash
+make dev              # setup
+make serve            # backend :8080 + frontend :3000
+make test             # unit tests
+make test-integration # integration tests
+make test-all         # unit + integration
+make test-eval        # model-backed evals (separate)
+make lint             # ruff check + format check
+make format           # ruff auto-format + fix
+make typecheck        # mypy strict
+make check            # lint + typecheck + test
+```
+
+Frontend: `cd frontend && npm ci && npm run dev`
+
 Notes:
-- pytest is configured with `--asyncio-mode=auto`
-- stable test gates: `backend/tests/unit` and `backend/tests/integration`
-- `backend/tests/eval` depends on external model availability — intentionally separate
-- pre-commit hooks run ruff + mypy on every commit
+- pytest: `--asyncio-mode=auto`
+- pre-commit hooks: ruff + mypy on every commit
 
 ## Architecture
 
-### Pipeline
-
 ```
-User text
-    ↓
-ReActPlannerAgent   →  LLM structured output  →  ExecutionPlan
-    ↓
-ExecutorAgent       →  deterministic tool dispatch  →  PipelineResult
+User text → ReActPlannerAgent (LLM → ExecutionPlan) → ExecutorAgent (deterministic → PipelineResult)
 ```
 
-No IntentAgent. Intent reasoning is part of the planner's LLM pass.
+No IntentAgent. See `docs/ARCHITECTURE.md` for full details.
 
-### Agents
+### Tools (ExecutorAgent dispatches)
 
-- `backend/agents/models.py` — Shared types: `ToolName`, `PlanStep`, `ExecutionPlan`, `RetrievalRequest`
-- `backend/agents/planner_agent.py` — `ReActPlannerAgent`: Pydantic AI agent, `output_type=ExecutionPlan`, `retries=2`
-- `backend/agents/executor_agent.py` — Deterministic dispatch for 7 tools; static message templates; no LLM calls
-- `backend/agents/retriever.py` — `sql`, `geo`, `hybrid` strategies; write-through on DB miss
-- `backend/agents/sql_agent.py` — Structured SQL retrieval; accepts `RetrievalRequest`
-- `backend/agents/pipeline.py` — Two lines: `create_plan(text, locale)` → `execute(plan)`
+| Tool | Description |
+|---|---|
+| `resolve_anime` | DB-first title→bangumi_id; API fallback; write-through |
+| `search_bangumi` | Retriever → points by bangumi_id |
+| `search_nearby` | Geo retrieval by location + radius |
+| `plan_route` | Nearest-neighbor route ordering |
+| `plan_selected` | Route user-selected point IDs |
+| `greet_user` | Ephemeral greeting/identity response |
+| `answer_question` | QA pass-through |
+| `clarify` | Disambiguation when query is ambiguous |
 
-### Tools (ExecutorAgent dispatches these)
+## Guardrails
 
-| Tool | Handler | Description |
-|---|---|---|
-| `resolve_anime` | `_execute_resolve_anime` | DB-first title→bangumi_id; API fallback; write-through |
-| `search_bangumi` | `_execute_search_bangumi` | Retriever → points by bangumi_id |
-| `search_nearby` | `_execute_search_nearby` | Geo retrieval by location + radius |
-| `plan_route` | `_execute_plan_route` | Nearest-neighbor route ordering |
-| `plan_selected` | `_execute_plan_selected` | Route user-selected point IDs |
-| `greet_user` | `_execute_greet_user` | Ephemeral greeting/identity response |
-| `answer_question` | `_execute_answer_question` | QA pass-through |
-
-### Self-Evolve via `resolve_anime`
-
-For any anime query the planner emits `resolve_anime` as the first step.
-`resolve_anime(title)` → fuzzy-match Supabase `bangumi` table → on miss: query Bangumi.tv API → upsert row → return `bangumi_id`.
-DB is source of truth. No hardcoded anime list in code.
-
-### Interfaces
-
-- `backend/interfaces/public_api.py` — Stable facade over `run_pipeline`; session persistence; route history; `ui` field in response; request logging
-- `backend/interfaces/fastapi_service.py` — FastAPI service: `/healthz`, `/v1/runtime`, `/v1/runtime/stream`, `/v1/feedback`, conversations, routes
-
-### Infrastructure
-
-- `backend/infrastructure/supabase/client.py` — asyncpg; tables: `bangumi`, `points`, `feedback`, `request_log`, `api_keys`
-- `supabase/migrations/` — DDL migrations (apply in order before each deploy)
-- `backend/infrastructure/session/` — in-memory session backend
-- `backend/infrastructure/observability/` — OpenTelemetry setup
-- `backend/infrastructure/gateways/` — Bangumi.tv (+ `search_by_title`), Anitabi
-
-### Auth
-
-Auth is enforced in the Cloudflare Worker (`worker/worker.js`) before reaching the container.
-
-- Human users: `Authorization: Bearer <supabase_jwt>` (magic-link session)
-- Agent/CLI users: `Authorization: Bearer sk_<hex>` (API key — stored as SHA-256 hash in `api_keys` table)
-- `/healthz` and static frontend assets: no auth required
-- Container trusts `X-User-Id` and `X-User-Type` headers set by the Worker
-
-### Frontend
-
-Three-column layout (light theme — 京吹夏季 palette, KyoAni-inspired):
-
-```
-┌─────────┬──────────────────┬──────────────────────┐
-│ Sidebar │ Chat Panel 360px │ Result Panel flex-1  │
-│ 240px   │ text-only        │ GenerativeUIRenderer │
-│ History │ + ◈ anchors      │ (empty: map bg)      │
-└─────────┴──────────────────┴──────────────────────┘
-```
-
-Key components:
-- `frontend/components/layout/AppShell.tsx` — three-column, `activeMessageId` state
-- `frontend/components/layout/ResultPanel.tsx` — renders active result via `GenerativeUIRenderer`
-- `frontend/components/generative/registry.ts` — `COMPONENT_REGISTRY: Record<string, ComponentRenderer>`
-- `frontend/components/generative/GenerativeUIRenderer.tsx` — registry lookup; replaces `IntentRenderer`
-- `frontend/components/chat/MessageBubble.tsx` — bot messages: text + `◈` anchor card only
-- Mobile: `ResultDrawer` (vaul bottom sheet) activated by `◈` anchor tap
-
-Design tokens (`frontend/app/globals.css`):
-- `--color-bg: oklch(98% 0.008 218)` · `--color-primary: oklch(60% 0.148 240)` · `--app-font-display: "Shippori Mincho B1"`
-- Light theme — no dark mode toggle, no `@media (prefers-color-scheme)` conditional
-
-### Eval Infrastructure
-
-- `backend/tests/eval/datasets/plan_quality_v1.json` — 50+ cases × 3 locales
-- `backend/tests/eval/test_plan_quality.py` — pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp
-- `backend/tools/eval_scorer.py` — batch LLM judge; writes `plan_quality_score` to `request_log`
-- `backend/tools/eval_feedback_miner.py` — mines `feedback(rating='bad')` → prompt-improvement suggestions
-- `backend/clients/python/seichijunrei_client.py` — sync/async Python client for agent/CLI use
-
-## Typing Rules
-
-- **No `Any`** in source files — zero explicit `Any` across the codebase
-- Use `object` at trust boundaries (JSON parsing, external API responses), then narrow with `isinstance()`
-- Use `Protocol` types for duck-typing OTel and similar optional dependencies
-- Use `cast()` at library boundaries where the real type is known but stubs are imprecise
-- Pydantic `BaseModel` subclasses trigger false-positive `explicit-any` from metaclass stubs — suppressed via mypy overrides in `pyproject.toml`
+- Orchestration: `ReActPlannerAgent → ExecutorAgent` only; no IntentAgent split
+- ExecutorAgent: deterministic, no LLM calls — use static `_MESSAGES` templates
+- Auth: enforced at Cloudflare Worker edge; container trusts forwarded headers
+- Frontend: Next.js static export (`output: "export"`); no server-only features
+- No `Any` in Python — use `object` + `isinstance()` at trust boundaries
+- New UI component = register in `frontend/components/generative/registry.ts` only
+- Run `make check` before and after any change
 
 ## Deployment
 
-- Container: Python FastAPI service via `Dockerfile` → uploaded to Cloudflare during `wrangler deploy`
-- Frontend: Next.js static export (`output: 'export'`) → `frontend/out/` → CF ASSETS binding
-- Worker: `worker/worker.js` — routes `/v1/*` to container, static to ASSETS, enforces auth
-- Deploy: GitHub Actions `deploy.yml` (or local `npx wrangler@4 deploy`)
-- DB migrations: apply `supabase/migrations/` in order before each deploy (see `docs/ops/deployment.md`)
+**Tag-based deploy:** push to main triggers CI (lint + test) but NOT deploy.
+Deploy is triggered only by pushing a version tag.
 
-## File Placement
-
-- Keep runtime entrypoints at the repository root or under `backend/interfaces/`
-- Keep root runtime-critical files in place: `Dockerfile`, `Makefile`, `pyproject.toml`, `wrangler.toml`, `package.json`
-- Put operational docs under `docs/ops/`
-- Put iteration artifacts under `docs/iterations/`
-- Keep implementation plans under `docs/superpowers/plans/`
-- Leave short compatibility stubs when moving long-lived docs that may still be linked externally
-
-## Harness Engineering System
-
-Iteration work uses a 4-role agent harness with strict capability boundaries. Agent definitions live in `.claude/agents/`. Orchestration via `/iteration-planning` (spec → cards) and `/iteration-execution` (cards → PRs).
-
-### Roles
-
-| Role | Agent def | Can do | Cannot do |
-|---|---|---|---|
-| **Planner** | `.claude/agents/planner.md` | Read code, run reviews, write specs | Write code, create PRs, run tests |
-| **Executor** | `.claude/agents/executor.md` | Write code + tests in worktree, create PR | Merge PRs, modify files outside card scope |
-| **Reviewer** | `.claude/agents/reviewer.md` | Read diffs, run evals, post findings | Write/edit code, merge PRs |
-| **Tester** | `.claude/agents/tester.md` | Browse app, test API, take screenshots | Read source code, write code |
-
-### Workflow
-
-```
-Planner → spec (docs/superpowers/specs/)
-   ↓
-Coordinator → cards + wave graph (docs/superpowers/plans/)
-   ↓
-Per wave (parallel within wave, sequential across waves):
-   Executor → worktree branch → PR
-   Wait 10 min for bot comments (CodeRabbit, Codecov, Codacy, Qodo)
-   Reviewer → read diff + bot comments → approve/request_changes
-   ↓
-Merge → rebase remaining PRs → next wave
-   ↓
-After all waves:
-   Tester → browser QA + API tests → evidence as PR comments
-   Retro → GitHub issue with harness metrics
+```bash
+git tag v1.x.x && git push origin v1.x.x  # triggers deploy
 ```
 
-### Agent Dispatch Rules
+Flow: CI green → Tester validates on main → Tester tags → CI deploys to production.
 
-- Use `subagent_type="executor"` with `model="sonnet"` for Executor agents (reads `.claude/agents/executor.md`; has Bash, Read, Write, Edit, Glob, Grep, Skill, LSP).
-- Use `subagent_type="reviewer"` for Reviewer (has Read/Grep/Bash but no Write/Edit)
-- Use `isolation="worktree"` for Executor agents when creating new branches. For fixes on existing worktrees, omit `isolation` and pass the worktree path explicitly in the prompt.
-- In worktrees: use `uv tool run ruff format` (not `uv run ruff format`)
-- Reviewer should check Codecov patch coverage >= 95% (P1 if below), unless the change is doc-only or Codecov is unavailable.
+- Container: FastAPI via Dockerfile → Cloudflare container
+- Frontend: static export → `frontend/out/` → CF ASSETS binding
+- Worker: routes `/v1/*` to container, static to ASSETS
+- DB migrations: applied during deploy step
 
-### Quality Ratchet
+## Test Environment
 
-Every AC in a card must have:
-- A test type annotation (`-> unit | integration | eval | browser | api`)
-- A corresponding test in the PR diff
-- Reviewer verifies: `ac_total == ac_with_test`
+Local testing uses `supabase start` (full Supabase via Docker: Postgres + PostGIS + GoTrue + PostgREST):
 
-### Hook
+```bash
+supabase start                    # starts all Supabase services locally
+# Outputs: API URL (localhost:54321), anon key, service_role key, DB URL (localhost:54322)
+# Migrations from supabase/migrations/ are applied automatically
 
-- `.claude/hookify.block-secrets-in-pr.local.md` — blocks `gh pr comment/review` commands containing secrets/tokens
+# Backend — connect to local Supabase:
+export SUPABASE_URL=http://localhost:54321
+export SUPABASE_DB_URL=postgresql://postgres:postgres@localhost:54322/postgres
+make serve
 
-### Specs Index
+# Frontend — set local Supabase in .env.local:
+# NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=<from supabase start output>
+cd frontend && npm run dev
 
-All specs at `docs/superpowers/specs/`. Status:
-- **LANDED**: redesign-03/31, memory-04/01, compact-04/01, greeting-04/02, supabase-04/02, qa-bugfix-04/07, agent-arch-04/08, frontend-redesign-04/08, production-bugfix-04/08
-- **IN PROGRESS**: bug03-route-planning-04/11 (Wave 1 merged, Waves 2-3 pending)
-- **READY (harness format)**: refactor-remaining-04/11, test-infra-remaining-04/11, seo-geo-harness-04/11, layered-eval-harness-04/11
-- **SUPERSEDED**: ux-improvement-04/05 (90%, 2 scraps left), full-stack-refactor-04/07 (superseded by refactor-remaining), test-infrastructure-04/08 (superseded by test-infra-remaining), seo-geo-04/08 (superseded by seo-geo-harness), layered-eval-04/10 (superseded by layered-eval-harness)
-
-### Testing Strategy
-
-See `docs/testing-strategy.md` for the full test pyramid, mock rules, coverage targets, and reviewer checklist.
-
-## gstack
-
-Use `/browse` from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
-
-Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /retro, /investigate, /document-release, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn.
-
-If gstack skills aren't working, run `cd ~/.claude/skills/gstack && ./setup` to rebuild.
+supabase stop                     # cleanup
+```
 
 ## Code Quality Standards
 
-### 1-10-50 Rule (Clean Code)
-- Functions: max 10 lines. Extract method if longer.
-- Classes: max 50 lines (imports excluded). Split if larger.
-- Files: max 300 lines. Module is doing too much if larger.
+### 1-10-50 Rule
+- Functions: max 10 lines. Classes: max 50 lines. Files: max 300 lines.
 - Indentation: max 2 levels. Flatten with early return or extract.
 
 ### Type Safety
 - No `dict[str, object]` — use dataclass or Pydantic model
 - No `assert` for runtime validation — use `if not x: raise ValueError(...)`
 - No bare `str` for IDs/statuses — use NewType, Literal, or Enum
-- No `Any` type — use `object` + `isinstance()` narrowing
+- No `Any` — use `object` + `isinstance()` narrowing; Protocol for duck-typing, `cast()` at library boundaries (details: @docs/typing-rules.md)
 
-### Design Tokens (Frontend)
-- No `bg-white` — use `bg-[var(--color-bg)]`
-- No `bg-gray-*` — use `bg-[var(--color-muted)]`
-- No inline `style={}` for static values — use Tailwind classes with `cn()`
-- No hardcoded Tailwind palette colors — reference CSS variables from `globals.css`
+### Design Tokens
+- See `frontend/AGENTS.md` for full token list and component conventions
+- No `bg-white` → `bg-[var(--color-bg)]`; no `bg-gray-*` → `bg-[var(--color-muted)]`
+- No hardcoded Tailwind palette colors — use CSS variables from globals.css
 
 ### Test Quality
 - No timing-dependent assertions — mock the clock
 - No conditional logic in tests — split into separate tests
-- No `assert x is not None` — assert specific values
-- No CSS class assertions — test behavior via roles/labels/text
 - Max 200 lines per test file. Max 5 mocks per test.
 
-### TDD Skills
+### TDD
 - Backend: invoke `/backend-tdd` before writing Python code
 - Frontend: invoke `/frontend-tdd` before writing React/TypeScript code
-- Agent definitions: `.claude/agents/executor.md` (implements), `.claude/agents/reviewer.md` (reviews)
 
-## Working Expectations
+## Harness Engineering System
 
-- Prefer updating the current runtime; do not reintroduce alternate stacks
-- Keep retrieval deterministic unless a task explicitly changes that rule
-- ExecutorAgent must not make LLM calls — use static `_MESSAGES` templates
-- Adding a new UI component = register in `frontend/components/generative/registry.ts` only
-- Run `make check` before and after any change
+4-role agent harness. Definitions in `.claude/agents/`. Orchestration via `/iteration-planning` and `/iteration-execution`.
 
-## Skill routing
+### Roles
 
-When the user's request matches an available skill, ALWAYS invoke it using the Skill
-tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
-The skill has specialized workflows that produce better results than ad-hoc answers.
+| Role | Can do | Cannot do |
+|---|---|---|
+| Planner | Read code, write specs | Write code, create PRs |
+| Executor | Write code + tests in worktree, create PR | Merge PRs, modify outside scope |
+| Reviewer | Read diffs, run evals, approve/reject | Write code, merge PRs |
+| Tester | Test running app, write E2E/API tests, tag for deploy | Read source code, edit production code |
 
-Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
-- Bugs, errors, "why is this broken", 500 errors → invoke investigate
-- Ship, deploy, push, create PR → invoke ship
-- QA, test the site, find bugs → invoke qa
-- Code review, check my diff → invoke review
-- Update docs after shipping → invoke document-release
-- Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
-- Architecture review → invoke plan-eng-review
-- Save progress, checkpoint, resume → invoke checkpoint
-- Code quality, health check → invoke health
+### Workflow
+
+```
+Planner → spec (docs/superpowers/specs/)
+  ↓
+Coordinator → cards + wave graph (docs/superpowers/plans/)
+  ↓
+Per wave (parallel within wave, sequential across waves):
+  Executor (worktree) → PR
+  Reviewer → approve/request_changes
+  Merge → rebase remaining PRs → next wave
+  ↓
+After all waves:
+  Coordinator → pull main → supabase start → make serve → npm run dev → wait healthz
+  Tester → test all ACs against running app (localhost:8080 + localhost:3000)
+  All pass → Tester: git tag vX.Y.Z → push → CI deploys
+  Coordinator → supabase stop → kill serve
+```
+
+### Agent Dispatch
+
+- Executor: `subagent_type="executor"`, `model="sonnet"`, `isolation="worktree"`
+- Reviewer: `subagent_type="reviewer"` (Read/Grep/Bash, no Write/Edit)
+- Tester: `subagent_type="tester"` (Bash/Read/Write/Skill/WebFetch)
+- In worktrees: `uv tool run ruff format` (not `uv run ruff format`)
+- Reviewer: Codecov patch >= 95% (P1 if below, unless doc-only)
+
+### Quality Ratchet
+
+Every AC: test type annotation (unit|integration|eval|browser|api) + test in PR diff.
+Reviewer verifies: `ac_total == ac_with_test`.
+
+### Hook
+
+`.claude/hookify.block-secrets-in-pr.local.md` — blocks gh pr comment/review containing secrets.
+
+## File Placement
+
+- Runtime: repo root or `backend/interfaces/`
+- Docs: `docs/ops/` (ops), `docs/superpowers/plans/` (cards), `docs/superpowers/specs/` (specs)
+- NEVER save working files to root folder
+
+## gstack
+
+Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+If broken: `cd ~/.claude/skills/gstack && ./setup`
+
+## Skill Routing
+
+IMPORTANT: When request matches a skill, invoke via Skill tool FIRST.
+
+- Bugs, errors → /investigate
+- Ship, deploy, PR → /ship
+- QA, test → /qa
+- Code review → /review
+- Docs after ship → /document-release
+- Retro → /retro
+- Design system → /design-consultation
+- Visual audit → /design-review
+- Architecture → /plan-eng-review
+- Code quality → /health
+- Brainstorming → /office-hours

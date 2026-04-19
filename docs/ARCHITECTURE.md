@@ -71,6 +71,7 @@ class RetrievalRequest(BaseModel):
 | `plan_selected` | `_execute_plan_selected` | Deterministic route for selected point IDs (no planner pass) |
 | `answer_question` | `_execute_answer_question` | Static FAQ response |
 | `greet_user` | `_execute_greet_user` | Onboarding response (sessionless) |
+| `clarify` | `_execute_clarify` | Disambiguation when query is ambiguous |
 
 ## Retriever — `agents/retriever.py`
 
@@ -87,9 +88,9 @@ Accepts `RetrievalRequest` (replaces old `IntentOutput`). Parameterized queries 
 - Writes to `request_log` after every response (best-effort, never raises)
 - Session persistence + route history
 
-## HTTP Service — `interfaces/http_service.py`
+## HTTP Service — `interfaces/fastapi_service.py`
 
-aiohttp. Endpoints: `GET /healthz`, `POST /v1/runtime`, `POST /v1/runtime/stream` (SSE), `POST /v1/feedback`. Auth is NOT enforced here — it is enforced upstream in the CF Worker.
+FastAPI. Main endpoints: `GET /healthz`, `POST /v1/runtime`, `POST /v1/runtime/stream` (SSE), `POST /v1/feedback`, `GET /v1/conversations`, `PATCH /v1/conversations/{id}`, `GET /v1/routes`, `GET /v1/bangumi/popular`, `GET /v1/bangumi/nearby`. Auth is NOT enforced here — it is enforced upstream in the CF Worker.
 
 ## Response Contract
 
@@ -164,17 +165,19 @@ PKCE (`flowType: 'pkce'`) was the previous default but failed cross-browser: the
 └─────────┴──────────────────┴──────────────────────┘
 ```
 
-`◈` anchor click sets `activeMessageId` in AppShell → drives `ResultPanel`. On mobile: opens `ResultDrawer` (vaul bottom sheet).
+`◈` anchor click sets `activeMessageId` in AppShell → drives `ResultPanel`. On mobile: opens `ConversationDrawer` (vaul bottom sheet) or `ResultSheet`.
 
 ### Generative UI Registry
 
 ```typescript
 // frontend/components/generative/registry.ts
 export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
-  PilgrimageGrid:     (r) => <PilgrimageGrid data={r.data} />,
-  RouteVisualization: (r) => <RouteVisualization data={r.data} />,
-  NearbyMap:          (r) => <NearbyMap data={r.data} />,
-  GeneralAnswer:      (r) => <GeneralAnswer data={r.data} />,
+  PilgrimageGrid:     ...,  // search results grid
+  NearbyMap:          ...,  // geo-based nearby map
+  RouteVisualization: ...,  // route display
+  RoutePlannerWizard: ...,  // route planning wizard
+  GeneralAnswer:      ...,  // QA text response
+  Clarification:      ...,  // disambiguation UI
 }
 ```
 
@@ -184,20 +187,7 @@ Adding a new component: register in `COMPONENT_REGISTRY` only. No routing change
 
 Locale is detected client-side from `localStorage` (key `locale`) via `lib/i18n.ts detectLocale()`. Supported values: `ja`, `zh`, `en` (default: `ja`). There is no URL-based locale routing (no `app/[lang]/` path segments).
 
-### Design Tokens
-
-Light theme — no dark mode toggle.
-
-```css
---color-bg:      oklch(98% 0.008 218)
---color-fg:      oklch(20% 0.025 238)
---color-card:    oklch(95% 0.012 215)
---color-muted:   oklch(91% 0.016 218)
---color-primary: oklch(60% 0.148 240)
-
---app-font-display: "Shippori Mincho B1"
---app-font-body:    "Outfit"
-```
+Design tokens: see `frontend/AGENTS.md`.
 
 ## Eval Infrastructure
 
@@ -218,3 +208,4 @@ Light theme — no dark mode toggle.
 - DB is source of truth for anime catalog — no hardcoded lists
 - Frontend component additions require only a registry entry
 - Auth is enforced at the CF Worker edge — container is not auth-aware
+
