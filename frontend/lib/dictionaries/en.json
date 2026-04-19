@@ -32,10 +32,30 @@
     "feat_series": "By Series",
     "feat_series_desc": "Browse locations organized by anime.",
     "login": "Log in",
-    "join_beta": "Join beta",
     "pin_yourname": "Your Name · Shinjuku",
     "pin_euphonium": "Euphonium · Uji",
-    "pin_violet": "Violet Evergarden · Kyoto"
+    "pin_violet": "Violet Evergarden · Kyoto",
+    "landing": {
+      "hero_title": "聖地巡礼",
+      "hero_subtitle": "Find anime filming locations and plan your pilgrimage route",
+      "search_placeholder": "Search anime pilgrimage spots...",
+      "stats_spots": "spots",
+      "stats_anime": "anime",
+      "stats_prefectures": "prefectures",
+      "step1_title": "Search by anime",
+      "step1_desc": "Find pilgrimage spots by anime title",
+      "step2_title": "Discover spots",
+      "step2_desc": "Confirm real locations on the map",
+      "step3_title": "Plan your route",
+      "step3_desc": "Auto-generate the optimal pilgrimage route",
+      "gallery_title": "Popular anime",
+      "gallery_sub": "From classics to new releases",
+      "steps_title": "3 steps to start your pilgrimage",
+      "steps_sub": "Just enter an anime title — we handle the rest.",
+      "scroll_hint": "Scroll down",
+      "login": "Log in",
+      "search_button": "Search"
+    }
   },
   "auth": {
     "title": "Seichijunrei",

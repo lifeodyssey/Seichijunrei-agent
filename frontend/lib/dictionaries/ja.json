@@ -32,10 +32,30 @@
     "feat_series": "作品別",
     "feat_series_desc": "作品ごとに聖地を一覧。",
     "login": "ログイン",
-    "join_beta": "ベータ参加",
     "pin_yourname": "君の名は · 新宿",
     "pin_euphonium": "響け · 宇治",
-    "pin_violet": "ヴァイオレット · 京都"
+    "pin_violet": "ヴァイオレット · 京都",
+    "landing": {
+      "hero_title": "聖地巡礼",
+      "hero_subtitle": "アニメの舞台を探して、巡礼ルートを作ろう",
+      "search_placeholder": "アニメの聖地を探す...",
+      "stats_spots": "スポット",
+      "stats_anime": "作品",
+      "stats_prefectures": "都道府県",
+      "step1_title": "作品で検索",
+      "step1_desc": "アニメのタイトルから聖地を検索",
+      "step2_title": "スポットを発見",
+      "step2_desc": "実際の場所を地図で確認",
+      "step3_title": "ルートを計画",
+      "step3_desc": "最適な巡礼ルートを自動生成",
+      "gallery_title": "人気作品",
+      "gallery_sub": "聖地巡礼の定番から最新作まで",
+      "steps_title": "3ステップで巡礼",
+      "steps_sub": "作品名を入力するだけ。あとは全部おまかせ。",
+      "scroll_hint": "下にスクロール",
+      "login": "ログイン",
+      "search_button": "検索"
+    }
   },
   "auth": {
     "title": "聖地巡礼",
