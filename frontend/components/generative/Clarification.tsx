@@ -105,6 +105,7 @@ function CandidateCard({
   candidate: ClarifyCandidate;
   onSelect: () => void;
 }) {
+  const { clarification: t } = useDict();
   const [imgError, setImgError] = useState(false);
   const { clarification: t } = useDict();
 
