@@ -152,6 +152,14 @@
     "action_route_desc": "Build a pilgrimage route with your chosen spots",
     "popular_label": "Popular anime"
   },
+  "location": {
+    "use_current": "Use current location",
+    "enter_station": "Enter station name",
+    "acquiring": "Acquiring location...",
+    "denied": "Location access denied",
+    "timeout": "Location request timed out",
+    "not_supported": "Your browser does not support geolocation"
+  },
   "clarification": {
     "examples_label": "For example:",
     "search_all": "Search all titles",

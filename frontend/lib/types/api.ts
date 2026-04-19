@@ -27,6 +27,8 @@ export interface RuntimeRequest {
   include_debug?: boolean;
   selected_point_ids?: string[];
   origin?: string | null;
+  origin_lat?: number | null;
+  origin_lng?: number | null;
 }
 
 export interface PublicAPIError {

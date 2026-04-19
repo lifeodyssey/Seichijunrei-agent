@@ -181,11 +181,11 @@ export default function AppShell() {
   }, [isMobile]);
 
   const handleSend = useCallback(
-    (text: string) => {
+    (text: string, coords?: { lat: number; lng: number } | null) => {
       clearSelectedPoints();
       setActiveMessageId(null);
       setDrawerOpen(false);
-      send(text);
+      send(text, coords);
     },
     [clearSelectedPoints, send],
   );
