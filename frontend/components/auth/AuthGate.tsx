@@ -547,7 +547,7 @@ export default function AuthGate() {
 
             <div className="mb-8">
               <h2 className="text-base font-medium text-[var(--color-fg)]">
-                {t.tab_login}
+                {t.title}
               </h2>
               <p className="mt-1 text-xs font-light text-[var(--color-muted-fg)]">
                 {t.subtitle}
@@ -598,7 +598,7 @@ export default function AuthGate() {
                   <button
                     type="submit"
                     disabled={submitting || !authConfigured}
-                    className="min-h-[44px] w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-xs font-medium uppercase tracking-wider text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-40"
+                    className="min-h-[44px] w-full rounded-lg bg-[var(--color-primary)] py-2.5 text-xs font-medium text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:opacity-40"
                     style={{ transitionDuration: "var(--duration-fast)" }}
                   >
                     {submitting ? t.submitting : t.btn_login}
