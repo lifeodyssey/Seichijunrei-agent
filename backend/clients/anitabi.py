@@ -28,6 +28,88 @@ from backend.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _detect_schema(data: object) -> list[object] | None:
+    """Normalize Anitabi response shape to a raw list, or None if empty."""
+    if not data:
+        return None
+    if isinstance(data, list):
+        return data if data else None
+    if not isinstance(data, dict):
+        raise APIError(f"Invalid Anitabi response type: {type(data).__name__}")
+    data_val = data.get("data")
+    if isinstance(data_val, list):
+        return data_val
+    points_val = data.get("points")
+    if isinstance(points_val, list):
+        return points_val
+    raise APIError("Unexpected Anitabi response structure")
+
+
+def _parse_legacy_point(item: dict[str, object], bangumi_id: str) -> Point:
+    """Parse a point item that uses the legacy lat/lng schema."""
+    return Point(
+        id=_str(item["id"]),
+        name=_str(item["name"]),
+        cn_name=_str(item.get("cn_name") or item["name"]),
+        coordinates=Coordinates(
+            latitude=_float(item["lat"]),
+            longitude=_float(item["lng"]),
+        ),
+        bangumi_id=_str(item.get("bangumi_id") or bangumi_id),
+        bangumi_title=_str(item.get("bangumi_title") or bangumi_id),
+        episode=_int_or(item.get("episode", 0)),
+        time_seconds=_int_or(item.get("time_seconds", 0)),
+        screenshot_url=_str(item["screenshot"]),
+        address=_str_or_none(item.get("address")),
+        opening_hours=_str_or_none(item.get("opening_hours")),
+        admission_fee=_str_or_none(item.get("admission_fee")),
+        origin=_str_or_none(item.get("origin")),
+        origin_url=_str_or_none(item.get("origin_url") or item.get("originURL")),
+    )
+
+
+def _parse_official_point(item: dict[str, object], bangumi_id: str) -> Point:
+    """Parse a point item that uses the official geo-array schema."""
+    geo_raw = item.get("geo")
+    if not isinstance(geo_raw, list) or len(geo_raw) < 2:
+        raise ValueError("Missing or invalid 'geo' field")
+    lat, lng = _float(geo_raw[0]), _float(geo_raw[1])
+    screenshot_url = _str_or_none(item.get("image"))
+    if screenshot_url and screenshot_url.startswith("/"):
+        screenshot_url = f"https://image.anitabi.cn{screenshot_url}"
+    cn_name = _str(item.get("cn") or item.get("name") or "")
+    return Point(
+        id=_str(item["id"]),
+        name=_str(item.get("name") or cn_name),
+        cn_name=cn_name,
+        coordinates=Coordinates(latitude=lat, longitude=lng),
+        bangumi_id=str(bangumi_id),
+        bangumi_title=str(bangumi_id),
+        episode=_int_or(item.get("ep", 0)),
+        time_seconds=_int_or(item.get("s", 0)),
+        screenshot_url=screenshot_url,
+        address=None,
+        opening_hours=None,
+        admission_fee=None,
+        origin=_str_or_none(item.get("origin")),
+        origin_url=_str_or_none(item.get("originURL")),
+    )
+
+
+def _build_points(items: list[dict[str, object]], bangumi_id: str) -> list[Point]:
+    """Parse each item dict, skipping any that raise during parsing."""
+    points: list[Point] = []
+    for item in items:
+        try:
+            if "lat" in item and "lng" in item:
+                points.append(_parse_legacy_point(item, bangumi_id))
+            else:
+                points.append(_parse_official_point(item, bangumi_id))
+        except (KeyError, ValueError, TypeError) as e:
+            logger.warning("Skipping invalid point data", error=str(e), data=item)
+    return points
+
+
 class AnitabiClient(BaseHTTPClient):
     """
     Client for the Anitabi anime pilgrimage API.
@@ -100,167 +182,31 @@ class AnitabiClient(BaseHTTPClient):
             raise APIError(f"Failed to get bangumi lite info: {str(e)}") from e
 
     async def get_bangumi_points(self, bangumi_id: str) -> list[Point]:
-        """
-        Get pilgrimage points for a specific anime.
-
-        Args:
-            bangumi_id: Unique identifier of the anime
-
-        Returns:
-            List of Point entities for the anime
+        """Get pilgrimage points for a specific anime.
 
         Raises:
             APIError: On API communication failure or invalid bangumi ID
         """
         try:
             logger.info("Getting points for bangumi", bangumi_id=bangumi_id)
-
-            # NOTE:
-            # The official Anitabi API exposes detailed points at:
-            #   GET /bangumi/{subjectID}/points/detail?haveImage=true
-            # When using the default base_url `https://api.anitabi.cn/bangumi`,
-            # we therefore call `/{id}/points/detail` here.
-            #
-            # In older/internal versions we expected a wrapped response:
-            #   {"data": [...], "total": N}
-            # while the official API may return either:
-            #   - a bare list: [ {...}, {...} ]
-            #   - or an object with a `points` array.
-            #
-            # This method normalizes all of these shapes into a List[Point].
-
-            # Make API request (prefer detailed points with images only)
             response = await self.get(
                 f"/{bangumi_id}/points/detail", params={"haveImage": "true"}
             )
-
-            if not response:
-                logger.warning(
-                    "Empty response when fetching bangumi points", bangumi_id=bangumi_id
-                )
-                return []
-
-            # Normalize different possible response shapes
-            raw_points = None
-
-            if isinstance(response, dict):
-                # Our original/proxy shape: {"data": [...]}
-                if isinstance(response.get("data"), list):
-                    raw_points = response["data"]
-                # Official Anitabi shape: {"points": [...]}
-                elif isinstance(response.get("points"), list):
-                    raw_points = response["points"]
-                else:
-                    raise APIError(
-                        f"Unexpected Anitabi response structure for bangumi {bangumi_id}"
-                    )
-            elif isinstance(response, list):
-                # Official Anitabi /points/detail returns a bare list
-                raw_points = response
-            else:
-                raise APIError(
-                    f"Invalid Anitabi response type for bangumi {bangumi_id}: "
-                    f"{type(response).__name__}"
-                )
-
+            raw_points = _detect_schema(response)
             if not raw_points:
                 logger.warning("No points found for bangumi", bangumi_id=bangumi_id)
                 return []
-
             point_dicts = expect_json_object_list(
                 raw_points, context="get_bangumi_points"
             )
-            points: list[Point] = []
-
-            for item in point_dicts:
-                try:
-                    # Branch 1: legacy/proxy schema used in internal tests.
-                    # Expected fields:
-                    #   id, name, cn_name, lat, lng,
-                    #   bangumi_id, bangumi_title, episode, time_seconds, screenshot
-                    if "lat" in item and "lng" in item:
-                        point = Point(
-                            id=_str(item["id"]),
-                            name=_str(item["name"]),
-                            cn_name=_str(item.get("cn_name") or item["name"]),
-                            coordinates=Coordinates(
-                                latitude=_float(item["lat"]),
-                                longitude=_float(item["lng"]),
-                            ),
-                            bangumi_id=_str(item.get("bangumi_id") or bangumi_id),
-                            bangumi_title=_str(item.get("bangumi_title") or bangumi_id),
-                            episode=_int_or(item.get("episode", 0)),
-                            time_seconds=_int_or(item.get("time_seconds", 0)),
-                            screenshot_url=_str(item["screenshot"]),
-                            address=_str_or_none(item.get("address")),
-                            opening_hours=_str_or_none(item.get("opening_hours")),
-                            admission_fee=_str_or_none(item.get("admission_fee")),
-                            origin=_str_or_none(item.get("origin")),
-                            origin_url=_str_or_none(
-                                item.get("origin_url") or item.get("originURL")
-                            ),
-                        )
-                        points.append(point)
-                        continue
-
-                    # Branch 2: official Anitabi /points/detail schema.
-                    # Example fields:
-                    #   id, name, cn, image, ep, s, geo: [lat, lng], origin, originURL
-                    #
-                    # NOTE (Task 19 research): The `image` field contains a single
-                    # URL. There is no `image_type`, `is_screenshot`, `source`, or
-                    # `category` field to distinguish anime screenshots from user
-                    # photos. The Anitabi web UI pairs images side-by-side (left =
-                    # anime screenshot, right = real photo) but this pairing is done
-                    # client-side. The API returns only one image per point, typically
-                    # the comparison/composite image or screenshot.
-                    geo_raw = item.get("geo")
-                    if not isinstance(geo_raw, list) or len(geo_raw) < 2:
-                        raise ValueError("Missing or invalid 'geo' field")
-                    lat, lng = _float(geo_raw[0]), _float(geo_raw[1])
-
-                    episode_int = _int_or(item.get("ep", 0))
-
-                    screenshot_url = _str_or_none(item.get("image"))
-                    if screenshot_url and screenshot_url.startswith("/"):
-                        screenshot_url = f"https://image.anitabi.cn{screenshot_url}"
-
-                    cn_name = _str(item.get("cn") or item.get("name") or "")
-
-                    point = Point(
-                        id=_str(item["id"]),
-                        name=_str(item.get("name") or cn_name),
-                        cn_name=cn_name,
-                        coordinates=Coordinates(latitude=lat, longitude=lng),
-                        bangumi_id=str(bangumi_id),
-                        bangumi_title=str(bangumi_id),
-                        episode=episode_int,
-                        time_seconds=_int_or(item.get("s", 0)),
-                        screenshot_url=screenshot_url,
-                        address=None,
-                        opening_hours=None,
-                        admission_fee=None,
-                        origin=_str_or_none(item.get("origin")),
-                        origin_url=_str_or_none(item.get("originURL")),
-                    )
-                    points.append(point)
-
-                except (KeyError, ValueError, TypeError) as e:
-                    logger.warning(
-                        "Skipping invalid point data", error=str(e), data=item
-                    )
-
-            # Sort by episode and time for consistent ordering
+            points = _build_points(point_dicts, bangumi_id)
             points.sort(key=lambda p: (p.episode, p.time_seconds))
-
             logger.info(
                 "Points retrieved successfully",
                 bangumi_id=bangumi_id,
                 points_count=len(points),
             )
-
             return points
-
         except APIError:
             raise
         except Exception as e:
