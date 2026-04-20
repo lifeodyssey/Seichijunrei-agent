@@ -38,6 +38,7 @@ from backend.interfaces.schemas import (
 from backend.interfaces.session_facade import (
     COMPACT_THRESHOLD,
     MAX_ROUTE_HISTORY,
+    SessionUpdate,
     build_context_block,
     build_selected_points_plan,
     build_session_summary,
@@ -264,12 +265,14 @@ class RuntimeAPI:
         """Persist session state, route, user state, and messages."""
         session_state = build_updated_session_state(
             previous_state,
-            request=request,
-            response_intent=response.intent,
-            response_status=response.status,
-            response_success=response.success,
-            response_message=response.message,
-            context_delta=context_delta,
+            SessionUpdate(
+                request=request,
+                response_intent=response.intent,
+                response_status=response.status,
+                response_success=response.success,
+                response_message=response.message,
+                context_delta=context_delta,
+            ),
         )
 
         route_record = None
