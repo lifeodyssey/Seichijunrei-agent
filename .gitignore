@@ -100,3 +100,4 @@ node_modules
 .sandbox-env/
 .sandbox-venv/
 .remember/
+frontend/.env.local.bak
