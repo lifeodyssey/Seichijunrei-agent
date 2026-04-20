@@ -7,6 +7,9 @@ Provides a foundation for all API clients with:
 - Response caching for GET requests
 - Structured error handling
 - Request/response logging
+
+Cache integration lives in ``cache_mixin``, retry orchestration in
+``retry``; this module wires them together.
 """
 
 import asyncio
@@ -19,8 +22,10 @@ from urllib.parse import urlparse
 import aiohttp
 from aiohttp import ClientError, ClientResponseError, ClientTimeout
 
+from backend.clients.cache_mixin import CacheMixin, ResponseCache
 from backend.clients.errors import APIError
-from backend.services.cache import _CACHE_MISS, ResponseCache
+from backend.clients.retry import request_with_retry
+from backend.services.cache import _CACHE_MISS  # noqa: F401 — re-export
 from backend.services.retry import RateLimiter
 from backend.utils.logger import get_logger
 
@@ -98,6 +103,19 @@ def _int_or(value: object, default: int = 0) -> int:
         return default
 
 
+def _wrap_transport_error(exc: Exception, timeout: int) -> APIError:
+    """Convert transport-level exceptions to APIError."""
+    if isinstance(exc, APIError):
+        return exc
+    if isinstance(exc, TimeoutError):
+        return APIError(f"Request timeout after {timeout} seconds")
+    if isinstance(exc, ClientResponseError):
+        return APIError(f"HTTP {exc.status}: {exc.message}")
+    if isinstance(exc, ClientError):
+        return APIError(f"Request failed: {str(exc)}")
+    return APIError(f"Unexpected error: {str(exc)}")
+
+
 class HTTPMethod(str, Enum):
     """HTTP request methods."""
 
@@ -108,7 +126,7 @@ class HTTPMethod(str, Enum):
     PATCH = "PATCH"
 
 
-class BaseHTTPClient:
+class BaseHTTPClient(CacheMixin):
     """
     Base HTTP client with retry, rate limiting, and caching.
 
@@ -131,24 +149,6 @@ class BaseHTTPClient:
         cache_ttl_seconds: int = 3600,
         session: aiohttp.ClientSession | None = None,
     ):
-        """
-        Initialize the base HTTP client.
-
-        Args:
-            base_url: Base URL for API endpoints
-            api_key: Optional API key for authentication
-            timeout: Request timeout in seconds
-            max_retries: Maximum retry attempts
-            rate_limit_calls: Number of calls allowed per period
-            rate_limit_period: Rate limit period in seconds
-            use_cache: Whether to cache GET responses
-            cache_ttl_seconds: Cache TTL in seconds
-            session: Optional aiohttp session to use
-
-        Raises:
-            ValueError: If base_url has invalid scheme or missing netloc
-        """
-        # Validate URL to prevent SSRF attacks
         parsed = urlparse(base_url)
         if parsed.scheme not in _ALLOWED_SCHEMES:
             raise ValueError(
@@ -163,17 +163,14 @@ class BaseHTTPClient:
         self.max_retries = max_retries
         self.use_cache = use_cache
 
-        # Session management
         self._session = session
         self._owns_session = session is None
-        self._session_lock = asyncio.Lock()  # Protect lazy session creation
+        self._session_lock = asyncio.Lock()
 
-        # Rate limiter
         self._rate_limiter = RateLimiter(
-            calls_per_period=rate_limit_calls, period_seconds=rate_limit_period
+            calls_per_period=rate_limit_calls,
+            period_seconds=rate_limit_period,
         )
-
-        # Response cache
         self._cache = (
             ResponseCache(default_ttl_seconds=cache_ttl_seconds) if use_cache else None
         )
@@ -187,8 +184,9 @@ class BaseHTTPClient:
             cache_enabled=use_cache,
         )
 
+    # -- URL / header helpers -------------------------------------------------
+
     def _build_url(self, endpoint: str) -> str:
-        """Build full URL from endpoint."""
         if not endpoint.startswith("/"):
             endpoint = f"/{endpoint}"
         return f"{self.base_url}{endpoint}"
@@ -196,38 +194,26 @@ class BaseHTTPClient:
     def _get_headers(
         self, custom_headers: dict[str, str] | None = None
     ) -> dict[str, str]:
-        """
-        Get request headers with authentication.
-
-        Args:
-            custom_headers: Additional headers to include
-
-        Returns:
-            Combined headers dictionary
-        """
         headers = {"User-Agent": "Seichijunrei/1.0", "Accept": "application/json"}
-
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-
         if custom_headers:
             headers.update(custom_headers)
-
         return headers
 
+    # -- Session management ---------------------------------------------------
+
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session with thread-safe lazy initialization."""
-        # Fast path: if session exists, return it immediately (no lock needed)
         if self._session is not None:
             return self._session
-
-        # Slow path: acquire lock and use double-checked locking
         async with self._session_lock:
-            # Check again after acquiring lock (another coroutine may have created it)
             if self._session is None:
-                timeout = ClientTimeout(total=self.timeout)
-                self._session = aiohttp.ClientSession(timeout=timeout)
+                self._session = aiohttp.ClientSession(
+                    timeout=ClientTimeout(total=self.timeout),
+                )
         return self._session
+
+    # -- Core HTTP (single attempt) -------------------------------------------
 
     async def _make_request(
         self,
@@ -238,65 +224,78 @@ class BaseHTTPClient:
         json_data: JSONDict | None = None,
         data: object | None = None,
     ) -> JSONValue:
-        """
-        Make the actual HTTP request.
-
-        Args:
-            method: HTTP method
-            url: Full URL
-            headers: Request headers
-            params: Query parameters
-            json_data: JSON body
-            data: Form data
-
-        Returns:
-            Response data as dictionary
-
-        Raises:
-            APIError: On request failure
-        """
         session = await self._get_session()
-
         try:
-            # Make the request
-            async with session.request(
-                method.value,
+            return await self._send_and_parse(
+                session,
+                method,
                 url,
-                headers=headers,
-                params=params,
-                json=json_data,
-                data=data,
-            ) as response:
-                # Check for errors
-                if response.status >= 400:
-                    error_text = await response.text()
-                    raise APIError(
-                        f"API request failed with status {response.status}: {error_text}"
-                    )
-
-                # Parse response
-                try:
-                    return _normalize_json(await response.json())
-                except Exception:
-                    # Fallback to text if JSON parsing fails
-                    text = await response.text()
-                    return {"raw_response": text}
-
-        except TimeoutError as e:
-            raise APIError(f"Request timeout after {self.timeout} seconds") from e
-        except ClientResponseError as e:
-            raise APIError(f"HTTP {e.status}: {e.message}") from e
-        except ClientError as e:
-            raise APIError(f"Request failed: {str(e)}") from e
-        except Exception as e:
-            logger.error(
-                "Unexpected error in request",
-                method=method,
-                url=url,
-                error=str(e),
-                exc_info=True,
+                headers,
+                params,
+                json_data,
+                data,
             )
+        except (APIError, TimeoutError, ClientResponseError, ClientError) as e:
+            raise _wrap_transport_error(e, self.timeout) from e
+        except Exception as e:
             raise APIError(f"Unexpected error: {str(e)}") from e
+
+    async def _send_and_parse(
+        self,
+        session: aiohttp.ClientSession,
+        method: HTTPMethod,
+        url: str,
+        headers: dict[str, str],
+        params: QueryParams | None,
+        json_data: JSONDict | None,
+        data: object | None,
+    ) -> JSONValue:
+        async with session.request(
+            method.value,
+            url,
+            headers=headers,
+            params=params,
+            json=json_data,
+            data=data,
+        ) as response:
+            if response.status >= 400:
+                text = await response.text()
+                raise APIError(
+                    f"API request failed with status {response.status}: {text}"
+                )
+            try:
+                return _normalize_json(await response.json())
+            except Exception:
+                return {"raw_response": await response.text()}
+
+    # -- Public request (retry + cache + rate-limit) --------------------------
+
+    async def _rate_limited_attempt(
+        self,
+        method: HTTPMethod,
+        url: str,
+        headers: dict[str, str],
+        params: QueryParams | None,
+        json_data: JSONDict | None,
+        data: object | None,
+    ) -> JSONValue:
+        """Single rate-limited HTTP attempt (called by retry loop)."""
+        await self._rate_limiter.acquire()
+        logger.debug(
+            "Making request",
+            method=method.value,
+            url=url,
+            params=params,
+            has_body=json_data is not None or data is not None,
+        )
+        return await self._make_request(
+            method=method,
+            url=url,
+            headers=headers,
+            params=params,
+            json_data=json_data,
+            data=data,
+        )
 
     async def request(
         self,
@@ -308,129 +307,35 @@ class BaseHTTPClient:
         headers: dict[str, str] | None = None,
         skip_cache: bool = False,
     ) -> JSONValue:
-        """
-        Make an HTTP request with retry, rate limiting, and caching.
-
-        Args:
-            method: HTTP method
-            endpoint: API endpoint path
-            params: Query parameters
-            json_data: JSON body data
-            data: Form data
-            headers: Additional headers
-            skip_cache: Skip cache for this request
-
-        Returns:
-            Response data as dictionary
-
-        Raises:
-            APIError: On request failure after retries
-        """
-        # Build URL and headers
         url = self._build_url(endpoint)
-        request_headers = self._get_headers(headers)
+        req_headers = self._get_headers(headers)
 
-        # Check cache for GET requests
-        if (
-            method == HTTPMethod.GET
-            and self.use_cache
-            and not skip_cache
-            and self._cache
-        ):
-            cache_key = self._cache.generate_key(url, params)
-            cached = await self._cache.get(cache_key)
-            if cached is not _CACHE_MISS:
-                logger.debug("Cache hit", url=url, params=params)
-                return _normalize_json(cached)
+        if method == HTTPMethod.GET and self.use_cache and not skip_cache:
+            hit, cached = await self.cache_lookup(url, params)
+            if hit:
+                return cached
 
-        # Manual retry logic
-        last_exception = None
-        for attempt in range(self.max_retries):
-            try:
-                # Apply rate limiting
-                await self._rate_limiter.acquire()
+        response = await request_with_retry(
+            max_retries=self.max_retries,
+            make_request=lambda: self._rate_limited_attempt(
+                method,
+                url,
+                req_headers,
+                params,
+                json_data,
+                data,
+            ),
+            url=url,
+            method_label=method.value,
+        )
 
-                logger.debug(
-                    "Making request",
-                    method=method.value,
-                    url=url,
-                    params=params,
-                    has_body=json_data is not None or data is not None,
-                    attempt=attempt + 1,
-                )
+        if method == HTTPMethod.GET and self.use_cache:
+            await self.cache_store(url, params, response)
 
-                # Make the request
-                response = await self._make_request(
-                    method=method,
-                    url=url,
-                    headers=request_headers,
-                    params=params,
-                    json_data=json_data,
-                    data=data,
-                )
+        logger.debug("Request successful", url=url, method=method.value)
+        return response
 
-                # Cache successful GET responses
-                if method == HTTPMethod.GET and self.use_cache and self._cache:
-                    cache_key = self._cache.generate_key(url, params)
-                    await self._cache.set(cache_key, response)
-
-                logger.debug("Request successful", url=url, method=method.value)
-                return response
-
-            except APIError as e:
-                last_exception = e
-                error_str = str(e)
-
-                # Check if it's a client error (4xx) - don't retry these
-                if any(code in error_str for code in ["400", "401", "403", "404"]):
-                    logger.error(
-                        "Client error (no retry)",
-                        url=url,
-                        method=method.value,
-                        error=error_str,
-                    )
-                    raise
-
-                # If we've exhausted retries
-                if attempt == self.max_retries - 1:
-                    logger.error(
-                        "Max retries exceeded",
-                        url=url,
-                        method=method.value,
-                        error=error_str,
-                        attempts=self.max_retries,
-                    )
-                    raise
-
-                # Calculate backoff delay
-                delay = min(2**attempt, 30)  # Exponential backoff capped at 30s
-
-                logger.warning(
-                    "Request failed (will retry)",
-                    url=url,
-                    method=method.value,
-                    error=error_str,
-                    attempt=attempt + 1,
-                    next_delay=delay,
-                )
-
-                await asyncio.sleep(delay)
-
-            except Exception as e:
-                # Unexpected errors - don't retry
-                logger.error(
-                    "Unexpected error (no retry)",
-                    url=url,
-                    method=method.value,
-                    error=str(e),
-                    exc_info=True,
-                )
-                raise APIError(f"Unexpected error: {str(e)}") from e
-
-        # Should never reach here
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("request exhausted retries without capturing an exception")
+    # -- Convenience verbs ----------------------------------------------------
 
     async def get(
         self,
@@ -441,7 +346,6 @@ class BaseHTTPClient:
         skip_cache: bool = False,
         data: object | None = None,
     ) -> JSONValue:
-        """Convenience method for GET requests."""
         return await self.request(
             HTTPMethod.GET,
             endpoint,
@@ -461,7 +365,6 @@ class BaseHTTPClient:
         headers: dict[str, str] | None = None,
         skip_cache: bool = False,
     ) -> JSONValue:
-        """Convenience method for POST requests."""
         return await self.request(
             HTTPMethod.POST,
             endpoint,
@@ -482,7 +385,6 @@ class BaseHTTPClient:
         headers: dict[str, str] | None = None,
         skip_cache: bool = False,
     ) -> JSONValue:
-        """Convenience method for PUT requests."""
         return await self.request(
             HTTPMethod.PUT,
             endpoint,
@@ -502,7 +404,6 @@ class BaseHTTPClient:
         skip_cache: bool = False,
         data: object | None = None,
     ) -> JSONValue:
-        """Convenience method for DELETE requests."""
         return await self.request(
             HTTPMethod.DELETE,
             endpoint,
@@ -512,15 +413,15 @@ class BaseHTTPClient:
             skip_cache=skip_cache,
         )
 
+    # -- Lifecycle ------------------------------------------------------------
+
     async def close(self) -> None:
-        """Close the HTTP session."""
         if self._session and self._owns_session:
             await self._session.close()
             self._session = None
             logger.debug("HTTP session closed")
 
     async def __aenter__(self) -> Self:
-        """Async context manager entry."""
         return self
 
     async def __aexit__(
@@ -529,5 +430,4 @@ class BaseHTTPClient:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        """Async context manager exit."""
         await self.close()
