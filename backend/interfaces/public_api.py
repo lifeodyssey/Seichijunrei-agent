@@ -64,6 +64,8 @@ _build_context_block = build_context_block
 _extract_context_delta = extract_context_delta
 _compact_session_interactions = compact_session_interactions
 
+_OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+
 
 class RuntimeAPI:
     """Thin interface-layer facade over ``run_pipeline``."""
@@ -83,8 +85,7 @@ class RuntimeAPI:
         *,
         model: Model | str | None = None,
         user_id: str | None = None,
-        on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
-        | None = None,
+        on_step: _OnStep | None = None,
     ) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
         session_id = request.session_id or None
@@ -94,76 +95,17 @@ class RuntimeAPI:
         effective_model = model if model is not None else request.model
 
         with tracer.start_as_current_span("runtime.handle") as span:
-            if session_id:
-                span.set_attribute("runtime.session_id", session_id)
-            span.set_attribute("runtime.include_debug", request.include_debug)
-            model_label = _runtime_model_label(effective_model)
-            if model_label:
-                span.set_attribute("runtime.model", model_label)
-            if user_id:
-                span.set_attribute("runtime.user_id", user_id)
+            _set_span_request_attrs(span, session_id, request, effective_model, user_id)
 
             result: PipelineResult | None = None
             user_message_persisted = False
             try:
-                previous_state = (
-                    await self._load_session_state(session_id)
-                    if session_id
-                    else normalize_session_state(None)
+                previous_state, context = await self._load_session(
+                    session_id, user_id, request
                 )
-                context_delta: dict[str, object] = {}
-                user_memory = await self._load_user_memory(user_id)
-                context = build_context_block(previous_state, user_memory=user_memory)
-                if request.origin_lat is not None and request.origin_lng is not None:
-                    if context is None:
-                        context = {}
-                    context["origin_lat"] = request.origin_lat
-                    context["origin_lng"] = request.origin_lng
-                synthetic_plan = (
-                    build_selected_points_plan(request)
-                    if request.selected_point_ids
-                    else None
+                result, response, context_delta = await self._execute_pipeline(
+                    request, context, effective_model, on_step, span
                 )
-
-                try:
-                    if synthetic_plan is not None:
-                        result = await ExecutorAgent(self._db).execute(
-                            synthetic_plan,
-                            context_block=context,
-                            on_step=on_step,
-                        )
-                    else:
-                        result = await run_pipeline(
-                            request.text,
-                            self._db,
-                            model=effective_model,
-                            locale=request.locale,
-                            context=context,
-                            on_step=on_step,
-                        )
-                except ApplicationError as exc:
-                    span.record_exception(exc)
-                    response = application_error_response(exc)
-                except Exception as exc:
-                    span.record_exception(exc)
-                    response = PublicAPIResponse(
-                        success=False,
-                        status="error",
-                        intent="unknown",
-                        message="The runtime failed before producing a pipeline result.",
-                        errors=[
-                            PublicAPIError(
-                                code=ErrorCode.INTERNAL_ERROR.value,
-                                message=str(exc),
-                            )
-                        ],
-                    )
-                else:
-                    response = pipeline_result_to_public_response(
-                        result,
-                        include_debug=request.include_debug,
-                    )
-                    context_delta = extract_context_delta(result)
 
                 if response.intent == "greet_user":
                     response.session_id = None
@@ -177,66 +119,20 @@ class RuntimeAPI:
 
                 response.session_id = session_id
 
-                session_state = build_updated_session_state(
-                    previous_state,
-                    request=request,
-                    response_intent=response.intent,
-                    response_status=response.status,
-                    response_success=response.success,
-                    response_message=response.message,
-                    context_delta=context_delta,
-                )
-
-                route_record = None
-                if result is not None:
-                    route_record = await self._maybe_persist_route(
-                        session_id=session_id,
-                        request=request,
-                        result=result,
-                        response=response,
-                    )
-
-                if route_record is not None:
-                    raw_rh = session_state["route_history"]
-                    route_history: list[object] = (
-                        list(raw_rh) if isinstance(raw_rh, list) else []
-                    )
-                    route_history.append(route_record)
-                    session_state["route_history"] = route_history[-MAX_ROUTE_HISTORY:]
-
-                await self._persist_session(session_id, session_state, response)
-                await self._persist_user_state(
+                session_state, user_message_persisted = await self._persist_result(
                     session_id=session_id,
-                    user_id=user_id,
                     request=request,
-                    response=response,
                     result=result,
+                    response=response,
                     context_delta=context_delta,
                     previous_state=previous_state,
+                    user_id=user_id,
                 )
-                await self._persist_messages(
-                    session_id=session_id,
-                    user_text=request.text,
-                    result=result,
-                    response=response,
-                    persist_user_only=not response.success,
-                )
-                user_message_persisted = True
-                raw_ints = session_state.get("interactions")
-                interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
-                if interaction_count >= COMPACT_THRESHOLD:
-                    asyncio.create_task(
-                        compact_session_interactions(
-                            session_id,
-                            session_state,
-                            self._session_store,
-                        )
-                    )
 
                 response.session = build_session_summary(session_state)
-                raw_rh2 = session_state["route_history"]
+                raw_rh = session_state["route_history"]
                 response.route_history = (
-                    list(raw_rh2) if isinstance(raw_rh2, list) else []
+                    list(raw_rh) if isinstance(raw_rh, list) else []
                 )
                 return response
             except Exception as exc:
@@ -261,39 +157,217 @@ class RuntimeAPI:
                     transport="public_api",
                 )
 
-                if not user_message_persisted and session_id and request.text:
-                    try:
-                        await self._persist_messages(
-                            session_id=session_id,
-                            user_text=request.text,
-                            result=None,
-                            response=response
-                            or PublicAPIResponse(
-                                success=False, status="error", intent="unknown"
-                            ),
-                            persist_user_only=True,
-                        )
-                    except Exception:
-                        logger.warning(
-                            "finally_persist_user_msg_failed",
-                            session_id=session_id,
-                        )
+                await self._log_request(
+                    session_id=session_id,
+                    request=request,
+                    result=result,
+                    response=response,
+                    elapsed_ms=elapsed_ms,
+                    intent=intent,
+                    status=status,
+                    user_message_persisted=user_message_persisted,
+                )
 
-                insert_request_log = getattr(self._db, "insert_request_log", None)
-                is_ephemeral = response is not None and response.intent == "greet_user"
-                if insert_request_log is not None and not is_ephemeral:
-                    try:
-                        await insert_request_log(
-                            session_id=session_id,
-                            query_text=request.text,
-                            locale=request.locale,
-                            plan_steps=_extract_plan_steps(result),
-                            intent=intent,
-                            status=status,
-                            latency_ms=int(elapsed_ms),
+    async def _load_session(
+        self,
+        session_id: str | None,
+        user_id: str | None,
+        request: PublicAPIRequest,
+    ) -> tuple[dict[str, object], dict[str, object] | None]:
+        """Load session state and build context block."""
+        previous_state = (
+            await self._load_session_state(session_id)
+            if session_id
+            else normalize_session_state(None)
+        )
+        user_memory = await self._load_user_memory(user_id)
+        context = build_context_block(previous_state, user_memory=user_memory)
+        if request.origin_lat is not None and request.origin_lng is not None:
+            if context is None:
+                context = {}
+            context["origin_lat"] = request.origin_lat
+            context["origin_lng"] = request.origin_lng
+        return previous_state, context
+
+    async def _execute_pipeline(
+        self,
+        request: PublicAPIRequest,
+        context: dict[str, object] | None,
+        effective_model: Model | str | None,
+        on_step: _OnStep | None,
+        span: object,
+    ) -> tuple[PipelineResult | None, PublicAPIResponse, dict[str, object]]:
+        """Run the pipeline (or synthetic plan) and map result to response."""
+        context_delta: dict[str, object] = {}
+        synthetic_plan = (
+            build_selected_points_plan(request) if request.selected_point_ids else None
+        )
+        try:
+            if synthetic_plan is not None:
+                result: PipelineResult = await ExecutorAgent(self._db).execute(
+                    synthetic_plan,
+                    context_block=context,
+                    on_step=on_step,
+                )
+            else:
+                result = await run_pipeline(
+                    request.text,
+                    self._db,
+                    model=effective_model,
+                    locale=request.locale,
+                    context=context,
+                    on_step=on_step,
+                )
+        except ApplicationError as exc:
+            record_exc = getattr(span, "record_exception", None)
+            if callable(record_exc):
+                record_exc(exc)
+            return None, application_error_response(exc), context_delta
+        except Exception as exc:
+            record_exc = getattr(span, "record_exception", None)
+            if callable(record_exc):
+                record_exc(exc)
+            return (
+                None,
+                PublicAPIResponse(
+                    success=False,
+                    status="error",
+                    intent="unknown",
+                    message="The runtime failed before producing a pipeline result.",
+                    errors=[
+                        PublicAPIError(
+                            code=ErrorCode.INTERNAL_ERROR.value,
+                            message=str(exc),
                         )
-                    except Exception:
-                        logger.warning("request_log_failed", session_id=session_id)
+                    ],
+                ),
+                context_delta,
+            )
+        response = pipeline_result_to_public_response(
+            result,
+            include_debug=request.include_debug,
+        )
+        context_delta = extract_context_delta(result)
+        return result, response, context_delta
+
+    async def _persist_result(
+        self,
+        *,
+        session_id: str,
+        request: PublicAPIRequest,
+        result: PipelineResult | None,
+        response: PublicAPIResponse,
+        context_delta: dict[str, object],
+        previous_state: dict[str, object],
+        user_id: str | None,
+    ) -> tuple[dict[str, object], bool]:
+        """Persist session state, route, user state, and messages."""
+        session_state = build_updated_session_state(
+            previous_state,
+            request=request,
+            response_intent=response.intent,
+            response_status=response.status,
+            response_success=response.success,
+            response_message=response.message,
+            context_delta=context_delta,
+        )
+
+        route_record = None
+        if result is not None:
+            route_record = await self._maybe_persist_route(
+                session_id=session_id,
+                request=request,
+                result=result,
+                response=response,
+            )
+
+        if route_record is not None:
+            raw_rh = session_state["route_history"]
+            route_history: list[object] = (
+                list(raw_rh) if isinstance(raw_rh, list) else []
+            )
+            route_history.append(route_record)
+            session_state["route_history"] = route_history[-MAX_ROUTE_HISTORY:]
+
+        await self._persist_session(session_id, session_state, response)
+        await self._persist_user_state(
+            session_id=session_id,
+            user_id=user_id,
+            request=request,
+            response=response,
+            result=result,
+            context_delta=context_delta,
+            previous_state=previous_state,
+        )
+        await self._persist_messages(
+            session_id=session_id,
+            user_text=request.text,
+            result=result,
+            response=response,
+            persist_user_only=not response.success,
+        )
+
+        raw_ints = session_state.get("interactions")
+        interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
+        if interaction_count >= COMPACT_THRESHOLD:
+            asyncio.create_task(
+                compact_session_interactions(
+                    session_id,
+                    session_state,
+                    self._session_store,
+                )
+            )
+
+        return session_state, True
+
+    async def _log_request(
+        self,
+        *,
+        session_id: str | None,
+        request: PublicAPIRequest,
+        result: PipelineResult | None,
+        response: PublicAPIResponse | None,
+        elapsed_ms: float,
+        intent: str,
+        status: str,
+        user_message_persisted: bool,
+    ) -> None:
+        """Persist user message on error (best-effort) and log request."""
+        if not user_message_persisted and session_id and request.text:
+            try:
+                await self._persist_messages(
+                    session_id=session_id,
+                    user_text=request.text,
+                    result=None,
+                    response=response
+                    or PublicAPIResponse(
+                        success=False, status="error", intent="unknown"
+                    ),
+                    persist_user_only=True,
+                )
+            except Exception:
+                logger.warning(
+                    "finally_persist_user_msg_failed",
+                    session_id=session_id,
+                )
+
+        insert_request_log = getattr(self._db, "insert_request_log", None)
+        is_ephemeral = response is not None and response.intent == "greet_user"
+        if insert_request_log is None or is_ephemeral:
+            return
+
+        try:
+            await insert_request_log(
+                session_id=session_id,
+                query_text=request.text,
+                locale=request.locale,
+                plan_steps=_extract_plan_steps(result),
+                intent=intent,
+                status=status,
+                latency_ms=int(elapsed_ms),
+            )
+        except Exception:
+            logger.warning("request_log_failed", session_id=session_id)
 
     async def _persist_messages(
         self,
@@ -502,12 +576,31 @@ async def handle_public_request(
     model: Model | str | None = None,
     session_store: SessionStore | None = None,
     user_id: str | None = None,
-    on_step: Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
-    | None = None,
+    on_step: _OnStep | None = None,
 ) -> PublicAPIResponse:
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)
     return await api.handle(request, model=model, user_id=user_id, on_step=on_step)
+
+
+def _set_span_request_attrs(
+    span: object,
+    session_id: str | None,
+    request: PublicAPIRequest,
+    effective_model: object,
+    user_id: str | None,
+) -> None:
+    set_attr = getattr(span, "set_attribute", None)
+    if not callable(set_attr):
+        return
+    if session_id:
+        set_attr("runtime.session_id", session_id)
+    set_attr("runtime.include_debug", request.include_debug)
+    model_label = _runtime_model_label(effective_model)
+    if model_label:
+        set_attr("runtime.model", model_label)
+    if user_id:
+        set_attr("runtime.user_id", user_id)
 
 
 def _runtime_model_label(model: object) -> str | None:
