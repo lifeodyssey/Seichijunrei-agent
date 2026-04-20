@@ -54,6 +54,16 @@ class AsyncPGPool(Protocol):
     async def close(self) -> None: ...
 
 
+class MigrationConnection(Protocol):
+    """Minimal asyncpg connection surface needed by the migration runner."""
+
+    def transaction(self) -> AsyncPGTransactionContext: ...
+
+    async def execute(self, query: str, *args: object) -> str | None: ...
+
+    async def fetch(self, query: str, *args: object) -> list[Row]: ...
+
+
 class AsyncPGModule(Protocol):
     async def create_pool(
         self,

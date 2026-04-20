@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config.settings import Settings, get_settings
+from backend.infrastructure.migrations.runner import MigrationRunner
 from backend.infrastructure.observability import (
     setup_observability,
     shutdown_observability,
@@ -78,6 +80,14 @@ def create_fastapi_app(
                 " for non-Supabase db adapters."
             )
         await call_optional_async(runtime_db, "connect")
+        migrations_dir = Path(__file__).parents[2] / "supabase" / "migrations"
+        if isinstance(runtime_db, SupabaseClient):
+            runner = MigrationRunner(
+                runtime_db.pool,
+                migrations_dir,
+                enabled=resolved_settings.auto_migrate,
+            )
+            await runner.run()
         app.state.runtime_api = RuntimeAPI(
             runtime_db, session_store=runtime_session_store
         )

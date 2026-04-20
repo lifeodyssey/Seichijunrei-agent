@@ -135,6 +135,12 @@ class Settings(BaseSettings):
         description="Base URL for the OpenAI-compatible fallback provider",
     )
 
+    # Migrations
+    auto_migrate: bool = Field(
+        default=True,
+        description="Run pending DB migrations on startup (set false in production)",
+    )
+
     # CORS
     cors_allowed_origin: str = Field(
         default="*",
