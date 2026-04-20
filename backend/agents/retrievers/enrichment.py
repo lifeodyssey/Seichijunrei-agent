@@ -4,15 +4,11 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TYPE_CHECKING
 
 import structlog
 
 from backend.clients.anitabi import AnitabiClient
 from backend.domain.entities import Point
-
-if TYPE_CHECKING:
-    pass
 
 logger = structlog.get_logger(__name__)
 

@@ -4,26 +4,20 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.routes._deps import (
     ConversationPatchRequest,
     TrustedAuthContext,
     _error_response,
     _get_db_from_request,
     _json_response,
+    _require_supabase,
     _require_trusted_user,
 )
 
 router = APIRouter(prefix="/v1", tags=["conversations"])
-
-
-def _require_supabase(db: object) -> SupabaseClient:
-    if not isinstance(db, SupabaseClient):
-        raise HTTPException(status_code=500, detail="Database client not available.")
-    return db
 
 
 @router.get("/conversations")

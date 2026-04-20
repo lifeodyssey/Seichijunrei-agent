@@ -7,21 +7,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.routes._deps import (
     TrustedAuthContext,
     _get_db_from_request,
     _get_trusted_auth_context,
     _json_response,
+    _require_supabase,
 )
 
 router = APIRouter(prefix="/v1/bangumi", tags=["bangumi"])
-
-
-def _require_supabase(db: object) -> SupabaseClient:
-    if not isinstance(db, SupabaseClient):
-        raise HTTPException(status_code=500, detail="Database client not available.")
-    return db
 
 
 @router.get("/popular")

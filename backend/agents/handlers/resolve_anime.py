@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 import structlog
 
 from backend.agents.models import PlanStep
@@ -30,9 +28,11 @@ async def execute(
     if not title:
         return {"tool": "resolve_anime", "success": False, "error": "No title provided"}
 
+    if not isinstance(db, SupabaseClient):
+        return {"tool": "resolve_anime", "success": False, "error": "DB not available"}
+
     # 1. DB lookup
-    typed_db = cast(SupabaseClient, db)
-    bangumi_id = await typed_db.bangumi.find_bangumi_by_title(title)
+    bangumi_id = await db.bangumi.find_bangumi_by_title(title)
     if bangumi_id:
         logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
         return {
@@ -45,7 +45,7 @@ async def execute(
     gateway = BangumiClientGateway()
     bangumi_id = await gateway.search_by_title(title)
     if bangumi_id:
-        await typed_db.bangumi.upsert_bangumi_title(title, bangumi_id)
+        await db.bangumi.upsert_bangumi_title(title, bangumi_id)
         logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
         return {
             "tool": "resolve_anime",

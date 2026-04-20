@@ -56,13 +56,13 @@ def mock_db():
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_user_memory = AsyncMock(return_value=None)
-    db.upsert_session = AsyncMock()
-    db.upsert_conversation = AsyncMock()
-    db.upsert_user_memory = AsyncMock()
-    db.update_conversation_title = AsyncMock()
-    db.save_route = AsyncMock(return_value="route-1")
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.session.get_user_memory = AsyncMock(return_value=None)
+    db.session.upsert_session = AsyncMock()
+    db.session.upsert_conversation = AsyncMock()
+    db.session.upsert_user_memory = AsyncMock()
+    db.session.update_conversation_title = AsyncMock()
+    db.routes.save_route = AsyncMock(return_value="route-1")
     return db
 
 

@@ -22,7 +22,6 @@ from backend.interfaces.public_api import RuntimeAPI
 from backend.interfaces.routes._deps import (  # noqa: F401
     _contains_json_invalid_error,
     _http_error_code,
-    _require_db_method,
     build_session_store,
     build_supabase_client,
     call_optional_async,
