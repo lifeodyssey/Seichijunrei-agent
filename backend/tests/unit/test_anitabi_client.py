@@ -13,7 +13,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from backend.clients.anitabi import AnitabiClient
+from backend.clients.anitabi import (
+    AnitabiClient,
+    _detect_schema,
+    _parse_legacy_point,
+    _parse_official_point,
+)
 from backend.clients.errors import APIError, NotFoundError
 from backend.domain.entities import Point, Station
 
@@ -264,3 +269,134 @@ class TestAnitabiClient:
             async with client:
                 pass
             mock_close.assert_called_once()
+
+
+class TestDetectSchema:
+    """Tests for _detect_schema — normalizes response shape to a raw list."""
+
+    def test_returns_list_when_response_is_bare_list(self):
+        data: object = [{"id": "1"}, {"id": "2"}]
+        assert _detect_schema(data) == [{"id": "1"}, {"id": "2"}]
+
+    def test_returns_data_list_when_response_has_data_key(self):
+        data: object = {"data": [{"id": "1"}], "total": 1}
+        assert _detect_schema(data) == [{"id": "1"}]
+
+    def test_returns_points_list_when_response_has_points_key(self):
+        data: object = {"points": [{"id": "1"}]}
+        assert _detect_schema(data) == [{"id": "1"}]
+
+    def test_returns_none_when_response_is_empty(self):
+        assert _detect_schema(None) is None
+
+    def test_returns_none_when_response_is_empty_list(self):
+        assert _detect_schema([]) is None
+
+    def test_raises_when_dict_has_no_known_list_key(self):
+        with pytest.raises(APIError, match="Unexpected Anitabi response structure"):
+            _detect_schema({"unknown": "value"})
+
+    def test_raises_when_response_type_is_invalid(self):
+        with pytest.raises(APIError, match="Invalid Anitabi response type"):
+            _detect_schema("not_a_list_or_dict")
+
+
+class TestParseLegacyPoint:
+    """Tests for _parse_legacy_point — parses items with lat/lng fields."""
+
+    def test_parses_all_fields(self):
+        item: dict[str, object] = {
+            "id": "p1",
+            "name": "豊郷小学校旧校舎",
+            "cn_name": "丰乡小学校旧校舍",
+            "lat": 35.179798,
+            "lng": 136.232495,
+            "bangumi_id": "b1",
+            "bangumi_title": "けいおん！",
+            "episode": 1,
+            "time_seconds": 125,
+            "screenshot": "https://example.com/shot1.jpg",
+            "address": "滋賀県",
+            "opening_hours": "9:00-17:00",
+            "admission_fee": "無料",
+        }
+        point = _parse_legacy_point(item, "b1")
+        assert point.id == "p1"
+        assert point.name == "豊郷小学校旧校舎"
+        assert point.cn_name == "丰乡小学校旧校舍"
+        assert point.coordinates.latitude == 35.179798
+        assert point.coordinates.longitude == 136.232495
+        assert point.bangumi_id == "b1"
+        assert point.episode == 1
+        assert point.time_seconds == 125
+        assert point.screenshot_url == "https://example.com/shot1.jpg"
+
+    def test_falls_back_to_bangumi_id_arg_when_item_missing_bangumi_id(self):
+        item: dict[str, object] = {
+            "id": "p1",
+            "name": "Loc",
+            "lat": 35.0,
+            "lng": 136.0,
+            "screenshot": "https://example.com/s.jpg",
+        }
+        point = _parse_legacy_point(item, "fallback_id")
+        assert point.bangumi_id == "fallback_id"
+        assert point.bangumi_title == "fallback_id"
+
+    def test_falls_back_to_name_when_cn_name_missing(self):
+        item: dict[str, object] = {
+            "id": "p1",
+            "name": "Place",
+            "lat": 35.0,
+            "lng": 136.0,
+            "screenshot": "https://example.com/s.jpg",
+        }
+        point = _parse_legacy_point(item, "b1")
+        assert point.cn_name == "Place"
+
+
+class TestParseOfficialPoint:
+    """Tests for _parse_official_point — parses items with geo array."""
+
+    def test_parses_all_fields(self):
+        item: dict[str, object] = {
+            "id": "p1",
+            "name": "Test Location",
+            "cn": "测试地点",
+            "geo": [35.6812, 139.7671],
+            "ep": 1,
+            "s": 120,
+            "image": "https://example.com/shot.jpg",
+            "origin": "Google Maps",
+            "originURL": "https://maps.google.com/test",
+        }
+        point = _parse_official_point(item, "b1")
+        assert point.id == "p1"
+        assert point.cn_name == "测试地点"
+        assert point.coordinates.latitude == 35.6812
+        assert point.coordinates.longitude == 139.7671
+        assert point.episode == 1
+        assert point.time_seconds == 120
+        assert point.screenshot_url == "https://example.com/shot.jpg"
+        assert point.origin == "Google Maps"
+        assert point.origin_url == "https://maps.google.com/test"
+
+    def test_prefixes_relative_image_url(self):
+        item: dict[str, object] = {
+            "id": "p1",
+            "name": "Loc",
+            "geo": [35.0, 136.0],
+            "image": "/images/shot.jpg",
+        }
+        point = _parse_official_point(item, "b1")
+        assert point.screenshot_url == "https://image.anitabi.cn/images/shot.jpg"
+
+    def test_raises_on_missing_geo(self):
+        item: dict[str, object] = {"id": "p1", "name": "Loc"}
+        with pytest.raises(ValueError, match="Missing or invalid 'geo' field"):
+            _parse_official_point(item, "b1")
+
+    def test_raises_on_geo_too_short(self):
+        item: dict[str, object] = {"id": "p1", "name": "Loc", "geo": [35.0]}
+        with pytest.raises(ValueError, match="Missing or invalid 'geo' field"):
+            _parse_official_point(item, "b1")
