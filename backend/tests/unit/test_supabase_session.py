@@ -12,9 +12,9 @@ from backend.infrastructure.session.supabase_session import SupabaseSessionStore
 @pytest.fixture()
 def mock_db() -> AsyncMock:
     db = AsyncMock()
-    db.get_session_state.return_value = None
-    db.upsert_session_state.return_value = None
-    db.delete_session_state.return_value = None
+    db.session.get_session_state.return_value = None
+    db.session.upsert_session_state.return_value = None
+    db.session.delete_session_state.return_value = None
     return db
 
 
@@ -28,18 +28,18 @@ async def test_save_and_get(mock_db: AsyncMock) -> None:
     assert result == state
 
     # DB write was called
-    mock_db.upsert_session_state.assert_called_once_with("s1", state)
+    mock_db.session.upsert_session_state.assert_called_once_with("s1", state)
     # DB read was NOT called (served from cache)
-    mock_db.get_session_state.assert_not_called()
+    mock_db.session.get_session_state.assert_not_called()
 
 
 async def test_cache_miss_reads_db(mock_db: AsyncMock) -> None:
-    mock_db.get_session_state.return_value = {"interactions": [1]}
+    mock_db.session.get_session_state.return_value = {"interactions": [1]}
     store = SupabaseSessionStore(mock_db)
 
     result = await store.get("s1")
     assert result == {"interactions": [1]}
-    mock_db.get_session_state.assert_called_once_with("s1")
+    mock_db.session.get_session_state.assert_called_once_with("s1")
 
 
 async def test_get_returns_none_on_miss(mock_db: AsyncMock) -> None:
@@ -47,7 +47,7 @@ async def test_get_returns_none_on_miss(mock_db: AsyncMock) -> None:
 
     result = await store.get("nonexistent")
     assert result is None
-    mock_db.get_session_state.assert_called_once_with("nonexistent")
+    mock_db.session.get_session_state.assert_called_once_with("nonexistent")
 
 
 async def test_cache_eviction(mock_db: AsyncMock) -> None:
@@ -68,11 +68,11 @@ async def test_delete(mock_db: AsyncMock) -> None:
     await store.delete("s1")
 
     assert "s1" not in store._cache
-    mock_db.delete_session_state.assert_called_once_with("s1")
+    mock_db.session.delete_session_state.assert_called_once_with("s1")
 
 
 async def test_delete_nonexistent(mock_db: AsyncMock) -> None:
     """Deleting a session that doesn't exist should not raise."""
     store = SupabaseSessionStore(mock_db)
     await store.delete("nonexistent")
-    mock_db.delete_session_state.assert_called_once_with("nonexistent")
+    mock_db.session.delete_session_state.assert_called_once_with("nonexistent")

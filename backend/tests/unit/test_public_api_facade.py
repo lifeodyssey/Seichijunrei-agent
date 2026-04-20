@@ -9,6 +9,7 @@ import pytest
 from backend.agents.executor_agent import PipelineResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session.memory import InMemorySessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
     PublicAPIRequest,
     RuntimeAPI,
@@ -51,17 +52,17 @@ def _mock_pipeline(monkeypatch):
 
 @pytest.fixture
 def mock_db():
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_user_memory = AsyncMock(return_value=None)
-    db.upsert_session = AsyncMock()
-    db.upsert_conversation = AsyncMock()
-    db.upsert_user_memory = AsyncMock()
-    db.update_conversation_title = AsyncMock()
-    db.save_route = AsyncMock(return_value="route-1")
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.user_memory.get_user_memory = AsyncMock(return_value=None)
+    db.session.upsert_session = AsyncMock()
+    db.session.upsert_conversation = AsyncMock()
+    db.user_memory.upsert_user_memory = AsyncMock()
+    db.session.update_conversation_title = AsyncMock()
+    db.routes.save_route = AsyncMock(return_value="route-1")
     return db
 
 
@@ -110,9 +111,9 @@ class TestUserIdPropagation:
 
         await api.handle(PublicAPIRequest(text="京吹の聖地"), user_id="user-abc")
 
-        mock_db.get_user_memory.assert_awaited_once_with("user-abc")
-        mock_db.upsert_conversation.assert_awaited_once()
-        args = mock_db.upsert_conversation.await_args.args
+        mock_db.user_memory.get_user_memory.assert_awaited_once_with("user-abc")
+        mock_db.session.upsert_conversation.assert_awaited_once()
+        args = mock_db.session.upsert_conversation.await_args.args
         assert args[1] == "user-abc"
 
     async def test_skips_user_scoped_db_calls_when_user_id_absent(self, mock_db):
@@ -120,8 +121,8 @@ class TestUserIdPropagation:
 
         await api.handle(PublicAPIRequest(text="京吹の聖地"), user_id=None)
 
-        mock_db.get_user_memory.assert_not_awaited()
-        mock_db.upsert_conversation.assert_not_awaited()
+        mock_db.user_memory.get_user_memory.assert_not_awaited()
+        mock_db.session.upsert_conversation.assert_not_awaited()
 
 
 class TestLocalePassthrough:
@@ -186,7 +187,7 @@ class TestLocalePassthrough:
 
 class TestBuildContextBlockWithUserMemory:
     async def test_handle_passes_context_block_to_pipeline(self, mock_db):
-        mock_db.get_user_memory.return_value = {
+        mock_db.user_memory.get_user_memory.return_value = {
             "visited_anime": [
                 {"bangumi_id": "105", "title": "君の名は", "last_at": "2026-03-01"}
             ]

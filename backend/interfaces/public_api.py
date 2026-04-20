@@ -26,6 +26,7 @@ from backend.infrastructure.observability import (
     record_runtime_request,
 )
 from backend.infrastructure.session import SessionStore, create_session_store
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.response_builder import (
     application_error_response,
     pipeline_result_to_public_response,
@@ -409,18 +410,13 @@ class RuntimeAPI:
             logger.warning("insert_bot_message_failed", session_id=session_id)
 
     async def _load_user_memory(self, user_id: str | None) -> dict[str, object] | None:
-        if not user_id:
-            return None
-
-        get_user_memory = getattr(self._db, "get_user_memory", None)
-        if get_user_memory is None:
+        if not user_id or not isinstance(self._db, SupabaseClient):
             return None
 
         try:
-            result = await get_user_memory(user_id)
-            if isinstance(result, dict):
-                return result
-            return None
+            result = await self._db.user_memory.get_user_memory(user_id)
+            # Return widened to dict[str, object] for callers expecting the broader type
+            return result  # type: ignore[return-value]
         except Exception:
             logger.warning("get_user_memory_failed", user_id=user_id)
             return None
@@ -439,10 +435,11 @@ class RuntimeAPI:
         if not user_id or result is None or not response.success:
             return
 
-        upsert_conversation = getattr(self._db, "upsert_conversation", None)
-        if upsert_conversation is not None:
+        if isinstance(self._db, SupabaseClient):
             try:
-                await upsert_conversation(session_id, user_id, request.text)
+                await self._db.session.upsert_conversation(
+                    session_id, user_id, request.text
+                )
             except Exception:
                 logger.warning("upsert_conversation_failed", session_id=session_id)
             else:
@@ -462,18 +459,16 @@ class RuntimeAPI:
                     )
 
         bangumi_id = context_delta.get("bangumi_id")
-        if not bangumi_id:
+        if not isinstance(bangumi_id, str) or not isinstance(self._db, SupabaseClient):
             return
 
-        upsert_user_memory = getattr(self._db, "upsert_user_memory", None)
-        if upsert_user_memory is None:
-            return
-
+        anime_title_raw = context_delta.get("anime_title")
+        anime_title = anime_title_raw if isinstance(anime_title_raw, str) else None
         try:
-            await upsert_user_memory(
+            await self._db.user_memory.upsert_user_memory(
                 user_id,
                 bangumi_id=bangumi_id,
-                anime_title=context_delta.get("anime_title"),
+                anime_title=anime_title,
             )
         except Exception:
             logger.warning("upsert_user_memory_failed", user_id=user_id)
@@ -490,14 +485,15 @@ class RuntimeAPI:
     ) -> None:
         await self._session_store.set(session_id, session_state)
 
-        upsert_session = getattr(self._db, "upsert_session", None)
-        if upsert_session is not None:
+        if isinstance(self._db, SupabaseClient):
             metadata = {
                 "intent": response.intent,
                 "status": response.status,
                 "updated_at": session_state["updated_at"],
             }
-            await upsert_session(session_id, session_state, metadata=metadata)
+            await self._db.session.upsert_session(
+                session_id, session_state, metadata=metadata
+            )
 
     async def _maybe_persist_route(
         self,
@@ -527,11 +523,12 @@ class RuntimeAPI:
             return None
 
         plan_params = _get_plan_params(result)
-        bangumi_id = plan_params.get("bangumi") or _infer_bangumi_id(
+        bangumi_id_raw = plan_params.get("bangumi") or _infer_bangumi_id(
             response.data.get("results")
         )
-        if not bangumi_id:
+        if not isinstance(bangumi_id_raw, str):
             return None
+        bangumi_id = bangumi_id_raw
 
         origin_station = plan_params.get("origin")
         if not isinstance(origin_station, str):
@@ -543,7 +540,7 @@ class RuntimeAPI:
         ):
             origin_station = f"{request.origin_lat},{request.origin_lng}"
 
-        route_record = {
+        route_record: dict[str, object] = {
             "route_id": None,
             "bangumi_id": bangumi_id,
             "origin_station": origin_station,
@@ -552,9 +549,8 @@ class RuntimeAPI:
             "created_at": datetime.now(UTC).isoformat(),
         }
 
-        save_route = getattr(self._db, "save_route", None)
-        if save_route is not None:
-            route_id = await save_route(
+        if isinstance(self._db, SupabaseClient):
+            route_id = await self._db.routes.save_route(
                 session_id,
                 bangumi_id,
                 point_ids,

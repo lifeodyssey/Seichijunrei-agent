@@ -9,6 +9,7 @@ import pytest
 from backend.agents.executor_agent import PipelineResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session.memory import InMemorySessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
     PublicAPIRequest,
     RuntimeAPI,
@@ -50,17 +51,17 @@ def _mock_pipeline(monkeypatch):
 
 @pytest.fixture
 def mock_db():
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_user_memory = AsyncMock(return_value=None)
-    db.upsert_session = AsyncMock()
-    db.upsert_conversation = AsyncMock()
-    db.upsert_user_memory = AsyncMock()
-    db.update_conversation_title = AsyncMock()
-    db.save_route = AsyncMock(return_value="route-1")
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.user_memory.get_user_memory = AsyncMock(return_value=None)
+    db.session.upsert_session = AsyncMock()
+    db.session.upsert_conversation = AsyncMock()
+    db.user_memory.upsert_user_memory = AsyncMock()
+    db.session.update_conversation_title = AsyncMock()
+    db.routes.save_route = AsyncMock(return_value="route-1")
     return db
 
 
@@ -131,7 +132,7 @@ class TestRuntimeAPIExecution:
         ]
         assert len(response.debug["step_results"]) == 0
         assert response.route_history[0]["route_id"] == "route-1"
-        mock_db.save_route.assert_awaited_once()
+        mock_db.routes.save_route.assert_awaited_once()
 
     async def test_handle_preserves_coordinate_origin_in_route_history(self, mock_db):
         result = _make_result(
@@ -181,7 +182,7 @@ class TestRuntimeAPIExecution:
             )
 
         assert response.route_history[0]["origin_station"] == "34.9,135.8"
-        save_route_kwargs = mock_db.save_route.await_args.kwargs
+        save_route_kwargs = mock_db.routes.save_route.await_args.kwargs
         assert save_route_kwargs["origin_station"] == "34.9,135.8"
         assert save_route_kwargs["origin_lat"] == 34.9
         assert save_route_kwargs["origin_lon"] == 135.8

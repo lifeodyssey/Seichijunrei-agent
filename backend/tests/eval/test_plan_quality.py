@@ -106,8 +106,8 @@ def _make_mock_db() -> object:
     db.search_points_by_location = AsyncMock(return_value=[])
     db.query_bangumi_points = AsyncMock(return_value=[])
     db.query_nearby_points = AsyncMock(return_value=[])
-    db.find_bangumi_by_title = AsyncMock(return_value="262243")
-    db.upsert_bangumi_title = AsyncMock(return_value=None)
+    db.bangumi.find_bangumi_by_title = AsyncMock(return_value="262243")
+    db.bangumi.upsert_bangumi_title = AsyncMock(return_value=None)
     db.save_route = AsyncMock(return_value=None)
     db.load_route = AsyncMock(return_value=None)
     return db

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from backend.agents.handlers._helpers import optimize_route
 from backend.agents.models import PlanStep
+from backend.infrastructure.supabase.client import SupabaseClient
 
 
 async def execute(
@@ -30,8 +31,7 @@ async def execute(
             "error": "point_ids is required",
         }
 
-    get_points_by_ids = getattr(db, "get_points_by_ids", None)
-    if get_points_by_ids is None:
+    if not isinstance(db, SupabaseClient):
         return {
             "tool": "plan_selected",
             "success": False,
@@ -39,7 +39,7 @@ async def execute(
         }
 
     rows: list[dict[str, object]] = [
-        dict(row) for row in await get_points_by_ids(point_ids)
+        dict(row) for row in await db.points.get_points_by_ids(point_ids)
     ]
     origin_raw = params.get("origin") or context.get("last_location")
     origin = origin_raw if isinstance(origin_raw, str) else None

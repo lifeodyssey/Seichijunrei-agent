@@ -32,7 +32,7 @@ async def execute(
 
     # 1. DB lookup
     typed_db = cast(SupabaseClient, db)
-    bangumi_id = await typed_db.find_bangumi_by_title(title)
+    bangumi_id = await typed_db.bangumi.find_bangumi_by_title(title)
     if bangumi_id:
         logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
         return {
@@ -45,7 +45,7 @@ async def execute(
     gateway = BangumiClientGateway()
     bangumi_id = await gateway.search_by_title(title)
     if bangumi_id:
-        await typed_db.upsert_bangumi_title(title, bangumi_id)
+        await typed_db.bangumi.upsert_bangumi_title(title, bangumi_id)
         logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
         return {
             "tool": "resolve_anime",

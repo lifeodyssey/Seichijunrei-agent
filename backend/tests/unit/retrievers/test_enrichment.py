@@ -16,6 +16,7 @@ from backend.agents.retrievers.enrichment import (
     write_through_bangumi_points,
 )
 from backend.domain.entities import Coordinates, Point
+from backend.infrastructure.supabase.client import SupabaseClient
 
 
 def _make_point(point_id: str = "p1") -> Point:
@@ -40,21 +41,21 @@ def _make_db(
     has_upsert_bangumi: bool = True,
     has_pool: bool = True,
 ) -> MagicMock:
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     if has_upsert_batch:
-        db.upsert_points_batch = AsyncMock()
+        db.points.upsert_points_batch = AsyncMock()
     else:
-        del db.upsert_points_batch
+        db.points = MagicMock(spec=[])
     if has_upsert_bangumi:
-        db.upsert_bangumi = AsyncMock()
+        db.bangumi.upsert_bangumi = AsyncMock()
     else:
-        del db.upsert_bangumi
+        db.bangumi = MagicMock(spec=[])
     if has_pool:
         pool = AsyncMock()
         pool.execute = AsyncMock()
         db.pool = pool
     else:
-        del db.pool
+        db.pool = None
     return db
 
 
@@ -181,20 +182,19 @@ class TestPersistPoints:
     async def test_calls_upsert_with_converted_rows(self) -> None:
         db = _make_db()
         await persist_points(db, [_make_point()])
-        db.upsert_points_batch.assert_awaited_once()
-        rows = db.upsert_points_batch.await_args.args[0]
+        db.points.upsert_points_batch.assert_awaited_once()
+        rows = db.points.upsert_points_batch.await_args.args[0]
         assert rows[0]["id"] == "p1"
 
     @pytest.mark.asyncio
-    async def test_no_op_when_db_lacks_upsert_method(self) -> None:
-        db = _make_db(has_upsert_batch=False)
-        await persist_points(db, [_make_point()])
+    async def test_no_op_when_db_not_supabase_client(self) -> None:
+        await persist_points(object(), [_make_point()])
 
     @pytest.mark.asyncio
     async def test_no_op_for_empty_points(self) -> None:
         db = _make_db()
         await persist_points(db, [])
-        rows = db.upsert_points_batch.await_args.args[0]
+        rows = db.points.upsert_points_batch.await_args.args[0]
         assert rows == []
 
 
@@ -237,16 +237,15 @@ class TestEnsureBangumiRecord:
             new=AsyncMock(return_value=None),
         ):
             await ensure_bangumi_record(db, "115908", [_make_point()], get_subject)
-        db.upsert_bangumi.assert_awaited_once()
+        db.bangumi.upsert_bangumi.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_no_op_when_db_lacks_upsert_bangumi(self) -> None:
-        db = _make_db(has_upsert_bangumi=False)
+    async def test_no_op_when_db_not_supabase_client(self) -> None:
         with patch(
             "backend.agents.retrievers.enrichment.fetch_bangumi_lite",
             new=AsyncMock(return_value=None),
         ):
-            await ensure_bangumi_record(db, "115908", [_make_point()], None)
+            await ensure_bangumi_record(object(), "115908", [_make_point()], None)
 
     @pytest.mark.asyncio
     async def test_lite_title_overrides_metadata_title(self) -> None:
@@ -262,7 +261,7 @@ class TestEnsureBangumiRecord:
             new=AsyncMock(return_value=lite),
         ):
             await ensure_bangumi_record(db, "115908", [_make_point()], None)
-        call_kwargs = db.upsert_bangumi.await_args.kwargs
+        call_kwargs = db.bangumi.upsert_bangumi.await_args.kwargs
         assert call_kwargs["title"] == "LiteTitle"
         assert call_kwargs["title_cn"] == "LiteCN"
         assert call_kwargs["city"] == "京都"
@@ -307,7 +306,7 @@ class TestWriteThroughBangumiPoints:
         assert result["write_through"] is True
         assert result["fetched_points"] == 1
         assert result["fallback_status"] == "written"
-        db.upsert_points_batch.assert_awaited_once()
+        db.points.upsert_points_batch.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_updates_points_count_after_write(self) -> None:

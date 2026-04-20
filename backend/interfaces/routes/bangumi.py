@@ -7,15 +7,21 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.routes._deps import (
     TrustedAuthContext,
     _get_db_from_request,
     _get_trusted_auth_context,
     _json_response,
-    _require_db_method,
 )
 
 router = APIRouter(prefix="/v1/bangumi", tags=["bangumi"])
+
+
+def _require_supabase(db: object) -> SupabaseClient:
+    if not isinstance(db, SupabaseClient):
+        raise HTTPException(status_code=500, detail="Database client not available.")
+    return db
 
 
 @router.get("/popular")
@@ -26,9 +32,8 @@ async def handle_bangumi_popular(
 ) -> JSONResponse:
     if limit < 1:
         raise HTTPException(status_code=422, detail="limit must be a positive integer.")
-    db = _get_db_from_request(request)
-    list_popular = _require_db_method(db, "list_popular")
-    rows_obj: object = await list_popular(limit=limit)
+    db = _require_supabase(_get_db_from_request(request))
+    rows_obj: object = await db.bangumi.list_popular(limit=limit)
     rows: list[object] = list(rows_obj) if isinstance(rows_obj, list) else []
     return _json_response({"bangumi": rows})
 
@@ -47,8 +52,7 @@ async def handle_bangumi_nearby(
         raise HTTPException(status_code=422, detail="lng must be between -180 and 180.")
     if radius_m < 1:
         raise HTTPException(status_code=422, detail="radius_m must be positive.")
-    db = _get_db_from_request(request)
-    get_bangumi_by_area = _require_db_method(db, "get_bangumi_by_area")
-    rows_obj: object = await get_bangumi_by_area(lat, lng, radius_m)
+    db = _require_supabase(_get_db_from_request(request))
+    rows_obj: object = await db.bangumi.get_bangumi_by_area(lat, lng, radius_m)
     rows: list[object] = list(rows_obj) if isinstance(rows_obj, list) else []
     return _json_response({"bangumi": rows})

@@ -8,12 +8,16 @@ from backend.agents.executor_agent import ExecutorAgent
 from backend.agents.handlers._helpers import optimize_route
 
 
-class FakeDB:
+class FakeBangumiRepo:
     async def find_bangumi_by_title(self, title: str) -> str | None:
         return "12345"
 
     async def upsert_bangumi_title(self, title: str, bid: str) -> None:
         pass
+
+
+class FakeDB:
+    bangumi = FakeBangumiRepo()
 
 
 @pytest.fixture

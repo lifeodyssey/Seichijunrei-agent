@@ -93,7 +93,7 @@ class TestBaseSearch:
 class TestResolveAnime:
     async def test_db_hit(self) -> None:
         db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value="253")
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value="253")
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
 
         result = await execute_resolve(step, {}, db, None)
@@ -101,12 +101,12 @@ class TestResolveAnime:
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "253"
         assert result["data"]["title"] == "Eupho"
-        db.find_bangumi_by_title.assert_awaited_once_with("Eupho")
+        db.bangumi.find_bangumi_by_title.assert_awaited_once_with("Eupho")
 
     async def test_db_miss_api_hit(self) -> None:
         db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value=None)
-        db.upsert_bangumi_title = AsyncMock()
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
+        db.bangumi.upsert_bangumi_title = AsyncMock()
 
         mock_gateway = MagicMock()
         mock_gateway.search_by_title = AsyncMock(return_value="999")
@@ -121,11 +121,11 @@ class TestResolveAnime:
 
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "999"
-        db.upsert_bangumi_title.assert_awaited_once_with("NewAnime", "999")
+        db.bangumi.upsert_bangumi_title.assert_awaited_once_with("NewAnime", "999")
 
     async def test_both_miss(self) -> None:
         db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value=None)
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()
         mock_gateway.search_by_title = AsyncMock(return_value=None)
