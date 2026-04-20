@@ -5,15 +5,84 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from backend.agents.handlers._base_search import execute_retrieval, resolve_bangumi_id
 from backend.agents.handlers.answer_question import execute, execute_clarify
 from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
 from backend.agents.handlers.search_bangumi import execute as execute_search
-from backend.agents.models import PlanStep, ToolName
+from backend.agents.models import PlanStep, RetrievalRequest, ToolName
 
 
 def _step(tool: ToolName, params: dict[str, object] | None = None) -> PlanStep:
     return PlanStep(tool=tool, params=params or {})
+
+
+# ---------------------------------------------------------------------------
+# _base_search
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeResult:
+    success: bool
+    rows: list[dict[str, object]]
+    row_count: int
+    error: str | None = None
+    metadata: dict[str, object] | None = None
+    strategy: object = None
+
+    def __post_init__(self) -> None:
+        if self.metadata is None:
+            self.metadata = {}
+        if self.strategy is None:
+            from backend.agents.retriever import RetrievalStrategy
+
+            self.strategy = RetrievalStrategy.SQL
+
+
+class TestBaseSearch:
+    async def test_returns_success_dict(self) -> None:
+        fake = _FakeResult(success=True, rows=[{"id": "p1"}], row_count=1)
+        retriever = MagicMock()
+        retriever.execute = AsyncMock(return_value=fake)
+        req = RetrievalRequest(tool="search_bangumi", bangumi_id="253")
+
+        result = await execute_retrieval(req, retriever)
+
+        assert result["tool"] == "search_bangumi"
+        assert result["success"] is True
+        assert result["data"]["row_count"] == 1
+
+    async def test_returns_failure_dict(self) -> None:
+        fake = _FakeResult(success=False, rows=[], row_count=0, error="not found")
+        retriever = MagicMock()
+        retriever.execute = AsyncMock(return_value=fake)
+        req = RetrievalRequest(tool="search_nearby", location="Kyoto")
+
+        result = await execute_retrieval(req, retriever)
+
+        assert result["tool"] == "search_nearby"
+        assert result["success"] is False
+        assert result["error"] == "not found"
+
+    def test_resolve_bangumi_id_from_params(self) -> None:
+        result = resolve_bangumi_id({"bangumi_id": "253"}, {})
+        assert result == "253"
+
+    def test_resolve_bangumi_id_from_context(self) -> None:
+        result = resolve_bangumi_id({}, {"resolve_anime": {"bangumi_id": "999"}})
+        assert result == "999"
+
+    def test_resolve_bangumi_id_returns_none_when_missing(self) -> None:
+        result = resolve_bangumi_id({}, {})
+        assert result is None
+
+    def test_resolve_bangumi_id_params_takes_precedence(self) -> None:
+        result = resolve_bangumi_id(
+            {"bangumi_id": "111"},
+            {"resolve_anime": {"bangumi_id": "999"}},
+        )
+        assert result == "111"
 
 
 # ---------------------------------------------------------------------------
