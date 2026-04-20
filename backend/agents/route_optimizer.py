@@ -1,13 +1,16 @@
 """Pure-function route optimisation helpers.
 
 All functions are deterministic and make no I/O or LLM calls.
+
+Geometry primitives live in ``backend.agents.geo_utils``.
+Export helpers live in ``backend.agents.export``.
 """
 
 from __future__ import annotations
 
-import math
 from typing import Literal
 
+from backend.agents.geo_utils import haversine_distance, validate_coordinates
 from backend.agents.models import (
     LocationCluster,
     TimedItinerary,
@@ -15,70 +18,14 @@ from backend.agents.models import (
     TransitLeg,
 )
 
-# ── Haversine ────────────────────────────────────────────────────────
-
-_EARTH_RADIUS_M = 6_371_000
-
-
-def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Return the great-circle distance in **meters** between two WGS-84 points."""
-    rlat1, rlon1, rlat2, rlon2 = map(math.radians, (lat1, lon1, lat2, lon2))
-    dlat = rlat2 - rlat1
-    dlon = rlon2 - rlon1
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(rlat1) * math.cos(rlat2) * math.sin(dlon / 2) ** 2
-    )
-    return 2 * _EARTH_RADIUS_M * math.asin(math.sqrt(a))
-
-
-# ── Coordinate validation ────────────────────────────────────────────
-
-
-def validate_coordinates(
-    rows: list[dict[str, object]],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Split *rows* into (valid, invalid) based on lat/lng sanity checks.
-
-    A row is **invalid** when any of the following is true:
-    * ``latitude`` or ``longitude`` key is missing
-    * Either value is not numeric (``int`` or ``float``)
-    * Both lat and lng are exactly 0 (null-island sentinel)
-    * lat is outside [-90, 90] or lng is outside [-180, 180]
-    """
-    valid: list[dict[str, object]] = []
-    invalid: list[dict[str, object]] = []
-
-    for row in rows:
-        lat_raw = row.get("latitude")
-        lng_raw = row.get("longitude")
-
-        # Must be present, numeric, and not bool (bool is a subclass of int)
-        if (
-            isinstance(lat_raw, bool)
-            or isinstance(lng_raw, bool)
-            or not isinstance(lat_raw, (int, float))
-            or not isinstance(lng_raw, (int, float))
-        ):
-            invalid.append(row)
-            continue
-
-        lat = float(lat_raw)
-        lng = float(lng_raw)
-
-        # Null-island check
-        if lat == 0.0 and lng == 0.0:
-            invalid.append(row)
-            continue
-
-        # Range check
-        if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lng <= 180.0):
-            invalid.append(row)
-            continue
-
-        valid.append(row)
-
-    return valid, invalid
+__all__ = [
+    "haversine_distance",
+    "validate_coordinates",
+    "cluster_by_location",
+    "nearest_neighbor_sort",
+    "compute_dwell_minutes",
+    "build_timed_itinerary",
+]
 
 
 # ── Location clustering (union-find) ─────────────────────────────────
@@ -120,7 +67,6 @@ def cluster_by_location(
     parent: dict[int, int] = {i: i for i in range(n)}
     rank: dict[int, int] = dict.fromkeys(range(n), 0)
 
-    # Pre-extract coordinates for speed
     coords: list[tuple[float, float]] = []
     for idx, row in enumerate(rows):
         try:
@@ -133,7 +79,6 @@ def cluster_by_location(
             ) from exc
         coords.append((lat, lng))
 
-    # Build unions
     for i in range(n):
         for j in range(i + 1, n):
             if (
@@ -144,13 +89,11 @@ def cluster_by_location(
             ):
                 _union(parent, rank, i, j)
 
-    # Group indices by root
     groups: dict[int, list[int]] = {}
     for i in range(n):
         root = _find(parent, i)
         groups.setdefault(root, []).append(i)
 
-    # Build clusters
     clusters: list[LocationCluster] = []
     for indices in groups.values():
         points = [rows[i] for i in indices]
@@ -167,7 +110,6 @@ def cluster_by_location(
             )
         )
 
-    # Deterministic output order: sort by cluster_id
     clusters.sort(key=lambda c: c.cluster_id)
     return clusters
 
@@ -192,7 +134,6 @@ def nearest_neighbor_sort(
     result: list[LocationCluster] = []
 
     if origin is not None:
-        # Start from cluster nearest to origin
         remaining.sort(
             key=lambda c: (
                 haversine_distance(origin[0], origin[1], c.center_lat, c.center_lng),
@@ -200,14 +141,12 @@ def nearest_neighbor_sort(
             )
         )
     else:
-        # Start from alphabetically first cluster_id
         remaining.sort(key=lambda c: c.cluster_id)
 
     current = remaining.pop(0)
     result.append(current)
 
     while remaining:
-        # Sort remaining by distance from current, with cluster_id tiebreaker
         cur_lat, cur_lng = current.center_lat, current.center_lng
         remaining.sort(
             key=lambda c: (
@@ -217,12 +156,10 @@ def nearest_neighbor_sort(
                 c.cluster_id,
             )
         )
-        # Check tiebreaker threshold: within 0.01m
         best = remaining[0]
         best_dist = haversine_distance(
             cur_lat, cur_lng, best.center_lat, best.center_lng
         )
-        # Among all within 0.01m of best, pick by cluster_id
         tied = [
             c
             for c in remaining
@@ -260,7 +197,6 @@ def compute_dwell_minutes(photo_count: int, pacing: str) -> int:
     """
     base = max(photo_count * 3, 8)
     multiplier = _DWELL_MULTIPLIERS.get(pacing, 1.0)
-    # Round half-up (not Python's default banker's rounding)
     raw = base * multiplier
     return int(raw + 0.5)
 
@@ -297,7 +233,6 @@ def build_timed_itinerary(
         msg = "Too many locations to route (max 50)"
         raise ValueError(msg)
 
-    # Normalize pacing to a valid Literal value
     _VALID_PACING: dict[str, Literal["chill", "normal", "packed"]] = {
         "chill": "chill",
         "normal": "normal",
@@ -321,7 +256,6 @@ def build_timed_itinerary(
         arrive = current_time
         depart = _add_minutes(arrive, dwell)
 
-        # Derive a name from the first point's name or fallback to cluster_id
         name = cluster.cluster_id
         if cluster.points:
             first_point = cluster.points[0]
@@ -343,7 +277,6 @@ def build_timed_itinerary(
             )
         )
 
-        # Transit leg to next cluster
         if idx < len(sorted_clusters) - 1:
             next_cluster = sorted_clusters[idx + 1]
             dist = haversine_distance(
@@ -367,7 +300,6 @@ def build_timed_itinerary(
             )
             current_time = _add_minutes(depart, walk_minutes)
 
-    # Total minutes from first arrive to last depart
     first_h, first_m = map(int, stops[0].arrive.split(":"))
     last_h, last_m = map(int, stops[-1].depart.split(":"))
     total_minutes = (last_h * 60 + last_m) - (first_h * 60 + first_m)
