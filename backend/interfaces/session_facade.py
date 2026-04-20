@@ -15,6 +15,7 @@ from backend.agents.base import create_agent, get_default_model
 from backend.agents.executor_agent import PipelineResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session import SessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.schemas import PublicAPIRequest
 
 logger = structlog.get_logger(__name__)
@@ -404,14 +405,13 @@ async def generate_and_save_title(
     except Exception:
         logger.warning("conversation_title_generation_failed", session_id=session_id)
 
-    update_conversation_title = getattr(db, "update_conversation_title", None)
-    if update_conversation_title is None:
+    if not isinstance(db, SupabaseClient):
         return
 
     try:
-        await update_conversation_title(session_id, title, user_id=user_id)
+        await db.session.update_conversation_title(session_id, title, user_id=user_id)
     except TypeError:
-        await update_conversation_title(session_id, title)
+        await db.session.update_conversation_title(session_id, title)
     except Exception:
         logger.warning("update_conversation_title_failed", session_id=session_id)
 

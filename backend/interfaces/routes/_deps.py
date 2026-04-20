@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from typing import Annotated, Literal, cast
 
@@ -100,16 +100,10 @@ def _get_db_from_request(request: Request) -> object:
     return cast(object, getattr(request.app.state, "db_client", None))
 
 
-def _require_db_method(
-    db: object, method_name: str
-) -> Callable[..., Awaitable[object]]:
-    method = getattr(db, method_name, None)
-    if method is None or not callable(method):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database adapter is missing required method: {method_name}.",
-        )
-    return cast(Callable[..., Awaitable[object]], method)
+def _require_supabase(db: object) -> SupabaseClient:
+    if not isinstance(db, SupabaseClient):
+        raise HTTPException(status_code=500, detail="Database client not available.")
+    return db
 
 
 def _public_api_response(response: PublicAPIResponse) -> JSONResponse:

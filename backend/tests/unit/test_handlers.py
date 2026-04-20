@@ -11,6 +11,7 @@ from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
 from backend.agents.handlers.search_bangumi import execute as execute_search
 from backend.agents.models import PlanStep, RetrievalRequest, ToolName
+from backend.infrastructure.supabase.client import SupabaseClient
 
 
 def _step(tool: ToolName, params: dict[str, object] | None = None) -> PlanStep:
@@ -90,10 +91,14 @@ class TestBaseSearch:
 # ---------------------------------------------------------------------------
 
 
+def _mock_supabase() -> MagicMock:
+    return MagicMock(spec=SupabaseClient)
+
+
 class TestResolveAnime:
     async def test_db_hit(self) -> None:
-        db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value="253")
+        db = _mock_supabase()
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value="253")
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
 
         result = await execute_resolve(step, {}, db, None)
@@ -101,12 +106,12 @@ class TestResolveAnime:
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "253"
         assert result["data"]["title"] == "Eupho"
-        db.find_bangumi_by_title.assert_awaited_once_with("Eupho")
+        db.bangumi.find_bangumi_by_title.assert_awaited_once_with("Eupho")
 
     async def test_db_miss_api_hit(self) -> None:
-        db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value=None)
-        db.upsert_bangumi_title = AsyncMock()
+        db = _mock_supabase()
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
+        db.bangumi.upsert_bangumi_title = AsyncMock()
 
         mock_gateway = MagicMock()
         mock_gateway.search_by_title = AsyncMock(return_value="999")
@@ -121,11 +126,11 @@ class TestResolveAnime:
 
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "999"
-        db.upsert_bangumi_title.assert_awaited_once_with("NewAnime", "999")
+        db.bangumi.upsert_bangumi_title.assert_awaited_once_with("NewAnime", "999")
 
     async def test_both_miss(self) -> None:
-        db = MagicMock()
-        db.find_bangumi_by_title = AsyncMock(return_value=None)
+        db = _mock_supabase()
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()
         mock_gateway.search_by_title = AsyncMock(return_value=None)
@@ -160,6 +165,13 @@ class TestResolveAnime:
         result = await execute_resolve(step, {}, MagicMock(), None)
 
         assert result["success"] is False
+
+    async def test_non_supabase_db_returns_failure(self) -> None:
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
+        result = await execute_resolve(step, {}, object(), None)
+
+        assert result["success"] is False
+        assert result["error"] == "DB not available"
 
 
 # ---------------------------------------------------------------------------

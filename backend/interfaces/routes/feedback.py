@@ -9,7 +9,7 @@ from backend.interfaces.routes._deps import (
     FeedbackRequest,
     _get_db_from_request,
     _json_response,
-    _require_db_method,
+    _require_supabase,
 )
 
 router = APIRouter(prefix="/v1", tags=["feedback"])
@@ -20,9 +20,8 @@ async def handle_feedback(
     payload: FeedbackRequest,
     request: Request,
 ) -> JSONResponse:
-    db = _get_db_from_request(request)
-    save_feedback = _require_db_method(db, "save_feedback")
-    feedback_id_obj = await save_feedback(
+    db = _require_supabase(_get_db_from_request(request))
+    feedback_id_obj = await db.feedback.save_feedback(
         payload.session_id,
         payload.query_text,
         payload.intent,

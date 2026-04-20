@@ -13,7 +13,7 @@ from backend.interfaces.routes._deps import (
     _error_response,
     _get_db_from_request,
     _json_response,
-    _require_db_method,
+    _require_supabase,
     _require_trusted_user,
 )
 
@@ -26,9 +26,8 @@ async def handle_get_conversations(
     auth: Annotated[TrustedAuthContext, Depends(_require_trusted_user)],
 ) -> JSONResponse:
     assert auth.user_id is not None
-    db = _get_db_from_request(request)
-    get_conversations = _require_db_method(db, "get_conversations")
-    conversations_obj: object = await get_conversations(auth.user_id)
+    db = _require_supabase(_get_db_from_request(request))
+    conversations_obj: object = await db.session.get_conversations(auth.user_id)
     return _json_response(conversations_obj)
 
 
@@ -40,9 +39,8 @@ async def handle_patch_conversation(
     auth: Annotated[TrustedAuthContext, Depends(_require_trusted_user)],
 ) -> JSONResponse:
     assert auth.user_id is not None
-    db = _get_db_from_request(request)
-    get_conversation = _require_db_method(db, "get_conversation")
-    conversation_obj: object = await get_conversation(session_id)
+    db = _require_supabase(_get_db_from_request(request))
+    conversation_obj: object = await db.session.get_conversation(session_id)
     conversation = conversation_obj if isinstance(conversation_obj, dict) else None
     if conversation is None or conversation.get("user_id") != auth.user_id:
         return _error_response(
@@ -50,8 +48,9 @@ async def handle_patch_conversation(
             "Conversation not found.",
             status_code=404,
         )
-    update_conversation_title = _require_db_method(db, "update_conversation_title")
-    await update_conversation_title(session_id, payload.title, user_id=auth.user_id)
+    await db.session.update_conversation_title(
+        session_id, payload.title, user_id=auth.user_id
+    )
     return _json_response({"ok": True})
 
 
@@ -62,9 +61,8 @@ async def handle_get_messages(
     auth: Annotated[TrustedAuthContext, Depends(_require_trusted_user)],
 ) -> JSONResponse:
     assert auth.user_id is not None
-    db = _get_db_from_request(request)
-    get_conversation = _require_db_method(db, "get_conversation")
-    conversation_obj: object = await get_conversation(session_id)
+    db = _require_supabase(_get_db_from_request(request))
+    conversation_obj: object = await db.session.get_conversation(session_id)
     conversation = conversation_obj if isinstance(conversation_obj, dict) else None
     if conversation is None or conversation.get("user_id") != auth.user_id:
         return _error_response(
@@ -73,8 +71,7 @@ async def handle_get_messages(
             status_code=404,
         )
 
-    get_messages = _require_db_method(db, "get_messages")
-    messages_obj: object = await get_messages(session_id)
+    messages_obj: object = await db.messages.get_messages(session_id)
     return _json_response({"messages": messages_obj})
 
 
@@ -84,7 +81,6 @@ async def handle_get_routes(
     auth: Annotated[TrustedAuthContext, Depends(_require_trusted_user)],
 ) -> JSONResponse:
     assert auth.user_id is not None
-    db = _get_db_from_request(request)
-    get_user_routes = _require_db_method(db, "get_user_routes")
-    routes_obj: object = await get_user_routes(auth.user_id)
+    db = _require_supabase(_get_db_from_request(request))
+    routes_obj: object = await db.routes.get_user_routes(auth.user_id)
     return _json_response({"routes": routes_obj})

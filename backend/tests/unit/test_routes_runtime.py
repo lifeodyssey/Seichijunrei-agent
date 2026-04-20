@@ -132,7 +132,7 @@ async def test_unhandled_exception_returns_500() -> None:
 
 async def test_patch_conversation_nonexistent_returns_404() -> None:
     db = build_stub_db()
-    db.get_conversation = AsyncMock(return_value=None)
+    db.session.get_conversation = AsyncMock(return_value=None)
     app, _ = build_app(db=db)
 
     async with async_client(app) as client:
@@ -146,7 +146,7 @@ async def test_patch_conversation_nonexistent_returns_404() -> None:
     body = resp.json()
     assert body["error"]["code"] == "not_found"
     assert body["error"]["message"] == "Conversation not found."
-    db.update_conversation_title.assert_not_awaited()
+    db.session.update_conversation_title.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ async def test_patch_conversation_nonexistent_returns_404() -> None:
 
 async def test_patch_conversation_wrong_user_returns_404() -> None:
     db = build_stub_db()
-    db.get_conversation = AsyncMock(return_value={"user_id": "other-user"})
+    db.session.get_conversation = AsyncMock(return_value={"user_id": "other-user"})
     app, _ = build_app(db=db)
 
     async with async_client(app) as client:
@@ -170,7 +170,7 @@ async def test_patch_conversation_wrong_user_returns_404() -> None:
     body = resp.json()
     assert body["error"]["code"] == "not_found"
     assert body["error"]["message"] == "Conversation not found."
-    db.update_conversation_title.assert_not_awaited()
+    db.session.update_conversation_title.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -180,8 +180,8 @@ async def test_patch_conversation_wrong_user_returns_404() -> None:
 
 async def test_patch_conversation_valid_returns_200() -> None:
     db = build_stub_db()
-    db.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
-    db.update_conversation_title = AsyncMock(return_value=None)
+    db.session.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
+    db.session.update_conversation_title = AsyncMock(return_value=None)
     app, _ = build_app(db=db)
 
     async with async_client(app) as client:
@@ -194,4 +194,4 @@ async def test_patch_conversation_valid_returns_200() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["ok"] is True
-    db.update_conversation_title.assert_awaited_once()
+    db.session.update_conversation_title.assert_awaited_once()

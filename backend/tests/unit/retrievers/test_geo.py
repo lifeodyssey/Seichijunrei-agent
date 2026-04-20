@@ -11,18 +11,15 @@ from backend.agents.retrievers.geo import (
     get_area_suggestions,
     records_to_dicts,
 )
+from backend.infrastructure.supabase.client import SupabaseClient
 
 
 def _mock_db(
     *,
-    has_search: bool = True,
     has_area: bool = True,
 ) -> MagicMock:
-    db = MagicMock()
-    if has_search:
-        db.search_points_by_location = AsyncMock(return_value=[])
-    else:
-        del db.search_points_by_location
+    db = MagicMock(spec=SupabaseClient)
+    db.points.search_points_by_location = AsyncMock(return_value=[])
     if has_area:
         db.get_bangumi_by_area = AsyncMock(return_value=[])
     else:
@@ -73,13 +70,12 @@ class TestFetchGeoRows:
         assert "nowhere" in error
 
     @pytest.mark.asyncio
-    async def test_returns_error_when_db_lacks_geo_method(self) -> None:
-        db = _mock_db(has_search=False)
+    async def test_returns_error_when_db_is_not_supabase_client(self) -> None:
         with patch(
             "backend.agents.retrievers.geo.resolve_location",
             new=AsyncMock(return_value=(34.88, 135.79)),
         ):
-            rows, error = await fetch_geo_rows(db, "宇治", radius_m=5000)
+            rows, error = await fetch_geo_rows(object(), "宇治", radius_m=5000)
         assert rows == []
         assert error is not None
         assert "geo retrieval" in error
@@ -87,7 +83,7 @@ class TestFetchGeoRows:
     @pytest.mark.asyncio
     async def test_returns_rows_and_no_error_on_success(self) -> None:
         db = _mock_db()
-        db.search_points_by_location = AsyncMock(
+        db.points.search_points_by_location = AsyncMock(
             return_value=[{"id": "p1", "name": "A"}]
         )
         with patch(
@@ -97,7 +93,7 @@ class TestFetchGeoRows:
             rows, error = await fetch_geo_rows(db, "宇治", radius_m=5000)
         assert error is None
         assert rows == [{"id": "p1", "name": "A"}]
-        db.search_points_by_location.assert_awaited_once_with(
+        db.points.search_points_by_location.assert_awaited_once_with(
             34.88, 135.79, 5000, limit=200
         )
 
@@ -111,6 +107,18 @@ class TestFetchGeoRows:
             rows, error = await fetch_geo_rows(db, "宇治", radius_m=5000)
         assert rows == []
         assert error is None
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_coords_is_ambiguous(self) -> None:
+        db = _mock_db()
+        with patch(
+            "backend.agents.retrievers.geo.resolve_location",
+            new=AsyncMock(return_value=[]),
+        ):
+            rows, error = await fetch_geo_rows(db, "宇治", radius_m=5000)
+        assert rows == []
+        assert error is not None
+        assert "Ambiguous" in error
 
 
 # ── get_area_suggestions ──

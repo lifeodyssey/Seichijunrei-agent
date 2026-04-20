@@ -1,4 +1,4 @@
-"""Unit tests for SupabaseClient write-through helpers."""
+"""Unit tests for SupabaseClient repository property delegation."""
 
 from __future__ import annotations
 
@@ -18,13 +18,27 @@ def mock_pool() -> AsyncMock:
     return pool
 
 
+def _make_client(pool: AsyncMock) -> SupabaseClient:
+    """Create a SupabaseClient with repos initialized from a mock pool."""
+    client = SupabaseClient.__new__(SupabaseClient)
+    client._pool = pool
+    client._bangumi = None
+    client._points = None
+    client._session = None
+    client._feedback = None
+    client._user_memory = None
+    client._routes = None
+    client._messages = None
+    client._init_repos(pool)
+    return client
+
+
 @pytest.mark.asyncio
 async def test_upsert_point_uses_geography_cast_for_location() -> None:
-    client = SupabaseClient("postgresql://example")
     pool = AsyncMock()
-    client._pool = pool
+    client = _make_client(pool)
 
-    await client.upsert_point(
+    await client.points.upsert_point(
         "p1",
         bangumi_id="115908",
         name="宇治桥",
@@ -42,8 +56,6 @@ async def test_upsert_point_uses_geography_cast_for_location() -> None:
 
 @pytest.mark.asyncio
 async def test_upsert_points_batch_accepts_latitude_and_longitude() -> None:
-    client = SupabaseClient("postgresql://example")
-
     conn = MagicMock()
     conn.executemany = AsyncMock()
     tx = AsyncMock()
@@ -57,9 +69,9 @@ async def test_upsert_points_batch_accepts_latitude_and_longitude() -> None:
 
     pool = MagicMock()
     pool.acquire.return_value = acquire_ctx
-    client._pool = pool
+    client = _make_client(pool)
 
-    await client.upsert_points_batch(
+    await client.points.upsert_points_batch(
         [
             {
                 "id": "p1",
@@ -99,11 +111,10 @@ async def test_upsert_points_batch_accepts_latitude_and_longitude() -> None:
 
 @pytest.mark.asyncio
 async def test_upsert_point_casts_embedding_to_vector() -> None:
-    client = SupabaseClient("postgresql://example")
     pool = AsyncMock()
-    client._pool = pool
+    client = _make_client(pool)
 
-    await client.upsert_point(
+    await client.points.upsert_point(
         "p1",
         bangumi_id="115908",
         name="宇治桥",
@@ -121,12 +132,11 @@ async def test_upsert_point_casts_embedding_to_vector() -> None:
 
 @pytest.mark.asyncio
 async def test_search_points_by_location_uses_runtime_contract_query() -> None:
-    client = SupabaseClient("postgresql://example")
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
-    client._pool = pool
+    client = _make_client(pool)
 
-    await client.search_points_by_location(34.8843, 135.7997, 5000, limit=10)
+    await client.points.search_points_by_location(34.8843, 135.7997, 5000, limit=10)
 
     sql = pool.fetch.await_args.args[0]
     assert "SELECT *" not in sql
@@ -140,27 +150,24 @@ async def test_search_points_by_location_uses_runtime_contract_query() -> None:
 class TestFindBangumiByTitle:
     async def test_exact_title_match(self, mock_pool):
         mock_pool.fetchrow.return_value = {"id": "115908"}
-        client = SupabaseClient.__new__(SupabaseClient)
-        client._pool = mock_pool
-        result = await client.find_bangumi_by_title("響け！ユーフォニアム")
+        client = _make_client(mock_pool)
+        result = await client.bangumi.find_bangumi_by_title("響け！ユーフォニアム")
         assert result == "115908"
         call_args = mock_pool.fetchrow.call_args[0]
         assert "ilike" in call_args[0].lower() or "$1" in call_args[0]
 
     async def test_no_match_returns_none(self, mock_pool):
         mock_pool.fetchrow.return_value = None
-        client = SupabaseClient.__new__(SupabaseClient)
-        client._pool = mock_pool
-        result = await client.find_bangumi_by_title("unknown anime xyz")
+        client = _make_client(mock_pool)
+        result = await client.bangumi.find_bangumi_by_title("unknown anime xyz")
         assert result is None
 
 
 class TestGetPointsByIds:
     async def test_returns_empty_for_empty_input(self, mock_pool):
-        client = SupabaseClient.__new__(SupabaseClient)
-        client._pool = mock_pool
+        client = _make_client(mock_pool)
 
-        result = await client.get_points_by_ids([])
+        result = await client.points.get_points_by_ids([])
 
         assert result == []
         mock_pool.fetch.assert_not_awaited()
@@ -170,10 +177,9 @@ class TestGetPointsByIds:
             {"id": "p2", "name": "Byodoin"},
             {"id": "p1", "name": "Uji Bridge"},
         ]
-        client = SupabaseClient.__new__(SupabaseClient)
-        client._pool = mock_pool
+        client = _make_client(mock_pool)
 
-        result = await client.get_points_by_ids(["p2", "p1"])
+        result = await client.points.get_points_by_ids(["p2", "p1"])
 
         assert result == [
             {"id": "p2", "name": "Byodoin"},
@@ -186,9 +192,8 @@ class TestGetPointsByIds:
 class TestUpsertBangumiTitle:
     async def test_upserts_title(self, mock_pool):
         mock_pool.execute.return_value = None
-        client = SupabaseClient.__new__(SupabaseClient)
-        client._pool = mock_pool
-        await client.upsert_bangumi_title("進撃の巨人", "6718")
+        client = _make_client(mock_pool)
+        await client.bangumi.upsert_bangumi_title("進撃の巨人", "6718")
         mock_pool.execute.assert_awaited_once()
         sql, *args = mock_pool.execute.call_args[0]
         assert "6718" in args or "進撃の巨人" in args
@@ -196,14 +201,12 @@ class TestUpsertBangumiTitle:
 
 @pytest.fixture
 def persistence_db(mock_pool: AsyncMock) -> SupabaseClient:
-    client = SupabaseClient.__new__(SupabaseClient)
-    client._pool = mock_pool
-    return client
+    return _make_client(mock_pool)
 
 
 class TestUpsertConversation:
     async def test_inserts_or_touches_conversation(self, persistence_db, mock_pool):
-        await persistence_db.upsert_conversation(
+        await persistence_db.session.upsert_conversation(
             session_id="sess-1",
             user_id="user-1",
             first_query="京吹の聖地を探して",
@@ -218,7 +221,7 @@ class TestUpsertConversation:
         persistence_db,
         mock_pool,
     ):
-        await persistence_db.upsert_conversation(
+        await persistence_db.session.upsert_conversation(
             session_id="sess-1",
             user_id="user-1",
             first_query="京吹の聖地を探して",
@@ -230,7 +233,7 @@ class TestUpsertConversation:
 
 class TestUpdateConversationTitle:
     async def test_updates_conversation_title(self, persistence_db, mock_pool):
-        await persistence_db.update_conversation_title("sess-1", "京吹 宇治")
+        await persistence_db.session.update_conversation_title("sess-1", "京吹 宇治")
 
         sql = mock_pool.execute.await_args.args[0]
         assert "UPDATE conversations" in sql
@@ -241,7 +244,7 @@ class TestGetConversations:
     async def test_returns_empty_list_when_no_rows(self, persistence_db, mock_pool):
         mock_pool.fetch.return_value = []
 
-        result = await persistence_db.get_conversations("user-1")
+        result = await persistence_db.session.get_conversations("user-1")
 
         assert result == []
 
@@ -256,7 +259,7 @@ class TestGetConversations:
             }
         ]
 
-        result = await persistence_db.get_conversations("user-1")
+        result = await persistence_db.session.get_conversations("user-1")
 
         assert len(result) == 1
         assert result[0]["session_id"] == "sess-1"
@@ -266,7 +269,7 @@ class TestUserMemory:
     async def test_upsert_inserts_first_entry(self, persistence_db, mock_pool):
         mock_pool.fetchrow.return_value = None
 
-        await persistence_db.upsert_user_memory(
+        await persistence_db.user_memory.upsert_user_memory(
             "user-1",
             bangumi_id="253",
             anime_title="響け！ユーフォニアム",
@@ -285,7 +288,7 @@ class TestUserMemory:
             )
         }
 
-        await persistence_db.upsert_user_memory(
+        await persistence_db.user_memory.upsert_user_memory(
             "user-1",
             bangumi_id="253",
             anime_title="響け！ユーフォニアム",
@@ -304,7 +307,7 @@ class TestUserMemory:
     ):
         mock_pool.fetchrow.return_value = None
 
-        result = await persistence_db.get_user_memory("user-1")
+        result = await persistence_db.user_memory.get_user_memory("user-1")
 
         assert result is None
 
@@ -314,6 +317,6 @@ class TestUserMemory:
             "visited_points": "[]",
         }
 
-        result = await persistence_db.get_user_memory("user-1")
+        result = await persistence_db.user_memory.get_user_memory("user-1")
 
         assert result["visited_anime"][0]["bangumi_id"] == "253"

@@ -100,11 +100,12 @@ async def load_bangumi_metadata(
 
 
 async def persist_points(db: object, points: list[Point]) -> None:
-    upsert_points_batch = getattr(db, "upsert_points_batch", None)
-    if upsert_points_batch is None:
+    from backend.infrastructure.supabase.client import SupabaseClient
+
+    if not isinstance(db, SupabaseClient):
         return
     rows = [point_to_db_row(point) for point in points]
-    await upsert_points_batch(rows)
+    await db.points.upsert_points_batch(rows)
 
 
 async def update_bangumi_points_count(
@@ -131,8 +132,9 @@ async def ensure_bangumi_record(
     points: list[Point],
     get_bangumi_subject: Callable[[int], Awaitable[dict[str, object]]] | None,
 ) -> None:
-    upsert_bangumi = getattr(db, "upsert_bangumi", None)
-    if upsert_bangumi is None:
+    from backend.infrastructure.supabase.client import SupabaseClient
+
+    if not isinstance(db, SupabaseClient):
         return
 
     metadata = await load_bangumi_metadata(bangumi_id, points, get_bangumi_subject)
@@ -152,7 +154,7 @@ async def ensure_bangumi_record(
         if isinstance(lite_cover, str) and lite_cover:
             metadata["cover_url"] = lite_cover
 
-    await upsert_bangumi(bangumi_id, **metadata)
+    await db.bangumi.upsert_bangumi(bangumi_id, **metadata)
 
 
 async def write_through_bangumi_points(

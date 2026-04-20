@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 import structlog
 
 from backend.agents.sql_agent import resolve_location
+from backend.infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
 
@@ -33,12 +34,16 @@ async def fetch_geo_rows(
     if coords is None:
         return [], f"Unknown location: {anchor}. Could not resolve coordinates."
 
-    search_points = getattr(db, "search_points_by_location", None)
-    if search_points is None:
+    if isinstance(coords, list):
+        return [], f"Ambiguous location: {anchor}. Multiple candidates found."
+
+    if not isinstance(db, SupabaseClient):
         return [], "Database client does not support geo retrieval"
 
     lat, lon = coords
-    records = await search_points(lat, lon, radius_m, limit=_DEFAULT_GEO_LIMIT)
+    records = await db.points.search_points_by_location(
+        lat, lon, radius_m, limit=_DEFAULT_GEO_LIMIT
+    )
     return records_to_dicts(records), None
 
 

@@ -11,43 +11,33 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from backend.config.settings import Settings
 from backend.infrastructure.session.memory import InMemorySessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.fastapi_service import (
     _call_optional_async,
     _contains_json_invalid_error,
     _http_error_code,
-    _require_db_method,
     create_fastapi_app,
 )
 from backend.interfaces.public_api import RuntimeAPI
-
-
-class _MissingConversationDb:
-    async def get_messages(self, session_id: str) -> list[dict[str, object]]:
-        return []
-
-
-class _MissingRoutesDb:
-    async def get_conversations(self, user_id: str) -> list[dict[str, object]]:
-        return []
+from backend.interfaces.routes._deps import _require_supabase
 
 
 @pytest.fixture
 def mock_db() -> MagicMock:
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_conversations = AsyncMock(return_value=[])
-    db.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
-    db.get_messages = AsyncMock(return_value=[])
-    db.get_user_routes = AsyncMock(return_value=[])
-    db.save_feedback = AsyncMock(return_value="feedback-1")
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.session.get_conversations = AsyncMock(return_value=[])
+    db.session.get_conversation = AsyncMock(return_value={"user_id": "user-1"})
+    db.messages.get_messages = AsyncMock(return_value=[])
+    db.routes.get_user_routes = AsyncMock(return_value=[])
+    db.feedback.save_feedback = AsyncMock(return_value="feedback-1")
     return db
 
 
@@ -86,7 +76,7 @@ def test_missing_user_header_returns_structured_invalid_request_error_on_convers
 def test_messages_route_returns_structured_404_when_ownership_mismatch(
     mock_db: MagicMock,
 ) -> None:
-    mock_db.get_conversation.return_value = {"user_id": "someone-else"}
+    mock_db.session.get_conversation.return_value = {"user_id": "someone-else"}
     app = create_fastapi_app(
         runtime_api=RuntimeAPI(mock_db, session_store=InMemorySessionStore()),
         settings=Settings(),
@@ -104,7 +94,7 @@ def test_messages_route_returns_structured_404_when_ownership_mismatch(
 
 
 def test_missing_db_method_fails_fast_on_routes_endpoint() -> None:
-    db = _MissingRoutesDb()
+    db = object()  # not a SupabaseClient — routes should return 500
     app = create_fastapi_app(
         runtime_api=RuntimeAPI(db, session_store=InMemorySessionStore()),
         settings=Settings(),
@@ -208,21 +198,6 @@ def test_contains_json_invalid_error_returns_false_for_other_types() -> None:
     assert _contains_json_invalid_error(errors_obj) is False
 
 
-def test_require_db_method_returns_callable() -> None:
-    class _Db:
-        async def get_messages(self, session_id: str) -> list[dict[str, object]]:
-            return []
-
-    method = _require_db_method(_Db(), "get_messages")
-    assert callable(method)
-
-
-def test_require_db_method_raises_http_exception_for_missing_method() -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        _require_db_method(object(), "missing")
-    assert exc_info.value.status_code == 500
-
-
 @pytest.mark.asyncio
 async def test_call_optional_async_awaits_async_method() -> None:
     target = SimpleNamespace(close=AsyncMock())
@@ -234,3 +209,17 @@ async def test_call_optional_async_awaits_async_method() -> None:
 async def test_call_optional_async_ignores_missing_method() -> None:
     target = SimpleNamespace()
     await _call_optional_async(target, "close")
+
+
+def test_require_supabase_returns_client_when_valid(mock_db: MagicMock) -> None:
+    result = _require_supabase(mock_db)
+    assert result is mock_db
+
+
+def test_require_supabase_raises_500_when_not_supabase_client() -> None:
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        _require_supabase(object())
+    assert exc_info.value.status_code == 500
+    assert "Database client not available" in exc_info.value.detail

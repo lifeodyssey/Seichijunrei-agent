@@ -2,7 +2,7 @@
 
 Usage:
     async with SupabaseClient(dsn="postgresql://...") as db:
-        bangumi = await db.get_bangumi("12345")
+        bangumi_id = await db.bangumi.find_bangumi_by_title("Eupho")
 """
 
 from __future__ import annotations
@@ -32,8 +32,9 @@ __all__ = ["Row", "SupabaseClient"]
 class SupabaseClient:
     """Async PostgreSQL client delegating to domain repository instances.
 
-    Backward-compatible: all methods from the old monolithic class are
-    accessible via ``__getattr__`` delegation.
+    Access repositories via explicit typed properties:
+    ``db.bangumi``, ``db.points``, ``db.session``, ``db.feedback``,
+    ``db.routes``, ``db.messages``, ``db.user_memory``.
     """
 
     def __init__(
@@ -148,55 +149,3 @@ class SupabaseClient:
                 "MessagesRepository not initialized — call connect() first"
             )
         return self._messages
-
-    # --- Explicit delegation for frequently-used methods (mypy-visible) ---
-
-    def _ensure_repos(self) -> None:
-        """Lazily init repos when pool was set directly (tests bypass connect())."""
-        if (
-            self.__dict__.get("_bangumi") is None
-            and self.__dict__.get("_pool") is not None
-        ):
-            self._init_repos(self._pool)  # type: ignore[arg-type]
-
-    async def get_session_state(self, session_id: str) -> dict[str, object] | None:
-        self._ensure_repos()
-        return await self.session.get_session_state(session_id)
-
-    async def upsert_session_state(
-        self, session_id: str, state: dict[str, object]
-    ) -> None:
-        self._ensure_repos()
-        await self.session.upsert_session_state(session_id, state)
-
-    async def delete_session_state(self, session_id: str) -> None:
-        self._ensure_repos()
-        await self.session.delete_session_state(session_id)
-
-    async def find_bangumi_by_title(self, title: str) -> str | None:
-        self._ensure_repos()
-        return await self.bangumi.find_bangumi_by_title(title)
-
-    async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
-        self._ensure_repos()
-        await self.bangumi.upsert_bangumi_title(title, bangumi_id)
-
-    # --- Backward-compatible delegation (remaining methods) ---
-
-    def __getattr__(self, name: str) -> object:
-        # Lazily init repos when _pool was set directly (tests bypass connect()).
-        pool = self.__dict__.get("_pool")
-        if pool is not None and self.__dict__.get("_bangumi") is None:
-            self._init_repos(pool)
-        for repo in (
-            self._bangumi,
-            self._points,
-            self._session,
-            self._feedback,
-            self._user_memory,
-            self._routes,
-            self._messages,
-        ):
-            if repo is not None and hasattr(repo, name):
-                return getattr(repo, name)
-        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")

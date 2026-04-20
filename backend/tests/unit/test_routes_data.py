@@ -16,7 +16,7 @@ from backend.tests.unit.conftest_fastapi import (
 
 def _build_stub_db_with_bangumi() -> AsyncMock:
     db = build_stub_db()
-    db.list_popular = AsyncMock(
+    db.bangumi.list_popular = AsyncMock(
         return_value=[
             {
                 "id": "115908",
@@ -29,7 +29,7 @@ def _build_stub_db_with_bangumi() -> AsyncMock:
             }
         ]
     )
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     return db
 
 
@@ -64,10 +64,10 @@ async def test_popular_default_limit_is_8() -> None:
         resp = await client.get("/v1/bangumi/popular")
 
     assert resp.status_code == 200
-    db.list_popular.assert_awaited_once()
+    db.bangumi.list_popular.assert_awaited_once()
     called_limit = (
-        db.list_popular.await_args.kwargs.get("limit")
-        or db.list_popular.await_args.args[0]
+        db.bangumi.list_popular.await_args.kwargs.get("limit")
+        or db.bangumi.list_popular.await_args.args[0]
     )
     assert called_limit == 8
 
@@ -88,7 +88,7 @@ async def test_popular_non_integer_limit_returns_422() -> None:
 
 async def test_popular_empty_db_returns_empty_array() -> None:
     db = build_stub_db()
-    db.list_popular = AsyncMock(return_value=[])
+    db.bangumi.list_popular = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/popular")
@@ -117,7 +117,7 @@ async def test_popular_with_x_user_id_header_passes_auth_context() -> None:
 
 async def test_nearby_returns_200_with_bangumi_array() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(
+    db.bangumi.get_bangumi_by_area = AsyncMock(
         return_value=[
             {
                 "bangumi_id": "115908",
@@ -143,7 +143,7 @@ async def test_nearby_returns_200_with_bangumi_array() -> None:
 
 async def test_nearby_empty_returns_empty_array() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=0.0&lng=0.0&radius_m=1000")
@@ -153,7 +153,7 @@ async def test_nearby_empty_returns_empty_array() -> None:
 
 async def test_nearby_lat_out_of_range_returns_422() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=91.0&lng=135.8&radius_m=50000")
@@ -162,7 +162,7 @@ async def test_nearby_lat_out_of_range_returns_422() -> None:
 
 async def test_nearby_missing_lat_returns_422() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lng=135.8&radius_m=50000")
@@ -171,7 +171,7 @@ async def test_nearby_missing_lat_returns_422() -> None:
 
 async def test_nearby_without_auth_header_still_returns_200() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=1000")
@@ -180,7 +180,7 @@ async def test_nearby_without_auth_header_still_returns_200() -> None:
 
 async def test_nearby_with_x_user_id_header_passes_auth_context() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get(
@@ -192,7 +192,7 @@ async def test_nearby_with_x_user_id_header_passes_auth_context() -> None:
 
 async def test_nearby_zero_radius_returns_422() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=0")
@@ -202,7 +202,7 @@ async def test_nearby_zero_radius_returns_422() -> None:
 
 async def test_nearby_negative_radius_returns_422() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=-1000")
@@ -212,7 +212,7 @@ async def test_nearby_negative_radius_returns_422() -> None:
 
 async def test_nearby_positive_radius_returns_200() -> None:
     db = build_stub_db()
-    db.get_bangumi_by_area = AsyncMock(return_value=[])
+    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
     app, _ = build_app(db=db)
     async with async_client(app) as client:
         resp = await client.get("/v1/bangumi/nearby?lat=35.0&lng=135.0&radius_m=1")

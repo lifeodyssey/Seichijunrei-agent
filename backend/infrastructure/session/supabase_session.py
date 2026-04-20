@@ -34,7 +34,7 @@ class SupabaseSessionStore:
             logger.debug("session_cache_hit", session_id=session_id)
             return self._cache[session_id]
 
-        state = await self._db.get_session_state(session_id)
+        state = await self._db.session.get_session_state(session_id)
         if state is not None:
             self._evict_if_full()
             self._cache[session_id] = state
@@ -45,13 +45,13 @@ class SupabaseSessionStore:
         """Write-through: update cache and persist to DB."""
         self._evict_if_full()
         self._cache[session_id] = state
-        await self._db.upsert_session_state(session_id, state)
+        await self._db.session.upsert_session_state(session_id, state)
         logger.debug("session_persisted", session_id=session_id)
 
     async def delete(self, session_id: str) -> None:
         """Remove session from cache and DB."""
         self._cache.pop(session_id, None)
-        await self._db.delete_session_state(session_id)
+        await self._db.session.delete_session_state(session_id)
         logger.debug("session_deleted", session_id=session_id)
 
     def _evict_if_full(self) -> None:

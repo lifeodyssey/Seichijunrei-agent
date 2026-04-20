@@ -22,8 +22,8 @@ def mock_db():
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
     db.search_points_by_location = AsyncMock(return_value=[])
-    db.find_bangumi_by_title = AsyncMock(return_value=None)
-    db.upsert_bangumi_title = AsyncMock()
+    db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
+    db.bangumi.upsert_bangumi_title = AsyncMock()
     return db
 
 

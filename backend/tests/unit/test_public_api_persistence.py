@@ -9,6 +9,7 @@ import pytest
 from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session.memory import InMemorySessionStore
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import PublicAPIRequest, RuntimeAPI
 
 
@@ -47,17 +48,17 @@ def _mock_pipeline(monkeypatch):
 
 @pytest.fixture
 def mock_db():
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_user_memory = AsyncMock(return_value=None)
-    db.upsert_session = AsyncMock()
-    db.upsert_conversation = AsyncMock()
-    db.upsert_user_memory = AsyncMock()
-    db.update_conversation_title = AsyncMock()
-    db.save_route = AsyncMock(return_value="route-1")
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.user_memory.get_user_memory = AsyncMock(return_value=None)
+    db.session.upsert_session = AsyncMock()
+    db.session.upsert_conversation = AsyncMock()
+    db.user_memory.upsert_user_memory = AsyncMock()
+    db.session.update_conversation_title = AsyncMock()
+    db.routes.save_route = AsyncMock(return_value="route-1")
     return db
 
 
@@ -78,9 +79,9 @@ class TestGreetUserEphemeral:
 
         db = MagicMock()
         db.get_user_memory = AsyncMock(return_value=None)
-        db.upsert_session = AsyncMock()
-        db.upsert_conversation = AsyncMock()
-        db.upsert_user_memory = AsyncMock()
+        db.session.upsert_session = AsyncMock()
+        db.session.upsert_conversation = AsyncMock()
+        db.user_memory.upsert_user_memory = AsyncMock()
         db.insert_request_log = AsyncMock()
 
         session_store = MagicMock()
@@ -99,9 +100,9 @@ class TestGreetUserEphemeral:
         assert response.route_history == []
         session_store.get.assert_not_awaited()
         session_store.set.assert_not_awaited()
-        db.upsert_session.assert_not_awaited()
-        db.upsert_conversation.assert_not_awaited()
-        db.upsert_user_memory.assert_not_awaited()
+        db.session.upsert_session.assert_not_awaited()
+        db.session.upsert_conversation.assert_not_awaited()
+        db.user_memory.upsert_user_memory.assert_not_awaited()
         db.insert_request_log.assert_not_awaited()
 
 
@@ -117,7 +118,7 @@ class TestRuntimeAPISession:
         saved_state = await store.get(response.session_id)
         assert saved_state is not None
         assert saved_state["last_intent"] == "search_bangumi"
-        mock_db.upsert_session.assert_awaited_once()
+        mock_db.session.upsert_session.assert_awaited_once()
 
     async def test_handle_reuses_existing_session(self, mock_db):
         store = InMemorySessionStore()
@@ -221,8 +222,8 @@ class TestUserMemoryUpsert:
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             await api.handle(PublicAPIRequest(text="響け"), user_id="u1")
 
-        mock_db.upsert_user_memory.assert_awaited_once()
-        kwargs = mock_db.upsert_user_memory.await_args.kwargs
+        mock_db.user_memory.upsert_user_memory.assert_awaited_once()
+        kwargs = mock_db.user_memory.upsert_user_memory.await_args.kwargs
         assert kwargs["bangumi_id"] == "253"
         assert kwargs["anime_title"] == "響け！ユーフォニアム"
 
@@ -231,7 +232,7 @@ class TestUserMemoryUpsert:
 
         await api.handle(PublicAPIRequest(text="宇治の近く"), user_id="u1")
 
-        mock_db.upsert_user_memory.assert_not_awaited()
+        mock_db.user_memory.upsert_user_memory.assert_not_awaited()
 
 
 class TestCompactThresholdTrigger:

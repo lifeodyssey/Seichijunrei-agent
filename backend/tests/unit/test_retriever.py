@@ -13,22 +13,20 @@ from backend.agents.retriever import (
     _merge_rows_preserving_order,
 )
 from backend.domain.entities import Coordinates, Point
+from backend.infrastructure.supabase.client import SupabaseClient
 from backend.services.cache import ResponseCache
 
 
 @pytest.fixture
 def mock_db():
-    db = MagicMock()
+    db = MagicMock(spec=SupabaseClient)
     pool = AsyncMock()
     pool.fetch = AsyncMock(return_value=[])
     pool.execute = AsyncMock()
     db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.get_bangumi = AsyncMock(
-        return_value={"id": "115908", "title": "響け！ユーフォニアム"}
-    )
-    db.upsert_bangumi = AsyncMock()
-    db.upsert_points_batch = AsyncMock(return_value=0)
+    db.points.search_points_by_location = AsyncMock(return_value=[])
+    db.bangumi.upsert_bangumi = AsyncMock()
+    db.points.upsert_points_batch = AsyncMock(return_value=0)
     return db
 
 
@@ -97,7 +95,7 @@ class TestRetrievalExecution:
 
     @pytest.mark.asyncio
     async def test_geo_strategy_uses_supabase_geo_search(self, mock_db):
-        mock_db.search_points_by_location.return_value = [
+        mock_db.points.search_points_by_location.return_value = [
             {"id": "p1", "bangumi_id": "115908", "distance_m": 100},
         ]
         retriever = Retriever(mock_db)
@@ -107,7 +105,7 @@ class TestRetrievalExecution:
         assert result.success
         assert result.strategy == RetrievalStrategy.GEO
         assert result.row_count == 1
-        mock_db.search_points_by_location.assert_awaited_once()
+        mock_db.points.search_points_by_location.assert_awaited_once()
         mock_db.pool.fetch.assert_not_called()
 
     @pytest.mark.asyncio
@@ -131,7 +129,6 @@ class TestRetrievalExecution:
             [],
             [{"id": "p1", "bangumi_id": "115908", "title": "響け！ユーフォニアム"}],
         ]
-        mock_db.get_bangumi.return_value = None
         fetch_bangumi_points = AsyncMock(return_value=[_make_point()])
         get_bangumi_subject = AsyncMock(
             return_value={
@@ -160,9 +157,9 @@ class TestRetrievalExecution:
         assert result.metadata["write_through"] is True
         fetch_bangumi_points.assert_awaited_once_with("115908")
         get_bangumi_subject.assert_awaited_once_with(115908)
-        mock_db.upsert_bangumi.assert_awaited_once()
-        mock_db.upsert_points_batch.assert_awaited_once()
-        written_rows = mock_db.upsert_points_batch.await_args.args[0]
+        mock_db.bangumi.upsert_bangumi.assert_awaited_once()
+        mock_db.points.upsert_points_batch.assert_awaited_once()
+        written_rows = mock_db.points.upsert_points_batch.await_args.args[0]
         assert written_rows[0]["latitude"] == 34.8843
         assert written_rows[0]["longitude"] == 135.7997
         assert written_rows[0]["location"] == "POINT(135.7997 34.8843)"
@@ -174,7 +171,7 @@ class TestRetrievalExecution:
             {"id": "p1", "bangumi_id": "115908", "name": "A"},
             {"id": "p2", "bangumi_id": "115908", "name": "B"},
         ]
-        mock_db.search_points_by_location.return_value = [
+        mock_db.points.search_points_by_location.return_value = [
             {"id": "p2", "bangumi_id": "115908", "distance_m": 120},
             {"id": "p1", "bangumi_id": "115908", "distance_m": 80},
             {"id": "p3", "bangumi_id": "999", "distance_m": 30},
@@ -198,10 +195,9 @@ class TestRetrievalExecution:
             [],
             [{"id": "p1", "bangumi_id": "115908", "name": "A"}],
         ]
-        mock_db.search_points_by_location.return_value = [
+        mock_db.points.search_points_by_location.return_value = [
             {"id": "p1", "bangumi_id": "115908", "distance_m": 80},
         ]
-        mock_db.get_bangumi.return_value = None
         retriever = Retriever(
             mock_db,
             cache=cache,
@@ -222,7 +218,7 @@ class TestRetrievalExecution:
         assert result.strategy == RetrievalStrategy.HYBRID
         assert result.metadata["data_origin"] == "fallback"
         assert result.rows[0]["distance_m"] == 80
-        mock_db.upsert_points_batch.assert_awaited_once()
+        mock_db.points.upsert_points_batch.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_hybrid_falls_back_to_sql_on_unknown_anchor(self, mock_db):
