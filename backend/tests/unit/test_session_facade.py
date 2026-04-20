@@ -6,6 +6,7 @@ from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.interfaces.schemas import PublicAPIRequest
 from backend.interfaces.session_facade import (
+    SessionUpdate,
     as_str_or_none,
     build_context_block,
     build_session_summary,
@@ -70,19 +71,47 @@ class TestNormalizeSessionState:
         assert state["summary"] is None
 
 
+class TestSessionUpdate:
+    def test_defaults(self) -> None:
+        request = PublicAPIRequest(text="hi")
+        update = SessionUpdate(
+            request=request,
+            response_intent="greet_user",
+            response_status="ok",
+            response_success=True,
+        )
+
+        assert update.response_message == ""
+        assert update.context_delta is None
+
+    def test_frozen(self) -> None:
+        from dataclasses import FrozenInstanceError
+
+        import pytest
+
+        request = PublicAPIRequest(text="hi")
+        update = SessionUpdate(
+            request=request,
+            response_intent="greet_user",
+            response_status="ok",
+            response_success=True,
+        )
+        with pytest.raises(FrozenInstanceError):
+            update.response_intent = "changed"  # type: ignore[misc]
+
+
 class TestBuildUpdatedSessionState:
     def test_appends_interaction(self) -> None:
         prev = normalize_session_state(None)
-        request = PublicAPIRequest(text="test query")
-
-        updated = build_updated_session_state(
-            prev,
-            request=request,
+        update = SessionUpdate(
+            request=PublicAPIRequest(text="test query"),
             response_intent="search_bangumi",
             response_status="ok",
             response_success=True,
             response_message="found 3",
         )
+
+        updated = build_updated_session_state(prev, update)
 
         interactions = updated["interactions"]
         assert isinstance(interactions, list)
@@ -95,22 +124,24 @@ class TestBuildUpdatedSessionState:
 
     def test_appends_multiple_interactions(self) -> None:
         prev = normalize_session_state(None)
-        request1 = PublicAPIRequest(text="first")
 
         state = build_updated_session_state(
             prev,
-            request=request1,
-            response_intent="search_bangumi",
-            response_status="ok",
-            response_success=True,
+            SessionUpdate(
+                request=PublicAPIRequest(text="first"),
+                response_intent="search_bangumi",
+                response_status="ok",
+                response_success=True,
+            ),
         )
-        request2 = PublicAPIRequest(text="second")
         state = build_updated_session_state(
             state,
-            request=request2,
-            response_intent="plan_route",
-            response_status="ok",
-            response_success=True,
+            SessionUpdate(
+                request=PublicAPIRequest(text="second"),
+                response_intent="plan_route",
+                response_status="ok",
+                response_success=True,
+            ),
         )
 
         interactions = state["interactions"]
@@ -120,17 +151,16 @@ class TestBuildUpdatedSessionState:
 
     def test_includes_context_delta(self) -> None:
         prev = normalize_session_state(None)
-        request = PublicAPIRequest(text="test")
         delta = {"bangumi_id": "253", "anime_title": "test anime"}
-
-        updated = build_updated_session_state(
-            prev,
-            request=request,
+        update = SessionUpdate(
+            request=PublicAPIRequest(text="test"),
             response_intent="search_bangumi",
             response_status="ok",
             response_success=True,
             context_delta=delta,
         )
+
+        updated = build_updated_session_state(prev, update)
 
         interactions = updated["interactions"]
         assert isinstance(interactions, list)
