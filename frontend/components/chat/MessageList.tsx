@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { ChatMessage } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import { useSuggest } from "../../contexts/SuggestContext";
 import MessageBubble from "./MessageBubble";
 
 interface MessageListProps {
@@ -10,7 +11,6 @@ interface MessageListProps {
   onActivate?: (messageId: string) => void;
   activeMessageId?: string | null;
   onOpenDrawer?: () => void;
-  onSuggest?: (text: string) => void;
 }
 
 export default function MessageList({
@@ -18,9 +18,9 @@ export default function MessageList({
   onActivate,
   activeMessageId,
   onOpenDrawer,
-  onSuggest,
 }: MessageListProps) {
   const { chat: t, clarification } = useDict();
+  const onSuggest = useSuggest();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function MessageList({
               <button
                 key={s.label}
                 type="button"
-                onClick={() => onSuggest?.(s.query)}
+                onClick={() => onSuggest(s.query)}
                 className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-left text-sm font-light text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
                 style={{
                   transitionDuration: "var(--duration-fast)",
@@ -72,7 +72,6 @@ export default function MessageList({
     );
   }
 
-  // Pre-pass: map each index to the text of the most recent preceding user message
   const precedingUserText: string[] = [];
   let lastUserText = "";
   messages.forEach((m) => {
@@ -96,7 +95,6 @@ export default function MessageList({
               onActivate={onActivate}
               isActive={msg.id === activeMessageId}
               onOpenDrawer={onOpenDrawer}
-              onSuggest={onSuggest}
             />
           </div>
         ))}

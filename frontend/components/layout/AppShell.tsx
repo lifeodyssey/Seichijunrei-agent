@@ -1,22 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConversationHistory } from "../../hooks/useConversationHistory";
 import { useSession } from "../../hooks/useSession";
-import { createMessageId, useChat } from "../../hooks/useChat";
+import { useChat } from "../../hooks/useChat";
 import { usePointSelection } from "../../hooks/usePointSelection";
-import { useLocale } from "../../lib/i18n-context";
-import {
-  buildSelectedRouteActionText,
-  fetchConversationMessages,
-  hydrateResponseData,
-  sendSelectedRoute,
-} from "../../lib/api";
+import { useLocale, useDict } from "../../lib/i18n-context";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useRouteSelection } from "../../hooks/useRouteSelection";
+import { useSessionHydration } from "../../hooks/useSessionHydration";
+import { useConversationSync } from "../../hooks/useConversationSync";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
+import { SuggestContext } from "../../contexts/SuggestContext";
 import { isVisualResponse } from "../generative/registry";
-import { isRouteData, type RuntimeResponse } from "../../lib/types";
-import { useDict } from "../../lib/i18n-context";
+import { isRouteData } from "../../lib/types";
 import IconSidebar from "./IconSidebar";
 import ChatPanel from "../chat/ChatPanel";
 import ResultSheet from "./ResultSheet";
@@ -37,92 +34,19 @@ export default function AppShell() {
     replaceMessage,
     removeMessage,
   } = useChat(sessionId, setSessionId, locale);
-  const {
-    selectedIds,
-    toggle,
-    clear: clearSelectedPoints,
-  } = usePointSelection();
+  const { selectedIds, toggle, clear: clearSelectedPoints } = usePointSelection();
   const { conversations, upsert: upsertConversation } = useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
-  const [routeSending, setRouteSending] = useState(false);
-  const lastSyncedResponseIdRef = useRef<string | null>(null);
-  const routeAbortRef = useRef<AbortController | null>(null);
-  const isSending = sending || routeSending;
 
-  // Hydrate messages on mount when a stored session exists
-  useEffect(() => {
-    if (!sessionId) return;
-    let active = true;
-    fetchConversationMessages(sessionId)
-      .then((msgs) => {
-        if (!active) return;
-        if (msgs.length === 0) {
-          // No messages stored for this session — start fresh
-          clearSession();
-          return;
-        }
-        const hydrated = msgs.map((m, i) => ({
-          id: `hydrated-${i}-${Date.now()}`,
-          role: m.role,
-          text: m.content,
-          response: hydrateResponseData(m.data) as RuntimeResponse | undefined,
-          timestamp: new Date(m.timestamp).getTime(),
-        }));
-        appendMessages(...hydrated);
-      })
-      .catch((err) => {
-        console.error("Session hydration failed:", err);
-      });
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const latestConversationResponse = useMemo(
-    () => {
-      for (let index = messages.length - 1; index >= 0; index -= 1) {
-        const message = messages[index];
-        const responseSessionId = message.response?.session_id;
-        if (!responseSessionId) continue;
-
-        const firstQuery =
-          index > 0 && messages[index - 1]?.role === "user"
-            ? messages[index - 1].text
-            : "";
-
-        return {
-          firstQuery,
-          responseId: message.id,
-          sessionId: responseSessionId,
-        };
-      }
-
-      return null;
-    },
-    [messages],
-  );
-
-  useEffect(() => {
-    if (!latestConversationResponse) return;
-    if (lastSyncedResponseIdRef.current === latestConversationResponse.responseId) {
-      return;
-    }
-
-    upsertConversation(
-      latestConversationResponse.sessionId,
-      latestConversationResponse.firstQuery,
-    );
-    lastSyncedResponseIdRef.current = latestConversationResponse.responseId;
-  }, [latestConversationResponse, upsertConversation]);
+  useSessionHydration({ sessionId, clearSession, appendMessages });
+  useConversationSync({ messages, upsertConversation });
 
   const activeMessage = useMemo(
-    () =>
-      activeMessageId
-        ? (messages.find(
-            (m) => m.id === activeMessageId && m.response && isVisualResponse(m.response),
-          ) ?? null)
-        : null,
+    () => activeMessageId
+      ? (messages.find((m) => m.id === activeMessageId && m.response && isVisualResponse(m.response)) ?? null)
+      : null,
     [activeMessageId, messages],
   );
 
@@ -131,54 +55,24 @@ export default function AppShell() {
   const defaultOrigin = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index -= 1) {
       const routeHistory = messages[index]?.response?.route_history ?? [];
-      const originStation = routeHistory.find((entry) => entry.origin_station)?.origin_station;
-      if (originStation) {
-        return originStation;
-      }
+      const origin = routeHistory.find((entry) => entry.origin_station)?.origin_station;
+      if (origin) return origin;
     }
     return "";
   }, [messages]);
 
-  // Auto-open result panel when a visual response arrives
   useEffect(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
-    if (
-      last.role === "assistant" &&
-      !last.loading &&
-      last.response &&
-      isVisualResponse(last.response)
-    ) {
-      setActiveMessageId(last.id);
-      if (isMobile) {
-        setDrawerOpen(true);
-      }
-    }
-  }, [messages, isMobile]);
-
-  const handleNewChat = useCallback(() => {
-    routeAbortRef.current?.abort();
-    routeAbortRef.current = null;
-    setRouteSending(false);
-    clearChat();
-    clearSelectedPoints();
-    clearSession();
-    lastSyncedResponseIdRef.current = null;
-    setActiveMessageId(null);
-    setDrawerOpen(false);
-  }, [clearChat, clearSelectedPoints, clearSession]);
-
-  const handleActivate = useCallback((messageId: string) => {
-    setActiveMessageId((current) => {
-      const newId = current === messageId ? null : messageId;
-      if (newId && isMobile) {
-        setDrawerOpen(true);
-      } else if (!newId) {
-        setDrawerOpen(false);
-      }
-      return newId;
+    if (last.role !== "assistant" || last.loading || !last.response) return;
+    if (!isVisualResponse(last.response)) return;
+    const id = last.id;
+    const mobile = isMobile;
+    queueMicrotask(() => {
+      setActiveMessageId(id);
+      if (mobile) setDrawerOpen(true);
     });
-  }, [isMobile]);
+  }, [messages, isMobile]);
 
   const handleSend = useCallback(
     (text: string, coords?: { lat: number; lng: number } | null) => {
@@ -190,184 +84,118 @@ export default function AppShell() {
     [clearSelectedPoints, send],
   );
 
-  const handleRouteSelected = useCallback(
-    async (origin: string) => {
-      if (selectedIds.size === 0 || isSending) return;
+  const handleActivate = useCallback((messageId: string) => {
+    setActiveMessageId((current) => {
+      const newId = current === messageId ? null : messageId;
+      if (newId && isMobile) setDrawerOpen(true);
+      else if (!newId) setDrawerOpen(false);
+      return newId;
+    });
+  }, [isMobile]);
 
-      const ids = Array.from(selectedIds);
-      const actionText = buildSelectedRouteActionText(ids.length, origin, locale);
-      const userMessage = {
-        id: createMessageId(),
-        role: "user" as const,
-        text: actionText,
-        timestamp: Date.now(),
-      };
-      const placeholderId = createMessageId();
-      const placeholder = {
-        id: placeholderId,
-        role: "assistant" as const,
-        text: "",
-        loading: true,
-        steps: [],
-        timestamp: Date.now(),
-      };
+  const { routeSending, handleRouteSelected, abortRoute } = useRouteSelection({
+    selectedIds,
+    sessionId,
+    locale,
+    isSending: sending,
+    setSessionId,
+    appendMessages,
+    replaceMessage,
+    removeMessage,
+    clearSelectedPoints,
+    setActiveMessageId,
+    setDrawerOpen,
+  });
 
-      routeAbortRef.current?.abort();
-      const controller = new AbortController();
-      routeAbortRef.current = controller;
+  const handleNewChat = useCallback(() => {
+    abortRoute();
+    clearChat();
+    clearSelectedPoints();
+    clearSession();
+    setActiveMessageId(null);
+    setDrawerOpen(false);
+  }, [abortRoute, clearChat, clearSelectedPoints, clearSession]);
 
-      clearSelectedPoints();
-      setActiveMessageId(null);
-      setDrawerOpen(false);
-      appendMessages(userMessage, placeholder);
-      setRouteSending(true);
-
-      try {
-        const response = await sendSelectedRoute(
-          ids,
-          origin,
-          sessionId,
-          locale,
-          controller.signal,
-        );
-
-        if (controller.signal.aborted) {
-          removeMessage(placeholderId);
-          return;
-        }
-
-        if (response.session_id) {
-          setSessionId(response.session_id);
-        }
-
-        replaceMessage(placeholderId, (message) => ({
-          ...message,
-          text: response.message,
-          response,
-          loading: false,
-        }));
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          removeMessage(placeholderId);
-          return;
-        }
-
-        const errorText =
-          error instanceof Error ? error.message : "Unknown error";
-        replaceMessage(placeholderId, (message) => ({
-          ...message,
-          text: `Error: ${errorText}`,
-          loading: false,
-        }));
-      } finally {
-        if (routeAbortRef.current === controller) {
-          routeAbortRef.current = null;
-        }
-        setRouteSending(false);
-      }
-    },
-    [
-      appendMessages,
-      clearSelectedPoints,
-      isSending,
-      locale,
-      removeMessage,
-      replaceMessage,
-      selectedIds,
-      sessionId,
-      setSessionId,
-    ],
-  );
-
-  const handleOpenDrawer = useCallback(() => {
-    setDrawerOpen(true);
-  }, []);
-
-  // Determine whether the result panel should show route or search data
+  const isSending = sending || routeSending;
   const isRouteResult = activeResponse?.data ? isRouteData(activeResponse.data) : false;
 
   return (
-    <PointSelectionContext.Provider value={{ selectedIds, toggle, clear: clearSelectedPoints }}>
-      <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
+    <SuggestContext.Provider value={{ onSuggest: handleSend }}>
+      <PointSelectionContext.Provider value={{ selectedIds, toggle, clear: clearSelectedPoints }}>
+        <div className="flex h-screen overflow-hidden bg-[var(--color-bg)]">
 
-        {/* Icon sidebar — 56px, hidden on mobile (<1024px) */}
-        <div className={isMobile ? "hidden" : "flex"}>
-          <IconSidebar
-            onNewChat={handleNewChat}
-            onSectionClick={(section) => {
-              if (section === "search") handleNewChat();
-              if (section === "history") setConversationDrawerOpen(true);
+          <div className={isMobile ? "hidden" : "flex"}>
+            <IconSidebar
+              onNewChat={handleNewChat}
+              onSectionClick={(section) => {
+                if (section === "search") handleNewChat();
+                if (section === "history") setConversationDrawerOpen(true);
+              }}
+            />
+          </div>
+
+          <div
+            data-testid="chat-panel"
+            className={isMobile ? "flex min-h-0 flex-1 flex-col" : "flex"}
+          >
+            <ChatPanel
+              messages={messages}
+              sending={isSending}
+              activeMessageId={activeMessageId}
+              dict={dict}
+              locale={locale}
+              onSend={handleSend}
+              onActivate={handleActivate}
+              onOpenDrawer={isMobile ? () => setDrawerOpen(true) : undefined}
+              isMobile={isMobile}
+            />
+          </div>
+
+          {!isMobile && (
+            <div
+              data-testid="result-panel"
+              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            >
+              <ResultPanel
+                activeResponse={activeResponse}
+                onRouteSelected={handleRouteSelected}
+                defaultOrigin={defaultOrigin}
+                loading={isSending && (isRouteResult || !activeResponse)}
+              />
+            </div>
+          )}
+
+          {isMobile && (
+            <ResultSheet
+              response={activeResponse}
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
+              onRouteSelected={handleRouteSelected}
+              defaultOrigin={defaultOrigin}
+              loading={isSending}
+            />
+          )}
+
+          <ConversationDrawer
+            open={conversationDrawerOpen}
+            onClose={() => setConversationDrawerOpen(false)}
+            conversations={conversations}
+            activeSessionId={sessionId}
+            onSelectConversation={(id) => {
+              setConversationDrawerOpen(false);
+              clearChat();
+              clearSelectedPoints();
+              setActiveMessageId(null);
+              setDrawerOpen(false);
+              setSessionId(id);
+            }}
+            onNewChat={() => {
+              setConversationDrawerOpen(false);
+              handleNewChat();
             }}
           />
         </div>
-
-        {/* Chat panel — 360px on desktop, full-width on mobile */}
-        <div
-          data-testid="chat-panel"
-          className={isMobile ? "flex min-h-0 flex-1 flex-col" : "flex"}
-        >
-          <ChatPanel
-            messages={messages}
-            sending={isSending}
-            activeMessageId={activeMessageId}
-            dict={dict}
-            locale={locale}
-            onSend={handleSend}
-            onActivate={handleActivate}
-            onOpenDrawer={isMobile ? handleOpenDrawer : undefined}
-            onSuggest={handleSend}
-            isMobile={isMobile}
-          />
-        </div>
-
-        {/* Result panel — flex-1, desktop only */}
-        {!isMobile && (
-          <div
-            data-testid="result-panel"
-            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-          >
-            <ResultPanel
-              activeResponse={activeResponse}
-              onSuggest={handleSend}
-              onRouteSelected={handleRouteSelected}
-              defaultOrigin={defaultOrigin}
-              loading={isSending && (isRouteResult || !activeResponse)}
-            />
-          </div>
-        )}
-
-        {/* Mobile: vaul bottom sheet for results */}
-        {isMobile && (
-          <ResultSheet
-            response={activeResponse}
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            onSuggest={handleSend}
-            onRouteSelected={handleRouteSelected}
-            defaultOrigin={defaultOrigin}
-            loading={isSending}
-          />
-        )}
-        {/* Conversation history drawer */}
-        <ConversationDrawer
-          open={conversationDrawerOpen}
-          onClose={() => setConversationDrawerOpen(false)}
-          conversations={conversations}
-          activeSessionId={sessionId}
-          onSelectConversation={(id) => {
-            setConversationDrawerOpen(false);
-            clearChat();
-            clearSelectedPoints();
-            setActiveMessageId(null);
-            setDrawerOpen(false);
-            setSessionId(id);
-          }}
-          onNewChat={() => {
-            setConversationDrawerOpen(false);
-            handleNewChat();
-          }}
-        />
-      </div>
-    </PointSelectionContext.Provider>
+      </PointSelectionContext.Provider>
+    </SuggestContext.Provider>
   );
 }
