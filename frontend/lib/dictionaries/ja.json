@@ -58,8 +58,8 @@
     }
   },
   "auth": {
-    "title": "聖地巡礼",
-    "subtitle": "内部テスト版",
+    "title": "ログイン",
+    "subtitle": "メールアドレスを入力すると、ログインリンクをお送りします",
     "tab_login": "ログイン",
     "email_label": "メールアドレス",
     "email_placeholder": "you@example.com",

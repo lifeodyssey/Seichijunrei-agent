@@ -13,6 +13,13 @@ globalThis.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+globalThis.IntersectionObserver = class IntersectionObserver {
+  constructor(_cb: IntersectionObserverCallback) {}
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof IntersectionObserver;
+
 // scrollIntoView is not implemented in jsdom
 window.HTMLElement.prototype.scrollIntoView = function () {};
 
