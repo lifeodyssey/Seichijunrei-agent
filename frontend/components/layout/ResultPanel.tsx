@@ -6,6 +6,7 @@ import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../l
 import { isSearchData } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
+import { useSuggest } from "../../contexts/SuggestContext";
 import SelectionBar from "../generative/SelectionBar";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import { PhotoCard } from "../generative/PhotoCard";
@@ -141,11 +142,11 @@ function GridContent({ points, selectedIds, onToggle }: GridContentProps) {
 
 export default function ResultPanel({
   activeResponse,
-  onSuggest,
   onRouteSelected,
   defaultOrigin,
   loading,
 }: ResultPanelProps) {
+  const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
   const [view, setView] = useState<ViewMode>("grid");
   const [activeEpRange, setActiveEpRange] = useState<string | null>(null);

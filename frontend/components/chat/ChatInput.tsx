@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import { useDict, useLocale } from "../../lib/i18n-context";
+import { CHAT_INPUT_QUERIES } from "../../lib/quick-actions";
 import LocationPrompt from "./LocationPrompt";
 
 interface QuickAction {
@@ -79,10 +80,11 @@ export default function ChatInput({
     onSend(station);
   }
 
+  const queries = CHAT_INPUT_QUERIES[locale];
   const quickActions: QuickAction[] = [
     { icon: "\u2726", label: lh.feat_search, query: lh.chat_placeholder },
-    { icon: "\u25CE", label: lh.feat_route, query: locale === "ja" ? "ルートを計画して" : locale === "zh" ? "帮我规划路线" : "Plan a route for me" },
-    { icon: "\u2197", label: lh.feat_series, query: locale === "ja" ? "人気の聖地を教えて" : locale === "zh" ? "有哪些热门动漫取景地" : "Show me popular anime spots" },
+    { icon: "\u25CE", label: lh.feat_route, query: queries.route },
+    { icon: "\u2197", label: lh.feat_series, query: queries.popular },
   ];
 
   return (

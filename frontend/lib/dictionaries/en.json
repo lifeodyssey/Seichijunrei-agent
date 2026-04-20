@@ -82,6 +82,16 @@
     "check_email_body": "Click the link in your inbox to sign in.",
     "back_to_login": "Back"
   },
+  "thinking": {
+    "resolve_anime": "Resolving anime title...",
+    "search_bangumi": "Searching pilgrimage spots...",
+    "search_nearby": "Searching nearby spots...",
+    "plan_route": "Planning route...",
+    "plan_selected": "Planning route...",
+    "greet_user": "Responding...",
+    "answer_question": "Answering...",
+    "clarify": "Checking details..."
+  },
   "chat": {
     "placeholder": "Find pilgrimage spots or plan a route…",
     "send": "Send",

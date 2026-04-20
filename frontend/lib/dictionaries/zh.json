@@ -82,6 +82,16 @@
     "check_email_body": "点击邮件中的链接即可登录。",
     "back_to_login": "返回"
   },
+  "thinking": {
+    "resolve_anime": "正在确认动漫标题…",
+    "search_bangumi": "正在搜索取景地…",
+    "search_nearby": "正在搜索附近景点…",
+    "plan_route": "正在规划路线…",
+    "plan_selected": "正在规划路线…",
+    "greet_user": "正在回复…",
+    "answer_question": "正在回答…",
+    "clarify": "正在确认细节…"
+  },
   "chat": {
     "placeholder": "搜索取景地 · 规划巡礼路线…",
     "send": "发送",

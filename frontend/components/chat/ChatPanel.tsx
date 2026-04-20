@@ -21,10 +21,6 @@ interface ChatPanelProps {
   isMobile?: boolean;
 }
 
-/**
- * 360px chat panel — shows WelcomeScreen when no messages, MessageList otherwise.
- * The WelcomeScreen is replaced by the message list after the first message is sent.
- */
 export default function ChatPanel({
   messages,
   sending,
@@ -34,7 +30,6 @@ export default function ChatPanel({
   onSend,
   onActivate,
   onOpenDrawer,
-  onSuggest,
   isMobile = false,
 }: ChatPanelProps) {
   const isEmpty = messages.length === 0;
@@ -69,7 +64,6 @@ export default function ChatPanel({
           onActivate={onActivate}
           activeMessageId={activeMessageId}
           onOpenDrawer={isMobile ? onOpenDrawer : undefined}
-          onSuggest={onSuggest ?? handleSend}
         />
       )}
       <ChatInput

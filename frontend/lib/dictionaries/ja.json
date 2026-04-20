@@ -82,6 +82,16 @@
     "check_email_body": "送信されたリンクをクリックしてログインしてください。",
     "back_to_login": "戻る"
   },
+  "thinking": {
+    "resolve_anime": "アニメタイトルを確認中…",
+    "search_bangumi": "聖地を検索中…",
+    "search_nearby": "近くのスポットを検索中…",
+    "plan_route": "ルートを計画中…",
+    "plan_selected": "ルートを計画中…",
+    "greet_user": "応答中…",
+    "answer_question": "回答中…",
+    "clarify": "詳細を確認中…"
+  },
   "chat": {
     "placeholder": "聖地を探す・ルートを計画する…",
     "send": "送信",

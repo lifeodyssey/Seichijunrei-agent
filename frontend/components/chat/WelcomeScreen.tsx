@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Dict, Locale } from "../../lib/i18n";
 import { fetchPopularBangumi, type PopularBangumiEntry } from "../../lib/api";
+import { QUICK_ACTION_QUERIES, popularSpotQuery } from "../../lib/quick-actions";
 
 interface WelcomeScreenProps {
   onSend: (text: string) => void;
@@ -16,24 +17,6 @@ interface QuickAction {
   desc: string;
   query: string;
 }
-
-const QUICK_ACTION_QUERIES: Record<Locale, [string, string, string]> = {
-  ja: [
-    "君の名は の聖地を教えて",
-    "現在地の近くにある聖地を教えて",
-    "響け！ユーフォニアム の聖地を巡るルートを作って",
-  ],
-  zh: [
-    "你的名字的取景地在哪",
-    "告诉我附近的动漫取景地",
-    "帮我规划吹响上低音号的巡礼路线",
-  ],
-  en: [
-    "Show me anime spots for Your Name",
-    "Find anime spots near me",
-    "Plan a pilgrimage route for Sound! Euphonium",
-  ],
-};
 
 function buildQuickActions(ws: Dict["welcome_screen"], locale: Locale): QuickAction[] {
   const q = QUICK_ACTION_QUERIES[locale];
@@ -113,13 +96,7 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
               <button
                 key={`${item.bangumi_id}-${idx}`}
                 type="button"
-                onClick={() => onSend(
-                  locale === "ja"
-                    ? `${item.title} の聖地を教えて`
-                    : locale === "zh"
-                    ? `${item.title}的取景地在哪`
-                    : `Show me pilgrimage spots for ${item.title}`,
-                )}
+                onClick={() => onSend(popularSpotQuery(item.title, locale))}
                 className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
                 style={{ transitionDuration: "var(--duration-fast)" }}
               >

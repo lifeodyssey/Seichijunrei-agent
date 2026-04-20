@@ -22,60 +22,43 @@ interface NearbyChipsProps {
 }
 
 // ---------------------------------------------------------------------------
-// Color palette — cycles through 6 distinct hues matching map pin colors.
+// Color palette — 6 distinct hues using CSS oklch values.
+// Shape is kept stable so existing tests can introspect the properties.
 // ---------------------------------------------------------------------------
 
-// TODO: replace with design system CSS variables
 export const CHIP_COLORS: {
   bg: string;
   text: string;
   dot: string;
   activeBg: string;
   activeText: string;
+  hue: number;
+  chroma: number;
 }[] = [
-  {
-    bg: "bg-transparent border border-blue-300",
-    text: "text-blue-700",
-    dot: "bg-blue-500",
-    activeBg: "bg-blue-500",
-    activeText: "text-white",
-  },
-  {
-    bg: "bg-transparent border border-emerald-300",
-    text: "text-emerald-700",
-    dot: "bg-emerald-500",
-    activeBg: "bg-emerald-500",
-    activeText: "text-white",
-  },
-  {
-    bg: "bg-transparent border border-orange-300",
-    text: "text-orange-700",
-    dot: "bg-orange-500",
-    activeBg: "bg-orange-500",
-    activeText: "text-white",
-  },
-  {
-    bg: "bg-transparent border border-purple-300",
-    text: "text-purple-700",
-    dot: "bg-purple-500",
-    activeBg: "bg-purple-500",
-    activeText: "text-white",
-  },
-  {
-    bg: "bg-transparent border border-pink-300",
-    text: "text-pink-700",
-    dot: "bg-pink-500",
-    activeBg: "bg-pink-500",
-    activeText: "text-white",
-  },
-  {
-    bg: "bg-transparent border border-teal-300",
-    text: "text-teal-700",
-    dot: "bg-teal-500",
-    activeBg: "bg-teal-500",
-    activeText: "text-white",
-  },
+  { hue: 240, chroma: 0.148, bg: "chip-color-0-bg", text: "chip-color-0-text", dot: "chip-color-0-dot", activeBg: "chip-color-0-active-bg", activeText: "chip-color-0-active-text" },
+  { hue: 160, chroma: 0.130, bg: "chip-color-1-bg", text: "chip-color-1-text", dot: "chip-color-1-dot", activeBg: "chip-color-1-active-bg", activeText: "chip-color-1-active-text" },
+  { hue: 50,  chroma: 0.140, bg: "chip-color-2-bg", text: "chip-color-2-text", dot: "chip-color-2-dot", activeBg: "chip-color-2-active-bg", activeText: "chip-color-2-active-text" },
+  { hue: 300, chroma: 0.130, bg: "chip-color-3-bg", text: "chip-color-3-text", dot: "chip-color-3-dot", activeBg: "chip-color-3-active-bg", activeText: "chip-color-3-active-text" },
+  { hue: 10,  chroma: 0.150, bg: "chip-color-4-bg", text: "chip-color-4-text", dot: "chip-color-4-dot", activeBg: "chip-color-4-active-bg", activeText: "chip-color-4-active-text" },
+  { hue: 190, chroma: 0.120, bg: "chip-color-5-bg", text: "chip-color-5-text", dot: "chip-color-5-dot", activeBg: "chip-color-5-active-bg", activeText: "chip-color-5-active-text" },
 ];
+
+function colorValue(hue: number, chroma: number, lightness: number): string {
+  return `oklch(${lightness}% ${chroma} ${hue})`;
+}
+
+function chipInlineStyles(color: (typeof CHIP_COLORS)[number], isActive: boolean) {
+  const accent = colorValue(color.hue, color.chroma, 55);
+  const border = colorValue(color.hue, color.chroma * 0.4, 82);
+  if (isActive) {
+    return { backgroundColor: accent, borderColor: accent, color: "oklch(99% 0.005 240)" };
+  }
+  return { backgroundColor: "transparent", borderColor: border, color: accent };
+}
+
+function dotInlineStyle(color: (typeof CHIP_COLORS)[number]) {
+  return { backgroundColor: colorValue(color.hue, color.chroma, 55) };
+}
 
 // ---------------------------------------------------------------------------
 // Helper: group points by bangumi_id
@@ -124,7 +107,6 @@ export default function NearbyChips({
 }: NearbyChipsProps) {
   const visible = groups.filter((g) => g.points_count > 0);
 
-  // No chip row needed for 0 or 1 anime.
   if (visible.length <= 1) return null;
 
   return (
@@ -142,19 +124,17 @@ export default function NearbyChips({
             key={group.bangumi_id}
             type="button"
             aria-pressed={isActive}
-            onClick={() =>
-              onSelect(isActive ? null : group.bangumi_id)
-            }
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              isActive
-                ? `${color.activeBg} ${color.activeText}`
-                : `${color.bg} ${color.text}`
-            }`}
-            style={{ transitionDuration: "var(--duration-fast, 150ms)" }}
+            onClick={() => onSelect(isActive ? null : group.bangumi_id)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+            style={{
+              transitionDuration: "var(--duration-fast, 150ms)",
+              ...chipInlineStyles(color, isActive),
+            }}
           >
             <span
               data-testid="chip-dot"
               className={`h-2 w-2 shrink-0 rounded-full ${color.dot}`}
+              style={dotInlineStyle(color)}
               aria-hidden="true"
             />
             <span className="max-w-[120px] truncate">{group.title}</span>

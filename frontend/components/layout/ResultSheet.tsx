@@ -5,6 +5,7 @@ import { Drawer } from "vaul";
 import type { RuntimeResponse } from "@/lib/types";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
+import { useSuggest } from "../../contexts/SuggestContext";
 import SelectionBar from "../generative/SelectionBar";
 
 interface ResultSheetProps {
@@ -17,21 +18,16 @@ interface ResultSheetProps {
   loading?: boolean;
 }
 
-/**
- * Mobile-only bottom sheet for result viewing.
- * Uses vaul Drawer with a drag handle, peek (40vh) and full (90vh) snap points.
- * Replaces ResultDrawer.
- */
 export default function ResultSheet({
   response,
   open,
   onClose,
-  onSuggest,
   onRouteSelected,
   defaultOrigin,
   loading,
 }: ResultSheetProps) {
   const { selectedIds, clear } = usePointSelectionContext();
+  const onSuggest = useSuggest();
   const [snap, setSnap] = useState<number | string | null>(0.4);
 
   return (
@@ -50,7 +46,6 @@ export default function ResultSheet({
           aria-label="Result panel"
           role="region"
         >
-          {/* Drag handle */}
           <Drawer.Handle
             data-drag-handle
             className="mx-auto mt-3 mb-2 shrink-0 rounded-full bg-[var(--color-muted-fg)] opacity-40"

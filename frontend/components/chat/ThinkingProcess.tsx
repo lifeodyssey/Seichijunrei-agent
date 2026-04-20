@@ -20,19 +20,6 @@ const TOOL_ICONS: Record<string, string> = {
   clarify: "\u2753",
 };
 
-// TODO: move to i18n dictionary
-/** User-friendly tool labels (not raw LLM thoughts) */
-const TOOL_LABELS: Record<string, string> = {
-  resolve_anime: "Resolving anime title...",
-  search_bangumi: "Searching pilgrimage spots...",
-  search_nearby: "Searching nearby spots...",
-  plan_route: "Planning route...",
-  plan_selected: "Planning route...",
-  greet_user: "Responding...",
-  answer_question: "Answering...",
-  clarify: "Checking details...",
-};
-
 const STATUS_INDICATOR: Record<string, string> = {
   running: "\u23F3",
   done: "\u2713",
@@ -44,14 +31,16 @@ export default function ThinkingProcess({
   isStreaming,
 }: ThinkingProcessProps) {
   const [expanded, setExpanded] = useState(isStreaming);
-  const t = useDict();
+  const dict = useDict();
+  const t = dict.chat;
+  const toolLabels = dict.thinking;
 
   if (steps.length === 0) {
     if (!isStreaming) return null;
     return (
       <div className="mb-2 flex items-center gap-1.5 text-xs text-[var(--color-muted-fg)]">
         <span className="animate-pulse">{"\uD83E\uDDE0"}</span>
-        <span>{t.chat?.thinking || "Thinking..."}</span>
+        <span>{t?.thinking || "Thinking..."}</span>
       </div>
     );
   }
@@ -76,8 +65,8 @@ export default function ThinkingProcess({
         </span>
         <span>
           {isStreaming
-            ? TOOL_LABELS[steps[steps.length - 1]?.tool] || t.chat?.thinking || "Thinking..."
-            : summary || t.chat?.thought_complete || "Done"}
+            ? toolLabels[steps[steps.length - 1]?.tool as keyof typeof toolLabels] || t?.thinking || "Thinking..."
+            : summary || t?.thought_complete || "Done"}
         </span>
         {failedSteps.length > 0 && !isStreaming && (
           <span
@@ -114,7 +103,7 @@ export default function ThinkingProcess({
                         : undefined
                     }
                   >
-                    {TOOL_LABELS[step.tool] || step.tool}
+                    {toolLabels[step.tool as keyof typeof toolLabels] || step.tool}
                   </span>
                   <span
                     className={isRunning ? "text-[var(--color-primary)]" : ""}
