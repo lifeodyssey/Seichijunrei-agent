@@ -1,6 +1,6 @@
 """Retriever abstraction for executor-facing data access.
 
-This module provides a deterministic strategy layer above SQLAgent:
+Strategy dispatch and caching facade:
 
 - sql: structured SQL retrieval
 - geo: direct PostGIS proximity search
@@ -10,19 +10,23 @@ This module provides a deterministic strategy layer above SQLAgent:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from types import SimpleNamespace
 from typing import cast
 
 import structlog
 
 from backend.agents.models import RetrievalRequest
-from backend.agents.sql_agent import SQLAgent, SQLResult, resolve_location
+from backend.agents.retrievers.enrichment import (
+    write_through_bangumi_points,  # noqa: F401
+)
+from backend.agents.retrievers.geo import fetch_geo_rows, get_area_suggestions
+from backend.agents.retrievers.hybrid import merge_rows_preserving_order
+from backend.agents.retrievers.sql import execute_sql_with_fallback
+from backend.agents.sql_agent import SQLAgent, SQLResult  # noqa: F401
 from backend.application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from backend.application.use_cases.get_bangumi_subject import GetBangumiSubject
-from backend.clients.anitabi import AnitabiClient
 from backend.domain.entities import Point
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
@@ -31,11 +35,11 @@ from backend.services.cache import _CACHE_MISS, ResponseCache
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_GEO_LIMIT = 200
 _DEFAULT_CACHE_TTL_SECONDS = 900
-_SHARED_RETRIEVAL_CACHE = ResponseCache(
-    default_ttl_seconds=_DEFAULT_CACHE_TTL_SECONDS,
-)
+_SHARED_RETRIEVAL_CACHE = ResponseCache(default_ttl_seconds=_DEFAULT_CACHE_TTL_SECONDS)
+
+# Backward-compatible alias used in tests
+_merge_rows_preserving_order = merge_rows_preserving_order
 
 
 class RetrievalStrategy(str, Enum):
@@ -79,7 +83,6 @@ class Retriever:
         self._cache = cache or _SHARED_RETRIEVAL_CACHE
         self._fetch_bangumi_points = fetch_bangumi_points
         self._get_bangumi_subject = get_bangumi_subject
-
         if isinstance(db, SupabaseClient):
             self._fetch_bangumi_points = (
                 self._fetch_bangumi_points
@@ -93,12 +96,10 @@ class Retriever:
         """Choose a retrieval strategy without an LLM."""
         if request.tool == "search_nearby":
             return RetrievalStrategy.GEO
-
         if request.tool == "search_bangumi":
             if request.bangumi_id and (request.location or request.origin):
                 return RetrievalStrategy.HYBRID
             return RetrievalStrategy.SQL
-
         return RetrievalStrategy.SQL
 
     async def execute(self, request: RetrievalRequest) -> RetrievalResult:
@@ -112,34 +113,36 @@ class Retriever:
                 "strategy": strategy.value,
             },
         )
-
         logger.info(
-            "retrieval_strategy_selected",
-            tool=request.tool,
-            strategy=strategy.value,
+            "retrieval_strategy_selected", tool=request.tool, strategy=strategy.value
         )
-
         cached = await self._cache.get(cache_key)
         if cached is not _CACHE_MISS and isinstance(cached, RetrievalResult):
             logger.info(
-                "retrieval_cache_hit",
-                tool=request.tool,
-                strategy=strategy.value,
+                "retrieval_cache_hit", tool=request.tool, strategy=strategy.value
             )
             return _clone_result(cached, metadata_updates={"cache": "hit"})
-
         handler = {
             RetrievalStrategy.SQL: self._execute_sql,
             RetrievalStrategy.GEO: self._execute_geo,
             RetrievalStrategy.HYBRID: self._execute_hybrid,
         }[strategy]
         result = await handler(request)
-
         if result.success and result.row_count > 0:
             await self._cache.set(cache_key, result)
             return _clone_result(result, metadata_updates={"cache": "write"})
-
         return _clone_result(result, metadata_updates={"cache": "miss"})
+
+    async def _execute_sql_with_fallback(
+        self, request: RetrievalRequest
+    ) -> tuple[SQLResult, dict[str, object]]:
+        return await execute_sql_with_fallback(
+            request,
+            self._sql_agent,
+            self._db,
+            self._fetch_bangumi_points,
+            self._get_bangumi_subject,
+        )
 
     async def _execute_sql(self, request: RetrievalRequest) -> RetrievalResult:
         sql_result, metadata = await self._execute_sql_with_fallback(request)
@@ -153,20 +156,15 @@ class Retriever:
 
     async def _execute_geo(self, request: RetrievalRequest) -> RetrievalResult:
         anchor = request.location or request.origin or ""
-        rows, error = await self._fetch_geo_rows(
-            anchor,
-            radius_m=request.radius or 5000,
+        rows, error = await fetch_geo_rows(
+            self._db, anchor, radius_m=request.radius or 5000
         )
-
         metadata: dict[str, object] = {"source": "geo", "anchor": anchor}
-
-        # Detect sparse results — suggest clarification
         if not error and len(rows) < 5:
-            suggestions = await self._get_area_suggestions(anchor)
+            suggestions = await get_area_suggestions(self._db, anchor)
             if suggestions:
                 metadata["sparse"] = True
                 metadata["suggestions"] = suggestions
-
         return RetrievalResult(
             strategy=RetrievalStrategy.GEO,
             rows=rows,
@@ -177,19 +175,16 @@ class Retriever:
 
     async def _execute_hybrid(self, request: RetrievalRequest) -> RetrievalResult:
         anchor = request.location or request.origin or ""
-
         (sql_result, sql_metadata), (geo_rows, geo_error) = await asyncio.gather(
             self._execute_sql_with_fallback(request),
-            self._fetch_geo_rows(anchor, radius_m=request.radius or 5000),
+            fetch_geo_rows(self._db, anchor, radius_m=request.radius or 5000),
         )
-
         if not sql_result.success:
             return RetrievalResult(
                 strategy=RetrievalStrategy.HYBRID,
                 error=sql_result.error,
                 metadata={"source": "hybrid", "mode": "sql_error", **sql_metadata},
             )
-
         if geo_error:
             return RetrievalResult(
                 strategy=RetrievalStrategy.HYBRID,
@@ -203,21 +198,18 @@ class Retriever:
                     **sql_metadata,
                 },
             )
-
         if request.bangumi_id:
             geo_rows = [
-                row
-                for row in geo_rows
-                if str(row.get("bangumi_id", "")) == request.bangumi_id
+                r
+                for r in geo_rows
+                if str(r.get("bangumi_id", "")) == request.bangumi_id
             ]
-
-        merged_rows = _merge_rows_preserving_order(sql_result.rows, geo_rows)
-
+        merged = merge_rows_preserving_order(sql_result.rows, geo_rows)
         mode = "hybrid" if geo_rows else "sql_fallback"
         return RetrievalResult(
             strategy=RetrievalStrategy.HYBRID,
-            rows=merged_rows,
-            row_count=len(merged_rows),
+            rows=merged,
+            row_count=len(merged),
             metadata={
                 "source": "hybrid",
                 "mode": mode,
@@ -227,288 +219,6 @@ class Retriever:
                 **sql_metadata,
             },
         )
-
-    async def _execute_sql_with_fallback(
-        self,
-        request: RetrievalRequest,
-    ) -> tuple[SQLResult, dict[str, object]]:
-        sql_result = await self._sql_agent.execute(request)
-        metadata: dict[str, object] = {"data_origin": "db"}
-
-        if not sql_result.success:
-            return sql_result, metadata
-
-        has_rows = sql_result.row_count > 0
-        should_fallback = _should_try_db_miss_fallback(request)
-
-        if has_rows and not request.force_refresh:
-            return sql_result, metadata
-        if not has_rows and not should_fallback:
-            return sql_result, metadata
-
-        bangumi_id = request.bangumi_id
-        if bangumi_id is None:
-            raise ValueError("bangumi_id required for fallback retrieval")
-
-        fallback_meta = await self._write_through_bangumi_points(bangumi_id)
-        metadata.update(fallback_meta)
-
-        if fallback_meta.get("write_through"):
-            rerun_result = await self._sql_agent.execute(request)
-            if rerun_result.success:
-                return rerun_result, metadata
-
-        return sql_result, metadata
-
-    async def _write_through_bangumi_points(
-        self,
-        bangumi_id: str,
-    ) -> dict[str, object]:
-        try:
-            if self._fetch_bangumi_points is None:
-                return {
-                    "data_origin": "db_miss",
-                    "fallback_status": "disabled",
-                }
-            points = await self._fetch_bangumi_points(bangumi_id)
-        except Exception as exc:
-            logger.warning(
-                "bangumi_fallback_fetch_failed",
-                bangumi_id=bangumi_id,
-                error=str(exc),
-            )
-            return {
-                "data_origin": "db_miss",
-                "fallback_source": "anitabi",
-                "fallback_error": str(exc),
-            }
-
-        if not points:
-            return {
-                "data_origin": "db_miss",
-                "fallback_source": "anitabi",
-                "fallback_status": "empty",
-            }
-
-        await asyncio.gather(
-            self._ensure_bangumi_record(bangumi_id, points),
-            self._persist_points(points),
-        )
-        await self._update_bangumi_points_count(bangumi_id, len(points))
-
-        logger.info(
-            "bangumi_fallback_write_through_complete",
-            bangumi_id=bangumi_id,
-            point_count=len(points),
-        )
-        return {
-            "data_origin": "fallback",
-            "fallback_source": "anitabi",
-            "fallback_status": "written",
-            "write_through": True,
-            "fetched_points": len(points),
-        }
-
-    async def _ensure_bangumi_record(
-        self,
-        bangumi_id: str,
-        points: list[Point],
-    ) -> None:
-        upsert_bangumi = getattr(self._db, "upsert_bangumi", None)
-        if upsert_bangumi is None:
-            return
-
-        metadata = await self._load_bangumi_metadata(bangumi_id, points)
-
-        # Enrich with Anitabi lite info (correct title, city, cover)
-        lite = await self._fetch_bangumi_lite(bangumi_id)
-        if lite:
-            lite_title = lite.get("title")
-            if isinstance(lite_title, str) and lite_title:
-                metadata["title"] = lite_title
-            lite_cn = lite.get("cn")
-            if isinstance(lite_cn, str) and lite_cn:
-                metadata["title_cn"] = lite_cn
-            lite_city = lite.get("city")
-            if isinstance(lite_city, str) and lite_city:
-                metadata["city"] = lite_city
-            lite_cover = lite.get("cover")
-            if isinstance(lite_cover, str) and lite_cover:
-                metadata["cover_url"] = lite_cover
-
-        await upsert_bangumi(bangumi_id, **metadata)
-
-    async def _load_bangumi_metadata(
-        self,
-        bangumi_id: str,
-        points: list[Point],
-    ) -> dict[str, object]:
-        try:
-            if self._get_bangumi_subject is None:
-                raise RuntimeError("Bangumi subject fallback is not configured")
-            subject_id = int(bangumi_id)
-            subject = await self._get_bangumi_subject(subject_id)
-        except Exception as exc:
-            logger.warning(
-                "bangumi_metadata_fallback_to_minimal",
-                bangumi_id=bangumi_id,
-                error=str(exc),
-            )
-            subject = None
-
-        if subject:
-            return _subject_to_bangumi_fields(subject, points_count=len(points))
-
-        title = points[0].bangumi_title if points else bangumi_id
-        return {
-            "title": title or bangumi_id,
-            "title_cn": title or bangumi_id,
-            "points_count": len(points),
-        }
-
-    async def _fetch_bangumi_lite(self, bangumi_id: str) -> dict[str, object] | None:
-        """Fetch Anitabi /lite info for correct title, city, cover."""
-        try:
-            async with AnitabiClient() as client:
-                return await client.get_bangumi_lite(bangumi_id)
-        except Exception as exc:
-            logger.warning(
-                "bangumi_lite_fetch_failed",
-                bangumi_id=bangumi_id,
-                error=str(exc),
-            )
-            return None
-
-    async def _persist_points(self, points: list[Point]) -> None:
-        upsert_points_batch = getattr(self._db, "upsert_points_batch", None)
-        if upsert_points_batch is None:
-            return
-
-        rows = [_point_to_db_row(point) for point in points]
-        await upsert_points_batch(rows)
-
-    async def _update_bangumi_points_count(
-        self, bangumi_id: str, points_count: int
-    ) -> None:
-        pool = getattr(self._db, "pool", None)
-        if pool is None:
-            return
-
-        execute = getattr(pool, "execute", None)
-        if execute is None:
-            return
-
-        await execute(
-            "UPDATE bangumi SET points_count = $1 WHERE id = $2",
-            points_count,
-            bangumi_id,
-        )
-
-    async def _get_area_suggestions(self, anchor: str) -> list[dict[str, object]]:
-        """Look up known bangumi near an anchor location for clarification."""
-        get_bangumi_by_area = getattr(self._db, "get_bangumi_by_area", None)
-        if get_bangumi_by_area is None:
-            return []
-        coords = await resolve_location(anchor)
-        if coords is None or isinstance(coords, list):
-            return []
-        lat, lon = coords
-        try:
-            results: list[dict[str, object]] = await get_bangumi_by_area(lat, lon)
-            return results
-        except Exception as exc:
-            logger.warning("area_suggestions_failed", error=str(exc))
-            return []
-
-    async def _fetch_geo_rows(
-        self,
-        anchor: str,
-        *,
-        radius_m: int,
-    ) -> tuple[list[dict], str | None]:
-        if not anchor:
-            return [], "Missing location/origin for geo retrieval"
-
-        coords = await resolve_location(anchor)
-        if coords is None:
-            return [], f"Unknown location: {anchor}. Could not resolve coordinates."
-
-        search_points = getattr(self._db, "search_points_by_location", None)
-        if search_points is None:
-            return [], "Database client does not support geo retrieval"
-
-        lat, lon = coords
-        records = await search_points(lat, lon, radius_m, limit=_DEFAULT_GEO_LIMIT)
-        return _records_to_dicts(records), None
-
-
-def _records_to_dicts(
-    records: Sequence[Mapping[str, object]],
-) -> list[dict[str, object]]:
-    """Convert asyncpg records or plain dicts into dicts."""
-    return [dict(record) for record in records]
-
-
-def _point_to_db_row(point: Point) -> dict[str, object]:
-    return {
-        "id": point.id,
-        "bangumi_id": point.bangumi_id,
-        "name": point.name,
-        "name_cn": point.cn_name,
-        "latitude": point.coordinates.latitude,
-        "longitude": point.coordinates.longitude,
-        "episode": point.episode,
-        "time_seconds": point.time_seconds,
-        "image": str(point.screenshot_url),
-        "origin": point.origin,
-        "origin_url": point.origin_url,
-        "location": (
-            f"POINT({point.coordinates.longitude} {point.coordinates.latitude})"
-        ),
-    }
-
-
-def _subject_to_bangumi_fields(
-    subject: Mapping[str, object],
-    *,
-    points_count: int,
-) -> dict[str, object]:
-    images = subject.get("images") or {}
-    rating_obj = subject.get("rating") or {}
-    if not isinstance(images, Mapping):
-        images = {}
-    if not isinstance(rating_obj, Mapping):
-        rating_obj = {}
-    title = subject.get("name") or subject.get("name_cn") or "Unknown"
-    return {
-        "title": title,
-        "title_cn": subject.get("name_cn") or title,
-        "cover_url": images.get("large") or images.get("common") or "",
-        "air_date": subject.get("date"),
-        "summary": str(subject.get("summary") or "")[:2000],
-        "eps_count": subject.get("total_episodes") or subject.get("eps") or 0,
-        "rating": rating_obj.get("score"),
-        "points_count": points_count,
-    }
-
-
-def _should_try_db_miss_fallback(request: RetrievalRequest) -> bool:
-    return request.tool == "search_bangumi" and bool(request.bangumi_id)
-
-
-def _request_to_sql_intent(request: RetrievalRequest) -> SimpleNamespace:
-    extracted_params = SimpleNamespace(
-        bangumi=request.bangumi_id,
-        location=request.location,
-        episode=request.episode,
-        origin=request.origin,
-        radius=request.radius,
-    )
-    intent_name = {
-        "search_bangumi": "search_by_bangumi",
-        "search_nearby": "search_by_location",
-    }.get(request.tool, request.tool)
-    return SimpleNamespace(intent=intent_name, extracted_params=extracted_params)
 
 
 def _clone_result(
@@ -523,30 +233,3 @@ def _clone_result(
         error=result.error,
         metadata={**result.metadata, **(metadata_updates or {})},
     )
-
-
-def _merge_rows_preserving_order(
-    sql_rows: list[dict], geo_rows: list[dict]
-) -> list[dict]:
-    """Merge SQL rows with geo rows, keeping SQL order as the primary ranking."""
-    geo_by_id = {
-        str(row.get("id")): row for row in geo_rows if row.get("id") is not None
-    }
-
-    merged: list[dict] = []
-    for sql_row in sql_rows:
-        row_id = str(sql_row.get("id")) if sql_row.get("id") is not None else None
-        if row_id is None:
-            merged.append(dict(sql_row))
-            continue
-
-        geo_row = geo_by_id.get(row_id)
-        if geo_row is None:
-            merged.append(dict(sql_row))
-            continue
-
-        combined = dict(geo_row)
-        combined.update(sql_row)
-        merged.append(combined)
-
-    return merged
