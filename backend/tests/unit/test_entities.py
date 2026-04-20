@@ -178,6 +178,17 @@ class TestBangumi:
                 points_count=-1,
             )
 
+    def test_bangumi_points_count_zero_is_valid(self):
+        """Test that points_count=0 is a valid boundary value."""
+        bangumi = Bangumi(
+            id="BG001",
+            title="Title",
+            cn_title="Chinese",
+            cover_url="https://example.com/cover.jpg",
+            points_count=0,
+        )
+        assert bangumi.points_count == 0
+
 
 class TestPoint:
     """Test Point (pilgrimage location) entity."""

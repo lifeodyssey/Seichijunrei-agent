@@ -53,6 +53,21 @@ describe("ChatPanel", () => {
     expect(screen.queryByText("聖地巡礼")).not.toBeInTheDocument();
   });
 
+  describe("typing and sending a message", () => {
+    it("calls onSend with the typed text when Enter is pressed", async () => {
+      const onSend = vi.fn();
+      renderChatPanel([], onSend);
+      const textarea = screen.getByRole("textbox");
+      await userEvent.type(textarea, "ゆるキャン の聖地");
+      await act(async () => {
+        await userEvent.keyboard("{Enter}");
+      });
+      await waitFor(() => {
+        expect(onSend).toHaveBeenCalledWith("ゆるキャン の聖地", null);
+      });
+    });
+  });
+
   describe("geolocation coords wiring", () => {
     let savedGeo: Geolocation | undefined;
 

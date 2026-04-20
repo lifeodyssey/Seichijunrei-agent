@@ -141,28 +141,47 @@ class TestRetryDecorator:
         assert result == "success"
         assert mock_func.call_count == 2
 
-    def test_exponential_backoff_with_jitter(self):
+    @pytest.mark.parametrize(
+        "attempt,base_delay,max_delay,exp_base,lo,hi",
+        [
+            (0, 1.0, 10.0, 2, 0.5, 1.5),  # base case: 2^0 * 1.0 = 1.0 ± 50%
+            (2, 1.0, 10.0, 2, 2.0, 6.0),  # growth: 2^2 * 1.0 = 4.0 ± 50%
+            (10, 1.0, 5.0, 2, 0.0, 5.0),  # max delay cap
+        ],
+    )
+    def test_exponential_backoff_with_jitter(
+        self,
+        attempt: int,
+        base_delay: float,
+        max_delay: float,
+        exp_base: int,
+        lo: float,
+        hi: float,
+    ):
         """Test exponential backoff calculation with jitter."""
-        # Test base case
         delay = exponential_backoff_with_jitter(
-            attempt=0, base_delay=1.0, max_delay=10.0, exponential_base=2
+            attempt=attempt,
+            base_delay=base_delay,
+            max_delay=max_delay,
+            exponential_base=exp_base,
         )
-        # With jitter factor 0.5: delay = 1.0 ± 50%, so range is [0.5, 1.5]
-        assert 0.5 <= delay <= 1.5
+        assert lo <= delay <= hi
 
-        # Test exponential growth
-        delay = exponential_backoff_with_jitter(
-            attempt=2, base_delay=1.0, max_delay=10.0, exponential_base=2
+    @pytest.mark.asyncio
+    async def test_retry_with_exponential_base_one(self):
+        """Test retry config with exponential_base=1 produces constant delay."""
+        config = RetryConfig(
+            max_attempts=3, base_delay=0.05, max_delay=1.0, exponential_base=1
         )
-        # 2^2 * 1.0 = 4.0, with jitter ± 50%: [2.0, 6.0]
-        assert 2.0 <= delay <= 6.0
+        mock_func = AsyncMock(side_effect=[Exception("Fail"), Exception("Fail"), "ok"])
 
-        # Test max delay cap
-        delay = exponential_backoff_with_jitter(
-            attempt=10, base_delay=1.0, max_delay=5.0, exponential_base=2
-        )
-        # Should be capped at max_delay (strictly enforced)
-        assert delay <= 5.0
+        @retry_async(config=config)
+        async def test_func():
+            return await mock_func()
+
+        result = await test_func()
+        assert result == "ok"
+        assert mock_func.call_count == 3
 
 
 class TestRateLimiter:

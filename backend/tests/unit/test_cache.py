@@ -308,3 +308,14 @@ class TestResponseCache:
         stats = await cache.get_stats()
         assert stats["hits"] == 1
         assert stats["misses"] == 0
+
+    @pytest.mark.asyncio
+    async def test_cache_with_empty_string_value(self):
+        """Test that cache can handle empty string values (distinct from a miss)."""
+        cache = ResponseCache(default_ttl_seconds=60)
+
+        await cache.set("empty_str_key", "")
+
+        result = await cache.get("empty_str_key")
+        assert result == ""
+        assert result is not _CACHE_MISS

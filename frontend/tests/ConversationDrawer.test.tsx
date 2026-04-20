@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import ConversationDrawer from "@/components/layout/ConversationDrawer";
 import type { ConversationRecord } from "@/lib/types";
 
@@ -83,5 +83,37 @@ describe("ConversationDrawer", () => {
 
     const item = screen.getByTestId("conversation-item-sess-001");
     expect(item).toHaveAttribute("data-active", "true");
+  });
+
+  it("calls onSelectConversation with the session id when a conversation is clicked", () => {
+    const onSelectConversation = vi.fn();
+    render(
+      <ConversationDrawer
+        open={true}
+        onClose={vi.fn()}
+        conversations={CONVERSATIONS}
+        activeSessionId={null}
+        onSelectConversation={onSelectConversation}
+        onNewChat={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("conversation-item-sess-001"));
+    expect(onSelectConversation).toHaveBeenCalledWith("sess-001");
+  });
+
+  it("calls onNewChat when the new chat button is clicked", () => {
+    const onNewChat = vi.fn();
+    render(
+      <ConversationDrawer
+        open={true}
+        onClose={vi.fn()}
+        conversations={CONVERSATIONS}
+        activeSessionId={null}
+        onSelectConversation={vi.fn()}
+        onNewChat={onNewChat}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /新しいチャット/i }));
+    expect(onNewChat).toHaveBeenCalledOnce();
   });
 });
