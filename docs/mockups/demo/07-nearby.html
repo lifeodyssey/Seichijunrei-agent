@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>附近圣地 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Nearby page layout */
+.nearby-layout{flex:1;display:flex;overflow:hidden}
+
+/* Left: Map (55%) */
+.nearby-map{flex:0 0 55%;position:relative;border-right:1px solid var(--border)}
+
+/* Map filter chips */
+.map-filters{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:6px;z-index:6;flex-wrap:wrap}
+
+/* User dot */
+.user-dot{position:absolute;top:50%;left:50%;width:14px;height:14px;border-radius:50%;background:var(--int);transform:translate(-50%,-50%);z-index:5;box-shadow:0 0 0 4px oklch(60% 0.148 240/.2)}
+.user-ring{position:absolute;top:50%;left:50%;width:14px;height:14px;border-radius:50%;border:2px solid oklch(60% 0.148 240/.4);transform:translate(-50%,-50%);z-index:4;animation:pulse 1.5s ease-out infinite}
+@keyframes pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.6}100%{transform:translate(-50%,-50%) scale(3);opacity:0}}
+
+/* Right: List (45%) */
+.nearby-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.nearby-header{padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.nearby-header h2{font-size:20px;margin-bottom:4px}
+.nearby-header-meta{font-size:13px;color:var(--muted-fg);margin-bottom:8px}
+.nearby-back{font-size:13px;color:var(--int);text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.nearby-back:hover{text-decoration:underline}
+
+/* Spot list */
+.spot-list{flex:1;overflow-y:auto;padding:0 20px}
+.spot-card{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.spot-card:last-child{border-bottom:none}
+.spot-card img{width:48px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:var(--muted)}
+.spot-info{flex:1;min-width:0}
+.spot-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spot-meta{font-size:12px;color:var(--muted-fg)}
+.spot-dist{font-size:13px;color:var(--int);font-weight:600;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-btn" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="sb-tip">新对话</span></button>
+    <button class="sb-btn" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg><span class="sb-tip">历史</span></button>
+    <button class="sb-btn active" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="sb-tip">收藏</span></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="sb-tip">设置</span></button>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+    <div class="nearby-layout">
+      <!-- Left: Map -->
+      <div class="nearby-map map-bg">
+        <!-- Filter chips -->
+        <div class="map-filters">
+          <button class="chip a" aria-label="全部">全部</button>
+          <button class="chip" aria-label="ユーフォ">ユーフォ ×4</button>
+          <button class="chip" aria-label="けいおん">けいおん ×3</button>
+          <button class="chip" aria-label="たまこ">たまこ ×1</button>
+        </div>
+
+        <!-- User dot with pulse ring -->
+        <div class="user-ring"></div>
+        <div class="user-dot"></div>
+
+        <!-- Blue numbered pins (Euphonium) -->
+        <div class="map-pin blue" style="top:28%;left:35%">1</div>
+        <div class="map-pin blue" style="top:38%;left:62%">2</div>
+        <div class="map-pin blue" style="top:58%;left:28%">3</div>
+        <div class="map-pin blue" style="top:68%;left:55%">4</div>
+
+        <!-- Green pins (K-On) -->
+        <div class="map-pin green" style="top:22%;left:70%">K</div>
+        <div class="map-pin green" style="top:72%;left:38%">K</div>
+        <div class="map-pin green" style="top:45%;left:78%">K</div>
+
+        <!-- Orange pin (Tamako) -->
+        <div class="map-pin orange" style="top:62%;left:72%">T</div>
+
+        <div class="map-attr">Leaflet · 宇治</div>
+      </div>
+
+      <!-- Right: List -->
+      <div class="nearby-right">
+        <div class="nearby-header">
+          <h2>附近</h2>
+          <div class="nearby-header-meta">1km 内 8 个圣地</div>
+          <a href="06-route.html" class="nearby-back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            返回路线
+          </a>
+        </div>
+
+        <div class="spot-list">
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅">
+            <div class="spot-info">
+              <div class="spot-name">宇治駅</div>
+              <div class="spot-meta">響け！ユーフォニアム · EP1</div>
+            </div>
+            <span class="spot-dist">120m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道">
+            <div class="spot-info">
+              <div class="spot-name">あじろぎの道</div>
+              <div class="spot-meta">響け！ユーフォニアム · EP1</div>
+            </div>
+            <span class="spot-dist">280m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道">
+            <div class="spot-info">
+              <div class="spot-name">平等院表参道</div>
+              <div class="spot-meta">響け！ユーフォニアム · EP3</div>
+            </div>
+            <span class="spot-dist">450m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="興聖寺">
+            <div class="spot-info">
+              <div class="spot-name">興聖寺</div>
+              <div class="spot-meta">響け！ユーフォニアム · EP5</div>
+            </div>
+            <span class="spot-dist">580m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="修学院駅">
+            <div class="spot-info">
+              <div class="spot-name">修学院駅</div>
+              <div class="spot-meta">けいおん! · EP2</div>
+            </div>
+            <span class="spot-dist">650m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="北白川バス停">
+            <div class="spot-info">
+              <div class="spot-name">北白川バス停</div>
+              <div class="spot-meta">けいおん! · EP4</div>
+            </div>
+            <span class="spot-dist">720m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="豊郷小学校">
+            <div class="spot-info">
+              <div class="spot-name">豊郷小学校</div>
+              <div class="spot-meta">けいおん! · EP1</div>
+            </div>
+            <span class="spot-dist">880m</span>
+          </div>
+          <div class="spot-card">
+            <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="出町桝形商店街">
+            <div class="spot-info">
+              <div class="spot-name">出町桝形商店街</div>
+              <div class="spot-meta">たまこまーけっと · EP1</div>
+            </div>
+            <span class="spot-dist">950m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// Map filter chip toggle
+document.querySelector('.map-filters').addEventListener('click', function(e) {
+  var chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.map-filters .chip').forEach(function(c) { c.classList.remove('a'); });
+  chip.classList.add('a');
+});
+</script>
+</body>
+</html>

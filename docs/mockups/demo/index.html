@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seichijunrei — Demo Navigation</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+html,body{overflow:auto}
+body{padding:48px 24px;max-width:640px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.logo svg{flex-shrink:0}
+.logo span{font-family:var(--font-display);font-size:24px;font-weight:700}
+.subtitle{font-size:14px;color:var(--muted-fg);margin-bottom:32px}
+.grid{display:flex;flex-direction:column;gap:8px}
+.section-label{font-size:12px;font-weight:600;color:var(--int);text-transform:uppercase;letter-spacing:.06em;margin:24px 0 8px}
+</style>
+</head>
+<body>
+<div class="logo">
+  <svg viewBox="0 0 72 72" width="32" height="32" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/></svg>
+  <span>聖地巡礼</span>
+</div>
+<p class="subtitle">Interactive Demo — click any page to preview</p>
+
+<div class="section-label">User Journey</div>
+<div class="grid">
+  <a class="nav-link" href="01-welcome.html"><span class="num">1</span><div><div class="title">欢迎页</div><div class="desc">电影感 hero + 对话入口 + 热门动漫</div></div></a>
+  <a class="nav-link" href="02-chatting.html"><span class="num">2</span><div><div class="title">对话中</div><div class="desc">纯聊天 — 搜索 / 附近 / 消歧义 三种对话流</div></div></a>
+  <a class="nav-link" href="03-results.html"><span class="num">3</span><div><div class="title">搜索结果</div><div class="desc">网格 + 地图视图，选择圣地，AI 气泡</div></div></a>
+  <a class="nav-link" href="04-detail.html"><span class="num">4</span><div><div class="title">圣地详情</div><div class="desc">点击卡片后的详情面板</div></div></a>
+  <a class="nav-link" href="05-confirm.html"><span class="num">5</span><div><div class="title">确认路线</div><div class="desc">拖拽排序 + 路线预览地图</div></div></a>
+  <a class="nav-link" href="06-route.html"><span class="num">6</span><div><div class="title">路线规划</div><div class="desc">地图 + 时间轴 + 步行段 + 附近发现</div></div></a>
+  <a class="nav-link" href="07-nearby.html"><span class="num">7</span><div><div class="title">附近发现</div><div class="desc">从对话进入 → 地图 + 圣地列表</div></div></a>
+  <a class="nav-link" href="08-clarify.html"><span class="num">8</span><div><div class="title">消歧义</div><div class="desc">对话内嵌选择卡片</div></div></a>
+</div>
+</body>
+</html>

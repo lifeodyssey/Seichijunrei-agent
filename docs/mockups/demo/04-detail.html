@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圣地详情 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Detail page layout */
+.detail-layout{flex:1;display:flex;overflow:hidden}
+
+/* Left panel (55%) */
+.detail-left{flex:0 0 55%;overflow-y:auto;border-right:1px solid var(--border)}
+.detail-photo{width:100%;max-height:400px;object-fit:cover;display:block;border-radius:0 0 var(--r-lg) var(--r-lg)}
+.detail-body{padding:24px}
+.detail-body h2{font-size:22px;margin-bottom:6px}
+.detail-anime{font-size:14px;color:var(--muted-fg);margin-bottom:14px}
+.detail-tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.detail-tag{padding:4px 10px;border-radius:var(--r-md);background:var(--muted);font-size:12px;color:var(--muted-fg);font-weight:500}
+.detail-desc{font-size:14px;line-height:1.6;color:var(--fg);margin-bottom:24px}
+.detail-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Right panel (45%) */
+.detail-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.detail-map{height:200px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.nearby-section{flex:1;overflow-y:auto;padding:20px}
+.nearby-section h3{font-size:14px;font-weight:600;color:var(--muted-fg);margin-bottom:14px}
+.nearby-card{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.nearby-card:last-child{border-bottom:none}
+.nearby-card img{width:48px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:var(--muted)}
+.nearby-info{flex:1;min-width:0}
+.nearby-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nearby-meta{font-size:12px;color:var(--muted-fg)}
+.nearby-dist{font-size:12px;color:var(--int);font-weight:500;flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-btn" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="sb-tip">新对话</span></button>
+    <button class="sb-btn" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg><span class="sb-tip">历史</span></button>
+    <button class="sb-btn active" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="sb-tip">收藏</span></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="sb-tip">设置</span></button>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+    <div class="detail-layout">
+      <!-- Left: Photo + Info -->
+      <div class="detail-left">
+        <img class="detail-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール">
+        <div class="detail-body">
+          <h2>京都コンサートホール</h2>
+          <div class="detail-anime">響け！ユーフォニアム · EP 1</div>
+          <div class="detail-tags">
+            <span class="detail-tag">EP1</span>
+            <span class="detail-tag">34.89N, 135.80E</span>
+            <span class="detail-tag">3 张照片</span>
+          </div>
+          <p class="detail-desc">久美子たちが演奏会を行ったコンサートホール。第1話の冒頭シーンに登場。推荐在傍晚时分前往，光线与动画中的氛围最为接近。</p>
+          <div class="detail-actions">
+            <button class="btn-p" aria-label="加入路线">加入路线</button>
+            <button class="btn-o" aria-label="收藏">&#10084;&#65039; 收藏</button>
+            <button class="btn-o" aria-label="地图">&#128506;&#65039; 地图</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Map + Nearby -->
+      <div class="detail-right">
+        <div class="detail-map map-bg">
+          <div class="map-pin blue" style="top:50%;left:50%;transform:translate(-50%,-50%)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="white"><circle cx="12" cy="12" r="5"/></svg>
+          </div>
+          <div class="map-attr">Leaflet · 京都</div>
+        </div>
+        <div class="nearby-section">
+          <h3>附近圣地</h3>
+          <div class="nearby-card">
+            <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道">
+            <div class="nearby-info">
+              <div class="nearby-name">あじろぎの道</div>
+              <div class="nearby-meta">響け！ユーフォニアム · EP1</div>
+            </div>
+            <span class="nearby-dist">350m</span>
+          </div>
+          <div class="nearby-card">
+            <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="宇治橋">
+            <div class="nearby-info">
+              <div class="nearby-name">宇治橋</div>
+              <div class="nearby-meta">響け！ユーフォニアム · EP2</div>
+            </div>
+            <span class="nearby-dist">520m</span>
+          </div>
+          <div class="nearby-card">
+            <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="平等院表参道">
+            <div class="nearby-info">
+              <div class="nearby-name">平等院表参道</div>
+              <div class="nearby-meta">響け！ユーフォニアム · EP3</div>
+            </div>
+            <span class="nearby-dist">780m</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

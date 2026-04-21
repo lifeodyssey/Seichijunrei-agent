@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话中 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+.chat-screen{display:flex;flex-direction:column;height:100%;max-width:600px;margin:0 auto;padding:24px 24px 0}
+.messages{flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto;padding-bottom:16px;justify-content:flex-end}
+.dots{display:inline-flex;gap:4px;margin-left:4px;vertical-align:middle}
+.dots span{width:5px;height:5px;border-radius:50%;background:var(--muted-fg);animation:breathe 1.2s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes breathe{0%,100%{opacity:.2;transform:scale(.86)}50%{opacity:1;transform:scale(1.08)}}
+.anime-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.anime-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;transition:border-color .15s;text-decoration:none;color:var(--fg)}
+.anime-item:hover{border-color:var(--int)}
+.anime-item img{width:32px;height:32px;border-radius:var(--r-sm);object-fit:cover}
+.anime-item .aname{font-size:13px;font-weight:500}
+.anime-item .count{font-size:12px;color:var(--muted-fg);margin-left:auto}
+.result-link{display:inline-block;margin-top:8px;color:var(--int);font-weight:500;font-size:14px;text-decoration:none}
+.result-link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/></svg></div>
+    <button class="sb-btn active" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg></button>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg></button>
+  </aside>
+  <main id="main">
+    <!-- Search flow -->
+    <div class="chat-screen" id="search-flow" style="display:none">
+      <div class="messages">
+        <div class="bubble-user">吹响上低音号的圣地在哪里</div>
+        <div class="bubble-ai">
+          找到了「響け！ユーフォニアム」的 <b>156 个取景地</b>，主要分布在宇治市和京都市区。大部分圣地可以步行到达，建议安排半天到一天的时间巡礼。
+          <br><br><a class="result-link" href="03-results.html">查看搜索结果 →</a>
+        </div>
+      </div>
+      <div class="chat-input"><input placeholder="继续输入…" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+    </div>
+
+    <!-- Nearby flow: AI lists anime names first -->
+    <div class="chat-screen" id="nearby-flow" style="display:none">
+      <div class="messages">
+        <div class="bubble-user">我在宇治附近</div>
+        <div class="bubble-ai">
+          在宇治市 1km 范围内找到了 <b>3 部动漫</b>的取景地：
+          <div class="anime-list">
+            <a class="anime-item" href="07-nearby.html">
+              <img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="" width="32" height="32">
+              <span class="aname">響け！ユーフォニアム</span>
+              <span class="count">4 个圣地</span>
+            </a>
+            <a class="anime-item" href="07-nearby.html">
+              <img src="https://image.anitabi.cn/bangumi/1424.jpg" alt="" width="32" height="32">
+              <span class="aname">けいおん！</span>
+              <span class="count">3 个圣地</span>
+            </a>
+            <a class="anime-item" href="07-nearby.html">
+              <img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="" width="32" height="32">
+              <span class="aname">たまこまーけっと</span>
+              <span class="count">1 个圣地</span>
+            </a>
+          </div>
+          <br>点击任意动漫查看地图，或者告诉我你想看哪一部。
+        </div>
+      </div>
+      <div class="chat-input"><input placeholder="比如：只看ユーフォニアム" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+    </div>
+
+    <!-- Default: loading state -->
+    <div class="chat-screen" id="loading-flow">
+      <div class="messages">
+        <div class="bubble-user">搜索中</div>
+        <div class="bubble-ai">正在搜索<span class="dots"><span></span><span></span><span></span></span></div>
+      </div>
+      <div class="chat-input"><input placeholder="继续输入…" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+    </div>
+  </main>
+</div>
+
+<script>
+var params = new URLSearchParams(location.search);
+var q = params.get('q') || '';
+
+document.getElementById('loading-flow').style.display = 'none';
+
+if (q === 'nearby') {
+  document.getElementById('nearby-flow').style.display = 'flex';
+} else if (q === 'euphonium' || q === 'yourname') {
+  document.getElementById('search-flow').style.display = 'flex';
+} else {
+  document.getElementById('loading-flow').style.display = 'flex';
+}
+</script>
+</body>
+</html>

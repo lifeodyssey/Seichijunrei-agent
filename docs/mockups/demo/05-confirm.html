@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>确认路线 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+.confirm-layout{display:flex;gap:0;height:100%}
+.confirm-left{flex:0 0 440px;display:flex;flex-direction:column;padding:24px;border-right:1px solid var(--border)}
+.confirm-left h2{margin-bottom:4px}
+.confirm-left .desc{font-size:14px;color:var(--muted-fg);margin-bottom:16px}
+.confirm-list{display:flex;flex-direction:column;gap:4px;margin-bottom:24px}
+.confirm-item{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--card);border-radius:var(--r-md);cursor:grab;transition:box-shadow .15s;user-select:none}
+.confirm-item:active{cursor:grabbing;box-shadow:0 4px 16px oklch(20% 0.02 238/.12)}
+.confirm-item.dragging{opacity:.5}
+.confirm-item .idx{width:24px;height:24px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600}
+.confirm-item img{width:64px;height:48px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.confirm-item .name{font-size:14px;font-weight:500;flex:1}
+.confirm-item .ep{font-size:12px;color:var(--muted-fg)}
+.confirm-item .grip{color:var(--muted-fg);font-size:16px;cursor:grab;padding:0 4px}
+.confirm-item .remove{background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:var(--r-sm)}
+.confirm-item .remove:hover{background:var(--muted)}
+.depart{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.depart label{font-size:14px;color:var(--muted-fg)}
+.depart input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);flex:1;max-width:240px}
+.actions{display:flex;gap:8px}
+.confirm-right{flex:1;position:relative}
+.confirm-right .label{position:absolute;top:12px;left:12px;font-size:12px;color:var(--muted-fg);background:oklch(98% 0.008 218/.85);padding:3px 8px;border-radius:var(--r-sm);z-index:1}
+.drop-indicator{height:3px;background:var(--int);border-radius:2px;margin:2px 0;display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/></svg></div>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg></button>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg></button>
+  </aside>
+  <main id="main">
+    <div class="confirm-layout">
+      <div class="confirm-left">
+        <h2>确认路线</h2>
+        <p class="desc">拖拽调整顺序，或点 × 移除</p>
+        <div class="confirm-list" id="list"></div>
+        <div class="depart">
+          <label>出发站</label>
+          <input placeholder="如：宇治駅" aria-label="出发车站">
+        </div>
+        <div class="actions">
+          <button class="btn-g" onclick="location.href='03-results.html'" style="height:40px;padding:0 20px">返回选择</button>
+          <button class="btn-p" onclick="location.href='06-route.html'" style="height:40px;padding:0 24px">开始规划</button>
+        </div>
+      </div>
+      <div class="confirm-right map-bg">
+        <div class="label">路线预览</div>
+        <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 20 Q40 35 55 50 Q70 65 80 75" stroke="oklch(60% 0.148 240/.4)" stroke-width=".6" fill="none" stroke-dasharray="2 1.5"/></svg>
+        <div class="map-pin blue" style="top:18%;left:22%">1</div>
+        <div class="map-pin blue" style="top:40%;left:48%">2</div>
+        <div class="map-pin blue" style="top:62%;left:72%">3</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+var spots = [
+  {name:'京都コンサートホール',ep:'EP1',img:'https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160'},
+  {name:'莵道高',ep:'EP1',img:'https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160'},
+  {name:'平等院表参道',ep:'EP3',img:'https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160'}
+];
+
+var list = document.getElementById('list');
+
+function render() {
+  list.textContent = '';
+  spots.forEach(function(s, i) {
+    var div = document.createElement('div');
+    div.className = 'confirm-item';
+    div.draggable = true;
+    div.dataset.index = i;
+
+    var grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.textContent = '⠿';
+    div.appendChild(grip);
+
+    var idx = document.createElement('span');
+    idx.className = 'idx';
+    idx.textContent = String(i + 1);
+    div.appendChild(idx);
+
+    var img = document.createElement('img');
+    img.src = s.img;
+    img.alt = s.name;
+    img.width = 64;
+    img.height = 48;
+    div.appendChild(img);
+
+    var name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = s.name;
+    div.appendChild(name);
+
+    var ep = document.createElement('span');
+    ep.className = 'ep';
+    ep.textContent = s.ep;
+    div.appendChild(ep);
+
+    var rm = document.createElement('button');
+    rm.className = 'remove';
+    rm.textContent = '×';
+    rm.setAttribute('aria-label', '移除' + s.name);
+    rm.addEventListener('click', function() {
+      spots.splice(i, 1);
+      render();
+    });
+    div.appendChild(rm);
+
+    // Drag events
+    div.addEventListener('dragstart', function(e) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(i));
+      div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', function() {
+      div.classList.remove('dragging');
+      document.querySelectorAll('.confirm-item').forEach(function(el) { el.style.borderTop = ''; });
+    });
+    div.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      div.style.borderTop = '2px solid var(--int)';
+    });
+    div.addEventListener('dragleave', function() {
+      div.style.borderTop = '';
+    });
+    div.addEventListener('drop', function(e) {
+      e.preventDefault();
+      div.style.borderTop = '';
+      var from = parseInt(e.dataTransfer.getData('text/plain'));
+      var to = i;
+      if (from === to) return;
+      var item = spots.splice(from, 1)[0];
+      spots.splice(to, 0, item);
+      render();
+    });
+
+    list.appendChild(div);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

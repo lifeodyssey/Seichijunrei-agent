@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路线规划 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Route-specific layout: horizontal split (map left + timeline right) */
+.route-layout{flex:1;display:flex;overflow:hidden}
+
+/* Left: Map (40% width) */
+.route-map{flex:0 0 45%;position:relative;border-right:1px solid var(--border)}
+.route-map .map-float{position:absolute;z-index:3;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 4px 16px oklch(20% 0.02 238/.12);display:flex;gap:8px;padding:8px;align-items:center;max-width:200px}
+.route-map .map-float img{width:52px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.route-map .map-float-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.route-map .map-float-ep{font-size:12px;color:var(--brand);font-weight:500}
+.route-map .map-float::after{content:"";position:absolute;bottom:-6px;left:24px;width:12px;height:12px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+
+/* Right: Timeline (flex-1) */
+.route-right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Header bar */
+.route-header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.back-btn{display:flex;align-items:center;gap:4px;background:none;border:none;color:var(--int);font-size:14px;cursor:pointer;padding:4px 8px;border-radius:var(--r-sm)}
+.back-btn:hover{background:var(--int-soft)}
+.route-title{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:14px;font-weight:600}
+.route-title img{width:28px;height:28px;border-radius:var(--r-sm);object-fit:cover}
+
+/* Stats bar */
+.route-stats{display:flex;align-items:center;gap:16px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted-fg);flex-shrink:0}
+.route-stats .val{font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.stat-sep{width:1px;height:16px;background:var(--border)}
+.pace{margin-left:auto;display:flex;gap:4px}
+.pace button{padding:4px 12px;border-radius:var(--r-md);border:1px solid var(--border);font-size:12px;font-weight:500;background:var(--bg);color:var(--muted-fg);cursor:pointer}
+.pace button.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+
+/* Timeline scroll */
+.tl-scroll{flex:1;overflow-y:auto;padding:16px}
+
+/* Export bar */
+.export-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--border);flex-shrink:0}
+.export-bar .btn-p{flex:1;display:flex;align-items:center;justify-content:center}
+
+/* Discovery card */
+.discovery{display:flex;gap:14px;padding:4px 0}
+.discovery-card{flex:1;background:var(--walk-bg);border-radius:var(--r-md);padding:10px 14px;cursor:pointer;transition:background .15s}
+.discovery-card:hover{background:oklch(90% 0.025 145)}
+.discovery-title{font-size:13px;font-weight:500;color:var(--walk-fg);margin-bottom:2px}
+.discovery-meta{font-size:12px;color:var(--muted-fg)}
+.discovery-link{font-size:12px;color:var(--int);background:none;border:none;cursor:pointer;padding:0;margin-top:4px}
+
+/* Chat toggle */
+.chat-fab{position:absolute;bottom:56px;right:16px;height:36px;border-radius:18px;background:var(--int);color:var(--int-fg);border:none;display:flex;align-items:center;gap:6px;padding:0 14px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px oklch(20% 0.02 238/.12);z-index:5}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-btn" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="sb-tip">新对话</span></button>
+    <button class="sb-btn" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg><span class="sb-tip">历史</span></button>
+    <button class="sb-btn active" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="sb-tip">收藏</span></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="sb-tip">设置</span></button>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+    <div class="route-layout">
+      <!-- Left: Map -->
+      <div class="route-map map-bg">
+        <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M20 15 Q30 25 35 35 Q40 45 50 50 Q60 55 65 65 Q70 72 80 82" stroke="oklch(60% 0.148 240/.5)" stroke-width=".6" fill="none" stroke-dasharray="2 1.5"/></svg>
+        <div class="map-pin blue" style="top:12%;left:16%">1</div>
+        <div class="map-pin blue" style="top:30%;left:32%">2</div>
+        <div class="map-pin red" style="top:45%;left:46%">3</div>
+        <div class="map-pin blue" style="top:60%;left:62%">4</div>
+        <div class="map-pin blue" style="top:78%;left:76%">5</div>
+        <!-- Active stop floating card -->
+        <div class="map-float" style="top:30%;left:50%">
+          <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="52" height="36">
+          <div>
+            <div class="map-float-name">平等院表参道</div>
+            <div class="map-float-ep">EP 3</div>
+          </div>
+        </div>
+        <div class="map-attr">Leaflet · 宇治</div>
+      </div>
+
+      <!-- Right: Timeline -->
+      <div class="route-right">
+        <div class="route-header">
+          <button class="back-btn" aria-label="返回编辑" onclick="history.back()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            编辑
+          </button>
+          <div class="route-title">
+            <img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="">
+            響け！ユーフォニアム
+          </div>
+        </div>
+
+        <div class="route-stats">
+          <span><span class="val">5</span> 站</span>
+          <div class="stat-sep"></div>
+          <span><span class="val">2.1</span> km</span>
+          <div class="stat-sep"></div>
+          <span><span class="val">2:15</span> 小时</span>
+          <div class="stat-sep"></div>
+          <span><span class="val">35</span> 分步行</span>
+          <div class="pace">
+            <button>悠闲</button>
+            <button class="a">正常</button>
+            <button>紧凑</button>
+          </div>
+        </div>
+
+        <div class="tl-scroll">
+          <!-- Stop 1 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">9:00</div><div class="tl-dur">45 分</div></div><div class="tl-mid"><div class="tl-dot first"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">宇治駅</div><div class="tl-detail">EP 1 · 出発 · 3 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 10 分 · 700m</div></div>
+          <!-- Stop 2 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">9:55</div><div class="tl-dur">35 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">あじろぎの道</div><div class="tl-detail">EP 1 · 7 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="72" height="48"></div></div>
+          <!-- Walk + Discovery -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:48px"></div></div><div class="walk-pill">🚶 8 分 · 550m</div></div>
+          <div class="discovery"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:16px;opacity:.3"></div></div><div class="discovery-card"><div class="discovery-title">📍 附近还有 3 个其他动漫圣地</div><div class="discovery-meta">K-On! ×2 · たまこ ×1</div><button class="discovery-link" onclick="location.href='07-nearby.html'">查看 →</button></div></div>
+          <!-- Stop 3 (active) -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">10:38</div><div class="tl-dur">30 分</div></div><div class="tl-mid"><div class="tl-dot active"></div><div class="tl-stem"></div></div><div class="tl-r hi"><div class="tl-name">平等院表参道</div><div class="tl-detail">EP 3 · 4 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 5 分 · 150m</div></div>
+          <!-- Stop 4 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">11:13</div><div class="tl-dur">25 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">興聖寺</div><div class="tl-detail">EP 5 · 2 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="興聖寺" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 12 分 · 850m</div></div>
+          <!-- Stop 5 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">11:50</div><div class="tl-dur">15 分</div></div><div class="tl-mid"><div class="tl-dot"></div></div><div class="tl-r"><div class="tl-name">京阪宇治駅</div><div class="tl-detail">EP 7 · 终点</div></div></div>
+        </div>
+
+        <div class="export-bar">
+          <button class="btn-p" aria-label="在 Google Maps 中打开">在 Google Maps 中打开</button>
+          <button class="btn-g" style="border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px" aria-label="导出日历">.ics</button>
+          <button class="chat-fab" style="position:static;box-shadow:none;height:36px" aria-label="对话"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// Pace toggle
+document.querySelector('.pace').addEventListener('click', function(e) {
+  var btn = e.target.closest('button');
+  if (!btn) return;
+  document.querySelectorAll('.pace button').forEach(function(b) { b.classList.remove('a'); });
+  btn.classList.add('a');
+});
+</script>
+</body>
+</html>

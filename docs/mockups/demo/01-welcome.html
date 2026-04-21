@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>欢迎 — Seichijunrei</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+.welcome{display:flex;flex-direction:column;height:100%}
+.hero{position:relative;height:220px;overflow:hidden;flex-shrink:0}
+.hero img{width:100%;height:100%;object-fit:cover;filter:brightness(.75)}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 30%,oklch(20% 0.02 238/.7))}
+.hero-content{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:white;z-index:1}
+.hero-content h1{color:white;margin-bottom:4px;text-shadow:0 2px 12px oklch(20% 0.02 238/.3)}
+.hero-content p{font-size:14px;opacity:.85}
+.content{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 24px;overflow-y:auto}
+.ai-msg{max-width:520px;width:100%;margin-bottom:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
+.w-chip{padding:6px 16px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);color:var(--fg);cursor:pointer;transition:border-color .15s,background .15s}
+.w-chip:hover{border-color:var(--int);background:var(--card)}
+.hint{font-size:12px;color:var(--int);margin-bottom:4px}
+.section-label{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-top:32px;margin-bottom:8px}
+.covers{display:flex;gap:12px;overflow-x:auto;max-width:600px;padding:4px 0}
+.cover{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.cover img{width:76px;height:106px;border-radius:var(--r-md);object-fit:cover;transition:transform .15s}
+.cover:hover img{transform:scale(1.05)}
+.cover span{font-size:12px;color:var(--muted-fg);max-width:76px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.input-bar{margin-top:auto;padding-top:24px;width:100%;max-width:480px}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="sb-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-btn active" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="sb-tip">新对话</span></button>
+    <button class="sb-btn" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg><span class="sb-tip">历史</span></button>
+    <button class="sb-btn" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="sb-tip">收藏</span></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="sb-tip">设置</span></button>
+  </aside>
+  <main id="main">
+    <div class="welcome">
+      <div class="hero">
+        <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治の風景" width="1200" height="220">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <div style="margin-bottom:6px"><svg viewBox="0 0 72 72" width="32" height="32" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="white"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="white"/><rect x="16" y="21" width="5" height="35" rx="1" fill="white"/><rect x="51" y="21" width="5" height="35" rx="1" fill="white"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="white" opacity=".5"/></svg></div>
+          <h1>聖地巡礼</h1>
+          <p>告诉我你想去哪部动漫的取景地，我来帮你规划</p>
+        </div>
+      </div>
+      <div class="content">
+        <div class="ai-msg">
+          <div class="bubble-ai">你好！我可以帮你搜索动漫圣地、规划巡礼路线，或者查找你附近的取景地。想去哪里？</div>
+        </div>
+        <div class="chips">
+          <button class="w-chip" onclick="location.href='02-chatting.html?q=euphonium'">響け！ユーフォニアム</button>
+          <button class="w-chip" onclick="location.href='02-chatting.html?q=yourname'">君の名は。</button>
+          <button class="w-chip" onclick="location.href='02-chatting.html?q=nearby'">我在宇治附近</button>
+          <button class="w-chip" onclick="location.href='08-clarify.html'">涼宮ハルヒ</button>
+        </div>
+        <div class="hint">← 点击快捷建议开始体验</div>
+        <div class="section-label">热门动漫</div>
+        <div class="covers">
+          <div class="cover" onclick="location.href='03-results.html'"><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="ユーフォニアム" width="76" height="106" loading="lazy"><span>ユーフォニアム</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt="君の名は。" width="76" height="106" loading="lazy"><span>君の名は。</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt="天気の子" width="76" height="106" loading="lazy"><span>天気の子</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/485.jpg" alt="ハルヒ" width="76" height="106" loading="lazy"><span>ハルヒ</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt="けいおん！" width="76" height="106" loading="lazy"><span>けいおん！</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt="すずめ" width="76" height="106" loading="lazy"><span>すずめ</span></div>
+          <div class="cover"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="たまこ" width="76" height="106" loading="lazy"><span>たまこ</span></div>
+        </div>
+        <div class="input-bar">
+          <div class="chat-input">
+            <input placeholder="描述你的巡礼计划…" aria-label="输入消息">
+            <button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
