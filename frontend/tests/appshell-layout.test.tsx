@@ -97,16 +97,16 @@ describe("AppShell layout", () => {
     expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
   });
 
-  it("renders the result panel", () => {
+  it("does not render the result panel in chat mode (no active result)", () => {
     render(<AppShell />);
-    expect(screen.getByTestId("result-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("result-panel")).toBeNull();
   });
 
-  it("renders three visible columns on desktop", () => {
+  it("renders sidebar + chat on desktop with no active result", () => {
     const { container } = render(<AppShell />);
     expect(container.querySelector("[data-testid='icon-sidebar']")).toBeInTheDocument();
     expect(container.querySelector("[data-testid='chat-panel']")).toBeInTheDocument();
-    expect(container.querySelector("[data-testid='result-panel']")).toBeInTheDocument();
+    expect(container.querySelector("[data-testid='result-panel']")).toBeNull();
   });
 
   it("does not render old 240px text sidebar", () => {

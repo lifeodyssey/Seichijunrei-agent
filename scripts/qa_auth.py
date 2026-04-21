@@ -48,7 +48,14 @@ def generate_magic_link(
     Returns the full magic link URL (contains token_hash).
     """
     # Clear proxy env vars before importing httpx (it reads them at init time)
-    for var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+    for var in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
         os.environ.pop(var, None)
     import httpx
 
@@ -70,10 +77,14 @@ def generate_magic_link(
     data = resp.json()
 
     # The response contains action_link (top-level or under properties)
-    action_link = data.get("action_link") or data.get("properties", {}).get("action_link")
+    action_link = data.get("action_link") or data.get("properties", {}).get(
+        "action_link"
+    )
     if not action_link:
         # Fallback: construct from hashed_token
-        hashed_token = data.get("hashed_token") or data.get("properties", {}).get("hashed_token", "")
+        hashed_token = data.get("hashed_token") or data.get("properties", {}).get(
+            "hashed_token", ""
+        )
         if hashed_token:
             action_link = (
                 f"{supabase_url}/auth/v1/verify"

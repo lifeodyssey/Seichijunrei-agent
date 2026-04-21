@@ -35,6 +35,63 @@ interface ResultPanelProps {
   onRouteSelected?: (origin: string) => void;
   defaultOrigin?: string;
   loading?: boolean;
+  /** Collapse result panel → chat-focused mode. */
+  onCollapse?: () => void;
+  /** Expand result panel → full-screen mode. */
+  onExpand?: () => void;
+  /** Whether the panel is currently in full-screen mode. */
+  isFullScreen?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Layout controls — collapse / expand buttons at top of result panel
+// ---------------------------------------------------------------------------
+
+function LayoutControls({
+  onCollapse,
+  onExpand,
+  isFullScreen,
+}: {
+  onCollapse?: () => void;
+  onExpand?: () => void;
+  isFullScreen?: boolean;
+}) {
+  if (!onCollapse && !onExpand) return null;
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-1 border-b border-[var(--color-border)] px-3 py-1.5">
+      {onExpand && !isFullScreen && (
+        <button
+          type="button"
+          onClick={onExpand}
+          aria-label="Expand result panel"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
+        >
+          {/* Expand / maximize icon */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+      )}
+      {onCollapse && (
+        <button
+          type="button"
+          onClick={onCollapse}
+          aria-label="Collapse result panel"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
+        >
+          {/* Collapse / panel-right icon */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="15" y1="3" x2="15" y2="21" />
+            <polyline points="10 8 6 12 10 16" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +202,9 @@ export default function ResultPanel({
   onRouteSelected,
   defaultOrigin,
   loading,
+  onCollapse,
+  onExpand,
+  isFullScreen,
 }: ResultPanelProps) {
   const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
@@ -179,10 +239,15 @@ export default function ResultPanel({
       />
     ) : null;
 
+  const layoutControls = (
+    <LayoutControls onCollapse={onCollapse} onExpand={onExpand} isFullScreen={isFullScreen} />
+  );
+
   // ── Loading state ─────────────────────────────────────────────────────────
   if (!activeResponse && loading) {
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
+        {layoutControls}
         {selectionBar}
         <LoadingSkeleton />
       </section>
@@ -193,6 +258,7 @@ export default function ResultPanel({
   if (!activeResponse) {
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
+        {layoutControls}
         {selectionBar}
         <ResultPanelEmptyState />
       </section>
@@ -208,6 +274,7 @@ export default function ResultPanel({
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
         style={{ animation: "slide-in-right 0.3s ease-out" }}
       >
+        {layoutControls}
         {selectionBar}
 
         {/* Toolbar: filter chips + view toggle */}
@@ -244,6 +311,7 @@ export default function ResultPanel({
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
       style={{ animation: "slide-in-right 0.3s ease-out" }}
     >
+      {layoutControls}
       {selectionBar}
       <div className="flex-1 overflow-y-auto p-6">
         <GenerativeUIRenderer response={activeResponse} onSuggest={onSuggest} />
