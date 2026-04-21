@@ -16,6 +16,8 @@ interface ChatInputProps {
   disabled?: boolean;
   showQuickActions?: boolean;
   onLocationAcquired?: (lat: number, lng: number) => void;
+  /** Override the default locale-aware placeholder text. */
+  placeholderOverride?: string;
 }
 
 /**
@@ -31,6 +33,7 @@ export default function ChatInput({
   disabled,
   showQuickActions,
   onLocationAcquired,
+  placeholderOverride,
 }: ChatInputProps) {
   const dict = useDict();
   const { chat: t, landing_hero: lh } = dict;
@@ -95,12 +98,13 @@ export default function ChatInput({
   ];
 
   // Locale-aware placeholder
-  const placeholder =
+  const placeholder = placeholderOverride ?? (
     locale === "zh"
       ? "输入动漫名称，或描述你的巡礼计划…"
       : locale === "en"
         ? "Type an anime name, or describe your trip…"
-        : "アニメ名を入力、または旅の計画を…";
+        : "アニメ名を入力、または旅の計画を…"
+  );
 
   return (
     <div

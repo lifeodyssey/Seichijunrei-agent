@@ -23,28 +23,6 @@ import ResultPanel from "./ResultPanel";
 import ChatPopup from "../chat/ChatPopup";
 
 // ---------------------------------------------------------------------------
-// Floating toggle — appears in full-result mode to bring chat back
-// ---------------------------------------------------------------------------
-
-function FloatingChatToggle({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Show chat"
-      className="fixed right-6 z-30 flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-white shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
-      style={{ bottom: "72px" }} /* above selection bar (56px) + gap */
-      style={{ animation: "pop-in 0.25s var(--ease-out-expo)" }}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-      Chat
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Sidebar overlay — used on tablet / mobile when sidebar is toggled open
 // ---------------------------------------------------------------------------
 
@@ -126,7 +104,7 @@ export default function AppShell() {
     return "";
   }, [messages]);
 
-  // Auto-activate latest visual response
+  // Auto-activate latest visual response + open chat popup on desktop
   useEffect(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -137,6 +115,7 @@ export default function AppShell() {
     queueMicrotask(() => {
       setActiveMessageId(id);
       if (mobile) setDrawerOpen(true);
+      else setChatPopupOpen(true);
     });
   }, [messages, isMobile]);
 
@@ -300,14 +279,11 @@ export default function AppShell() {
             }}
           />
 
-          {/* ── Full-result mode: floating chat toggle + popup ──────────── */}
-          {mode === "full-result" && !chatPopupOpen && (
-            <FloatingChatToggle onClick={() => setChatPopupOpen(true)} />
-          )}
-          {mode === "full-result" && (
+          {/* ── Draggable chat popup — visible when results exist ── */}
+          {mode !== "chat" && activeResponse && (
             <ChatPopup
               open={chatPopupOpen}
-              onClose={() => setChatPopupOpen(false)}
+              onClose={() => setChatPopupOpen((prev) => !prev)}
               messages={messages}
               sending={isSending}
               activeMessageId={activeMessageId}

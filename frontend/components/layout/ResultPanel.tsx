@@ -11,6 +11,7 @@ import SelectionBar from "../generative/SelectionBar";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import { PhotoCard } from "../generative/PhotoCard";
 import { ResultPanelToolbar } from "./ResultPanelToolbar";
+import type { FilterMode } from "./ResultPanelToolbar";
 import { ResultPanelEmptyState } from "./ResultPanelEmptyState";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +124,45 @@ function buildEpRanges(points: PilgrimagePoint[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Area helpers — derive region from coordinates
+// ---------------------------------------------------------------------------
+
+/** Known areas with center coordinates and radius (km). */
+const KNOWN_AREAS: { name: string; lat: number; lng: number; r: number }[] = [
+  { name: "宇治", lat: 34.888, lng: 135.802, r: 4 },
+  { name: "伏見", lat: 34.930, lng: 135.764, r: 5 },
+  { name: "京都市", lat: 34.985, lng: 135.758, r: 12 },
+  { name: "大阪", lat: 34.686, lng: 135.520, r: 15 },
+  { name: "奈良", lat: 34.685, lng: 135.805, r: 10 },
+  { name: "神戸", lat: 34.690, lng: 135.195, r: 12 },
+];
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function pointArea(p: PilgrimagePoint): string {
+  for (const area of KNOWN_AREAS) {
+    if (haversineKm(p.latitude, p.longitude, area.lat, area.lng) <= area.r) {
+      return area.name;
+    }
+  }
+  return "その他";
+}
+
+function buildAreas(points: PilgrimagePoint[]): string[] {
+  const areas = new Set<string>();
+  for (const p of points) areas.add(pointArea(p));
+  return Array.from(areas).sort();
+}
+
+// ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
 
@@ -209,7 +249,9 @@ export default function ResultPanel({
   const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
   const [view, setView] = useState<ViewMode>("grid");
+  const [filterMode, setFilterMode] = useState<FilterMode>("episode");
   const [activeEpRange, setActiveEpRange] = useState<string | null>(null);
+  const [activeArea, setActiveArea] = useState<string | null>(null);
 
   // Extract search points from the response (when available).
   const searchPoints = useMemo<PilgrimagePoint[]>(() => {
@@ -220,13 +262,20 @@ export default function ResultPanel({
   // Episode range filter chips — only built when episode data exists.
   const epRanges = useMemo(() => buildEpRanges(searchPoints), [searchPoints]);
 
-  // Filtered points based on active episode range.
+  // Area filter chips — derived from coordinates.
+  const areas = useMemo(() => buildAreas(searchPoints), [searchPoints]);
+
+  // Filtered points based on active filter mode + selection.
   const visiblePoints = useMemo<PilgrimagePoint[]>(() => {
-    if (activeEpRange === null) return searchPoints;
-    return searchPoints.filter(
-      (p) => p.episode != null && epRangeLabel(p.episode) === activeEpRange,
-    );
-  }, [searchPoints, activeEpRange]);
+    if (filterMode === "episode") {
+      if (activeEpRange === null) return searchPoints;
+      return searchPoints.filter(
+        (p) => p.episode != null && epRangeLabel(p.episode) === activeEpRange,
+      );
+    }
+    if (activeArea === null) return searchPoints;
+    return searchPoints.filter((p) => pointArea(p) === activeArea);
+  }, [searchPoints, filterMode, activeEpRange, activeArea]);
 
   // Old SelectionBar and LayoutControls removed — selection bar is now
   // inside PilgrimageGrid (bottom-fixed), and layout controls are not needed
@@ -267,9 +316,14 @@ export default function ResultPanel({
         <ResultPanelToolbar
           view={view}
           onViewChange={setView}
+          filterMode={filterMode}
+          onFilterModeChange={setFilterMode}
           epRanges={epRanges}
           activeEpRange={activeEpRange}
           onEpRangeChange={setActiveEpRange}
+          areas={areas}
+          activeArea={activeArea}
+          onAreaChange={setActiveArea}
         />
 
         {/* Content area */}
