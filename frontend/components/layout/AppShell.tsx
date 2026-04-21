@@ -20,6 +20,7 @@ import ChatPanel from "../chat/ChatPanel";
 import ResultSheet from "./ResultSheet";
 import ConversationDrawer from "./ConversationDrawer";
 import ResultPanel from "./ResultPanel";
+import ChatPopup from "../chat/ChatPopup";
 
 // ---------------------------------------------------------------------------
 // Floating toggle — appears in full-result mode to bring chat back
@@ -94,6 +95,7 @@ export default function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatPopupOpen, setChatPopupOpen] = useState(false);
 
   useSessionHydration({ sessionId, clearSession, appendMessages });
   useConversationSync({ messages, upsertConversation });
@@ -181,12 +183,12 @@ export default function AppShell() {
   }, [abortRoute, clearChat, clearSelectedPoints, clearSession]);
 
   const handleSidebarSection = useCallback(
-    (section: "search" | "routes" | "history" | "settings") => {
+    (section: "history" | "favorites" | "settings") => {
       setSidebarOpen(false);
-      if (section === "search") handleNewChat();
       if (section === "history") setConversationDrawerOpen(true);
+      // favorites and settings: TODO — placeholder for now
     },
-    [handleNewChat],
+    [],
   );
 
   const isSending = sending || routeSending;
@@ -297,9 +299,22 @@ export default function AppShell() {
             }}
           />
 
-          {/* ── Full-result mode: floating chat toggle ─────────────────── */}
+          {/* ── Full-result mode: floating chat toggle + popup ──────────── */}
+          {mode === "full-result" && !chatPopupOpen && (
+            <FloatingChatToggle onClick={() => setChatPopupOpen(true)} />
+          )}
           {mode === "full-result" && (
-            <FloatingChatToggle onClick={() => layout.setMode("split")} />
+            <ChatPopup
+              open={chatPopupOpen}
+              onClose={() => setChatPopupOpen(false)}
+              messages={messages}
+              sending={isSending}
+              activeMessageId={activeMessageId}
+              dict={dict}
+              locale={locale}
+              onSend={handleSend}
+              onActivate={handleActivate}
+            />
           )}
         </div>
       </PointSelectionContext.Provider>
