@@ -13,14 +13,14 @@ import { PhotoCard } from "../generative/PhotoCard";
 import { ResultPanelToolbar } from "./ResultPanelToolbar";
 import type { FilterMode } from "./ResultPanelToolbar";
 import { ResultPanelEmptyState } from "./ResultPanelEmptyState";
+import { prewarmMapbox } from "../map/prewarm";
 
 // ---------------------------------------------------------------------------
-// Leaflet map — lazy-loaded with ssr:false so Leaflet's window accesses do not
-// break the static-export build.
+// Map — lazy-loaded with ssr:false (Mapbox GL requires window)
 // ---------------------------------------------------------------------------
 
-const LazyLeafletMap = dynamic(
-  () => import("./LeafletResultMap"),
+const LazyMap = dynamic(
+  () => import("../map/BaseMap"),
   { ssr: false },
 );
 
@@ -303,6 +303,8 @@ export default function ResultPanel({
 
   // ── Active response with search results ───────────────────────────────────
   if (isSearchData(activeResponse.data)) {
+    // Prewarm Mapbox GL when results arrive — shaves ~800ms off first map render
+    prewarmMapbox();
     const isEmpty = searchPoints.length === 0;
 
     return (
@@ -337,7 +339,17 @@ export default function ResultPanel({
           />
         ) : (
           <div className="relative flex-1 overflow-hidden">
-            <LazyLeafletMap points={visiblePoints} selectedIds={selectedIds} onToggle={toggle} />
+            {/* Map skeleton — shown while Mapbox GL JS initializes */}
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-muted)]" style={{ zIndex: 0 }}>
+              <div className="flex flex-col items-center gap-2 text-[var(--color-muted-fg)]">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ animation: "breathe 2s ease-in-out infinite" }}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span className="text-xs">地图加载中…</span>
+              </div>
+            </div>
+            <LazyMap points={visiblePoints} selectedIds={selectedIds} onToggle={toggle} />
           </div>
         )}
 
