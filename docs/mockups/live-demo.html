@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f5f5f3">
+<title>Seichijunrei — Interactive Demo</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --brand:oklch(58% 0.19 28);--brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);--int-fg:oklch(99% 0.004 220);--int-soft:oklch(93% 0.025 240);
+  --bg:oklch(98% 0.008 218);--fg:oklch(20% 0.025 238);--card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);--muted-fg:oklch(45% 0.032 228);--border:oklch(85% 0.022 222);
+  --walk-bg:oklch(92% 0.02 145);--walk-fg:oklch(35% 0.06 145);
+  --error-bg:oklch(94% 0.02 20);--error-fg:oklch(38% 0.09 20);
+  --r-sm:4px;--r-md:8px;--r-lg:12px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:"Noto Sans SC",system-ui,sans-serif;font-weight:300;background:var(--bg);color:var(--fg)}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--int);outline-offset:2px;border-radius:var(--r-sm)}
+h1{font-family:"Shippori Mincho B1",serif;font-size:28px;font-weight:700;text-wrap:balance}
+h2{font-family:"Shippori Mincho B1",serif;font-size:20px;font-weight:700}
+h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
+
+/* App Shell */
+#app{display:flex;height:100vh;overflow:hidden;position:relative}
+
+/* Sidebar — always collapsed 60px */
+#sidebar{width:60px;min-width:60px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;background:var(--bg);z-index:10}
+.sb-logo{width:44px;height:44px;border-radius:var(--r-lg);background:var(--brand-soft);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0}
+.sb-btn{position:relative;width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--muted-fg);border:none;background:transparent;transition:background .15s;flex-shrink:0;touch-action:manipulation}
+.sb-btn:hover{background:var(--muted)}
+.sb-btn.a{background:var(--int-soft);color:var(--int)}
+.sb-btn svg{width:18px;height:18px}
+.sb-spacer{flex:1}
+
+/* Sidebar tooltips */
+.sb-tip{position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--fg);color:var(--bg);font-size:12px;font-weight:500;padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:20}
+.sb-btn:hover .sb-tip{opacity:1}
+
+/* Main area */
+#main{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+
+/* Screens */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease,visibility 0s .3s}
+.screen.active{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .3s ease,transform .3s ease,visibility 0s}
+
+/* Welcome Screen */
+#s-welcome{overflow-y:auto}
+.w-hero{position:relative;height:240px;overflow:hidden;flex-shrink:0}
+.w-hero-img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.75)}
+.w-hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 40%,oklch(20% 0.02 238/.7))}
+.w-hero-content{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:white;z-index:1}
+.w-hero-content h1{color:white;margin-bottom:6px;font-size:28px;text-shadow:0 2px 12px oklch(20% 0.02 238/.3)}
+.w-hero-content p{font-size:14px;opacity:.85;max-width:40ch;margin:0 auto}
+.w-bottom{flex:1;display:flex;flex-direction:column;padding:24px;align-items:center}
+.bubble-ai{align-self:flex-start;background:var(--card);padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:14px;max-width:85%;line-height:1.5}
+.bubble-user{align-self:flex-end;background:var(--int);color:var(--int-fg);padding:10px 14px;border-radius:14px 14px 4px 14px;font-size:14px;max-width:80%}
+.w-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.w-chip{padding:6px 16px;border:1px solid var(--border);border-radius:20px;font-size:14px;background:var(--bg);color:var(--fg);cursor:pointer;transition:border-color .15s,background .15s;touch-action:manipulation}
+.w-chip:hover{border-color:var(--int);background:var(--card)}
+.w-section-label{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:12px}
+.w-covers{display:flex;gap:12px;overflow-x:auto;padding:4px 0;max-width:640px}
+.w-cover{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.w-cover img{width:80px;height:112px;border-radius:var(--r-md);object-fit:cover}
+.w-cover span{font-size:12px;color:var(--muted-fg);max-width:80px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-search{display:flex;align-items:center;gap:8px;max-width:480px;margin:0 auto;width:90%}
+.w-search input{flex:1;height:48px;border:none;border-radius:24px;padding:0 20px;font-size:14px;background:var(--card);color:var(--fg);box-shadow:0 2px 8px oklch(20% 0.02 238/.06);border:1px solid var(--border)}
+.w-search input::placeholder{color:var(--muted-fg)}
+.w-search button{width:44px;height:44px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.hint-text{font-size:13px;color:var(--int);margin-top:8px;opacity:.8;animation:hintPulse 2s ease-in-out infinite}
+@keyframes hintPulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+/* Loading Screen */
+.skeleton{border-radius:var(--r-md);background:linear-gradient(90deg,var(--muted) 25%,oklch(93% 0.012 218) 50%,var(--muted) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.loading-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:20px}
+.loading-text{text-align:center;font-size:14px;color:var(--muted-fg);padding:20px}
+
+/* Results Screen */
+.results-header{padding:12px 24px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.anime-info{display:flex;align-items:center;gap:12px}
+.anime-cover{width:48px;height:64px;border-radius:var(--r-md);object-fit:cover}
+.results-header .meta{font-size:12px;color:var(--muted-fg)}
+.header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 24px}
+.tab-btn{padding:8px 16px;border:none;background:none;font-size:14px;color:var(--muted-fg);border-bottom:2px solid transparent;cursor:pointer;transition:color .15s,border-color .15s;touch-action:manipulation}
+.tab-btn.a{color:var(--int);font-weight:500;border-bottom-color:var(--int)}
+.filters{display:flex;gap:4px;padding:8px 24px;flex-wrap:wrap}
+.chip{padding:4px 12px;border-radius:var(--r-md);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--bg);color:var(--muted-fg);cursor:pointer;transition:border-color .15s,background .15s;touch-action:manipulation}
+.chip:hover{border-color:var(--int)}
+.chip.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.grid-wrap{flex:1;overflow-y:auto;padding:0 20px 140px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.gc{position:relative;border-radius:var(--r-md);overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:border-color .15s,transform .15s,box-shadow .15s;background:var(--bg)}
+.gc:hover{border-color:var(--int);transform:translateY(-2px);box-shadow:0 4px 12px oklch(20% 0.02 238/.08)}
+.gc img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block}
+.gc-bar{position:relative;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg);border-top:1px solid var(--border)}
+.gc-name{font-size:12px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72%;font-weight:500}
+.gc-ep{font-size:12px;color:var(--muted-fg)}
+.gc-ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s}
+.gc.sel .gc-ck{opacity:1;transform:scale(1)}
+.gc.sel{border-color:var(--int)}
+
+/* Selection bar */
+.selbar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);z-index:5;height:52px;transform:translateY(100%);transition:transform .25s ease}
+.selbar.visible{transform:translateY(0)}
+.selbar b{font-size:14px;font-weight:500}
+.btn-p{padding:6px 20px;border-radius:var(--r-md);border:none;background:var(--int);color:var(--int-fg);font-size:14px;font-weight:600;cursor:pointer;height:36px;min-width:44px;touch-action:manipulation}
+.btn-p:hover{filter:brightness(1.05)}
+.btn-g{font-size:14px;color:var(--muted-fg);cursor:pointer;background:none;border:none;min-width:44px;height:36px;touch-action:manipulation}
+.selbar .btn-p{margin-left:auto}
+
+/* AI summary */
+.ai-summary{position:absolute;bottom:16px;right:24px;max-width:240px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) var(--r-sm) var(--r-lg);padding:10px 14px;font-size:13px;line-height:1.5;box-shadow:0 4px 16px oklch(20% 0.02 238/.1);z-index:6;cursor:grab;opacity:0;pointer-events:none;user-select:none;transition:bottom .25s ease,opacity .3s}
+.ai-summary.visible{opacity:1;pointer-events:auto}
+.ai-summary.raised{bottom:68px}
+.ai-summary.dragging{cursor:grabbing;box-shadow:0 8px 32px oklch(20% 0.02 238/.15);z-index:50}
+.ai-summary .expand{font-size:12px;color:var(--int);margin-top:4px}
+
+/* Chat toggle — bottom-right, blue primary */
+.chat-tog{position:absolute;bottom:12px;right:24px;height:36px;border-radius:18px;background:var(--int);color:var(--int-fg);border:none;display:flex;align-items:center;gap:6px;padding:0 14px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px oklch(20% 0.02 238/.12);z-index:5;touch-action:manipulation}
+.chat-tog svg{width:16px;height:16px}
+
+/* Route Confirm Screen */
+#s-confirm{padding:24px;overflow-y:auto}
+.confirm-layout{display:flex;gap:24px;height:100%}
+.confirm-left{flex:0 0 420px;display:flex;flex-direction:column}
+.confirm-right{flex:1;border-radius:var(--r-lg);overflow:hidden;position:relative;
+  background:radial-gradient(circle at 30% 40%,oklch(90% 0.025 180) 0%,transparent 50%),
+  radial-gradient(circle at 65% 55%,oklch(91% 0.02 200) 0%,transparent 40%),oklch(93% 0.01 210)}
+.confirm-right::before{content:"路线预览";position:absolute;top:12px;left:12px;font-size:12px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:var(--r-sm);z-index:1}
+.confirm-map-pin{position:absolute;width:28px;height:28px;border-radius:50%;background:var(--int);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 2px 6px oklch(20% 0.02 238/.2)}
+.confirm-list{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
+.confirm-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:var(--r-md);font-size:14px}
+.confirm-item .idx{width:20px;height:20px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.confirm-item img{width:64px;height:48px;border-radius:var(--r-sm);object-fit:cover}
+.confirm-item .name{font-weight:500;flex:1}
+.confirm-item .ep{color:var(--muted-fg);font-size:12px}
+.confirm-item .remove{background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:var(--r-sm);touch-action:manipulation}
+.confirm-item .remove:hover{background:var(--muted)}
+
+/* Route Timeline Screen */
+#s-route{overflow:hidden}
+.route-split{flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%}
+.route-map{flex:0 0 30%;position:relative;min-height:160px;overflow:hidden;
+  background:
+    radial-gradient(circle at 25% 35%,oklch(90% 0.03 180) 0%,transparent 45%),
+    radial-gradient(circle at 65% 50%,oklch(91% 0.025 200) 0%,transparent 40%),
+    radial-gradient(circle at 50% 70%,oklch(92% 0.02 160) 0%,transparent 35%),
+    linear-gradient(180deg,oklch(94% 0.01 210),oklch(92% 0.015 200));
+}
+.route-map::before{content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(oklch(80% 0.02 220/.08) 1px,transparent 1px),
+    linear-gradient(90deg,oklch(80% 0.02 220/.08) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0}
+.pin{position:absolute;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;box-shadow:0 3px 12px oklch(20% 0.02 238/.25);z-index:2}
+.pin-int{background:var(--int)}.pin-brand{background:var(--brand)}
+.map-float{position:absolute;z-index:3;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 4px 16px oklch(20% 0.02 238/.12);display:flex;gap:8px;padding:8px;align-items:center;max-width:200px}
+.map-float img{width:52px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.map-float-info{min-width:0}
+.map-float-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-float-ep{font-size:12px;color:var(--brand);font-weight:500}
+.map-float::after{content:"";position:absolute;bottom:-6px;left:24px;width:12px;height:12px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+.map-attr{position:absolute;bottom:8px;left:12px;font-size:12px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:var(--r-sm);z-index:2}
+.route-stats{display:flex;align-items:center;gap:16px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted-fg);flex-shrink:0}
+.route-stats .stat-val{font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.route-stats .stat-label{margin-left:4px}
+.route-stats .stat-sep{width:1px;height:16px;background:var(--border)}
+.pace{margin-left:auto;display:flex;gap:4px}
+.pace button{padding:4px 12px;border-radius:var(--r-md);border:1px solid var(--border);font-size:12px;font-weight:500;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
+.pace button.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.tl-wrap{flex:1;overflow-y:auto;padding:16px 24px 80px}
+.tl-stop{display:flex;gap:14px;padding-bottom:6px}
+.tl-l{width:56px;text-align:right;flex-shrink:0;padding-top:2px;font-variant-numeric:tabular-nums}
+.tl-time{font-size:14px;font-weight:500}.tl-dur{font-size:12px;color:var(--muted-fg)}
+.tl-mid{width:24px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--int);flex-shrink:0;z-index:1}
+.tl-dot.first{width:16px;height:16px;box-shadow:0 0 0 4px oklch(60% 0.148 240/.15)}
+.tl-dot.active{background:var(--brand);width:14px;height:14px;box-shadow:0 0 0 4px oklch(58% 0.19 28/.12)}
+.tl-stem{width:2px;flex:1;background:var(--border)}
+.tl-r{flex:1;min-width:0;padding-bottom:12px}
+.tl-name{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600;margin-bottom:2px}
+.tl-detail{font-size:12px;color:var(--muted-fg);margin-bottom:6px}
+.tl-photo{width:72px;height:48px;border-radius:var(--r-sm);object-fit:cover;background:var(--muted)}
+.tl-r.hi{background:oklch(96% 0.012 215);border-radius:var(--r-md);padding:10px;margin:-10px;margin-bottom:2px}
+.tl-walk{display:flex;gap:14px;padding:6px 0}
+.tl-walk-l{width:56px;flex-shrink:0}
+.tl-walk-mid{width:24px;display:flex;justify-content:center;flex-shrink:0}
+.tl-dash{width:2px;min-height:32px;background:repeating-linear-gradient(to bottom,var(--walk-fg) 0 4px,transparent 4px 8px);opacity:.55}
+.walk-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:var(--r-md);background:var(--walk-bg);color:var(--walk-fg);font-size:12px;font-weight:500;box-shadow:0 1px 3px oklch(35% 0.06 145/.08)}
+.tl-discovery{display:flex;gap:14px;padding:4px 0}
+.tl-discovery-card{flex:1;background:var(--walk-bg);border:1px solid oklch(85% 0.03 145);border-radius:var(--r-md);padding:10px 14px;cursor:pointer;transition:border-color .15s}
+.tl-discovery-card:hover{border-color:var(--walk-fg)}
+.tl-discovery-title{font-size:13px;font-weight:500;color:var(--walk-fg);margin-bottom:4px}
+.tl-discovery-meta{font-size:12px;color:var(--muted-fg);margin-bottom:6px}
+.tl-discovery-link{font-size:12px;font-weight:500;color:var(--int);background:none;border:none;cursor:pointer;padding:0;touch-action:manipulation}
+.export-bar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:8px 24px;background:var(--bg);border-top:1px solid var(--border);z-index:5}
+.export-bar .btn-p{flex:1;text-align:center;display:flex;align-items:center;justify-content:center}
+
+/* Detail Sheet */
+#detail-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -4px 24px oklch(20% 0.02 238/.1);z-index:20;padding:16px 20px;max-height:50%;transform:translateY(100%);transition:transform .25s ease;overflow-y:auto}
+#detail-sheet.open{transform:translateY(0)}
+#detail-backdrop{position:absolute;inset:0;background:oklch(20% 0.02 238/.3);z-index:19;opacity:0;visibility:hidden;transition:opacity .25s}
+#detail-backdrop.open{opacity:1;visibility:visible}
+.detail-close{position:absolute;top:12px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--fg);z-index:21;touch-action:manipulation}
+.detail-img{width:100%;max-height:160px;object-fit:cover;border-radius:var(--r-md);margin-bottom:12px}
+.detail-badges{display:flex;gap:8px;margin:8px 0 12px}
+.detail-badge{font-size:12px;padding:2px 8px;border-radius:var(--r-sm);background:var(--muted);color:var(--muted-fg)}
+.detail-actions{display:flex;gap:8px;margin-top:12px}
+.detail-actions button{height:36px;padding:0 16px;border-radius:var(--r-md);font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--fg);transition:background .15s;touch-action:manipulation;display:flex;align-items:center;gap:6px}
+.detail-actions button:hover{background:var(--card)}
+.detail-actions button.primary{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+
+/* Chat Popup */
+#chat-popup{position:fixed;bottom:60px;right:24px;width:340px;height:400px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 8px 32px oklch(20% 0.02 238/.15);z-index:100;display:flex;flex-direction:column;overflow:hidden;opacity:0;visibility:hidden;transform:translateY(12px) scale(.97);transition:opacity .25s,visibility .25s,transform .25s cubic-bezier(.16,1,.3,1)}
+#chat-popup.open{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+#chat-popup::after{content:"";position:absolute;bottom:-7px;right:28px;width:14px;height:14px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+#chat-backdrop{position:fixed;inset:0;z-index:99;display:none}
+#chat-backdrop.open{display:block}
+.popup-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.popup-header h3{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600}
+.popup-messages{flex:1;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.popup-input{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border)}
+.popup-input input{flex:1;height:32px;border:1px solid var(--border);border-radius:16px;padding:0 12px;font-size:12px;background:var(--bg);color:var(--fg);font-family:inherit}
+.popup-input input::placeholder{color:var(--muted-fg)}
+.popup-input button{width:32px;height:32px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation}
+
+/* Nearby Screen */
+.nearby-layout{display:flex;height:100%;overflow:hidden}
+.nearby-map{flex:1;position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 30% 40%,oklch(90% 0.03 180) 0%,transparent 45%),
+    radial-gradient(circle at 60% 55%,oklch(91% 0.025 200) 0%,transparent 40%),
+    radial-gradient(circle at 45% 70%,oklch(92% 0.02 160) 0%,transparent 35%),
+    linear-gradient(180deg,oklch(94% 0.01 210),oklch(92% 0.015 200));
+}
+.nearby-map::before{content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(oklch(80% 0.02 220/.08) 1px,transparent 1px),
+    linear-gradient(90deg,oklch(80% 0.02 220/.08) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0}
+.user-dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:var(--int);z-index:5;box-shadow:0 0 0 3px oklch(60% 0.148 240/.3)}
+.user-ring{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;border:2px solid oklch(60% 0.148 240/.4);z-index:4;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.6}50%{transform:translate(-50%,-50%) scale(1.3);opacity:.2}100%{transform:translate(-50%,-50%) scale(1);opacity:.6}}
+.nearby-chips{position:absolute;top:12px;left:12px;right:272px;display:flex;gap:6px;z-index:6;flex-wrap:wrap}
+.nearby-chips .chip{background:var(--bg);box-shadow:0 2px 6px oklch(20% 0.02 238/.1)}
+.nearby-chips .chip.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.pin-sm{position:absolute;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;box-shadow:0 2px 8px oklch(20% 0.02 238/.2);z-index:3}
+.pin-blue{background:var(--int)}
+.pin-green{background:oklch(55% 0.12 145)}
+.pin-orange{background:oklch(55% 0.12 55)}
+.side-panel{width:260px;min-width:260px;border-left:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.sp-hdr{padding:16px;border-bottom:1px solid var(--border)}
+.sp-hdr h2{font-size:18px;margin-bottom:2px}
+.sp-hdr .meta{font-size:12px;color:var(--muted-fg)}
+.sp-list{flex:1;overflow-y:auto;padding:8px}
+.sp-card{display:flex;gap:10px;padding:8px;border-radius:var(--r-md);cursor:pointer;transition:background .15s}
+.sp-card:hover{background:var(--card)}
+.sp-card img{width:48px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.sp-info{min-width:0;flex:1}
+.sp-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-meta{font-size:12px;color:var(--muted-fg)}
+.sp-dist{font-size:12px;color:var(--int);font-weight:500}
+
+/* Clarification Screen */
+#s-clarify{background:var(--bg)}
+.clar-chat{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px}
+.clar-chat .clar-inner{max-width:600px;width:100%;display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center}
+.clar-inline-cards{display:flex;gap:12px;margin-top:10px}
+.clar-card{flex:1;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg);transition:border-color .15s}
+.clar-card:hover{border-color:var(--int)}
+.clar-card img{width:100%;height:100px;object-fit:cover;display:block}
+.clar-card-body{padding:10px}
+.clar-card-body h3{font-size:14px;font-weight:600;margin-bottom:2px}
+.clar-card-body .meta{font-size:12px;color:var(--muted-fg);margin-bottom:8px}
+.clar-card-body button{padding:5px 14px;border-radius:var(--r-md);border:1px solid var(--int);background:var(--bg);color:var(--int);font-size:12px;font-weight:500;cursor:pointer;transition:background .15s;touch-action:manipulation}
+.clar-card-body button:hover{background:var(--int-soft)}
+.clar-all-link{font-size:13px;color:var(--int);background:none;border:none;cursor:pointer;margin-top:8px;align-self:flex-start;padding:0;touch-action:manipulation}
+
+/* Map View (results screen) — richer terrain */
+.map-view{flex:1;position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 30%,oklch(88% 0.04 160/.5) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 50% at 70% 25%,oklch(89% 0.035 180/.4) 0%,transparent 60%),
+    radial-gradient(circle at 45% 60%,oklch(90% 0.03 200/.3) 0%,transparent 50%),
+    radial-gradient(ellipse 80% 30% at 50% 80%,oklch(87% 0.04 210/.35) 0%,transparent 50%),
+    radial-gradient(circle at 80% 70%,oklch(91% 0.025 170/.3) 0%,transparent 40%),
+    linear-gradient(160deg,oklch(94% 0.012 200),oklch(92% 0.018 210),oklch(93% 0.01 195))}
+.map-view::before{content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(oklch(80% 0.02 220/.05) 1px,transparent 1px),
+    linear-gradient(90deg,oklch(80% 0.02 220/.05) 1px,transparent 1px);
+  background-size:32px 32px;pointer-events:none}
+.map-view::after{content:"宇治市 · 京都";position:absolute;bottom:12px;left:12px;font-size:12px;color:var(--muted-fg);background:oklch(98% 0.008 218/.85);padding:3px 10px;border-radius:var(--r-sm);backdrop-filter:blur(4px)}
+.map-pin{position:absolute;width:36px;height:36px;border-radius:50%;background:var(--int);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px oklch(20% 0.02 238/.25);z-index:2;transition:transform .15s,box-shadow .15s;touch-action:manipulation;border:2px solid white}
+.map-pin:hover{transform:scale(1.2);box-shadow:0 4px 16px oklch(20% 0.02 238/.3)}
+.map-pin.sel{background:var(--brand);box-shadow:0 0 0 4px oklch(58% 0.19 28/.25),0 3px 10px oklch(20% 0.02 238/.2)}
+.map-popup{position:absolute;z-index:10;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 6px 20px oklch(20% 0.02 238/.14);padding:10px;gap:10px;align-items:center;max-width:240px;display:none}
+.map-popup::after{content:"";position:absolute;bottom:-6px;left:20px;width:12px;height:12px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+.map-popup.show{display:flex}
+.map-popup img{width:56px;height:40px;border-radius:var(--r-sm);object-fit:cover}
+.map-popup-info{font-size:12px}
+.map-popup-name{font-weight:600;margin-bottom:2px}
+.map-popup-ep{color:var(--muted-fg)}
+
+/* Grid/Map toggle */
+.tog{display:flex;background:var(--muted);border-radius:var(--r-md);padding:2px;gap:1px}
+.tog button{padding:4px 12px;border:none;border-radius:var(--r-md);font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted-fg);touch-action:manipulation}
+.tog button.a{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px oklch(20% 0.02 238/.06)}
+
+/* Results stats & sort */
+.results-stats{padding:2px 24px 4px;font-size:12px;color:var(--muted-fg)}
+.results-stats b{font-weight:500;color:var(--fg)}
+.sort-btn{padding:4px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
+
+/* Selection bar input */
+.selbar-input{height:28px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;width:140px;background:var(--bg)}
+
+/* Filter labels */
+.fl{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-fg);margin-right:4px}
+
+/* State A: chatting bubbles */
+.dots{display:inline-flex;gap:4px;margin-left:4px;vertical-align:middle}
+.dots span{width:5px;height:5px;border-radius:50%;background:var(--muted-fg);animation:breathe 1.2s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes breathe{0%,100%{opacity:.2;transform:scale(.86)}50%{opacity:1;transform:scale(1.08)}}
+
+/* Toast notification */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--fg);color:var(--bg);padding:10px 20px;border-radius:var(--r-md);font-size:14px;font-weight:500;z-index:200;transition:transform .3s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar — always 60px, never expanded -->
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg>
+    </div>
+    <button class="sb-btn" id="sb-new" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="sb-tip">新对话</span></button>
+    <button class="sb-btn" id="sb-history" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="sb-tip">历史</span></button>
+    <button class="sb-btn" id="sb-fav" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="sb-tip">收藏</span></button>
+    <div class="sb-spacer"></div>
+    <button class="sb-btn" id="sb-settings" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="sb-tip">设置</span></button>
+  </aside>
+
+  <!-- Main content -->
+  <main id="main">
+    <!-- Screen 1: Welcome -->
+    <div class="screen active" id="s-welcome">
+      <div class="w-hero">
+        <img class="w-hero-img" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治の風景" width="1200" height="240">
+        <div class="w-hero-overlay"></div>
+        <div class="w-hero-content">
+          <div style="margin-bottom:8px">
+            <svg viewBox="0 0 72 72" width="36" height="36" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="white"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="white"/><rect x="16" y="21" width="5" height="35" rx="1" fill="white"/><rect x="51" y="21" width="5" height="35" rx="1" fill="white"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="white" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="white"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="white"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="white"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="white"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="white"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="white"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="white"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="white"/></svg>
+          </div>
+          <h1>聖地巡礼</h1>
+          <p>告诉我你想去哪部动漫的取景地，我来帮你规划</p>
+        </div>
+      </div>
+      <div class="w-bottom">
+        <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <div class="bubble-ai">你好！我可以帮你搜索动漫圣地、规划巡礼路线，或者查找你附近的取景地。想去哪里？</div>
+        </div>
+        <div class="w-chips" id="chips">
+          <button class="w-chip" data-query="euphonium" aria-label="搜索響け！ユーフォニアム">響け！ユーフォニアム</button>
+          <button class="w-chip" data-query="yourname" aria-label="搜索君の名は。">君の名は。</button>
+          <button class="w-chip" data-query="nearby" aria-label="搜索附近圣地">我在宇治附近</button>
+          <button class="w-chip" data-query="haruhi" aria-label="搜索涼宮ハルヒ">涼宮ハルヒ</button>
+        </div>
+        <div class="hint-text">&larr; 点击快捷建议开始体验</div>
+        <div class="w-section-label" style="margin-top:20px">热门动漫</div>
+        <div class="w-covers">
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" width="80" height="112" loading="lazy"><span>ユーフォニアム</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt="君の名は。" width="80" height="112" loading="lazy"><span>君の名は。</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt="天気の子" width="80" height="112" loading="lazy"><span>天気の子</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒ" width="80" height="112" loading="lazy"><span>ハルヒ</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt="けいおん！" width="80" height="112" loading="lazy"><span>けいおん！</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt="すずめの戸締まり" width="80" height="112" loading="lazy"><span>すずめ</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="たまこまーけっと" width="80" height="112" loading="lazy"><span>たまこ</span></div>
+          <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/27364.jpg" alt="氷菓" width="80" height="112" loading="lazy"><span>氷菓</span></div>
+        </div>
+        <div class="w-search" style="margin-top:auto;padding-top:16px">
+          <input placeholder="描述你的巡礼计划…" aria-label="输入消息">
+          <button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 1b: State A — chatting, waiting for results -->
+    <div class="screen" id="s-chatting">
+      <div style="display:flex;flex-direction:column;height:100%;max-width:560px;margin:0 auto;padding:24px">
+        <div style="flex:1;display:flex;flex-direction:column;gap:12px;justify-content:flex-end;padding-bottom:16px">
+          <div class="bubble-user">吹响上低音号的圣地在哪里</div>
+          <div class="bubble-ai">我来帮你搜索「響け！ユーフォニアム」的取景地<span class="dots"><span></span><span></span><span></span></span></div>
+        </div>
+        <div class="w-search"><input placeholder="继续输入…" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Loading -->
+    <div class="screen" id="s-loading">
+      <div style="padding:16px 24px">
+        <div class="skeleton" style="width:200px;height:24px;margin-bottom:8px"></div>
+        <div class="skeleton" style="width:100px;height:16px"></div>
+      </div>
+      <div style="display:flex;gap:4px;padding:12px 24px">
+        <div class="skeleton" style="width:40px;height:24px;border-radius:var(--r-lg)"></div>
+        <div class="skeleton" style="width:50px;height:24px;border-radius:var(--r-lg)"></div>
+        <div class="skeleton" style="width:45px;height:24px;border-radius:var(--r-lg)"></div>
+      </div>
+      <div class="loading-grid">
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+        <div class="skeleton" style="aspect-ratio:4/3"></div>
+      </div>
+      <div class="loading-text">搜索中…</div>
+    </div>
+
+    <!-- Screen 3: Results -->
+    <div class="screen" id="s-results">
+      <div class="results-header">
+        <div class="anime-info">
+          <img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" class="anime-cover" width="48" height="64">
+          <div>
+            <h2>響け！ユーフォニアム</h2>
+            <div class="meta">156 个圣地 · 宇治市, 京都</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="tog" id="view-toggle"><button class="a" aria-label="网格视图">网格</button><button aria-label="地图视图">地图</button></div>
+          <button class="sort-btn" id="sort-btn" aria-label="排序">排序 ↓</button>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn a" data-tab="episode">按集数</button>
+        <button class="tab-btn" data-tab="area">按地区</button>
+      </div>
+      <div class="results-stats">显示 <b>12</b> / 156 · 已选 <b id="stat-sel-count">0</b></div>
+      <div class="filters" id="episode-filters">
+        <span class="fl">集数</span>
+        <span class="chip a" data-filter="all">全部</span>
+        <span class="chip" data-filter="ep1-4">EP 1–4</span>
+        <span class="chip" data-filter="ep5-8">EP 5–8</span>
+        <span class="chip" data-filter="ep9-12">EP 9–12</span>
+      </div>
+      <div class="filters" id="area-filters" style="display:none">
+        <span class="fl">地区</span>
+        <span class="chip a" data-filter="all">全部</span>
+        <span class="chip" data-filter="uji">宇治</span>
+        <span class="chip" data-filter="kyoto">京都</span>
+        <span class="chip" data-filter="other">その他</span>
+      </div>
+      <div class="grid-wrap" id="grid-wrap">
+        <div class="grid" id="card-grid"></div>
+      </div>
+      <div class="map-view" id="map-view" style="display:none">
+        <div class="results-map" id="results-map">
+          <!-- JS will add pins here -->
+        </div>
+      </div>
+      <!-- Selection bar -->
+      <div class="selbar" id="selbar">
+        <b id="sel-count">已选 0 个</b>
+        <input class="selbar-input" placeholder="出发站…" aria-label="出发车站">
+        <button class="btn-p" id="btn-plan" aria-label="规划路线">规划路线</button>
+        <button class="btn-g" id="btn-clear" aria-label="清除选择">清除</button>
+        <button class="chat-tog" id="chat-tog-results" aria-label="打开对话" style="margin-left:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+      </div>
+      <!-- AI summary (higher position, doesn't overlap selbar) -->
+      <div class="ai-summary" id="ai-summary">
+        找到 156 个圣地，主要集中在宇治和京都。选几个感兴趣的来规划路线吧！
+        <div class="expand" id="expand-chat">展开对话 &#9650;</div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Route Confirmation -->
+    <div class="screen" id="s-confirm">
+      <div class="confirm-layout">
+        <div class="confirm-left">
+          <h2 style="margin-bottom:4px">确认路线</h2>
+          <p style="font-size:14px;color:var(--muted-fg);margin-bottom:16px">拖拽调整顺序，或移除不想去的点</p>
+          <div class="confirm-list" id="confirm-list"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+            <span style="font-size:14px;color:var(--muted-fg)">出发站</span>
+            <input placeholder="如：宇治駅" aria-label="出发车站" style="height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);flex:1;max-width:240px">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-g" id="btn-back-select" style="height:40px;padding:0 20px" aria-label="返回选择">返回选择</button>
+            <button class="btn-p" id="btn-start-route" style="height:40px;padding:0 24px" aria-label="开始规划">开始规划</button>
+          </div>
+        </div>
+        <div class="confirm-right" id="confirm-right">
+          <!-- JS will add pins here based on selected items -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 5: Route Timeline -->
+    <div class="screen" id="s-route">
+      <div class="route-split">
+        <!-- Map -->
+        <div class="route-map">
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 20 Q30 28 38 36 Q43 40 50 48 Q55 54 60 62 Q66 68 72 76" stroke="oklch(60% 0.148 240/.6)" stroke-width=".8" fill="none" stroke-dasharray="1.5 1"/></svg>
+          <div class="pin pin-int" style="top:16%;left:20%">1</div>
+          <div class="pin pin-int" style="top:32%;left:35%">2</div>
+          <div class="pin pin-brand" style="top:44%;left:47%">3</div>
+          <div class="pin pin-int" style="top:58%;left:57%">4</div>
+          <div class="pin pin-int" style="top:72%;left:69%">5</div>
+          <div class="map-float" style="top:28%;left:52%">
+            <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="52" height="36">
+            <div class="map-float-info">
+              <div class="map-float-name">平等院表参道</div>
+              <div class="map-float-ep">EP 3</div>
+            </div>
+          </div>
+          <div class="map-attr">宇治 · Map</div>
+        </div>
+        <!-- Stats -->
+        <div class="route-stats">
+          <span><span class="stat-val">5</span><span class="stat-label">站</span></span>
+          <div class="stat-sep"></div>
+          <span><span class="stat-val">2.1</span><span class="stat-label">km</span></span>
+          <div class="stat-sep"></div>
+          <span><span class="stat-val">2:15</span><span class="stat-label">小时</span></span>
+          <div class="stat-sep"></div>
+          <span><span class="stat-val">35</span><span class="stat-label">分步行</span></span>
+          <div style="margin-left:auto"></div>
+          <div class="pace">
+            <button aria-label="悠闲节奏">悠闲</button>
+            <button class="a" aria-label="正常节奏">正常</button>
+            <button aria-label="紧凑节奏">紧凑</button>
+          </div>
+        </div>
+        <!-- Timeline -->
+        <div class="tl-wrap">
+          <!-- Stop 1 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">9:00</div><div class="tl-dur">45 分</div></div><div class="tl-mid"><div class="tl-dot first"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">宇治駅</div><div class="tl-detail">EP 1 · 出发 · 3 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span>10 分 · 700m</span></div></div>
+          <!-- Stop 2 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">9:55</div><div class="tl-dur">35 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">あじろぎの道</div><div class="tl-detail">EP 1 · 7 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:60px"></div></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span>8 分 · 550m</span></div></div></div>
+          <!-- Nearby discovery -->
+          <div class="tl-discovery"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:16px;opacity:.3"></div></div><div class="tl-discovery-card"><div class="tl-discovery-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>附近还有 3 个其他动漫圣地</div><div class="tl-discovery-meta">K-On! &times;2 · たまこ &times;1</div><button class="tl-discovery-link" aria-label="查看附近圣地">查看 &rarr;</button></div></div>
+          <!-- Stop 3 (active) -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">10:38</div><div class="tl-dur">30 分</div></div><div class="tl-mid"><div class="tl-dot active"></div><div class="tl-stem"></div></div><div class="tl-r hi"><div class="tl-name">平等院表参道</div><div class="tl-detail">EP 3 · 4 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span>5 分 · 150m</span></div></div>
+          <!-- Stop 4 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">11:13</div><div class="tl-dur">25 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">興聖寺</div><div class="tl-detail">EP 5 · 2 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="興聖寺" width="72" height="48"></div></div>
+          <!-- Walk -->
+          <div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span>12 分 · 850m</span></div></div>
+          <!-- Stop 5 -->
+          <div class="tl-stop"><div class="tl-l"><div class="tl-time">11:50</div><div class="tl-dur">15 分</div></div><div class="tl-mid"><div class="tl-dot"></div></div><div class="tl-r"><div class="tl-name">京阪宇治駅</div><div class="tl-detail">EP 7 · 终点</div></div></div>
+        </div>
+      </div>
+      <!-- Export bar -->
+      <div class="export-bar">
+        <button class="btn-p" id="btn-export-gmaps" aria-label="在 Google Maps 中打开">在 Google Maps 中打开</button>
+        <button class="btn-g" id="btn-export-ics" aria-label="导出日历">.ics</button>
+      </div>
+      <button class="chat-tog" id="chat-tog-route" style="bottom:60px;right:24px" aria-label="打开对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+    </div>
+
+    <!-- Screen 6: Nearby -->
+    <div class="screen" id="s-nearby">
+      <div class="nearby-layout">
+        <div class="nearby-map">
+          <div class="nearby-chips">
+            <span class="chip a">全部</span>
+            <span class="chip">ユーフォ &times;4</span>
+            <span class="chip">けいおん &times;3</span>
+            <span class="chip">たまこ &times;1</span>
+          </div>
+          <div class="user-dot"></div>
+          <div class="user-ring"></div>
+          <!-- Blue numbered pins -->
+          <div class="pin-sm pin-blue" style="top:30%;left:35%">1</div>
+          <div class="pin-sm pin-blue" style="top:25%;left:55%">2</div>
+          <div class="pin-sm pin-blue" style="top:55%;left:30%">3</div>
+          <div class="pin-sm pin-blue" style="top:65%;left:60%">4</div>
+          <!-- Green K pins -->
+          <div class="pin-sm pin-green" style="top:35%;left:70%">K</div>
+          <div class="pin-sm pin-green" style="top:60%;left:75%">K</div>
+          <div class="pin-sm pin-green" style="top:72%;left:40%">K</div>
+          <!-- Orange T pin -->
+          <div class="pin-sm pin-orange" style="top:45%;left:25%">T</div>
+          <div class="map-attr">宇治 · 1km</div>
+        </div>
+        <div class="side-panel">
+          <div class="sp-hdr">
+            <h2>附近</h2>
+            <span class="meta">1km 内 8 个圣地</span>
+          </div>
+          <div class="sp-list" id="nearby-list"></div>
+        </div>
+      </div>
+      <button class="chat-tog" id="chat-tog-nearby" aria-label="打开对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+    </div>
+
+    <!-- Screen 7: Clarification -->
+    <div class="screen" id="s-clarify">
+      <div class="clar-chat">
+        <div class="clar-inner">
+          <div class="bubble-user" style="align-self:flex-end">涼宮</div>
+          <div class="bubble-ai" style="align-self:flex-start">
+            找到两部匹配的作品：
+            <div class="clar-inline-cards">
+              <div class="clar-card">
+                <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" width="260" height="100">
+                <div class="clar-card-body">
+                  <h3>涼宮ハルヒの憂鬱</h3>
+                  <div class="meta">134 个圣地 · 西宮市</div>
+                  <button class="clar-pick-btn" data-pick="haruhi1" aria-label="搜索涼宮ハルヒの憂鬱">搜索这部</button>
+                </div>
+              </div>
+              <div class="clar-card">
+                <div style="width:100%;height:100px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--muted-fg)">聖</div>
+                <div class="clar-card-body">
+                  <h3>涼宮ハルヒの消失</h3>
+                  <div class="meta">42 个圣地 · 西宮市</div>
+                  <button class="clar-pick-btn" data-pick="haruhi2" aria-label="搜索涼宮ハルヒの消失">搜索这部</button>
+                </div>
+              </div>
+            </div>
+            <button class="clar-all-link" aria-label="全部搜索">全部搜索</button>
+          </div>
+        </div>
+        <div class="popup-input" style="width:100%;max-width:600px">
+          <input placeholder="输入消息…" aria-label="输入消息">
+          <button aria-label="发送"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Detail sheet -->
+  <div id="detail-backdrop"></div>
+  <div id="detail-sheet">
+    <button class="detail-close" id="detail-close" aria-label="关闭">&times;</button>
+    <img class="detail-img" id="detail-img" src="" alt="">
+    <h3 id="detail-name"></h3>
+    <p style="font-size:13px;color:var(--muted-fg)" id="detail-anime"></p>
+    <div class="detail-badges">
+      <span class="detail-badge" id="detail-ep"></span>
+      <span class="detail-badge">34.89N, 135.80E</span>
+      <span class="detail-badge">3 张照片</span>
+    </div>
+    <p style="font-size:14px;line-height:1.5" id="detail-desc">这个取景地出现在多个场景中，是该动漫的标志性圣地之一。推荐在傍晚时分前往，光线与动画中的氛围最为接近。</p>
+    <div class="detail-actions">
+      <button class="primary" id="detail-add-route" aria-label="加入路线">加入路线</button>
+      <button id="detail-fav-btn" aria-label="收藏">&#10084; 收藏</button>
+      <button id="detail-map-btn" aria-label="地图">&#127758; 地图</button>
+    </div>
+  </div>
+
+  <!-- Chat popup -->
+  <div id="chat-backdrop"></div>
+  <div id="chat-popup">
+    <div class="popup-header">
+      <h3>对话</h3>
+      <button id="chat-close" aria-label="关闭对话">&times;</button>
+    </div>
+    <div class="popup-messages" id="chat-messages">
+      <div class="bubble-user">吹响上低音号的圣地在哪里</div>
+      <div class="bubble-ai">找到了「響け！ユーフォニアム」的 156 个取景地，主要分布在宇治市和京都市区。大部分圣地可以步行到达，建议安排半天到一天的时间巡礼。</div>
+      <div class="bubble-ai">需要我帮你规划路线吗？可以选几个感兴趣的圣地，我来安排最优步行路径。</div>
+    </div>
+    <div class="popup-input">
+      <input placeholder="继续提问…" aria-label="输入消息">
+      <button aria-label="发送"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // Data
+  var IMG1 = 'https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160';
+  var IMG2 = 'https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160';
+  var IMG3 = 'https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160';
+
+  var cards = [
+    {name:'京都コンサートホール', ep:'EP1', img:IMG1},
+    {name:'あじろぎの道', ep:'EP1', img:IMG2},
+    {name:'莵道高', ep:'EP1', img:IMG3},
+    {name:'宇治橋', ep:'EP2', img:IMG1},
+    {name:'中書島駅', ep:'EP3', img:IMG2},
+    {name:'平等院表参道', ep:'EP3', img:IMG3},
+    {name:'宇治駅前商店街', ep:'EP4', img:IMG1},
+    {name:'朝霧橋', ep:'EP5', img:IMG2},
+    {name:'興聖寺', ep:'EP6', img:IMG3},
+    {name:'京阪宇治駅', ep:'EP7', img:IMG1},
+    {name:'県神社', ep:'EP8', img:IMG2},
+    {name:'大吉山展望台', ep:'EP8', img:IMG3}
+  ];
+
+  // State
+  var currentScreen = 'welcome';
+  var selectedCards = new Set();
+
+  // DOM refs
+  var screens = {
+    welcome: document.getElementById('s-welcome'),
+    chatting: document.getElementById('s-chatting'),
+    loading: document.getElementById('s-loading'),
+    results: document.getElementById('s-results'),
+    confirm: document.getElementById('s-confirm'),
+    route: document.getElementById('s-route'),
+    nearby: document.getElementById('s-nearby'),
+    clarify: document.getElementById('s-clarify')
+  };
+  var detailSheet = document.getElementById('detail-sheet');
+  var detailBackdrop = document.getElementById('detail-backdrop');
+  var chatPopup = document.getElementById('chat-popup');
+  var chatBackdrop = document.getElementById('chat-backdrop');
+  var selbar = document.getElementById('selbar');
+  var aiSummary = document.getElementById('ai-summary');
+  var cardGrid = document.getElementById('card-grid');
+
+  // Screen transitions
+  function goTo(screenName) {
+    var oldScreen = screens[currentScreen];
+    var newScreen = screens[screenName];
+    if (oldScreen === newScreen) return;
+
+    oldScreen.classList.remove('active');
+    setTimeout(function() {
+      newScreen.classList.add('active');
+    }, 50);
+    currentScreen = screenName;
+
+    // Close overlays on screen change
+    closeDetail();
+    closeChat();
+
+    // Update sidebar active state
+    updateSidebarActive(screenName);
+  }
+
+  // Sidebar active state helper
+  function updateSidebarActive(screenName) {
+    var btns = document.querySelectorAll('#sidebar .sb-btn');
+    btns.forEach(function(b) { b.classList.remove('a'); });
+
+    if (screenName === 'welcome') {
+      document.getElementById('sb-new').classList.add('a');
+    }
+  }
+
+  // Build card grid using DOM API (no innerHTML)
+  function buildGrid() {
+    while (cardGrid.firstChild) {
+      cardGrid.removeChild(cardGrid.firstChild);
+    }
+    cards.forEach(function(card, i) {
+      var div = document.createElement('div');
+      div.className = 'gc';
+      div.dataset.index = String(i);
+
+      var img = document.createElement('img');
+      img.src = card.img;
+      img.alt = card.name;
+      img.width = 240;
+      img.height = 180;
+      div.appendChild(img);
+
+      var bar = document.createElement('div');
+      bar.className = 'gc-bar';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'gc-name';
+      nameSpan.textContent = card.name;
+      var epSpan = document.createElement('span');
+      epSpan.className = 'gc-ep';
+      epSpan.textContent = card.ep;
+      bar.appendChild(nameSpan);
+      bar.appendChild(epSpan);
+      div.appendChild(bar);
+
+      var ck = document.createElement('div');
+      ck.className = 'gc-ck';
+      ck.textContent = '\u2713';
+      div.appendChild(ck);
+
+      cardGrid.appendChild(div);
+    });
+  }
+  buildGrid();
+
+  // Card selection
+  cardGrid.addEventListener('click', function(e) {
+    var gc = e.target.closest('.gc');
+    if (!gc) return;
+    var idx = parseInt(gc.dataset.index, 10);
+
+    // If clicking the name area (bottom bar), open detail
+    var bar = e.target.closest('.gc-bar');
+    if (bar) {
+      openDetail(idx);
+      return;
+    }
+
+    // Toggle selection
+    if (selectedCards.has(idx)) {
+      selectedCards.delete(idx);
+      gc.classList.remove('sel');
+    } else {
+      selectedCards.add(idx);
+      gc.classList.add('sel');
+    }
+    updateSelbar();
+  });
+
+  function updateSelbar() {
+    var count = selectedCards.size;
+    document.getElementById('sel-count').textContent = '\u5DF2\u9009 ' + count + ' \u4E2A';
+    var statSelCount = document.getElementById('stat-sel-count');
+    if (statSelCount) statSelCount.textContent = String(count);
+    if (count > 0) {
+      selbar.classList.add('visible');
+      aiSummary.classList.add('visible');
+      aiSummary.classList.add('raised');
+    } else {
+      selbar.classList.remove('visible');
+      aiSummary.classList.remove('raised');
+    }
+  }
+
+  // Detail sheet
+  function openDetail(idx) {
+    var card = cards[idx];
+    document.getElementById('detail-img').src = card.img;
+    document.getElementById('detail-img').alt = card.name;
+    document.getElementById('detail-name').textContent = card.name;
+    document.getElementById('detail-anime').textContent = '\u97FF\u3051\uFF01\u30E6\u30FC\u30D5\u30A9\u30CB\u30A2\u30E0 \u00B7 ' + card.ep;
+    document.getElementById('detail-ep').textContent = card.ep;
+    detailSheet.classList.add('open');
+    detailBackdrop.classList.add('open');
+  }
+
+  function closeDetail() {
+    detailSheet.classList.remove('open');
+    detailBackdrop.classList.remove('open');
+  }
+
+  document.getElementById('detail-close').addEventListener('click', closeDetail);
+  detailBackdrop.addEventListener('click', closeDetail);
+
+  // Add to route from detail
+  document.getElementById('detail-add-route').addEventListener('click', function() {
+    showToast('已加入路线');
+    closeDetail();
+  });
+
+  // Chat popup
+  function openChat() {
+    chatPopup.classList.add('open');
+    chatBackdrop.classList.add('open');
+  }
+
+  function closeChat() {
+    chatPopup.classList.remove('open');
+    chatBackdrop.classList.remove('open');
+  }
+
+  document.getElementById('chat-close').addEventListener('click', closeChat);
+  chatBackdrop.addEventListener('click', closeChat);
+
+  // Chat toggle buttons
+  document.getElementById('chat-tog-results').addEventListener('click', openChat);
+  document.getElementById('chat-tog-route').addEventListener('click', openChat);
+  document.getElementById('expand-chat').addEventListener('click', function(e) {
+    e.stopPropagation();
+    openChat();
+  });
+  aiSummary.addEventListener('click', openChat);
+
+  // Toast helper
+  var toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  document.body.appendChild(toastEl);
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(function() { toastEl.classList.remove('show'); }, 2000);
+  }
+
+  // Chip click: welcome -> chatting (1.2s) -> loading (1.5s) -> results
+  document.getElementById('chips').addEventListener('click', function(e) {
+    var chip = e.target.closest('.w-chip');
+    if (!chip) return;
+    var query = chip.dataset.query;
+    if (query === 'haruhi') {
+      goTo('chatting');
+      setTimeout(function() { goTo('clarify'); }, 1200);
+      return;
+    }
+    if (query === 'nearby') {
+      goTo('chatting');
+      setTimeout(function() {
+        goTo('loading');
+        setTimeout(function() { goTo('nearby'); }, 1500);
+      }, 1200);
+      return;
+    }
+    goTo('chatting');
+    setTimeout(function() {
+      goTo('loading');
+      setTimeout(function() {
+        goTo('results');
+        setTimeout(function() {
+          aiSummary.classList.add('visible');
+        }, 400);
+      }, 1500);
+    }, 1200);
+  });
+
+  // Tab switching
+  document.querySelector('.tab-bar').addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('a'); });
+    btn.classList.add('a');
+    var tab = btn.dataset.tab;
+    document.getElementById('episode-filters').style.display = tab === 'episode' ? 'flex' : 'none';
+    document.getElementById('area-filters').style.display = tab === 'area' ? 'flex' : 'none';
+  });
+
+  // Filter chip switching
+  document.querySelectorAll('.filters').forEach(function(filterRow) {
+    filterRow.addEventListener('click', function(e) {
+      var chip = e.target.closest('.chip');
+      if (!chip) return;
+      filterRow.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('a'); });
+      chip.classList.add('a');
+    });
+  });
+
+  // Clear selection
+  document.getElementById('btn-clear').addEventListener('click', function() {
+    selectedCards.clear();
+    cardGrid.querySelectorAll('.gc.sel').forEach(function(gc) { gc.classList.remove('sel'); });
+    updateSelbar();
+    aiSummary.classList.remove('visible');
+  });
+
+  // Plan route -> confirm
+  document.getElementById('btn-plan').addEventListener('click', function() {
+    if (selectedCards.size === 0) return;
+    buildConfirmList();
+    goTo('confirm');
+  });
+
+  var confirmPinPositions = [
+    {top:'15%',left:'20%'}, {top:'25%',left:'50%'}, {top:'18%',left:'75%'},
+    {top:'38%',left:'30%'}, {top:'45%',left:'60%'}, {top:'42%',left:'80%'},
+    {top:'55%',left:'25%'}, {top:'58%',left:'55%'}, {top:'65%',left:'70%'},
+    {top:'72%',left:'40%'}, {top:'75%',left:'65%'}, {top:'80%',left:'82%'}
+  ];
+
+  function buildConfirmList() {
+    var list = document.getElementById('confirm-list');
+    while (list.firstChild) {
+      list.removeChild(list.firstChild);
+    }
+    var rightPanel = document.getElementById('confirm-right');
+    // Clear existing pins
+    var oldPins = rightPanel.querySelectorAll('.confirm-map-pin');
+    oldPins.forEach(function(p) { p.parentNode.removeChild(p); });
+
+    var i = 1;
+    selectedCards.forEach(function(idx) {
+      var card = cards[idx];
+      var div = document.createElement('div');
+      div.className = 'confirm-item';
+      div.dataset.cardIdx = String(idx);
+
+      var idxEl = document.createElement('span');
+      idxEl.className = 'idx';
+      idxEl.textContent = String(i);
+      div.appendChild(idxEl);
+
+      var img = document.createElement('img');
+      img.src = card.img;
+      img.alt = card.name;
+      img.width = 64;
+      img.height = 48;
+      div.appendChild(img);
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'name';
+      nameEl.textContent = card.name;
+      div.appendChild(nameEl);
+
+      var epEl = document.createElement('span');
+      epEl.className = 'ep';
+      epEl.textContent = card.ep;
+      div.appendChild(epEl);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'remove';
+      removeBtn.textContent = '\u00D7';
+      removeBtn.setAttribute('aria-label', '\u79FB\u9664 ' + card.name);
+      removeBtn.addEventListener('click', function() {
+        var cardIdx = parseInt(div.dataset.cardIdx, 10);
+        selectedCards.delete(cardIdx);
+        var gridCard = cardGrid.querySelector('.gc[data-index="' + cardIdx + '"]');
+        if (gridCard) gridCard.classList.remove('sel');
+        updateSelbar();
+        buildConfirmList();
+      });
+      div.appendChild(removeBtn);
+
+      list.appendChild(div);
+
+      // Add pin to right panel map preview
+      if (i <= confirmPinPositions.length) {
+        var pin = document.createElement('div');
+        pin.className = 'confirm-map-pin';
+        pin.textContent = String(i);
+        pin.style.top = confirmPinPositions[i - 1].top;
+        pin.style.left = confirmPinPositions[i - 1].left;
+        rightPanel.appendChild(pin);
+      }
+
+      i++;
+    });
+
+    // Add SVG polyline connecting the pins
+    var oldSvg = rightPanel.querySelector('svg');
+    if (oldSvg) rightPanel.removeChild(oldSvg);
+    if (i > 2) {
+      var pathParts = [];
+      var pinCount = Math.min(i - 1, confirmPinPositions.length);
+      for (var p = 0; p < pinCount; p++) {
+        var px = parseFloat(confirmPinPositions[p].left);
+        var py = parseFloat(confirmPinPositions[p].top);
+        if (p === 0) {
+          pathParts.push('M' + px + ' ' + py);
+        } else {
+          pathParts.push('L' + px + ' ' + py);
+        }
+      }
+      var svgWrap = document.createElement('div');
+      svgWrap.innerHTML = '<svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="' + pathParts.join(' ') + '" stroke="oklch(60% 0.148 240/.4)" stroke-width=".6" fill="none" stroke-dasharray="2 1.5"/></svg>';
+      rightPanel.appendChild(svgWrap.firstChild);
+    }
+  }
+
+  // Back to results
+  document.getElementById('btn-back-select').addEventListener('click', function() {
+    goTo('results');
+  });
+
+  // Start route -> timeline
+  document.getElementById('btn-start-route').addEventListener('click', function() {
+    goTo('route');
+  });
+
+  // Pace buttons
+  document.querySelector('.pace').addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('.pace button').forEach(function(b) { b.classList.remove('a'); });
+    btn.classList.add('a');
+  });
+
+  // Welcome cover clicks -> chatting -> loading -> results
+  document.querySelectorAll('.w-cover').forEach(function(cover) {
+    cover.addEventListener('click', function() {
+      goTo('chatting');
+      setTimeout(function() {
+        goTo('loading');
+        setTimeout(function() {
+          goTo('results');
+          setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+        }, 1500);
+      }, 1200);
+    });
+  });
+
+  // ═══ SIDEBAR BUTTON HANDLERS ═══
+
+  // New Chat -> reset to welcome
+  document.getElementById('sb-new').addEventListener('click', function() {
+    selectedCards.clear();
+    cardGrid.querySelectorAll('.gc.sel').forEach(function(gc) { gc.classList.remove('sel'); });
+    updateSelbar();
+    aiSummary.classList.remove('visible');
+    goTo('welcome');
+  });
+
+  // History -> toast
+  document.getElementById('sb-history').addEventListener('click', function() {
+    showToast('历史记录即将上线');
+  });
+
+  // Favorites -> toast
+  document.getElementById('sb-fav').addEventListener('click', function() {
+    showToast('收藏功能即将上线');
+  });
+
+  // Settings -> toast
+  document.getElementById('sb-settings').addEventListener('click', function() {
+    showToast('设置页面即将上线');
+  });
+
+  // ═══ RESULTS VIEW HANDLERS ═══
+
+  // Grid/Map toggle
+  var mapViewEl = document.getElementById('map-view');
+  var gridWrapEl = document.getElementById('grid-wrap');
+  var resultsMapEl = document.getElementById('results-map');
+  var activeMapPopup = null;
+
+  var pinPositions = [
+    {top:'15%',left:'20%'}, {top:'25%',left:'45%'}, {top:'18%',left:'70%'},
+    {top:'35%',left:'30%'}, {top:'40%',left:'55%'}, {top:'42%',left:'78%'},
+    {top:'55%',left:'22%'}, {top:'52%',left:'48%'}, {top:'60%',left:'65%'},
+    {top:'70%',left:'35%'}, {top:'72%',left:'60%'}, {top:'78%',left:'80%'}
+  ];
+
+  function buildMapPins() {
+    while (resultsMapEl.firstChild) {
+      resultsMapEl.removeChild(resultsMapEl.firstChild);
+    }
+    activeMapPopup = null;
+    cards.forEach(function(card, i) {
+      var pin = document.createElement('div');
+      pin.className = 'map-pin';
+      pin.setAttribute('aria-label', card.name);
+      if (selectedCards.has(i)) pin.classList.add('sel');
+      pin.textContent = String(i + 1);
+      pin.style.top = pinPositions[i].top;
+      pin.style.left = pinPositions[i].left;
+      pin.dataset.index = String(i);
+
+      pin.addEventListener('click', function(e) {
+        e.stopPropagation();
+        // Close any open popup
+        if (activeMapPopup) {
+          activeMapPopup.classList.remove('show');
+          activeMapPopup = null;
+        }
+        // Create popup near pin
+        var popup = document.createElement('div');
+        popup.className = 'map-popup show';
+        var pinTop = parseFloat(pinPositions[i].top);
+        var pinLeft = parseFloat(pinPositions[i].left);
+        popup.style.top = Math.max(2, pinTop - 12) + '%';
+        popup.style.left = Math.min(75, pinLeft + 4) + '%';
+
+        var popImg = document.createElement('img');
+        popImg.src = card.img;
+        popImg.alt = card.name;
+        popImg.width = 56;
+        popImg.height = 40;
+        popup.appendChild(popImg);
+
+        var popInfo = document.createElement('div');
+        popInfo.className = 'map-popup-info';
+        var popName = document.createElement('div');
+        popName.className = 'map-popup-name';
+        popName.textContent = card.name;
+        popInfo.appendChild(popName);
+        var popEp = document.createElement('div');
+        popEp.className = 'map-popup-ep';
+        popEp.textContent = card.ep;
+        popInfo.appendChild(popEp);
+        popup.appendChild(popInfo);
+
+        resultsMapEl.appendChild(popup);
+        activeMapPopup = popup;
+      });
+
+      resultsMapEl.appendChild(pin);
+    });
+
+    // Click on map background to close popup
+    mapViewEl.addEventListener('click', function(e) {
+      if (e.target === mapViewEl || e.target === resultsMapEl) {
+        if (activeMapPopup) {
+          activeMapPopup.classList.remove('show');
+          activeMapPopup = null;
+        }
+      }
+    });
+  }
+
+  document.getElementById('view-toggle').addEventListener('click', function(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    this.querySelectorAll('button').forEach(function(b) { b.classList.remove('a'); });
+    btn.classList.add('a');
+    if (btn.getAttribute('aria-label') === '\u5730\u56FE\u89C6\u56FE') {
+      gridWrapEl.style.display = 'none';
+      mapViewEl.style.display = 'flex';
+      aiSummary.style.display = 'none';
+      buildMapPins();
+    } else {
+      gridWrapEl.style.display = '';
+      mapViewEl.style.display = 'none';
+      aiSummary.style.display = '';
+    }
+  });
+
+  // Sort button
+  document.getElementById('sort-btn').addEventListener('click', function() {
+    showToast('已按集数排序');
+  });
+
+  // ═══ DETAIL SHEET HANDLERS ═══
+
+  // Detail: 收藏 button
+  document.getElementById('detail-fav-btn').addEventListener('click', function() {
+    showToast('已收藏 \u2764\uFE0F');
+  });
+
+  // Detail: 地图 button
+  document.getElementById('detail-map-btn').addEventListener('click', function() {
+    showToast('在地图上查看');
+    closeDetail();
+  });
+
+  // ═══ EXPORT HANDLERS ═══
+
+  // Export Google Maps
+  document.getElementById('btn-export-gmaps').addEventListener('click', function() {
+    showToast('正在打开 Google Maps…');
+  });
+
+  // Export .ics
+  document.getElementById('btn-export-ics').addEventListener('click', function() {
+    showToast('已导出日历文件');
+  });
+
+  // ═══ SEND BUTTON HANDLERS ═══
+
+  // Welcome send button
+  document.querySelectorAll('.w-search button').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var input = btn.parentElement.querySelector('input');
+      if (input && input.value.trim()) {
+        goTo('chatting');
+        setTimeout(function() {
+          goTo('loading');
+          setTimeout(function() {
+            goTo('results');
+            setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+          }, 1500);
+        }, 1200);
+      } else {
+        showToast('请输入内容');
+      }
+    });
+  });
+
+  // Chat popup send button
+  var popupSendBtn = document.querySelector('#chat-popup .popup-input button');
+  if (popupSendBtn) {
+    popupSendBtn.addEventListener('click', function() {
+      var input = document.querySelector('#chat-popup .popup-input input');
+      if (input && input.value.trim()) {
+        // Add user message bubble
+        var msgArea = document.getElementById('chat-messages');
+        var bubble = document.createElement('div');
+        bubble.className = 'bubble-user';
+        bubble.textContent = input.value.trim();
+        msgArea.appendChild(bubble);
+        input.value = '';
+        msgArea.scrollTop = msgArea.scrollHeight;
+        // Simulate AI response
+        setTimeout(function() {
+          var aiBubble = document.createElement('div');
+          aiBubble.className = 'bubble-ai';
+          aiBubble.textContent = '好的，让我帮你查看一下…';
+          msgArea.appendChild(aiBubble);
+          msgArea.scrollTop = msgArea.scrollHeight;
+        }, 800);
+      } else {
+        showToast('请输入内容');
+      }
+    });
+  }
+
+  // Clarify send button
+  var clarifySendBtn = document.querySelector('#s-clarify .popup-input button');
+  if (clarifySendBtn) {
+    clarifySendBtn.addEventListener('click', function() {
+      var input = document.querySelector('#s-clarify .popup-input input');
+      if (input && input.value.trim()) {
+        goTo('loading');
+        setTimeout(function() {
+          goTo('results');
+          setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+        }, 1500);
+      } else {
+        showToast('请输入内容');
+      }
+    });
+  }
+
+  // Chatting send button
+  var chattingSendBtn = document.querySelector('#s-chatting .w-search button');
+  if (chattingSendBtn) {
+    chattingSendBtn.addEventListener('click', function() {
+      var input = document.querySelector('#s-chatting .w-search input');
+      if (input && input.value.trim()) {
+        goTo('loading');
+        setTimeout(function() {
+          goTo('results');
+          setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+        }, 1500);
+      } else {
+        showToast('请输入内容');
+      }
+    });
+  }
+
+  // ═══ ROUTE DISCOVERY ═══
+
+  // Route timeline: "查看附近圣地" discovery link -> nearby
+  var discoveryLink = document.querySelector('.tl-discovery-link');
+  if (discoveryLink) {
+    discoveryLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      goTo('nearby');
+    });
+  }
+
+  // ═══ CLARIFICATION HANDLERS ═══
+
+  // "搜索这部" buttons -> loading -> results
+  document.querySelectorAll('.clar-pick-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      goTo('loading');
+      setTimeout(function() {
+        goTo('results');
+        setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+      }, 1500);
+    });
+  });
+
+  // "全部搜索" link -> loading -> results
+  var clarAllLink = document.querySelector('.clar-all-link');
+  if (clarAllLink) {
+    clarAllLink.addEventListener('click', function() {
+      goTo('loading');
+      setTimeout(function() {
+        goTo('results');
+        setTimeout(function() { aiSummary.classList.add('visible'); }, 400);
+      }, 1500);
+    });
+  }
+
+  // ═══ NEARBY SCREEN ═══
+
+  // Nearby chat toggle
+  var chatTogNearby = document.getElementById('chat-tog-nearby');
+  if (chatTogNearby) {
+    chatTogNearby.addEventListener('click', openChat);
+  }
+
+  // Build nearby spots list
+  var COVER_KEION = 'https://image.anitabi.cn/bangumi/1424.jpg';
+  var COVER_TAMAKO = 'https://image.anitabi.cn/bangumi/55113.jpg';
+  var nearbySpots = [
+    {name:'京都コンサートホール', anime:'Euphonium EP1', dist:'350m', img:IMG1},
+    {name:'あじろぎの道', anime:'Euphonium EP1', dist:'520m', img:IMG2},
+    {name:'宇治橋', anime:'Euphonium EP2', dist:'180m', img:IMG3},
+    {name:'莵道高校前', anime:'Euphonium EP3', dist:'710m', img:IMG1},
+    {name:'修学院離宮', anime:'K-On! EP4', dist:'890m', img:COVER_KEION},
+    {name:'出町柳駅', anime:'K-On! EP1', dist:'950m', img:IMG2},
+    {name:'北白川バス停', anime:'K-On! EP2', dist:'780m', img:IMG3},
+    {name:'出町桝形商店街', anime:'Tamako EP1', dist:'620m', img:COVER_TAMAKO}
+  ];
+
+  var nearbyList = document.getElementById('nearby-list');
+  if (nearbyList) {
+    nearbySpots.forEach(function(spot) {
+      var card = document.createElement('div');
+      card.className = 'sp-card';
+
+      var img = document.createElement('img');
+      img.src = spot.img;
+      img.alt = spot.name;
+      img.width = 48;
+      img.height = 36;
+      card.appendChild(img);
+
+      var info = document.createElement('div');
+      info.className = 'sp-info';
+
+      var name = document.createElement('div');
+      name.className = 'sp-name';
+      name.textContent = spot.name;
+      info.appendChild(name);
+
+      var meta = document.createElement('div');
+      meta.className = 'sp-meta';
+      meta.textContent = spot.anime;
+      info.appendChild(meta);
+
+      var dist = document.createElement('div');
+      dist.className = 'sp-dist';
+      dist.textContent = spot.dist;
+      info.appendChild(dist);
+
+      card.appendChild(info);
+      nearbyList.appendChild(card);
+    });
+
+    // Nearby spot cards -> open detail sheet
+    nearbyList.addEventListener('click', function(e) {
+      var card = e.target.closest('.sp-card');
+      if (!card) return;
+      var nameEl = card.querySelector('.sp-name');
+      if (nameEl) {
+        document.getElementById('detail-name').textContent = nameEl.textContent;
+        var img = card.querySelector('img');
+        if (img) document.getElementById('detail-img').src = img.src;
+        document.getElementById('detail-anime').textContent = card.querySelector('.sp-meta').textContent;
+        document.getElementById('detail-ep').textContent = '';
+        detailSheet.classList.add('open');
+        detailBackdrop.classList.add('open');
+      }
+    });
+  }
+
+  // Nearby filter chips
+  var nearbyChips = document.querySelector('.nearby-chips');
+  if (nearbyChips) {
+    nearbyChips.addEventListener('click', function(e) {
+      var chip = e.target.closest('.chip');
+      if (!chip) return;
+      nearbyChips.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('a'); });
+      chip.classList.add('a');
+      showToast('已切换筛选');
+    });
+  }
+
+  // ═══ DRAGGABLE AI BUBBLE + CHAT POPUP ═══
+  function makeDraggable(el) {
+    var isDragging = false;
+    var startX, startY, origX, origY;
+
+    el.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.expand') || e.target.closest('button')) return;
+      isDragging = true;
+      el.classList.add('dragging');
+      var rect = el.getBoundingClientRect();
+      var parentRect = el.offsetParent.getBoundingClientRect();
+      origX = rect.left - parentRect.left;
+      origY = rect.top - parentRect.top;
+      startX = e.clientX;
+      startY = e.clientY;
+      el.style.transition = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      el.style.left = (origX + dx) + 'px';
+      el.style.top = (origY + dy) + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (!isDragging) return;
+      isDragging = false;
+      el.classList.remove('dragging');
+      el.style.transition = '';
+    });
+  }
+
+  // Make AI summary bubble draggable
+  var aiSummaryEl = document.getElementById('ai-summary');
+  if (aiSummaryEl) makeDraggable(aiSummaryEl);
+
+  // Make chat popup draggable (by header)
+  var chatPopup = document.getElementById('chat-popup');
+  if (chatPopup) {
+    var popupHeader = chatPopup.querySelector('.popup-header');
+    if (popupHeader) {
+      popupHeader.style.cursor = 'grab';
+      var popDragging = false, popStartX, popStartY, popOrigX, popOrigY;
+      popupHeader.addEventListener('mousedown', function(e) {
+        if (e.target.closest('button')) return;
+        popDragging = true;
+        popupHeader.style.cursor = 'grabbing';
+        popOrigX = chatPopup.offsetLeft || parseInt(chatPopup.style.left) || 0;
+        popOrigY = chatPopup.offsetTop || parseInt(chatPopup.style.top) || 0;
+        var rect = chatPopup.getBoundingClientRect();
+        popOrigX = rect.left;
+        popOrigY = rect.top;
+        popStartX = e.clientX;
+        popStartY = e.clientY;
+        chatPopup.style.transition = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!popDragging) return;
+        var dx = e.clientX - popStartX;
+        var dy = e.clientY - popStartY;
+        chatPopup.style.left = (popOrigX + dx) + 'px';
+        chatPopup.style.top = (popOrigY + dy) + 'px';
+        chatPopup.style.right = 'auto';
+        chatPopup.style.bottom = 'auto';
+        chatPopup.style.position = 'fixed';
+      });
+      document.addEventListener('mouseup', function() {
+        if (!popDragging) return;
+        popDragging = false;
+        popupHeader.style.cursor = 'grab';
+        chatPopup.style.transition = '';
+      });
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
