@@ -18,6 +18,14 @@ interface ChatInputProps {
   onLocationAcquired?: (lat: number, lng: number) => void;
 }
 
+/**
+ * Chat input — editorial search bar feel, not a support widget.
+ *
+ * Design direction: clean single-line input with a subtle border.
+ * Send button appears only when there's content (progressive disclosure).
+ * Location button is secondary — small icon, not prominent.
+ * On the welcome screen this is the conversational entry point.
+ */
 export default function ChatInput({
   onSend,
   disabled,
@@ -38,8 +46,7 @@ export default function ChatInput({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-
-    const maxHeightPx = 144; // ~6 rows
+    const maxHeightPx = 120;
     const clampedHeight = Math.min(el.scrollHeight, maxHeightPx);
     el.style.height = `${clampedHeight}px`;
     el.style.overflowY = el.scrollHeight > maxHeightPx ? "auto" : "hidden";
@@ -87,17 +94,35 @@ export default function ChatInput({
     { icon: "\u2197", label: lh.feat_series, query: queries.popular },
   ];
 
+  // Locale-aware placeholder
+  const placeholder =
+    locale === "zh"
+      ? "输入动漫名称，或描述你的巡礼计划…"
+      : locale === "en"
+        ? "Type an anime name, or describe your trip…"
+        : "アニメ名を入力、または旅の計画を…";
+
   return (
-    <div className="px-4 py-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+    <div
+      className="px-4 pb-4 pt-2"
+      style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+    >
+      {/* Mobile quick actions */}
       {showQuickActions && (
-        <div className="mx-auto mb-2 flex max-w-[680px] gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div
+          className="mx-auto mb-2 flex max-w-[520px] gap-2 overflow-x-auto pb-1"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {quickActions.map((action) => (
             <button
               key={action.label}
               type="button"
               onClick={() => onSend(action.query)}
-              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
-              style={{ minHeight: "44px", transitionDuration: "var(--duration-fast)" }}
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+              style={{
+                minHeight: "44px",
+                transitionDuration: "var(--duration-fast)",
+              }}
             >
               <span>{action.icon}</span>
               <span>{action.label}</span>
@@ -105,6 +130,8 @@ export default function ChatInput({
           ))}
         </div>
       )}
+
+      {/* Location prompt overlay */}
       {showLocationPrompt && (
         <LocationPrompt
           onCoords={handleCoordsAcquired}
@@ -114,41 +141,66 @@ export default function ChatInput({
           locale={locale}
         />
       )}
+
+      {/* Input bar — clean, editorial, not a chat widget */}
       <div
-        className="mx-auto flex w-full max-w-[680px] items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-3 shadow-sm transition focus-within:border-[var(--color-primary)]"
+        className="mx-auto flex w-full max-w-[520px] items-end gap-2 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 transition-colors focus-within:border-[var(--color-primary)]"
         style={{ transitionDuration: "var(--duration-fast)" }}
       >
+        {/* Location — subtle, secondary */}
         {geoSupported && (
           <button
             type="button"
             onClick={() => setShowLocationPrompt((v) => !v)}
             aria-label="location"
-            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)]"
             style={{ transitionDuration: "var(--duration-fast)" }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-              <circle cx="12" cy="12" r="9" strokeDasharray="2 4" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
             </svg>
           </button>
         )}
+
+        {/* Textarea — auto-grows, single line default */}
         <textarea
           ref={textareaRef}
-          aria-label={t.placeholder}
+          aria-label={placeholder}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t.placeholder}
+          placeholder={placeholder}
           rows={1}
           disabled={disabled}
-          className="flex-1 resize-none bg-transparent text-sm font-light leading-relaxed outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
-          style={{ minHeight: "24px", maxHeight: "144px" }}
+          className="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none focus:outline-none focus-visible:outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
+          style={{ minHeight: "24px", maxHeight: "120px" }}
         />
+
+        {/* Send — appears only when content exists or sending */}
         <button
           onClick={handleSubmit}
           disabled={disabled || !hasText}
-          className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 disabled:bg-[var(--color-muted)] disabled:text-[var(--color-muted-fg)] bg-[var(--color-primary)] text-white hover:opacity-90"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-md)] transition-all duration-150"
+          style={{
+            opacity: hasText || disabled ? 1 : 0.3,
+            background: hasText
+              ? "var(--color-primary)"
+              : "var(--color-muted)",
+            color: hasText
+              ? "white"
+              : "var(--color-muted-fg)",
+          }}
           aria-label={t.send}
         >
           {disabled ? (
@@ -165,8 +217,18 @@ export default function ChatInput({
               ))}
             </span>
           ) : (
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 16V4M10 4l-5 5M10 4l5 5" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           )}
         </button>

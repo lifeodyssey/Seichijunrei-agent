@@ -32,7 +32,8 @@ function FloatingChatToggle({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Show chat"
-      className="fixed bottom-6 left-20 z-30 flex h-10 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-4 text-sm font-medium text-[var(--color-fg)] shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
+      className="fixed right-6 z-30 flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-white shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95"
+      style={{ bottom: "72px" }} /* above selection bar (56px) + gap */
       style={{ animation: "pop-in 0.25s var(--ease-out-expo)" }}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

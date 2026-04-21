@@ -35,53 +35,43 @@ function PilgrimageCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      className={`relative overflow-hidden rounded-sm bg-[var(--color-muted)] text-left transition ${
-        idx === 0 ? "col-span-2" : ""
-      } ${
+      className={`group relative overflow-hidden rounded-[var(--r-md)] border bg-[var(--color-muted)] text-left transition-all ${
         selected
-          ? "ring-2 ring-[var(--color-primary)]"
-          : "hover:ring-1 hover:ring-[var(--color-primary)]/40"
+          ? "border-[var(--color-primary)] shadow-sm"
+          : "border-[var(--color-border)] hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-md"
       }`}
       style={{ transitionDuration: "var(--duration-fast)" }}
     >
-      <span
-        className={`absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition ${
-          selected
-            ? "bg-[var(--color-primary)] text-white"
-            : "bg-black/50 text-white/70"
-        }`}
-        style={{ transitionDuration: "var(--duration-fast)" }}
-      >
-        {selected ? "✓" : "+"}
-      </span>
-      <div
-        className={`relative bg-[var(--color-muted)] ${
-          idx === 0 ? "aspect-video" : "aspect-[4/3]"
-        }`}
-      >
+      {/* Selection checkmark */}
+      {selected && (
+        <span className="absolute right-1.5 top-1.5 z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-white shadow-sm">
+          ✓
+        </span>
+      )}
+
+      {/* Image with dark overlay bar */}
+      <div className="relative aspect-[4/3] overflow-hidden">
         {hasImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={point.screenshot_url!}
             alt={point.name_cn || point.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center bg-[var(--color-muted)]">
             <span
               className="select-none font-[family-name:var(--app-font-display)] text-2xl"
-              style={{
-                color: "color-mix(in oklch, var(--color-fg) 12%, transparent)",
-              }}
+              style={{ color: "color-mix(in oklch, var(--color-fg) 12%, transparent)" }}
             >
               聖
             </span>
           </div>
         )}
 
-        {/* Source badge overlaid on the image area */}
+        {/* EP badge — top left */}
         <SourceBadge
           screenshotUrl={point.screenshot_url}
           episode={point.episode}
@@ -91,22 +81,22 @@ function PilgrimageCard({
               : undefined
           }
         />
-      </div>
 
-      <div className="pb-2 pt-1.5 px-1">
-        <p className="truncate text-xs font-light text-[var(--color-fg)]">
-          {(point.name_cn && point.name_cn !== "不明" ? point.name_cn : null)
-            || (point.name && point.name !== "不明" ? point.name : null)
-            || resolveUnknownName(point.latitude, point.longitude)
-            || point.name_cn
-            || point.name}
-        </p>
-        <p
-          data-testid="city-label"
-          className="truncate text-[10px] font-light text-[var(--color-muted-fg)]"
-        >
-          {cityLabel}
-        </p>
+        {/* Dark overlay bar at bottom — name + EP on the image */}
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-6">
+          <span className="truncate text-xs font-medium text-white">
+            {(point.name_cn && point.name_cn !== "不明" ? point.name_cn : null)
+              || (point.name && point.name !== "不明" ? point.name : null)
+              || resolveUnknownName(point.latitude, point.longitude)
+              || point.name_cn
+              || point.name}
+          </span>
+          {point.episode != null && point.episode > 0 && (
+            <span className="ml-1 shrink-0 text-[11px] text-white/70">
+              EP{point.episode}
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -145,7 +135,7 @@ function GroupSection({
         <Badge variant="secondary" className="text-[10px]">{count}</Badge>
       </button>
       {open && (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {points.map((point, idx) => (
             <PilgrimageCard
               key={point.id}
@@ -275,6 +265,8 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Selection bar is rendered by ResultPanel (bottom-fixed, visible in both grid + map) */}
     </div>
   );
 }

@@ -266,11 +266,17 @@ a { color: inherit; }
 
 /* Leaflet popup z-index — above filter chips and selection bar */
 .leaflet-popup {
-  z-index: 25 !important;
+  z-index: 1000 !important;
 }
 .leaflet-popup-content-wrapper {
   border-radius: var(--r-md) !important;
   box-shadow: 0 4px 16px oklch(20% 0.02 238 / 0.12) !important;
+}
+.leaflet-pane {
+  z-index: 1 !important;
+}
+.leaflet-top, .leaflet-bottom {
+  z-index: 2 !important;
 }
 
 /* Chat popup entrance */

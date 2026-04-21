@@ -228,27 +228,15 @@ export default function ResultPanel({
     );
   }, [searchPoints, activeEpRange]);
 
-  const selectionBar =
-    selectedIds.size > 0 ? (
-      <SelectionBar
-        count={selectedIds.size}
-        defaultOrigin={defaultOrigin ?? ""}
-        onRoute={(origin) => onRouteSelected?.(origin)}
-        onClear={clear}
-        disabled={loading}
-      />
-    ) : null;
-
-  const layoutControls = (
-    <LayoutControls onCollapse={onCollapse} onExpand={onExpand} isFullScreen={isFullScreen} />
-  );
+  // Old SelectionBar and LayoutControls removed — selection bar is now
+  // inside PilgrimageGrid (bottom-fixed), and layout controls are not needed
+  // in full-result mode per DESIGN.md.
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (!activeResponse && loading) {
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
-        {layoutControls}
-        {selectionBar}
+        {/* layout controls + old selection bar removed */}
         <LoadingSkeleton />
       </section>
     );
@@ -258,8 +246,7 @@ export default function ResultPanel({
   if (!activeResponse) {
     return (
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]">
-        {layoutControls}
-        {selectionBar}
+        {/* layout controls + old selection bar removed */}
         <ResultPanelEmptyState />
       </section>
     );
@@ -274,8 +261,7 @@ export default function ResultPanel({
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
         style={{ animation: "slide-in-right 0.3s ease-out" }}
       >
-        {layoutControls}
-        {selectionBar}
+        {/* layout controls + old selection bar removed */}
 
         {/* Toolbar: filter chips + view toggle */}
         <ResultPanelToolbar
@@ -300,6 +286,33 @@ export default function ResultPanel({
             <LazyLeafletMap points={visiblePoints} selectedIds={selectedIds} onToggle={toggle} />
           </div>
         )}
+
+        {/* Bottom selection bar — visible in both grid and map when items selected */}
+        {selectedIds.size > 0 && (
+          <div
+            className="flex shrink-0 items-center gap-3 border-t border-[var(--color-border)] bg-[var(--color-card)] px-6 py-3"
+            style={{ animation: "slide-up 0.2s var(--ease-out-expo)" }}
+          >
+            <span className="text-sm font-medium text-[var(--color-fg)]">
+              已选 {selectedIds.size} 个
+            </span>
+            <button
+              type="button"
+              onClick={() => onRouteSelected?.(defaultOrigin ?? "")}
+              disabled={loading || selectedIds.size < 2}
+              className="ml-auto flex h-9 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              规划路线
+            </button>
+            <button
+              type="button"
+              onClick={clear}
+              className="text-sm text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-fg)]"
+            >
+              清除
+            </button>
+          </div>
+        )}
       </section>
     );
   }
@@ -311,8 +324,6 @@ export default function ResultPanel({
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
       style={{ animation: "slide-in-right 0.3s ease-out" }}
     >
-      {layoutControls}
-      {selectionBar}
       <div className="flex-1 overflow-y-auto p-6">
         <GenerativeUIRenderer response={activeResponse} onSuggest={onSuggest} />
       </div>

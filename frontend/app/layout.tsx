@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { LocaleProvider } from "../lib/i18n-context";
+import MSWProvider from "../mocks/MSWProvider";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import {
@@ -80,7 +81,9 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
-        <LocaleProvider>{children}</LocaleProvider>
+        <MSWProvider>
+          <LocaleProvider>{children}</LocaleProvider>
+        </MSWProvider>
       </body>
     </html>
   );

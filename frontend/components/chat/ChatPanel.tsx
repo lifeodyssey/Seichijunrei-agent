@@ -60,7 +60,7 @@ export default function ChatPanel({
   return (
     <div
       className={cn(
-        "flex min-h-0 w-full flex-col bg-[var(--color-bg)]",
+        "flex min-h-0 flex-1 w-full flex-col bg-[var(--color-bg)]",
         !isMobile && layoutMode === "split" && "border-r border-[var(--color-border)]",
       )}
     >
@@ -85,29 +85,38 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* Content — centered in chat mode, full-width in split mode */}
-      <div className={cn(
-        "flex min-h-0 flex-1 flex-col",
-        isCentered && "mx-auto w-full max-w-[640px]",
-      )}>
+      {/* Content area */}
+      <div className="flex min-h-0 flex-1 flex-col">
         {isEmpty ? (
-          <div className="flex min-h-0 flex-1 overflow-y-auto">
-            <WelcomeScreen onSend={handleSend} dict={dict} locale={locale} />
-          </div>
+          /* Welcome screen: fills entire content area, no scroll */
+          <WelcomeScreen onSend={handleSend} dict={dict} locale={locale} />
         ) : (
-          <MessageList
-            messages={messages}
-            onActivate={onActivate}
-            activeMessageId={activeMessageId}
-            onOpenDrawer={isMobile ? onOpenDrawer : undefined}
-          />
+          /* Messages: centered at comfortable reading width */
+          <div className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            isCentered && "mx-auto w-full max-w-[640px]",
+          )}>
+            <MessageList
+              messages={messages}
+              onActivate={onActivate}
+              activeMessageId={activeMessageId}
+              onOpenDrawer={isMobile ? onOpenDrawer : undefined}
+            />
+          </div>
         )}
-        <ChatInput
-          onSend={handleSend}
-          disabled={sending}
-          showQuickActions={isMobile && isEmpty}
-          onLocationAcquired={handleLocationAcquired}
-        />
+        {/* ChatInput — hidden on welcome (input is inside WelcomeScreen), shown when chatting */}
+        {!isEmpty && (
+          <div className={cn(
+            isCentered && "mx-auto w-full max-w-[640px]",
+          )}>
+            <ChatInput
+              onSend={handleSend}
+              disabled={sending}
+              showQuickActions={isMobile && isEmpty}
+              onLocationAcquired={handleLocationAcquired}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

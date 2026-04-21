@@ -55,10 +55,18 @@ function initLeafletMap(
 
   const map = L.map(container, { center, zoom: 13, zoomControl: true });
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution:
-      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const tileUrl = mapboxToken
+    ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  L.tileLayer(tileUrl, {
+    attribution: mapboxToken
+      ? '© <a href="https://www.mapbox.com/">Mapbox</a> © <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+      : '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
+    tileSize: mapboxToken ? 512 : 256,
+    zoomOffset: mapboxToken ? -1 : 0,
   }).addTo(map);
 
   for (const point of validPoints) {
