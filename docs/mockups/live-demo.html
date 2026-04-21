@@ -57,12 +57,12 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .w-hero-content h1{color:white;margin-bottom:6px;font-size:28px;text-shadow:0 2px 12px oklch(20% 0.02 238/.3)}
 .w-hero-content p{font-size:14px;opacity:.85;max-width:40ch;margin:0 auto}
 .w-bottom{flex:1;display:flex;flex-direction:column;padding:24px;align-items:center}
-.bubble-ai{align-self:flex-start;background:var(--card);padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:14px;max-width:85%;line-height:1.5}
-.bubble-user{align-self:flex-end;background:var(--int);color:var(--int-fg);padding:10px 14px;border-radius:14px 14px 4px 14px;font-size:14px;max-width:80%}
-.w-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.bubble-ai{align-self:flex-start;background:var(--card);padding:12px 14px;border-radius:14px 14px 14px 4px;font-size:14px;max-width:85%;line-height:1.5}
+.bubble-user{align-self:flex-end;background:var(--int);color:var(--int-fg);padding:12px 14px;border-radius:14px 14px 4px 14px;font-size:14px;max-width:80%}
+.w-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
 .w-chip{padding:6px 16px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);color:var(--fg);cursor:pointer;transition:border-color .15s,background .15s;touch-action:manipulation}
 .w-chip:hover{border-color:var(--int);background:var(--card)}
-.w-section-label{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:12px}
+.w-section-label{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:8px;margin-top:32px}
 .w-covers{display:flex;gap:12px;overflow-x:auto;padding:4px 0;max-width:640px}
 .w-cover{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
 .w-cover img{width:80px;height:112px;border-radius:var(--r-md);object-fit:cover}
@@ -71,14 +71,14 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .w-search input{flex:1;height:48px;border:none;border-radius:24px;padding:0 20px;font-size:14px;background:var(--card);color:var(--fg);box-shadow:0 2px 8px oklch(20% 0.02 238/.06);border:1px solid var(--border)}
 .w-search input::placeholder{color:var(--muted-fg)}
 .w-search button{width:44px;height:44px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation}
-.hint-text{font-size:13px;color:var(--int);margin-top:8px;opacity:.8;animation:hintPulse 2s ease-in-out infinite}
+.hint-text{font-size:13px;color:var(--int);margin-top:4px;margin-bottom:32px;opacity:.8;animation:hintPulse 2s ease-in-out infinite}
 @keyframes hintPulse{0%,100%{opacity:.6}50%{opacity:1}}
 
 /* Loading Screen */
 .skeleton{border-radius:var(--r-md);background:linear-gradient(90deg,var(--muted) 25%,oklch(93% 0.012 218) 50%,var(--muted) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-.loading-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:20px}
-.loading-text{text-align:center;font-size:14px;color:var(--muted-fg);padding:20px}
+.loading-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:24px}
+.loading-text{text-align:center;font-size:14px;color:var(--muted-fg);padding:24px}
 
 /* Results Screen */
 .results-header{padding:12px 24px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -86,10 +86,10 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .anime-cover{width:48px;height:64px;border-radius:var(--r-md);object-fit:cover}
 .results-header .meta{font-size:12px;color:var(--muted-fg)}
 .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-.tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 24px}
+.tab-bar{display:flex;align-items:center;border-bottom:1px solid var(--border);padding:0 24px}
 .tab-btn{padding:8px 16px;border:none;background:none;font-size:14px;color:var(--muted-fg);border-bottom:2px solid transparent;cursor:pointer;transition:color .15s,border-color .15s;touch-action:manipulation}
 .tab-btn.a{color:var(--int);font-weight:500;border-bottom-color:var(--int)}
-.filters{display:flex;gap:4px;padding:8px 24px;flex-wrap:wrap}
+.filters{display:flex;gap:4px;padding:4px 24px 8px;flex-wrap:wrap;align-items:center}
 .chip{padding:4px 12px;border-radius:var(--r-md);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--bg);color:var(--muted-fg);cursor:pointer;transition:border-color .15s,background .15s;touch-action:manipulation}
 .chip:hover{border-color:var(--int)}
 .chip.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
@@ -106,7 +106,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .gc.sel{border-color:var(--int)}
 
 /* Selection bar */
-.selbar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);z-index:5;height:52px;transform:translateY(100%);transition:transform .25s ease}
+.selbar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);z-index:5;height:52px;transform:translateY(100%);transition:transform .25s ease}
 .selbar.visible{transform:translateY(0)}
 .selbar b{font-size:14px;font-weight:500}
 .btn-p{padding:6px 20px;border-radius:var(--r-md);border:none;background:var(--int);color:var(--int-fg);font-size:14px;font-weight:600;cursor:pointer;height:36px;min-width:44px;touch-action:manipulation}
@@ -115,7 +115,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .selbar .btn-p{margin-left:auto}
 
 /* AI summary */
-.ai-summary{position:absolute;bottom:16px;right:24px;max-width:240px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) var(--r-sm) var(--r-lg);padding:10px 14px;font-size:13px;line-height:1.5;box-shadow:0 4px 16px oklch(20% 0.02 238/.1);z-index:6;cursor:grab;opacity:0;pointer-events:none;user-select:none;transition:bottom .25s ease,opacity .3s}
+.ai-summary{position:absolute;bottom:16px;right:24px;max-width:240px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) var(--r-sm) var(--r-lg);padding:12px 14px;font-size:13px;line-height:1.5;box-shadow:0 4px 16px oklch(20% 0.02 238/.1);z-index:6;cursor:grab;opacity:0;pointer-events:none;user-select:none;transition:bottom .25s ease,opacity .3s}
 .ai-summary.visible{opacity:1;pointer-events:auto}
 .ai-summary.raised{bottom:68px}
 .ai-summary.dragging{cursor:grabbing;box-shadow:0 8px 32px oklch(20% 0.02 238/.15);z-index:50}
@@ -135,7 +135,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .confirm-right::before{content:"路线预览";position:absolute;top:12px;left:12px;font-size:12px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:var(--r-sm);z-index:1}
 .confirm-map-pin{position:absolute;width:28px;height:28px;border-radius:50%;background:var(--int);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 2px 6px oklch(20% 0.02 238/.2)}
 .confirm-list{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
-.confirm-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:var(--r-md);font-size:14px}
+.confirm-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border-radius:var(--r-md);font-size:14px}
 .confirm-item .idx{width:20px;height:20px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .confirm-item img{width:64px;height:48px;border-radius:var(--r-sm);object-fit:cover}
 .confirm-item .name{font-weight:500;flex:1}
@@ -175,7 +175,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .pace button{padding:4px 12px;border-radius:var(--r-md);border:1px solid var(--border);font-size:12px;font-weight:500;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
 .pace button.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
 .tl-wrap{flex:1;overflow-y:auto;padding:16px 24px 80px}
-.tl-stop{display:flex;gap:14px;padding-bottom:6px}
+.tl-stop{display:flex;gap:14px;padding-bottom:2px}
 .tl-l{width:56px;text-align:right;flex-shrink:0;padding-top:2px;font-variant-numeric:tabular-nums}
 .tl-time{font-size:14px;font-weight:500}.tl-dur{font-size:12px;color:var(--muted-fg)}
 .tl-mid{width:24px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
@@ -183,12 +183,12 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .tl-dot.first{width:16px;height:16px;box-shadow:0 0 0 4px oklch(60% 0.148 240/.15)}
 .tl-dot.active{background:var(--brand);width:14px;height:14px;box-shadow:0 0 0 4px oklch(58% 0.19 28/.12)}
 .tl-stem{width:2px;flex:1;background:var(--border)}
-.tl-r{flex:1;min-width:0;padding-bottom:12px}
+.tl-r{flex:1;min-width:0;padding-bottom:6px}
 .tl-name{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600;margin-bottom:2px}
 .tl-detail{font-size:12px;color:var(--muted-fg);margin-bottom:6px}
 .tl-photo{width:72px;height:48px;border-radius:var(--r-sm);object-fit:cover;background:var(--muted)}
 .tl-r.hi{background:oklch(96% 0.012 215);border-radius:var(--r-md);padding:10px;margin:-10px;margin-bottom:2px}
-.tl-walk{display:flex;gap:14px;padding:6px 0}
+.tl-walk{display:flex;gap:14px;padding:8px 0}
 .tl-walk-l{width:56px;flex-shrink:0}
 .tl-walk-mid{width:24px;display:flex;justify-content:center;flex-shrink:0}
 .tl-dash{width:2px;min-height:32px;background:repeating-linear-gradient(to bottom,var(--walk-fg) 0 4px,transparent 4px 8px);opacity:.55}
@@ -226,11 +226,11 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 #chat-popup::after{content:"";position:absolute;bottom:-7px;right:28px;width:14px;height:14px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
 #chat-backdrop{position:fixed;inset:0;z-index:99;display:none}
 #chat-backdrop.open{display:block}
-.popup-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)}
+.popup-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
 .popup-header h3{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600}
 .popup-messages{flex:1;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
-.popup-input{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border)}
-.popup-input input{flex:1;height:32px;border:1px solid var(--border);border-radius:16px;padding:0 12px;font-size:12px;background:var(--bg);color:var(--fg);font-family:inherit}
+.popup-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border)}
+.popup-input input{flex:1;height:32px;border:1px solid var(--border);border-radius:16px;padding:0 12px;font-size:12px;background:var(--bg);color:var(--fg);font-family:inherit;min-width:0}
 .popup-input input::placeholder{color:var(--muted-fg)}
 .popup-input button{width:32px;height:32px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation}
 
@@ -263,7 +263,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .sp-hdr h2{font-size:18px;margin-bottom:2px}
 .sp-hdr .meta{font-size:12px;color:var(--muted-fg)}
 .sp-list{flex:1;overflow-y:auto;padding:8px}
-.sp-card{display:flex;gap:10px;padding:8px;border-radius:var(--r-md);cursor:pointer;transition:background .15s}
+.sp-card{display:flex;gap:12px;padding:8px;border-radius:var(--r-md);cursor:pointer;transition:background .15s}
 .sp-card:hover{background:var(--card)}
 .sp-card img{width:48px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
 .sp-info{min-width:0;flex:1}
@@ -275,11 +275,11 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 #s-clarify{background:var(--bg)}
 .clar-chat{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px}
 .clar-chat .clar-inner{max-width:600px;width:100%;display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center}
-.clar-inline-cards{display:flex;gap:12px;margin-top:10px}
+.clar-inline-cards{display:flex;gap:12px;margin-top:12px}
 .clar-card{flex:1;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg);transition:border-color .15s}
 .clar-card:hover{border-color:var(--int)}
 .clar-card img{width:100%;height:100px;object-fit:cover;display:block}
-.clar-card-body{padding:10px}
+.clar-card-body{padding:12px}
 .clar-card-body h3{font-size:14px;font-weight:600;margin-bottom:2px}
 .clar-card-body .meta{font-size:12px;color:var(--muted-fg);margin-bottom:8px}
 .clar-card-body button{padding:5px 14px;border-radius:var(--r-md);border:1px solid var(--int);background:var(--bg);color:var(--int);font-size:12px;font-weight:500;cursor:pointer;transition:background .15s;touch-action:manipulation}
@@ -318,12 +318,12 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 .tog button.a{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px oklch(20% 0.02 238/.06)}
 
 /* Results stats & sort */
-.results-stats{padding:2px 24px 4px;font-size:12px;color:var(--muted-fg)}
+.results-stats{font-size:12px;color:var(--muted-fg);margin-left:auto}
 .results-stats b{font-weight:500;color:var(--fg)}
-.sort-btn{padding:4px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
+.sort-btn{padding:4px 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
 
 /* Selection bar input */
-.selbar-input{height:28px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;width:140px;background:var(--bg)}
+.selbar-input{height:28px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:12px;width:140px;background:var(--bg)}
 
 /* Filter labels */
 .fl{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-fg);margin-right:4px}
@@ -336,7 +336,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
 @keyframes breathe{0%,100%{opacity:.2;transform:scale(.86)}50%{opacity:1;transform:scale(1.08)}}
 
 /* Toast notification */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--fg);color:var(--bg);padding:10px 20px;border-radius:var(--r-md);font-size:14px;font-weight:500;z-index:200;transition:transform .3s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--fg);color:var(--bg);padding:12px 24px;border-radius:var(--r-md);font-size:14px;font-weight:500;z-index:200;transition:transform .3s cubic-bezier(.16,1,.3,1);pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -372,7 +372,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
         </div>
       </div>
       <div class="w-bottom">
-        <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px">
           <div class="bubble-ai">你好！我可以帮你搜索动漫圣地、规划巡礼路线，或者查找你附近的取景地。想去哪里？</div>
         </div>
         <div class="w-chips" id="chips">
@@ -382,7 +382,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
           <button class="w-chip" data-query="haruhi" aria-label="搜索涼宮ハルヒ">涼宮ハルヒ</button>
         </div>
         <div class="hint-text">&larr; 点击快捷建议开始体验</div>
-        <div class="w-section-label" style="margin-top:20px">热门动漫</div>
+        <div class="w-section-label">热门动漫</div>
         <div class="w-covers">
           <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" width="80" height="112" loading="lazy"><span>ユーフォニアム</span></div>
           <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt="君の名は。" width="80" height="112" loading="lazy"><span>君の名は。</span></div>
@@ -393,7 +393,7 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
           <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="たまこまーけっと" width="80" height="112" loading="lazy"><span>たまこ</span></div>
           <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/27364.jpg" alt="氷菓" width="80" height="112" loading="lazy"><span>氷菓</span></div>
         </div>
-        <div class="w-search" style="margin-top:auto;padding-top:16px">
+        <div class="w-search" style="margin-top:auto;padding-top:32px">
           <input placeholder="描述你的巡礼计划…" aria-label="输入消息">
           <button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
         </div>
@@ -453,8 +453,8 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
       <div class="tab-bar">
         <button class="tab-btn a" data-tab="episode">按集数</button>
         <button class="tab-btn" data-tab="area">按地区</button>
+        <div class="results-stats">显示 <b>12</b> / 156 · 已选 <b id="stat-sel-count">0</b></div>
       </div>
-      <div class="results-stats">显示 <b>12</b> / 156 · 已选 <b id="stat-sel-count">0</b></div>
       <div class="filters" id="episode-filters">
         <span class="fl">集数</span>
         <span class="chip a" data-filter="all">全部</span>
@@ -498,8 +498,8 @@ h3{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
         <div class="confirm-left">
           <h2 style="margin-bottom:4px">确认路线</h2>
           <p style="font-size:14px;color:var(--muted-fg);margin-bottom:16px">拖拽调整顺序，或移除不想去的点</p>
-          <div class="confirm-list" id="confirm-list"></div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+          <div class="confirm-list" id="confirm-list" style="margin-bottom:24px"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
             <span style="font-size:14px;color:var(--muted-fg)">出发站</span>
             <input placeholder="如：宇治駅" aria-label="出发车站" style="height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);flex:1;max-width:240px">
           </div>
