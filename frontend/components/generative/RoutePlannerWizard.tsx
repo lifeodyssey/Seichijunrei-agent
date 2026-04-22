@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { RouteData, TimedItinerary } from "../../lib/types";
 import { useRouteExport } from "../../hooks/useRouteExport";
 import RouteTimeline from "./RouteTimeline";
@@ -21,6 +21,12 @@ const PACE_OPTIONS = [
   { key: "normal" as const, label: "正常", desc: "各地点 30 分" },
   { key: "packed" as const, label: "紧凑", desc: "各地点 15 分" },
 ];
+
+const PACE_MULTIPLIER: Record<"chill" | "normal" | "packed", number> = {
+  chill: 1.5,
+  normal: 1.0,
+  packed: 0.5,
+};
 
 const EMPTY_ITINERARY: TimedItinerary = {
   stops: [],
@@ -67,13 +73,26 @@ export default function RoutePlannerWizard({
 
   const { exportGoogleMaps, exportIcs } = useRouteExport(itinerary);
 
-  // Derived stats
-  const spotCount = itinerary.spot_count;
-  const distKm = (itinerary.total_distance_m / 1000).toFixed(1);
-  const totalMin = itinerary.total_minutes;
+  // Adjusted itinerary based on pacing
+  const adjustedItinerary = useMemo<TimedItinerary>(() => {
+    const mult = PACE_MULTIPLIER[pacing];
+    return {
+      ...itinerary,
+      stops: itinerary.stops.map((s) => ({
+        ...s,
+        dwell_minutes: Math.round(s.dwell_minutes * mult),
+      })),
+      total_minutes: Math.round(itinerary.total_minutes * mult),
+    };
+  }, [itinerary, pacing]);
+
+  // Derived stats — use adjustedItinerary
+  const spotCount = adjustedItinerary.spot_count;
+  const distKm = (adjustedItinerary.total_distance_m / 1000).toFixed(1);
+  const totalMin = adjustedItinerary.total_minutes;
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
-  const walkMin = itinerary.legs.reduce(
+  const walkMin = adjustedItinerary.legs.reduce(
     (sum, l) => sum + l.duration_minutes,
     0,
   );
@@ -196,7 +215,7 @@ export default function RoutePlannerWizard({
         {/* Scrollable timeline */}
         <div className="flex-1 overflow-y-auto p-4">
           <RouteTimeline
-            itinerary={itinerary}
+            itinerary={adjustedItinerary}
             activeStopId={activeStopId}
             onStopClick={setActiveStopId}
           />

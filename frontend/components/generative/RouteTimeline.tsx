@@ -70,7 +70,7 @@ export default function RouteTimeline({
             {/* ── Stop row ── */}
             <button
               type="button"
-              className="flex w-full gap-[14px] text-left"
+              className="flex w-full cursor-pointer gap-[14px] rounded-[var(--r-md)] text-left transition-colors duration-150 hover:bg-[var(--color-card)]"
               style={{ paddingBottom: 2 }}
               onClick={() => onStopClick?.(stop.cluster_id)}
             >
@@ -192,6 +192,27 @@ export default function RouteTimeline({
                   }}
                 >
                   <span style={{ fontSize: 15 }}>🚶</span> {leg.duration_minutes} 分 · {fmtDist(leg.distance_m)}
+                </div>
+              </div>
+            )}
+
+            {/* ── Discovery card — shown for walks > 5 min ── */}
+            {leg && leg.duration_minutes > 5 && (
+              <div className="flex gap-[14px]">
+                <div style={{ width: 56 }} className="shrink-0" />
+                <div style={{ width: 24 }} className="flex shrink-0 justify-center">
+                  <div style={{ width: 3, minHeight: 16, opacity: 0.3, background: "var(--color-border)" }} />
+                </div>
+                <div
+                  className="flex-1 rounded-[var(--r-md)] p-3"
+                  style={{ background: "var(--color-walk-bg, oklch(89% 0.04 145))", cursor: "pointer" }}
+                >
+                  <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-walk-fg, oklch(30% 0.10 145))", marginBottom: 2 }}>
+                    📍 附近还有其他动漫圣地
+                  </p>
+                  <p style={{ fontSize: 12, color: "var(--color-muted-fg)" }}>
+                    途中可能会经过其他作品的取景地
+                  </p>
                 </div>
               </div>
             )}

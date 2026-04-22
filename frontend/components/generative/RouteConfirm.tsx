@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -181,6 +181,13 @@ export default function RouteConfirm({
 }: RouteConfirmProps) {
   const [orderedPoints, setOrderedPoints] = useState<PilgrimagePoint[]>(points);
   const [origin, setOrigin] = useState(defaultOrigin);
+  const [lastRemoved, setLastRemoved] = useState<{ point: PilgrimagePoint; index: number } | null>(null);
+
+  useEffect(() => {
+    if (!lastRemoved) return;
+    const timer = setTimeout(() => setLastRemoved(null), 5000);
+    return () => clearTimeout(timer);
+  }, [lastRemoved]);
 
   const canConfirm = orderedPoints.length >= 2;
 
@@ -208,7 +215,12 @@ export default function RouteConfirm({
   }, []);
 
   const handleRemove = useCallback((id: string) => {
-    setOrderedPoints((prev) => prev.filter((p) => p.id !== id));
+    setOrderedPoints((prev) => {
+      const index = prev.findIndex((p) => p.id === id);
+      if (index === -1) return prev;
+      setLastRemoved({ point: prev[index], index });
+      return prev.filter((p) => p.id !== id);
+    });
   }, []);
 
   const handleConfirm = useCallback(() => {
@@ -307,6 +319,32 @@ export default function RouteConfirm({
         )}
       </div>
 
+      {/* ── Undo toast ───────────────────────────────────────────────── */}
+      {lastRemoved && (
+        <div className="shrink-0 px-4 pb-2">
+          <div
+            className="flex items-center justify-between rounded-[var(--r-md)] px-4 py-2"
+            style={{ background: "var(--color-fg)", color: "var(--color-bg)", fontSize: 13 }}
+          >
+            <span>已移除「{lastRemoved.point.name_cn || lastRemoved.point.name}」</span>
+            <button
+              type="button"
+              onClick={() => {
+                setOrderedPoints(prev => {
+                  const next = [...prev];
+                  next.splice(lastRemoved.index, 0, lastRemoved.point);
+                  return next;
+                });
+                setLastRemoved(null);
+              }}
+              style={{ fontWeight: 600, marginLeft: 12, color: "oklch(80% 0.12 240)" }}
+            >
+              撤销
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Summary + confirm — Fix 9 & 10 ──────────────────────────── */}
       <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-4">
         <div className="mb-3 text-center">
@@ -327,7 +365,7 @@ export default function RouteConfirm({
           type="button"
           onClick={handleConfirm}
           disabled={!canConfirm}
-          className="flex h-[44px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex h-[44px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <svg
             width="16"
