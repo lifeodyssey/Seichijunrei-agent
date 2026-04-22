@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import type { TimedItinerary, TimedStop, TransitLeg } from "../../lib/types";

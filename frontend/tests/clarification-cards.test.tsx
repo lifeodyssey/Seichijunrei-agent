@@ -150,7 +150,6 @@ describe("Clarification (card layout with candidates)", () => {
       candidates: [CANDIDATE_WITH_COVER, CANDIDATE_NO_COVER, CANDIDATE_SECONDARY],
     });
     // Each title span has fontFamily set to var(--app-font-display)
-    const titleSpans = container.querySelectorAll("[style*='font-display']");
     // At least the candidate titles should use display font via inline style
     // The component uses inline style fontFamily: "var(--app-font-display)"
     const displayFontSpans = container.querySelectorAll("[style]");

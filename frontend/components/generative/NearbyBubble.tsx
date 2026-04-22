@@ -13,8 +13,6 @@ interface NearbyBubbleProps {
 
 interface AnimeCardProps {
   title: string;
-  spotCount: number;
-  closestDistance: number;
   colorIndex: number;
   imageUrl: string | null;
   spotsDistanceLabel: string;
@@ -27,8 +25,6 @@ function colorValue(hue: number, chroma: number, lightness: number): string {
 
 function AnimeNearbyCard({
   title,
-  spotCount,
-  closestDistance,
   colorIndex,
   imageUrl,
   spotsDistanceLabel,
@@ -124,8 +120,6 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
           <AnimeNearbyCard
             key={group.bangumi_id}
             title={group.title}
-            spotCount={group.points_count}
-            closestDistance={group.closestDistance}
             colorIndex={group.color_index}
             imageUrl={group.imageUrl}
             spotsDistanceLabel={nt.spots_distance
