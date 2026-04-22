@@ -4,8 +4,8 @@
     "description": "搜索动漫取景地 · 规划巡礼路线"
   },
   "landing": {
-    "hero": "聖地巡礼",
-    "hero_accent": "巡禮之路",
+    "hero": "圣地巡礼",
+    "hero_accent": "巡礼之路",
     "subtitle": "探索动漫圣地，规划巡礼路线",
     "cta": "开始使用",
     "features": [
@@ -228,7 +228,9 @@
   "nearby": {
     "summary": "附近 {radius} 内找到了 {count} 部动漫的 {total} 个圣地",
     "spots_distance": "{spotCount} 个圣地 · 最近 {dist}",
-    "view_all": "查看全部 {total} 个圣地"
+    "view_all": "查看全部 {total} 个圣地",
+    "search_anime_nearby": "搜索 {title} 附近的圣地",
+    "show_all_nearby": "显示所有附近圣地"
   },
   "clarification": {
     "examples_label": "例如：",

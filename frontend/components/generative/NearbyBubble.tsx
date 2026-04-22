@@ -135,14 +135,14 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
             spotsDistanceLabel={nt.spots_distance
               .replace("{spotCount}", String(group.points_count))
               .replace("{dist}", formatDistance(group.closestDistance))}
-            onClick={() => onSuggest?.(`搜索 ${group.title} 附近的圣地`)}
+            onClick={() => onSuggest?.(nt.search_anime_nearby.replace("{title}", group.title))}
           />
         ))}
       </div>
 
       <button
         type="button"
-        onClick={() => onSuggest?.("显示所有附近圣地")}
+        onClick={() => onSuggest?.(nt.show_all_nearby)}
         className="mt-3 flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-muted)]"
         style={{ minHeight: 44 }}
       >

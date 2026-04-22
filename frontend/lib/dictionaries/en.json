@@ -149,7 +149,7 @@
     "episode": "Ep. {ep}",
     "back_edit": "Edit",
     "pilgrimage_title": "{count}-stop pilgrimage",
-    "stats_detail": "~{h}h {m}min · {d}km · {w}min walk",
+    "stats_detail": "~{h}h {m}min · {d}km · {w}min walking",
     "pace_chill": "Chill",
     "pace_normal": "Normal",
     "pace_packed": "Packed",
@@ -228,7 +228,9 @@
   "nearby": {
     "summary": "Found {total} spots from {count} anime within {radius}",
     "spots_distance": "{spotCount} spots · nearest {dist}",
-    "view_all": "View all {total} spots"
+    "view_all": "View all {total} spots",
+    "search_anime_nearby": "Search {title} spots nearby",
+    "show_all_nearby": "Show all nearby spots"
   },
   "clarification": {
     "examples_label": "For example:",

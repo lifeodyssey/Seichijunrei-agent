@@ -228,7 +228,9 @@
   "nearby": {
     "summary": "半径 {radius} 以内に {count} 作品の {total} か所の聖地が見つかりました",
     "spots_distance": "{spotCount} 聖地 · 最寄り {dist}",
-    "view_all": "全 {total} 聖地を表示"
+    "view_all": "全 {total} 聖地を表示",
+    "search_anime_nearby": "{title} の近くの聖地を検索",
+    "show_all_nearby": "近くの全聖地を表示"
   },
   "clarification": {
     "examples_label": "例えば：",
