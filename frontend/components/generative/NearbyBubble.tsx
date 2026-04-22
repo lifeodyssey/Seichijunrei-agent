@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { groupByAnime, CHIP_COLORS } from "./NearbyChips";
 
@@ -14,6 +14,7 @@ interface AnimeCardProps {
   spotCount: number;
   closestDistance: number;
   colorIndex: number;
+  imageUrl: string | null;
   onClick: () => void;
 }
 
@@ -31,8 +32,10 @@ function AnimeNearbyCard({
   spotCount,
   closestDistance,
   colorIndex,
+  imageUrl,
   onClick,
 }: AnimeCardProps) {
+  const [imgError, setImgError] = useState(false);
   const color = CHIP_COLORS[colorIndex % CHIP_COLORS.length];
   const dotColor = colorValue(color.hue, color.chroma, 55);
 
@@ -48,6 +51,15 @@ function AnimeNearbyCard({
         style={{ backgroundColor: dotColor }}
         aria-hidden="true"
       />
+      {imageUrl && !imgError ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="h-8 w-10 shrink-0 rounded object-cover"
+          style={{ background: "var(--color-muted)" }}
+          onError={() => setImgError(true)}
+        />
+      ) : null}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span
           className="truncate text-sm text-[var(--color-fg)]"
@@ -85,7 +97,13 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
         const d = p.distance_m ?? Infinity;
         return d < min ? d : min;
       }, Infinity);
-      return { ...group, closestDistance: closestDistance === Infinity ? 0 : closestDistance };
+      const firstPoint = groupPoints[0];
+      const imageUrl = firstPoint?.screenshot_url ?? null;
+      return {
+        ...group,
+        closestDistance: closestDistance === Infinity ? 0 : closestDistance,
+        imageUrl,
+      };
     });
   }, [points]);
 
@@ -106,6 +124,7 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
             spotCount={group.points_count}
             closestDistance={group.closestDistance}
             colorIndex={group.color_index}
+            imageUrl={group.imageUrl}
             onClick={() => onSuggest?.(`搜索 ${group.title} 附近的圣地`)}
           />
         ))}
@@ -114,9 +133,14 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
       <button
         type="button"
         onClick={() => onSuggest?.("显示所有附近圣地")}
-        className="mt-3 text-xs text-[var(--color-primary)] hover:underline"
+        className="mt-3 flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-muted)]"
+        style={{ minHeight: 44 }}
       >
-        查看全部 {total} 个圣地 →
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-white">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </span>
+        <span className="flex-1 text-left text-sm text-[var(--color-fg)]">查看全部 {total} 个圣地</span>
+        <span className="text-sm text-[var(--color-muted-fg)]">→</span>
       </button>
     </div>
   );
