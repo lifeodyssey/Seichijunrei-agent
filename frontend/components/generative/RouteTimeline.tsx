@@ -44,6 +44,15 @@ export default function RouteTimeline({
 
   return (
     <div className="flex flex-col">
+      {/* Pulse animation for active dot (single-fire) */}
+      <style>{`
+        @keyframes dot-pulse {
+          0% { box-shadow: 0 0 0 0 oklch(58% 0.19 28 / 0.35); }
+          70% { box-shadow: 0 0 0 8px oklch(58% 0.19 28 / 0); }
+          100% { box-shadow: 0 0 0 8px oklch(58% 0.19 28 / 0); }
+        }
+      `}</style>
+
       {stops.map((stop, idx) => {
         const nextStop = idx < stops.length - 1 ? stops[idx + 1] : null;
         const leg = nextStop ? findLeg(legs, stop, nextStop) : null;
@@ -52,6 +61,9 @@ export default function RouteTimeline({
         const isActive = stop.cluster_id === activeStopId;
         const photoUrl = stop.points[0]?.screenshot_url ?? null;
         const episode = stop.points[0]?.episode;
+
+        /* Fix 6: active dot sizing */
+        const dotSize = isActive ? 14 : isFirst ? 16 : 12;
 
         return (
           <div key={stop.cluster_id}>
@@ -83,14 +95,17 @@ export default function RouteTimeline({
                 <div
                   className="shrink-0 rounded-full"
                   style={{
-                    width: isFirst ? 16 : 12,
-                    height: isFirst ? 16 : 12,
+                    width: dotSize,
+                    height: dotSize,
                     background: isActive
                       ? "var(--color-brand)"
                       : "var(--color-primary)",
                     zIndex: 1,
                     boxShadow: isFirst
                       ? "0 0 0 4px oklch(60% 0.148 240 / 0.15)"
+                      : undefined,
+                    animation: isActive
+                      ? "dot-pulse 0.6s ease-out 1"
                       : undefined,
                   }}
                 />
@@ -102,16 +117,21 @@ export default function RouteTimeline({
                 )}
               </div>
 
-              {/* Right: content column */}
+              {/* Right: content column — Fix 6: stronger active highlight */}
               <div
                 className={`min-w-0 flex-1 ${
                   isActive
-                    ? "rounded-[var(--r-md)] bg-[var(--color-card)]"
+                    ? "rounded-[var(--r-md)]"
                     : ""
                 }`}
                 style={
                   isActive
-                    ? { padding: 8, margin: "-8px", marginBottom: 2 }
+                    ? {
+                        padding: 8,
+                        margin: "-8px",
+                        marginBottom: 2,
+                        background: "oklch(94% 0.03 25)",
+                      }
                     : { paddingBottom: 6 }
                 }
               >
@@ -136,7 +156,7 @@ export default function RouteTimeline({
               </div>
             </button>
 
-            {/* ── Walk segment ── */}
+            {/* ── Walk segment — Fix 5: visually prominent ── */}
             {leg && (
               <div
                 className="flex gap-[14px]"
@@ -145,31 +165,33 @@ export default function RouteTimeline({
                 {/* Left: empty 56px spacer */}
                 <div className="shrink-0" style={{ width: 56 }} />
 
-                {/* Center: dashed line */}
+                {/* Center: dashed line — wider + more opaque */}
                 <div
                   className="flex shrink-0 justify-center"
                   style={{ width: 24 }}
                 >
                   <div
                     style={{
-                      width: 2,
+                      width: 3,
                       minHeight: 28,
                       background:
-                        "repeating-linear-gradient(to bottom, oklch(35% 0.06 145 / 0.55) 0 4px, transparent 4px 8px)",
+                        "repeating-linear-gradient(to bottom, oklch(35% 0.06 145 / 0.7) 0 4px, transparent 4px 8px)",
                     }}
                   />
                 </div>
 
-                {/* Walk pill */}
+                {/* Walk pill — bolder, more saturated */}
                 <div
-                  className="inline-flex items-center gap-1 rounded-[var(--r-md)] bg-[var(--color-walk-bg)] text-[var(--color-walk-fg)]"
+                  className="inline-flex items-center gap-1 rounded-[var(--r-md)]"
                   style={{
-                    padding: "4px 12px",
-                    fontSize: 12,
-                    fontWeight: 500,
+                    padding: "6px 14px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: "oklch(89% 0.04 145)",
+                    color: "oklch(30% 0.10 145)",
                   }}
                 >
-                  🚶 {leg.duration_minutes} 分 · {fmtDist(leg.distance_m)}
+                  <span style={{ fontSize: 15 }}>🚶</span> {leg.duration_minutes} 分 · {fmtDist(leg.distance_m)}
                 </div>
               </div>
             )}

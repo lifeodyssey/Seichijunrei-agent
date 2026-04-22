@@ -52,8 +52,8 @@ function haversineKm(
 function DragGrip() {
   return (
     <div
-      className="flex shrink-0 cursor-grab flex-col gap-[3px]"
-      style={{ color: "var(--color-muted-fg)" }}
+      className="flex shrink-0 cursor-grab flex-col gap-[3px] transition-opacity duration-150"
+      style={{ color: "oklch(60% 0.148 240 / 0.25)" }}
       aria-hidden
     >
       {[0, 1, 2].map((row) => (
@@ -102,10 +102,10 @@ function SortableItem({ point, index, onRemove }: SortableItemProps) {
       style={style}
       className="group flex items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5"
     >
-      {/* Drag handle */}
+      {/* Drag handle — Fix 8: always-visible grip, animated on hover */}
       <button
         type="button"
-        className="flex h-[44px] w-5 shrink-0 cursor-grab items-center justify-center active:cursor-grabbing"
+        className="grip-handle flex h-[44px] w-5 shrink-0 cursor-grab items-center justify-center active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
@@ -226,6 +226,11 @@ export default function RouteConfirm({
 
   return (
     <div className="flex h-full flex-col bg-[var(--color-bg)]">
+      {/* Fix 8: grip hover animation */}
+      <style>{`
+        .group:hover .grip-handle > div { color: oklch(60% 0.148 240 / 0.6) !important; }
+      `}</style>
+
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="flex shrink-0 items-center border-b border-[var(--color-border)] px-4 py-3">
         <button
@@ -302,21 +307,43 @@ export default function RouteConfirm({
         )}
       </div>
 
-      {/* ── Summary + confirm ───────────────────────────────────────── */}
+      {/* ── Summary + confirm — Fix 9 & 10 ──────────────────────────── */}
       <div className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-4">
-        <p
-          className="mb-3 text-center text-sm text-[var(--color-muted-fg)]"
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          {orderedPoints.length} 个圣地 · 预计 {totalDistanceKm.toFixed(1)}km
-        </p>
+        <div className="mb-3 text-center">
+          <div
+            className="font-[family-name:var(--app-font-display)] text-[var(--color-fg)]"
+            style={{ fontSize: 14 }}
+          >
+            {orderedPoints.length} 个圣地等你探访
+          </div>
+          <div
+            className="mt-0.5 text-[var(--color-muted-fg)]"
+            style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}
+          >
+            预计步行 {totalDistanceKm.toFixed(1)}km，约 {Math.max(1, Math.round((totalDistanceKm / 4) * 60))} 分钟可以走完
+          </div>
+        </div>
         <button
           type="button"
           onClick={handleConfirm}
           disabled={!canConfirm}
-          className="flex h-[44px] w-full items-center justify-center rounded-[var(--r-md)] bg-[var(--color-primary)] text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex h-[44px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          开始规划
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+          </svg>
+          开始规划路线
         </button>
       </div>
     </div>

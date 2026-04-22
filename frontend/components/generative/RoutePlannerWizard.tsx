@@ -17,9 +17,9 @@ const LazyBaseMap = dynamic(() => import("../map/BaseMap"), { ssr: false });
 // ---------------------------------------------------------------------------
 
 const PACE_OPTIONS = [
-  { key: "chill" as const, label: "悠闲" },
-  { key: "normal" as const, label: "正常" },
-  { key: "packed" as const, label: "紧凑" },
+  { key: "chill" as const, label: "悠闲", desc: "各地点 45 分" },
+  { key: "normal" as const, label: "正常", desc: "各地点 30 分" },
+  { key: "packed" as const, label: "紧凑", desc: "各地点 15 分" },
 ];
 
 const EMPTY_ITINERARY: TimedItinerary = {
@@ -116,89 +116,80 @@ export default function RoutePlannerWizard({
               编辑
             </button>
           )}
-          <div className="flex items-center gap-2 font-[family-name:var(--app-font-display)] text-sm font-semibold text-[var(--color-fg)]">
+          <div className="flex items-center gap-3">
             {coverUrl && (
               <img
                 src={coverUrl}
                 alt=""
-                width={28}
-                height={28}
-                className="rounded-[var(--r-sm)] object-cover"
-                style={{ width: 28, height: 28 }}
+                width={40}
+                height={40}
+                className="rounded-[var(--r-md)] object-cover"
+                style={{ width: 40, height: 40 }}
               />
             )}
-            {animeTitle}
+            <div className="min-w-0">
+              <div
+                className="truncate font-[family-name:var(--app-font-display)] text-[var(--color-fg)]"
+                style={{ fontSize: 16, fontWeight: 700 }}
+              >
+                {animeTitle}
+              </div>
+              {points[0]?.title && points[0]?.title_cn && points[0].title !== points[0].title_cn && (
+                <div className="truncate text-xs text-[var(--color-muted-fg)]">
+                  {points[0].title}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Stats bar */}
-        <div className="flex shrink-0 items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-xs text-[var(--color-muted-fg)]">
-          <span>
-            <span
-              className="font-semibold text-[var(--color-fg)]"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {spotCount}
-            </span>{" "}
-            站
-          </span>
-          <div
-            className="bg-[var(--color-border)]"
-            style={{ width: 1, height: 16 }}
-          />
-          <span>
-            <span
-              className="font-semibold text-[var(--color-fg)]"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {distKm}
-            </span>{" "}
-            km
-          </span>
-          <div
-            className="bg-[var(--color-border)]"
-            style={{ width: 1, height: 16 }}
-          />
-          <span>
-            <span
-              className="font-semibold text-[var(--color-fg)]"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {hours}:{String(mins).padStart(2, "0")}
-            </span>{" "}
-            小时
-          </span>
-          <div
-            className="bg-[var(--color-border)]"
-            style={{ width: 1, height: 16 }}
-          />
-          <span>
-            <span
-              className="font-semibold text-[var(--color-fg)]"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {walkMin}
-            </span>{" "}
-            分步行
-          </span>
-
-          {/* Pace toggle */}
-          <div className="ml-auto flex gap-1">
-            {PACE_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setPacing(opt.key)}
-                className={`rounded-[var(--r-md)] border text-xs font-medium ${
-                  pacing === opt.key
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-                    : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted-fg)]"
-                }`}
-                style={{ padding: "4px 12px", minHeight: 44 }}
+        {/* Stats bar — narrative headline */}
+        <div
+          className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-card)]"
+          style={{ padding: "12px 16px" }}
+        >
+          <div className="flex items-end justify-between gap-4">
+            <div className="min-w-0">
+              <div
+                className="font-[family-name:var(--app-font-display)] text-[var(--color-fg)]"
+                style={{ fontSize: 16, fontWeight: 600 }}
               >
-                {opt.label}
-              </button>
-            ))}
+                {spotCount} 站の巡礼
+              </div>
+              <div
+                className="mt-0.5 text-[var(--color-muted-fg)]"
+                style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
+              >
+                約 {hours}時間{String(mins).padStart(2, "0")}分 · {distKm}km · 步行{walkMin}分
+              </div>
+            </div>
+
+            {/* Pace toggle */}
+            <div className="shrink-0">
+              <div className="flex gap-1">
+                {PACE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setPacing(opt.key)}
+                    className={`rounded-[var(--r-md)] border text-xs font-medium ${
+                      pacing === opt.key
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+                        : "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted-fg)]"
+                    }`}
+                    style={{ padding: "4px 12px", minHeight: 44 }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="mt-1 text-right text-[var(--color-muted-fg)]"
+                style={{ fontSize: 11 }}
+              >
+                {PACE_OPTIONS.find((o) => o.key === pacing)?.desc}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -227,7 +218,7 @@ export default function RoutePlannerWizard({
             className="rounded-[var(--r-md)] border border-[var(--color-border)] bg-transparent text-sm text-[var(--color-muted-fg)]"
             style={{ height: 36, minWidth: 44, padding: "0 12px" }}
           >
-            .ics
+            导出日历
           </button>
           {onExpandChat && (
             <button
