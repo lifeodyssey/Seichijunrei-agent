@@ -11,7 +11,7 @@ import SourceBadge from "./SourceBadge";
 
 function PilgrimageCard({
   point,
-  idx,
+  idx: _idx,
   episodeLabel,
   selected,
   onToggle,
@@ -26,9 +26,6 @@ function PilgrimageCard({
 
   // Treat empty string as absent — same as null for rendering purposes.
   const hasImage = Boolean(point.screenshot_url) && !imgError;
-
-  // City display: fall back to "---" when origin is null or empty.
-  const cityLabel = point.origin || "---";
 
   return (
     <button

@@ -1,6 +1,7 @@
 "use client";
 
 import type { TimedItinerary, TimedStop, TransitLeg } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +41,7 @@ export default function RouteTimeline({
   activeStopId,
   onStopClick,
 }: RouteTimelineProps) {
+  const { route: rt } = useDict();
   const { stops, legs } = itinerary;
 
   return (
@@ -140,7 +142,7 @@ export default function RouteTimeline({
                 </div>
                 <div className="mb-1.5 text-xs text-[var(--color-muted-fg)]">
                   {episode != null ? `EP ${episode} · ` : ""}
-                  {stop.photo_count} 个圣地
+                  {rt.timeline_spots.replace("{count}", String(stop.photo_count))}
                 </div>
                 {photoUrl && (
                   <img
@@ -208,10 +210,10 @@ export default function RouteTimeline({
                   style={{ background: "var(--color-walk-bg, oklch(89% 0.04 145))", cursor: "pointer" }}
                 >
                   <p style={{ fontSize: 13, fontWeight: 500, color: "var(--color-walk-fg, oklch(30% 0.10 145))", marginBottom: 2 }}>
-                    📍 附近还有其他动漫圣地
+                    {rt.timeline_nearby}
                   </p>
                   <p style={{ fontSize: 12, color: "var(--color-muted-fg)" }}>
-                    途中可能会经过其他作品的取景地
+                    {rt.timeline_nearby_sub}
                   </p>
                 </div>
               </div>

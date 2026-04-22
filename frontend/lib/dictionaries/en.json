@@ -146,7 +146,20 @@
     "no_results": "Could not create a route.",
     "spots": "{count} stops",
     "no_coords": "⚠ {count} missing coordinates",
-    "episode": "Ep. {ep}"
+    "episode": "Ep. {ep}",
+    "back_edit": "Edit",
+    "pilgrimage_title": "{count}-stop pilgrimage",
+    "stats_detail": "~{h}h {m}min · {d}km · {w}min walk",
+    "pace_chill": "Chill",
+    "pace_normal": "Normal",
+    "pace_packed": "Packed",
+    "pace_desc": "{min} min per stop",
+    "export_gmaps": "Open in Google Maps",
+    "export_ics": "Export calendar",
+    "chat_label": "Chat",
+    "timeline_spots": "{count} spots",
+    "timeline_nearby": "📍 Other anime spots nearby",
+    "timeline_nearby_sub": "You may pass locations from other series along the way"
   },
   "selection": {
     "count": "{count} selected",
@@ -184,6 +197,37 @@
     "denied": "Location access denied",
     "timeout": "Location request timed out",
     "not_supported": "Your browser does not support geolocation"
+  },
+  "spot_detail": {
+    "back": "Back",
+    "episode": "Ep. {ep}",
+    "address_label": "📍 Address:",
+    "timestamp_label": "📸 Screenshot time:",
+    "select": "Select this spot",
+    "selected": "✓ Selected",
+    "view_on_map": "View on map",
+    "nearby_title": "Nearby spots"
+  },
+  "route_confirm": {
+    "back": "Back to selection",
+    "title": "Confirm Route",
+    "departure_label": "Departure station",
+    "departure_placeholder": "Enter departure station name",
+    "empty": "All spots removed — go back to reselect",
+    "removed": "Removed \"{name}\"",
+    "undo": "Undo",
+    "summary": "{count} spots waiting for you",
+    "estimate": "~{distance}km walk, about {time} min",
+    "start": "Start Route Planning"
+  },
+  "chat_popup": {
+    "continue": "Continue chat…",
+    "title": "Chat"
+  },
+  "nearby": {
+    "summary": "Found {total} spots from {count} anime within {radius}",
+    "spots_distance": "{spotCount} spots · nearest {dist}",
+    "view_all": "View all {total} spots"
   },
   "clarification": {
     "examples_label": "For example:",

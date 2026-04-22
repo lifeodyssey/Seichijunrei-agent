@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useMediaQuery } from "./useMediaQuery";
 
 // ---------------------------------------------------------------------------
@@ -56,10 +56,14 @@ export function useLayoutMode(hasVisualResult: boolean, resetKey?: unknown): Lay
   const mode = userOverride ?? autoMode;
 
   // Clear override when result state changes or active result switches.
-  useEffect(() => {
-    setUserOverride(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasVisualResult, resetKey]);
+  // Track previous values in state to avoid useEffect + setState.
+  const [prevHasVisual, setPrevHasVisual] = useState(hasVisualResult);
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevHasVisual !== hasVisualResult || prevResetKey !== resetKey) {
+    setPrevHasVisual(hasVisualResult);
+    setPrevResetKey(resetKey);
+    if (userOverride !== null) setUserOverride(null);
+  }
 
   const setMode = useCallback((m: LayoutMode) => setUserOverride(m), []);
   const collapseResult = useCallback(() => setUserOverride("chat"), []);

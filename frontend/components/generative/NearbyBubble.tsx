@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
 import { groupByAnime, CHIP_COLORS } from "./NearbyChips";
 
 interface NearbyBubbleProps {
@@ -15,6 +16,7 @@ interface AnimeCardProps {
   closestDistance: number;
   colorIndex: number;
   imageUrl: string | null;
+  spotsDistanceLabel: string;
   onClick: () => void;
 }
 
@@ -33,6 +35,7 @@ function AnimeNearbyCard({
   closestDistance,
   colorIndex,
   imageUrl,
+  spotsDistanceLabel,
   onClick,
 }: AnimeCardProps) {
   const [imgError, setImgError] = useState(false);
@@ -68,7 +71,7 @@ function AnimeNearbyCard({
           {title}
         </span>
         <span className="text-xs text-[var(--color-muted-fg)]">
-          {spotCount} 个圣地 · 最近 {formatDistance(closestDistance)}
+          {spotsDistanceLabel}
         </span>
       </span>
       <span className="shrink-0 text-sm text-[var(--color-muted-fg)]" aria-hidden="true">
@@ -79,6 +82,7 @@ function AnimeNearbyCard({
 }
 
 export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
+  const { nearby: nt } = useDict();
   const points = data.results.rows;
 
   const groupsWithDistance = useMemo(() => {
@@ -113,7 +117,10 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
   return (
     <div>
       <p className="text-sm font-light leading-loose text-[var(--color-fg)]">
-        附近 {radius} 内找到了 {groupsWithDistance.length} 部动漫的 {total} 个圣地
+        {nt.summary
+          .replace("{radius}", radius)
+          .replace("{count}", String(groupsWithDistance.length))
+          .replace("{total}", String(total))}
       </p>
 
       <div className="mt-3 flex flex-col gap-2">
@@ -125,6 +132,9 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
             closestDistance={group.closestDistance}
             colorIndex={group.color_index}
             imageUrl={group.imageUrl}
+            spotsDistanceLabel={nt.spots_distance
+              .replace("{spotCount}", String(group.points_count))
+              .replace("{dist}", formatDistance(group.closestDistance))}
             onClick={() => onSuggest?.(`搜索 ${group.title} 附近的圣地`)}
           />
         ))}
@@ -139,7 +149,7 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-white">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </span>
-        <span className="flex-1 text-left text-sm text-[var(--color-fg)]">查看全部 {total} 个圣地</span>
+        <span className="flex-1 text-left text-sm text-[var(--color-fg)]">{nt.view_all.replace("{total}", String(total))}</span>
         <span className="text-sm text-[var(--color-muted-fg)]">→</span>
       </button>
     </div>

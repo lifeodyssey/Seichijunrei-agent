@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { PilgrimagePoint } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
 
 // ---------------------------------------------------------------------------
 // Lazy BaseMap — Mapbox GL requires window
@@ -68,6 +69,8 @@ export default function SpotDetail({
   isSelected,
   nearbyPoints,
 }: SpotDetailProps) {
+  const { spot_detail: t } = useDict();
+
   // 5 closest other points, sorted by distance
   const nearby = useMemo(() => {
     if (!nearbyPoints) return [];
@@ -95,7 +98,7 @@ export default function SpotDetail({
           style={{ minHeight: 44 }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-          返回
+          {t.back}
         </button>
 
         {/* Large screenshot */}
@@ -127,13 +130,13 @@ export default function SpotDetail({
         {/* Anime info */}
         <p className="mt-1 text-[14px] text-[var(--color-muted-fg)]">
           {point.title_cn || point.title || ""}
-          {point.episode != null ? ` · 第${point.episode}話` : ""}
+          {point.episode != null ? ` · ${t.episode.replace("{ep}", String(point.episode))}` : ""}
         </p>
 
         {/* Address */}
         {point.address && (
           <p className="mt-2 text-[12px] text-[var(--color-muted-fg)]">
-            📍 地址: {point.address}
+            {t.address_label} {point.address}
           </p>
         )}
 
@@ -142,7 +145,7 @@ export default function SpotDetail({
           className="mt-1 text-[12px] text-[var(--color-muted-fg)]"
           style={{ fontVariantNumeric: "tabular-nums" }}
         >
-          📸 截图时间: {formatTime(point.time_seconds)}
+          {t.timestamp_label} {formatTime(point.time_seconds)}
         </p>
 
         {/* Action buttons */}
@@ -156,7 +159,7 @@ export default function SpotDetail({
                 : "flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90"
             }
           >
-            {isSelected && "✓ "}选择此圣地
+            {isSelected ? t.selected : t.select}
           </button>
 
           <a
@@ -165,7 +168,7 @@ export default function SpotDetail({
             rel="noopener noreferrer"
             className="flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] border border-[var(--color-border)] px-5 text-sm font-medium text-[var(--color-fg)] transition-colors hover:bg-[var(--color-muted)]"
           >
-            在地图中查看
+            {t.view_on_map}
           </a>
         </div>
       </div>
@@ -188,7 +191,7 @@ export default function SpotDetail({
               className="text-[13px] font-semibold text-[var(--color-fg)]"
               style={{ fontFamily: "var(--app-font-display)" }}
             >
-              附近的其他圣地
+              {t.nearby_title}
             </h3>
             <ul className="mt-2 flex flex-col gap-1.5">
               {nearby.map((p) => (
