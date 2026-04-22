@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Refinement — 4 Variants</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&display=swap");
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --brand:oklch(58% 0.19 28);
+  --brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);
+  --int-fg:oklch(99% 0.004 220);
+  --int-soft:oklch(93% 0.025 240);
+  --bg:oklch(98% 0.008 218);
+  --fg:oklch(20% 0.025 238);
+  --card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);
+  --muted-fg:oklch(45% 0.032 228);
+  --border:oklch(85% 0.022 222);
+  --r-sm:4px;--r-md:8px;--r-lg:12px;
+  --font-display:"Shippori Mincho B1",Georgia,serif;
+  --font-body:"Noto Sans SC","Outfit",system-ui,sans-serif;
+}
+
+html{overflow-y:auto;overflow-x:hidden}
+body{font-family:var(--font-body);font-weight:300;background:var(--bg);color:var(--fg);min-height:100vh}
+
+/* ═══ Board Layout ═══ */
+.board-header{
+  max-width:1200px;margin:0 auto;padding:40px 32px 0;
+}
+.board-title{
+  font-family:var(--font-display);font-size:28px;font-weight:700;
+  color:var(--fg);letter-spacing:-0.02em;margin-bottom:6px;
+}
+.board-sub{
+  font-size:14px;color:var(--muted-fg);font-weight:300;line-height:1.6;
+  max-width:680px;margin-bottom:32px;
+}
+.board-grid{
+  max-width:1200px;margin:0 auto;padding:0 32px 48px;
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+}
+.variant-cell{
+  border:1px solid var(--border);border-radius:var(--r-lg);
+  background:white;overflow:hidden;
+}
+.variant-head{
+  display:flex;align-items:baseline;gap:10px;
+  padding:16px 20px 12px;border-bottom:1px solid var(--border);
+}
+.variant-letter{
+  font-family:var(--font-display);font-size:22px;font-weight:800;
+  color:var(--int);line-height:1;
+}
+.variant-name{
+  font-family:var(--font-display);font-size:15px;font-weight:600;
+  color:var(--fg);
+}
+.variant-body{
+  padding:16px 20px 20px;display:flex;flex-direction:column;gap:20px;
+}
+
+/* ═══ State Label ═══ */
+.state-row{display:flex;flex-direction:column;gap:6px}
+.state-label{
+  font-size:11px;font-weight:500;color:var(--muted-fg);
+  text-transform:uppercase;letter-spacing:0.06em;
+}
+
+/* ═══ Mini Page Frame ═══ */
+.mini-page{
+  border:1px solid var(--border);border-radius:var(--r-md);
+  overflow:hidden;background:var(--bg);
+}
+.mini-shell{display:flex;height:auto}
+.mini-sidebar{
+  width:32px;min-width:32px;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:3px;
+  background:var(--bg);
+}
+.mini-sb-logo{
+  width:22px;height:22px;border-radius:6px;background:var(--brand-soft);
+  display:flex;align-items:center;justify-content:center;margin-bottom:6px;
+}
+.mini-sb-logo svg{width:12px;height:12px}
+.mini-sb-dot{width:16px;height:16px;border-radius:4px;background:var(--muted)}
+.mini-sb-dot.active{background:var(--int-soft)}
+.mini-main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ═══ Toolbar Row ═══ */
+.mini-toolbar{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;border-bottom:1px solid var(--border);
+  flex-shrink:0;min-height:32px;position:relative;
+}
+.mini-chip{
+  padding:3px 8px;border-radius:var(--r-sm);font-size:10px;font-weight:500;
+  border:1px solid var(--border);background:var(--bg);color:var(--muted-fg);
+  white-space:nowrap;flex-shrink:0;
+}
+.mini-chip.active{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.mini-chip.ai-active{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.mini-view-toggle{
+  display:flex;margin-left:auto;border-radius:var(--r-sm);overflow:hidden;
+  border:1px solid var(--border);flex-shrink:0;
+}
+.mini-view-toggle span{
+  padding:3px 8px;font-size:9px;font-weight:500;
+  background:var(--bg);color:var(--muted-fg);
+}
+.mini-view-toggle span.active{background:var(--int);color:white}
+
+/* ═══ Photo Grid ═══ */
+.mini-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  padding:8px 10px;
+}
+.mini-grid.two-col{grid-template-columns:repeat(2,1fr)}
+.mini-card{
+  border-radius:var(--r-sm);overflow:hidden;position:relative;
+  border:1px solid var(--border);
+}
+.mini-card img{
+  width:100%;aspect-ratio:4/3;object-fit:cover;display:block;
+  background:var(--muted);
+}
+.mini-card-bar{
+  position:absolute;bottom:0;left:0;right:0;height:18px;
+  background:oklch(20% 0.02 238/.65);
+  display:flex;align-items:center;justify-content:space-between;padding:0 4px;
+}
+.mini-card-name{font-size:8px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
+.mini-card-ep{font-size:8px;color:rgba(255,255,255,.7)}
+.mini-card.dim{opacity:.35}
+
+/* ═══ Selection Bar ═══ */
+.mini-selbar{
+  display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-top:1px solid var(--border);background:var(--card);
+}
+.mini-selbar-text{font-size:9px;font-weight:500;color:var(--fg)}
+.mini-selbar-btn{
+  margin-left:auto;padding:3px 10px;border-radius:var(--r-sm);
+  background:var(--int);color:white;font-size:9px;font-weight:600;border:none;
+}
+
+/* ═══ Variant A specifics ═══ */
+.ghost-input{
+  display:flex;align-items:center;gap:4px;
+  color:var(--muted-fg);font-size:10px;cursor:pointer;
+  flex-shrink:0;white-space:nowrap;
+}
+.ghost-input svg{width:12px;height:12px;flex-shrink:0;opacity:.5}
+.ghost-input span{opacity:.6}
+
+.a-expanded-input{
+  flex:1;display:flex;align-items:center;gap:4px;min-width:0;
+}
+.a-expanded-input .field{
+  flex:1;height:22px;border:none;border-bottom:2px solid var(--int);
+  background:transparent;font-size:10px;color:var(--fg);
+  font-family:var(--font-body);padding:0 2px;
+}
+.a-send-btn{
+  width:20px;height:20px;border-radius:50%;background:var(--int);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;border:none;
+}
+.a-send-btn svg{width:10px;height:10px}
+.a-cancel{font-size:9px;color:var(--muted-fg);flex-shrink:0;white-space:nowrap}
+
+.ai-annotation{
+  font-size:8px;color:var(--muted-fg);font-weight:400;
+  margin-left:2px;white-space:nowrap;
+}
+
+/* ═══ Variant B specifics ═══ */
+.cmd-strip{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;background:var(--card);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+  min-height:26px;
+}
+.cmd-strip-ghost{
+  display:flex;align-items:center;gap:4px;flex:1;
+}
+.cmd-strip-ghost svg{width:12px;height:12px;color:var(--muted-fg);flex-shrink:0}
+.cmd-strip-ghost span{font-size:10px;color:var(--muted-fg);opacity:.6}
+.cmd-kbd{
+  padding:1px 5px;border-radius:3px;background:var(--muted);
+  font-size:8px;font-weight:500;color:var(--muted-fg);
+  border:1px solid var(--border);font-family:var(--font-body);flex-shrink:0;
+}
+.cmd-strip.expanded{min-height:34px;padding:6px 10px}
+.cmd-strip-field{
+  flex:1;height:24px;border:1px solid var(--int);border-radius:var(--r-sm);
+  background:var(--bg);font-size:10px;color:var(--fg);padding:0 6px;
+  font-family:var(--font-body);
+}
+.cmd-strip .a-send-btn{width:22px;height:22px}
+
+.cmd-tag{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 8px;border-radius:var(--r-sm);
+  background:var(--int-soft);color:var(--int);
+  font-size:9px;font-weight:500;
+}
+.cmd-tag-x{
+  font-size:10px;cursor:pointer;opacity:.6;line-height:1;
+}
+
+/* ═══ Variant C specifics ═══ */
+.island-wrapper{position:relative;min-height:8px}
+.search-island{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:-4px;z-index:5;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:24px;box-shadow:0 2px 8px oklch(20% 0.02 238/.06);
+  display:flex;align-items:center;gap:4px;
+  padding:4px 12px;min-height:28px;
+  white-space:nowrap;
+}
+.search-island.default{width:140px;justify-content:center}
+.search-island.expanded{
+  width:320px;padding:4px 6px 4px 12px;
+  box-shadow:0 4px 16px oklch(20% 0.02 238/.1);
+}
+.search-island.result{width:170px;justify-content:center}
+.search-island svg{width:12px;height:12px;color:var(--muted-fg);flex-shrink:0}
+.search-island .ghost{font-size:10px;color:var(--muted-fg);opacity:.6}
+.search-island .island-field{
+  flex:1;height:22px;border:none;background:transparent;
+  font-size:10px;color:var(--fg);font-family:var(--font-body);
+  min-width:0;
+}
+.search-island .island-send{
+  width:22px;height:22px;border-radius:50%;background:var(--int);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;border:none;
+}
+.search-island .island-result{
+  font-size:10px;font-weight:500;color:var(--fg);
+}
+.search-island .island-clear{
+  font-size:12px;color:var(--muted-fg);cursor:pointer;margin-left:2px;
+}
+
+/* ═══ Variant D specifics ═══ */
+.d-icon-btn{
+  width:24px;height:24px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);background:var(--bg);
+  cursor:pointer;flex-shrink:0;
+}
+.d-icon-btn svg{width:12px;height:12px;color:var(--muted-fg)}
+
+.d-morph-toolbar{position:relative}
+.d-morph-toolbar .d-chips-behind{
+  display:flex;gap:6px;opacity:.2;filter:blur(1.5px);pointer-events:none;
+}
+.d-morph-input{
+  position:absolute;inset:0;display:flex;align-items:center;gap:6px;
+  padding:0 10px;
+}
+.d-morph-field{
+  flex:1;height:24px;border:1px solid var(--int);border-radius:var(--r-md);
+  background:var(--bg);font-size:10px;color:var(--fg);padding:0 8px;
+  font-family:var(--font-body);
+}
+.d-morph-cancel{font-size:9px;color:var(--muted-fg);white-space:nowrap;flex-shrink:0}
+
+.d-ai-badge{
+  font-size:8px;color:var(--muted-fg);font-weight:400;
+  padding:1px 4px;white-space:nowrap;flex-shrink:0;
+}
+
+/* ═══ Shared icon SVG ═══ */
+.icon-chat{display:inline-flex;align-items:center;justify-content:center}
+
+@media (max-width:900px){
+  .board-grid{grid-template-columns:1fr}
+  .board-header{padding:24px 16px 0}
+  .board-grid{padding:0 16px 32px}
+}
+</style>
+</head>
+<body>
+
+<header class="board-header">
+  <h1 class="board-title">Chat Refinement — 4 Variants</h1>
+  <p class="board-sub">
+    搜索结果页的自然语言筛选入口。解决浮动按钮遮挡问题，将输入融入页面布局。<br>
+    每个方案展示三个状态：默认 → 展开 → 筛选后。
+  </p>
+</header>
+
+<div class="board-grid">
+
+<!-- ════════════════════════════════════════════ -->
+<!-- VARIANT A: Quiet Inline                      -->
+<!-- ════════════════════════════════════════════ -->
+<div class="variant-cell">
+  <div class="variant-head">
+    <span class="variant-letter">A</span>
+    <span class="variant-name">Quiet Inline</span>
+  </div>
+  <div class="variant-body">
+
+    <!-- State 1: Default -->
+    <div class="state-row">
+      <span class="state-label">默认</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="ghost-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>继续筛选…</span>
+              </div>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: Focused -->
+    <div class="state-row">
+      <span class="state-label">展开</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <div class="a-expanded-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--int)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <div class="field" style="flex:1;height:22px;border:none;border-bottom:2px solid var(--int);background:transparent;font-size:10px;color:var(--fg);display:flex;align-items:center;padding:0 2px">只看第8集的</div>
+                <button class="a-send-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+                <span class="a-cancel">取消</span>
+              </div>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: After Refinement -->
+    <div class="state-row">
+      <span class="state-label">筛选后</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <span class="mini-chip ai-active">EP 8</span>
+              <span class="ai-annotation">← AI 筛选</span>
+              <div class="ghost-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>继续筛选…</span>
+              </div>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid" style="grid-template-columns:repeat(4,1fr)">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">六地蔵駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- VARIANT B: Command Strip                     -->
+<!-- ════════════════════════════════════════════ -->
+<div class="variant-cell">
+  <div class="variant-head">
+    <span class="variant-letter">B</span>
+    <span class="variant-name">Command Strip</span>
+  </div>
+  <div class="variant-body">
+
+    <!-- State 1: Default -->
+    <div class="state-row">
+      <span class="state-label">默认</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="cmd-strip">
+              <div class="cmd-strip-ghost">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>输入筛选条件…</span>
+              </div>
+              <span class="cmd-kbd">&#8984;K</span>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: Focused -->
+    <div class="state-row">
+      <span class="state-label">展开</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="cmd-strip expanded">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--int)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <input class="cmd-strip-field" type="text" value="只看第8集的" readonly>
+              <button class="a-send-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: After Refinement -->
+    <div class="state-row">
+      <span class="state-label">筛选后</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="cmd-strip">
+              <div class="cmd-tag">
+                AI: 只看第8集
+                <span class="cmd-tag-x">&times;</span>
+              </div>
+            </div>
+            <div class="mini-grid" style="grid-template-columns:repeat(4,1fr)">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">六地蔵駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- VARIANT C: Search Island                     -->
+<!-- ════════════════════════════════════════════ -->
+<div class="variant-cell">
+  <div class="variant-head">
+    <span class="variant-letter">C</span>
+    <span class="variant-name">Search Island</span>
+  </div>
+  <div class="variant-body">
+
+    <!-- State 1: Default -->
+    <div class="state-row">
+      <span class="state-label">默认</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="island-wrapper" style="height:20px">
+              <div class="search-island default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="ghost">筛选…</span>
+              </div>
+            </div>
+            <div class="mini-grid" style="padding-top:14px">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: Focused -->
+    <div class="state-row">
+      <span class="state-label">展开</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="island-wrapper" style="height:24px">
+              <div class="search-island expanded">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--int)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <div class="island-field" style="flex:1;font-size:10px;color:var(--fg);display:flex;align-items:center">只看第8集的</div>
+                <button class="island-send"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+              </div>
+            </div>
+            <div class="mini-grid" style="padding-top:14px">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: After Refinement -->
+    <div class="state-row">
+      <span class="state-label">筛选后</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="island-wrapper" style="height:20px">
+              <div class="search-island result">
+                <span class="island-result">EP 8 &middot; 2个结果</span>
+                <span class="island-clear">&times;</span>
+              </div>
+            </div>
+            <div class="mini-grid" style="padding-top:14px;grid-template-columns:repeat(4,1fr)">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">六地蔵駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- VARIANT D: Toolbar Morph                     -->
+<!-- ════════════════════════════════════════════ -->
+<div class="variant-cell">
+  <div class="variant-head">
+    <span class="variant-letter">D</span>
+    <span class="variant-name">Toolbar Morph</span>
+  </div>
+  <div class="variant-body">
+
+    <!-- State 1: Default -->
+    <div class="state-row">
+      <span class="state-label">默认</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip active">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <div class="d-icon-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: Focused (morphed) -->
+    <div class="state-row">
+      <span class="state-label">展开</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar d-morph-toolbar" style="min-height:36px">
+              <div class="d-chips-behind">
+                <span class="mini-chip">すべて</span>
+                <span class="mini-chip">EP 1-4</span>
+                <span class="mini-chip">EP 5-8</span>
+              </div>
+              <div class="d-morph-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--int)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <input class="d-morph-field" type="text" value="只看第8集" readonly placeholder="例如：只看第8集 / 宇治附近的">
+                <button class="a-send-btn" style="width:22px;height:22px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+                <span class="d-morph-cancel">取消</span>
+              </div>
+              <div class="mini-view-toggle" style="position:relative;z-index:2">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">宇治橋</span><span class="mini-card-ep">EP5</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京阪宇治駅</span><span class="mini-card-ep">EP2</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">大吉山</span><span class="mini-card-ep">EP6</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">県神社</span><span class="mini-card-ep">EP4</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">朝霧橋</span><span class="mini-card-ep">EP7</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: After Refinement -->
+    <div class="state-row">
+      <span class="state-label">筛选后</span>
+      <div class="mini-page">
+        <div class="mini-shell">
+          <div class="mini-sidebar">
+            <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="12" height="12" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot"></div>
+            <div class="mini-sb-dot active"></div>
+          </div>
+          <div class="mini-main">
+            <div class="mini-toolbar">
+              <span class="mini-chip">すべて</span>
+              <span class="mini-chip">EP 1-4</span>
+              <span class="mini-chip">EP 5-8</span>
+              <span class="mini-chip ai-active">EP 8</span>
+              <span class="d-ai-badge">AI 筛选</span>
+              <div class="d-icon-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div class="mini-view-toggle">
+                <span class="active">Grid</span><span>Map</span>
+              </div>
+            </div>
+            <div class="mini-grid" style="grid-template-columns:repeat(4,1fr)">
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">黄檗駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">六地蔵駅</span><span class="mini-card-ep">EP8</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">あじろぎの道</span><span class="mini-card-ep">EP3</span></div></div>
+              <div class="mini-card dim"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="mini-card-bar"><span class="mini-card-name">京都コンサートホール</span><span class="mini-card-ep">EP1</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /board-grid -->
+
+</body>
+</html>

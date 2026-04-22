@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant C — Cinematic Warmth</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --brand:oklch(58% 0.19 28);--brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);--int-fg:oklch(99% 0.004 220);--int-soft:oklch(93% 0.025 240);
+  --bg:oklch(98% 0.008 218);--fg:oklch(20% 0.025 238);--card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);--muted-fg:oklch(45% 0.032 228);--border:oklch(85% 0.022 222);
+  --warm-overlay:oklch(30% 0.04 25/.45);--warm-shadow:oklch(30% 0.04 25/.1);--warm-bg:oklch(97% 0.006 25);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:"Noto Sans SC",system-ui,sans-serif;font-weight:300;background:var(--bg);color:var(--fg)}
+.shell{display:flex;height:100vh}
+
+/* Sidebar — warm */
+.sb{width:200px;min-width:200px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;background:var(--bg)}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:0 16px 20px}
+.sb-logo svg{flex-shrink:0}
+.sb-logo span{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:700;color:var(--fg)}
+.sb-nav{display:flex;flex-direction:column;gap:2px;padding:0 8px;flex:1}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;font-size:13px;color:var(--muted-fg);cursor:pointer;height:44px;transition:all .3s cubic-bezier(.16,1,.3,1)}
+.sb-item:hover{background:var(--warm-bg)}
+.sb-item.active{background:var(--brand-soft);color:oklch(45% 0.08 25);font-weight:500}
+.sb-icon{width:18px;height:18px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.sb-item.active .sb-icon{background:oklch(80% 0.06 25)}
+.sb-spacer{flex:1}
+.sb-collapse{padding:8px 16px;font-size:11px;color:var(--muted-fg);cursor:pointer;text-align:center}
+
+/* Content */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+.hdr{padding:24px 28px 8px}
+.hdr h1{font-family:"Shippori Mincho B1",serif;font-size:28px;font-weight:700}
+.hdr .sub{font-size:14px;color:var(--muted-fg);margin-top:4px}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.toggle{display:flex;background:var(--muted);border-radius:16px;padding:3px;gap:2px}
+.toggle-btn{padding:5px 16px;border:none;border-radius:14px;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted-fg);transition:all .3s}
+.toggle-btn.active{background:var(--bg);color:var(--fg);box-shadow:0 1px 4px var(--warm-shadow)}
+
+.filters{display:flex;gap:8px;padding:12px 28px 16px}
+.chip{padding:5px 16px;border-radius:16px;font-size:11px;font-weight:500;border:1px solid var(--border);background:var(--bg);color:var(--muted-fg);cursor:pointer;transition:all .3s}
+.chip:hover{box-shadow:0 2px 8px var(--warm-shadow)}
+.chip.active{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+
+/* Grid — CINEMATIC: 4 cols, warm photos */
+.grid-wrap{flex:1;overflow-y:auto;padding:0 24px 130px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{position:relative;border-radius:14px;overflow:hidden;cursor:pointer;transition:all .3s cubic-bezier(.16,1,.3,1)}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 32px var(--warm-shadow)}
+.card.hero{grid-column:1/3}
+.card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.card.hero img{aspect-ratio:16/9}
+
+/* Warm overlay on ALL photos */
+.card::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 40%,var(--warm-overlay));pointer-events:none;border-radius:14px}
+
+.card-info{position:absolute;bottom:0;left:0;right:0;padding:10px 14px;z-index:1;display:flex;align-items:flex-end;gap:8px}
+.card-pill{padding:3px 10px;border-radius:10px;background:oklch(98% 0.005 25/.85);backdrop-filter:blur(4px);font-size:14px;font-weight:500;color:oklch(25% 0.03 25)}
+.card-ep-pill{padding:2px 8px;border-radius:8px;background:oklch(20% 0.02 238/.5);font-size:11px;color:rgba(255,255,255,.85)}
+
+.card-check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2;opacity:0;transform:scale(.8);transition:all .2s}
+.card.selected .card-check{opacity:1;transform:scale(1)}
+.card.selected{box-shadow:0 0 0 3px oklch(60% 0.148 240/.3)}
+
+/* Selection bar — warm */
+.selbar{position:absolute;bottom:56px;left:0;right:0;display:flex;align-items:center;gap:12px;padding:12px 28px;background:var(--warm-bg);border-top:1px solid oklch(90% 0.01 25);border-radius:14px 14px 0 0;z-index:5}
+.selbar-count{font-size:14px;font-weight:500}
+.selbar-heart{font-size:16px;margin-left:4px}
+.selbar-btn{margin-left:auto;padding:10px 28px;border-radius:20px;border:none;background:var(--int);color:var(--int-fg);font-size:14px;font-weight:600;cursor:pointer;height:40px;transition:transform .15s}
+.selbar-btn:hover{transform:scale(1.02)}
+.selbar-clear{font-size:13px;color:var(--muted-fg);cursor:pointer;background:none;border:none}
+
+/* Chat toggle — warm */
+.chat-toggle{position:absolute;bottom:14px;left:28px;display:flex;align-items:center;gap:8px;padding:8px 18px;border-radius:20px;background:var(--warm-bg);border:1px solid oklch(90% 0.01 25);font-size:13px;font-weight:500;color:var(--fg);cursor:pointer;box-shadow:0 2px 12px var(--warm-shadow);z-index:5;transition:all .3s}
+.chat-toggle:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--warm-shadow)}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sb">
+    <div class="sb-logo">
+      <svg viewBox="0 0 72 72" width="28" height="28" fill="none">
+        <rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/>
+        <rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/>
+        <rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+        <rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+        <rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/>
+        <rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/>
+        <rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/>
+        <rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/>
+        <rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/>
+      </svg>
+      <span>聖地巡礼</span>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-item"><div class="sb-icon"></div>New Chat</div>
+      <div class="sb-item active"><div class="sb-icon"></div>Search</div>
+      <div class="sb-item"><div class="sb-icon"></div>My Routes</div>
+      <div class="sb-item"><div class="sb-icon"></div>Favorites</div>
+      <div class="sb-item"><div class="sb-icon"></div>History</div>
+      <div class="sb-spacer"></div>
+      <div class="sb-item"><div class="sb-icon"></div>Settings</div>
+    </nav>
+    <div class="sb-collapse">‹ Collapse</div>
+  </aside>
+
+  <main class="content">
+    <div class="hdr">
+      <h1>響け！ユーフォニアム</h1>
+      <div class="sub">宇治市, 京都 · 156 spots</div>
+      <div class="hdr-row">
+        <div class="toggle">
+          <button class="toggle-btn active">Grid</button>
+          <button class="toggle-btn">Map</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <span class="chip active">All</span>
+      <span class="chip">EP 1-4</span>
+      <span class="chip">EP 5-8</span>
+      <span class="chip">EP 9-12</span>
+      <span class="chip">EP 13-16</span>
+    </div>
+
+    <div class="grid-wrap">
+      <div class="grid">
+        <div class="card hero selected"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">京都コンサートホール</span><span class="card-ep-pill">EP 1</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">あじろぎの道</span><span class="card-ep-pill">EP 1</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">莵道高</span><span class="card-ep-pill">EP 1</span></div><div class="card-check">✓</div></div>
+        <div class="card selected"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">宇治橋</span><span class="card-ep-pill">EP 2</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">中書島駅</span><span class="card-ep-pill">EP 3</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">平等院表参道</span><span class="card-ep-pill">EP 3</span></div><div class="card-check">✓</div></div>
+        <div class="card selected"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">朝霧橋</span><span class="card-ep-pill">EP 5</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">興聖寺</span><span class="card-ep-pill">EP 6</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">県神社</span><span class="card-ep-pill">EP 8</span></div><div class="card-check">✓</div></div>
+        <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-info"><span class="card-pill">大吉山展望台</span><span class="card-ep-pill">EP 8</span></div><div class="card-check">✓</div></div>
+      </div>
+    </div>
+
+    <div class="selbar">
+      <span class="selbar-count">3 spots selected</span>
+      <span class="selbar-heart">❤️</span>
+      <button class="selbar-btn">Plan Route</button>
+      <button class="selbar-clear">Clear</button>
+    </div>
+    <div class="chat-toggle">💬 Chat</div>
+  </main>
+</div>
+</body>
+</html>

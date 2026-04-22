@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聖地巡礼 — Nearby Discovery & Clarification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: oklch(98% 0.008 218);
+      --fg: oklch(20% 0.025 238);
+      --card: oklch(95% 0.012 215);
+      --muted: oklch(91% 0.016 218);
+      --muted-fg: oklch(45% 0.032 228);
+      --border: oklch(85% 0.022 222);
+      --primary: oklch(60% 0.148 240);
+      --primary-fg: oklch(99% 0.004 220);
+
+      --pin-green: oklch(55% 0.12 145);
+      --pin-orange: oklch(55% 0.12 55);
+
+      --font-display: "Shippori Mincho B1", serif;
+      --font-body: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 60px 24px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Section dividers */
+    .section-divider {
+      text-align: center;
+      margin: 60px 0 40px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .section-divider:first-child {
+      margin-top: 0;
+    }
+
+    .section-divider h2 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--fg);
+      letter-spacing: 0.02em;
+    }
+
+    .section-divider p {
+      font-size: 14px;
+      color: var(--muted-fg);
+      margin-top: 6px;
+    }
+
+    /* App frame */
+    .app-frame {
+      width: 100%;
+      max-width: 960px;
+      height: 620px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      background: var(--bg);
+      box-shadow: 0 4px 24px oklch(20% 0.025 238 / 0.06);
+      position: relative;
+    }
+
+    /* Icon sidebar */
+    .sidebar {
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 4px;
+    }
+
+    .sidebar-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 150ms ease;
+      position: relative;
+      color: var(--muted-fg);
+    }
+
+    .sidebar-icon:hover {
+      background: var(--muted);
+    }
+
+    .sidebar-icon.active {
+      background: oklch(60% 0.148 240 / 0.1);
+      color: var(--primary);
+    }
+
+    .sidebar-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sidebar-icon .tooltip {
+      position: absolute;
+      left: 56px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--fg);
+      color: var(--primary-fg);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease;
+    }
+
+    .sidebar-icon:hover .tooltip {
+      opacity: 1;
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+    }
+
+    /* Main content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ============================
+       SECTION 1: NEARBY DISCOVERY
+       ============================ */
+
+    /* Map area */
+    .map-area {
+      flex: 1;
+      position: relative;
+      background:
+        radial-gradient(ellipse at 30% 40%, oklch(92% 0.02 180 / 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, oklch(90% 0.015 200 / 0.25) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, oklch(93% 0.01 160 / 0.2) 0%, transparent 40%),
+        radial-gradient(ellipse at 20% 70%, oklch(94% 0.008 220 / 0.15) 0%, transparent 35%),
+        linear-gradient(180deg, oklch(96% 0.01 200) 0%, oklch(94% 0.012 210) 100%);
+      overflow: hidden;
+    }
+
+    /* Simulated roads/paths on map */
+    .map-area::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(0deg, transparent 49.5%, oklch(88% 0.01 218 / 0.4) 49.5%, oklch(88% 0.01 218 / 0.4) 50.5%, transparent 50.5%),
+        linear-gradient(90deg, transparent 49.5%, oklch(88% 0.01 218 / 0.4) 49.5%, oklch(88% 0.01 218 / 0.4) 50.5%, transparent 50.5%),
+        linear-gradient(45deg, transparent 49%, oklch(88% 0.01 218 / 0.2) 49%, oklch(88% 0.01 218 / 0.2) 51%, transparent 51%),
+        linear-gradient(-30deg, transparent 49%, oklch(88% 0.01 218 / 0.2) 49%, oklch(88% 0.01 218 / 0.2) 51%, transparent 51%);
+      pointer-events: none;
+    }
+
+    /* Filter chips overlay */
+    .filter-chips {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 296px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      z-index: 10;
+      padding: 10px 12px;
+      background: oklch(98% 0.008 218 / 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+    }
+
+    .filter-chip {
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      border: none;
+      transition: all 150ms ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-chip.active {
+      background: var(--primary);
+      color: var(--primary-fg);
+      box-shadow: 0 2px 8px oklch(60% 0.148 240 / 0.25);
+    }
+
+    .filter-chip:not(.active) {
+      background: oklch(99% 0.004 220);
+      color: var(--fg);
+      box-shadow: 0 1px 4px oklch(20% 0.025 238 / 0.08);
+    }
+
+    .filter-chip:not(.active):hover {
+      box-shadow: 0 2px 8px oklch(20% 0.025 238 / 0.12);
+    }
+
+    .filter-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    /* User location pulse */
+    .user-location {
+      position: absolute;
+      top: 50%;
+      left: 45%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+    }
+
+    .user-dot {
+      width: 14px;
+      height: 14px;
+      background: var(--primary);
+      border-radius: 50%;
+      border: 3px solid oklch(99% 0.004 220);
+      box-shadow: 0 2px 8px oklch(60% 0.148 240 / 0.4);
+      position: relative;
+      z-index: 2;
+    }
+
+    .user-pulse {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: oklch(60% 0.148 240 / 0.3);
+      animation: pulse 1.5s ease-out infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.5);
+      }
+    }
+
+    /* Map pins */
+    .map-pin {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: oklch(99% 0.004 220);
+      box-shadow: 0 2px 6px oklch(20% 0.025 238 / 0.2);
+      z-index: 4;
+      animation: pinPop 200ms var(--ease-out-expo) backwards;
+    }
+
+    .map-pin span {
+      transform: rotate(45deg);
+    }
+
+    .map-pin.blue { background: var(--primary); }
+    .map-pin.green { background: var(--pin-green); }
+    .map-pin.orange { background: var(--pin-orange); }
+
+    .map-pin:nth-child(1) { animation-delay: 0ms; }
+    .map-pin:nth-child(2) { animation-delay: 50ms; }
+    .map-pin:nth-child(3) { animation-delay: 100ms; }
+    .map-pin:nth-child(4) { animation-delay: 150ms; }
+    .map-pin:nth-child(5) { animation-delay: 200ms; }
+    .map-pin:nth-child(6) { animation-delay: 250ms; }
+    .map-pin:nth-child(7) { animation-delay: 300ms; }
+    .map-pin:nth-child(8) { animation-delay: 350ms; }
+
+    @keyframes pinPop {
+      from {
+        transform: rotate(-45deg) scale(0);
+        opacity: 0;
+      }
+      to {
+        transform: rotate(-45deg) scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* Right side panel */
+    .spots-panel {
+      width: 280px;
+      background: oklch(99% 0.004 220);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .spots-header {
+      padding: 20px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .spots-header h3 {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--fg);
+    }
+
+    .spots-header p {
+      font-size: 12px;
+      color: var(--muted-fg);
+      margin-top: 2px;
+    }
+
+    .spots-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+    }
+
+    .spots-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .spots-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .spots-list::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 2px;
+    }
+
+    .spot-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      min-height: 44px;
+      cursor: pointer;
+      transition: background 100ms ease;
+    }
+
+    .spot-card:hover {
+      background: var(--card);
+    }
+
+    .spot-checkbox {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 150ms ease;
+    }
+
+    .spot-card:hover .spot-checkbox {
+      border-color: var(--primary);
+    }
+
+    .spot-photo {
+      width: 56px;
+      height: 38px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .spot-photo-placeholder {
+      width: 56px;
+      height: 38px;
+      border-radius: 4px;
+      background: var(--muted);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted-fg);
+      font-size: 14px;
+    }
+
+    .spot-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .spot-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .spot-meta {
+      font-size: 11px;
+      color: var(--muted-fg);
+      margin-top: 1px;
+    }
+
+    .spot-distance {
+      font-size: 11px;
+      color: var(--primary);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* Floating chat bar */
+    .floating-chat {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-70%);
+      z-index: 10;
+      width: 280px;
+    }
+
+    .floating-chat input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0 16px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--fg);
+      background: oklch(99% 0.004 220);
+      box-shadow: 0 2px 12px oklch(20% 0.025 238 / 0.1);
+      outline: none;
+      transition: border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .floating-chat input::placeholder {
+      color: var(--muted-fg);
+      opacity: 0.7;
+    }
+
+    .floating-chat input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 2px 12px oklch(60% 0.148 240 / 0.15);
+    }
+
+    /* ============================
+       SECTION 2: CLARIFICATION
+       ============================ */
+
+    .clarification-frame .main-content {
+      position: relative;
+    }
+
+    .clarification-bg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      filter: blur(2px);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .clarification-bg .bg-mark {
+      font-family: var(--font-display);
+      font-size: 28px;
+      color: var(--fg);
+      margin-bottom: 8px;
+    }
+
+    .clarification-bg .bg-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      color: var(--fg);
+    }
+
+    .clarification-bg .bg-search {
+      width: 320px;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      margin-top: 16px;
+      background: oklch(99% 0.004 220);
+    }
+
+    /* Clarification content */
+    .clarification-content {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      width: 100%;
+      animation: slideUpFade 300ms var(--ease-out-expo) backwards;
+    }
+
+    @keyframes slideUpFade {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .clarification-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--fg);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .clarification-subtitle {
+      font-size: 13px;
+      color: var(--muted-fg);
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .candidate-cards {
+      display: flex;
+      gap: 20px;
+      max-width: 560px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .candidate-card {
+      flex: 1;
+      max-width: 260px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+      background: oklch(99% 0.004 220);
+      animation: slideUpFade 300ms var(--ease-out-expo) backwards;
+    }
+
+    .candidate-card:nth-child(1) { animation-delay: 100ms; }
+    .candidate-card:nth-child(2) { animation-delay: 200ms; }
+
+    .candidate-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px oklch(20% 0.025 238 / 0.1);
+    }
+
+    .candidate-cover {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+      background: var(--muted);
+    }
+
+    .candidate-cover-placeholder {
+      width: 100%;
+      height: 120px;
+      background: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: 32px;
+      color: var(--muted-fg);
+      opacity: 0.5;
+    }
+
+    .candidate-body {
+      padding: 14px 16px 16px;
+    }
+
+    .candidate-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: 4px;
+    }
+
+    .candidate-info {
+      font-size: 12px;
+      color: var(--muted-fg);
+      margin-bottom: 12px;
+    }
+
+    .candidate-btn {
+      display: inline-block;
+      padding: 7px 16px;
+      border: 1.5px solid var(--primary);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--primary);
+      background: transparent;
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .candidate-btn:hover {
+      background: var(--primary);
+      color: var(--primary-fg);
+    }
+
+    .clarification-all-link {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 150ms ease;
+    }
+
+    .clarification-all-link:hover {
+      opacity: 0.7;
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .map-pin {
+        animation: none;
+      }
+
+      .user-pulse {
+        animation: none;
+        display: none;
+      }
+
+      .clarification-content,
+      .candidate-card {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Section 1: Nearby Discovery -->
+  <div class="section-divider">
+    <h2>── Nearby Discovery ──</h2>
+    <p>User tapped "附近的圣地" and shared their location near 宇治駅</p>
+  </div>
+
+  <div class="app-frame">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="tooltip">Search</span>
+      </div>
+      <div class="sidebar-icon active">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="tooltip">Nearby</span>
+      </div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="tooltip">Routes</span>
+      </div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="tooltip">Collection</span>
+      </div>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="tooltip">Settings</span>
+      </div>
+    </nav>
+
+    <!-- Main content: Map + Panel -->
+    <div class="main-content">
+      <!-- Map area -->
+      <div class="map-area">
+        <!-- Filter chips -->
+        <div class="filter-chips">
+          <button class="filter-chip active">All</button>
+          <button class="filter-chip">
+            <span class="filter-dot" style="background: var(--primary)"></span>
+            響け！ユーフォニアム ×4
+          </button>
+          <button class="filter-chip">
+            <span class="filter-dot" style="background: var(--pin-green)"></span>
+            けいおん！ ×3
+          </button>
+          <button class="filter-chip">
+            <span class="filter-dot" style="background: var(--pin-orange)"></span>
+            たまこまーけっと ×1
+          </button>
+        </div>
+
+        <!-- User location -->
+        <div class="user-location">
+          <div class="user-pulse"></div>
+          <div class="user-dot"></div>
+        </div>
+
+        <!-- Map pins - Blue (Euphonium) -->
+        <div class="map-pin blue" style="top: 35%; left: 30%"><span>1</span></div>
+        <div class="map-pin blue" style="top: 55%; left: 35%"><span>2</span></div>
+        <div class="map-pin blue" style="top: 40%; left: 55%"><span>3</span></div>
+        <div class="map-pin blue" style="top: 65%; left: 50%"><span>4</span></div>
+
+        <!-- Map pins - Green (K-On!) -->
+        <div class="map-pin green" style="top: 28%; left: 60%"><span>K</span></div>
+        <div class="map-pin green" style="top: 60%; left: 22%"><span>K</span></div>
+        <div class="map-pin green" style="top: 72%; left: 65%"><span>K</span></div>
+
+        <!-- Map pins - Orange (Tamako Market) -->
+        <div class="map-pin orange" style="top: 48%; left: 68%"><span>T</span></div>
+
+        <!-- Floating chat bar -->
+        <div class="floating-chat">
+          <input type="text" placeholder="Find more spots nearby..." readonly>
+        </div>
+      </div>
+
+      <!-- Right side panel -->
+      <div class="spots-panel">
+        <div class="spots-header">
+          <h3>Nearby Spots</h3>
+          <p>8 spots within 1km</p>
+        </div>
+        <div class="spots-list">
+          <!-- Spot 1 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <img class="spot-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" loading="lazy">
+            <div class="spot-info">
+              <div class="spot-name">京都コンサートホール</div>
+              <div class="spot-meta">Euphonium EP 1</div>
+              <div class="spot-distance">350m</div>
+            </div>
+          </div>
+          <!-- Spot 2 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <img class="spot-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" loading="lazy">
+            <div class="spot-info">
+              <div class="spot-name">あじろぎの道</div>
+              <div class="spot-meta">Euphonium EP 1</div>
+              <div class="spot-distance">520m</div>
+            </div>
+          </div>
+          <!-- Spot 3 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <img class="spot-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="宇治橋" loading="lazy">
+            <div class="spot-info">
+              <div class="spot-name">宇治橋</div>
+              <div class="spot-meta">Euphonium EP 2</div>
+              <div class="spot-distance">180m</div>
+            </div>
+          </div>
+          <!-- Spot 4 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <div class="spot-photo-placeholder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="spot-info">
+              <div class="spot-name">莵道高校前</div>
+              <div class="spot-meta">Euphonium EP 3</div>
+              <div class="spot-distance">710m</div>
+            </div>
+          </div>
+          <!-- Spot 5 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <img class="spot-photo" src="https://image.anitabi.cn/bangumi/1424.jpg" alt="修学院離宮" loading="lazy">
+            <div class="spot-info">
+              <div class="spot-name">修学院離宮</div>
+              <div class="spot-meta">K-On! EP 4</div>
+              <div class="spot-distance">890m</div>
+            </div>
+          </div>
+          <!-- Spot 6 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <div class="spot-photo-placeholder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="spot-info">
+              <div class="spot-name">出町柳駅</div>
+              <div class="spot-meta">K-On! EP 1</div>
+              <div class="spot-distance">950m</div>
+            </div>
+          </div>
+          <!-- Spot 7 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <div class="spot-photo-placeholder">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="spot-info">
+              <div class="spot-name">北白川バス停</div>
+              <div class="spot-meta">K-On! EP 2</div>
+              <div class="spot-distance">780m</div>
+            </div>
+          </div>
+          <!-- Spot 8 -->
+          <div class="spot-card">
+            <div class="spot-checkbox"></div>
+            <img class="spot-photo" src="https://image.anitabi.cn/bangumi/55113.jpg" alt="出町桝形商店街" loading="lazy">
+            <div class="spot-info">
+              <div class="spot-name">出町桝形商店街</div>
+              <div class="spot-meta">Tamako Market EP 1</div>
+              <div class="spot-distance">620m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Clarification -->
+  <div class="section-divider">
+    <h2>── Clarification ──</h2>
+    <p>User typed "涼宮" and got disambiguation</p>
+  </div>
+
+  <div class="app-frame clarification-frame">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-icon active">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="tooltip">Search</span>
+      </div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="tooltip">Nearby</span>
+      </div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="tooltip">Routes</span>
+      </div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="tooltip">Collection</span>
+      </div>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="tooltip">Settings</span>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main-content">
+      <!-- Blurred background (dimmed welcome) -->
+      <div class="clarification-bg">
+        <div class="bg-mark">聖</div>
+        <div class="bg-title">聖地巡礼</div>
+        <div class="bg-search"></div>
+      </div>
+
+      <!-- Clarification inline content -->
+      <div class="clarification-content">
+        <h2 class="clarification-title">どちらの作品ですか？</h2>
+        <p class="clarification-subtitle">Multiple matches found</p>
+
+        <div class="candidate-cards">
+          <!-- Card 1 -->
+          <div class="candidate-card">
+            <img class="candidate-cover" src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" loading="lazy">
+            <div class="candidate-body">
+              <div class="candidate-title">涼宮ハルヒの憂鬱</div>
+              <div class="candidate-info">134 spots · 西宮市</div>
+              <button class="candidate-btn">Search this</button>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="candidate-card">
+            <div class="candidate-cover-placeholder">聖</div>
+            <div class="candidate-body">
+              <div class="candidate-title">涼宮ハルヒの消失</div>
+              <div class="candidate-info">42 spots · 西宮市</div>
+              <button class="candidate-btn">Search this</button>
+            </div>
+          </div>
+        </div>
+
+        <a class="clarification-all-link" href="#">全作品まとめて検索</a>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

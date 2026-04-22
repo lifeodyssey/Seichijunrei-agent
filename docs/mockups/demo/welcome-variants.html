@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome — 3 Layout Variants</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --brand:oklch(58% 0.19 28);--brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);--int-fg:oklch(99% 0.004 220);
+  --bg:oklch(98% 0.008 218);--fg:oklch(20% 0.025 238);--card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);--muted-fg:oklch(45% 0.032 228);--border:oklch(85% 0.022 222);
+  --r-sm:4px;--r-md:8px;--r-lg:12px;
+}
+body{font-family:"Noto Sans SC",system-ui,sans-serif;font-weight:300;background:oklch(94% 0.006 218);color:var(--fg);padding:32px 24px 80px}
+h1{font-family:"Shippori Mincho B1",serif;font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
+.subtitle{text-align:center;font-size:14px;color:var(--muted-fg);margin-bottom:40px}
+.variant{max-width:1100px;margin:0 auto 48px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 4px 20px oklch(20% 0.02 238/.06)}
+.variant-label{padding:10px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--card)}
+.variant-body{height:600px;display:flex;overflow:hidden}
+
+/* Sidebar mock */
+.sb{width:60px;min-width:60px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.sb-logo{width:40px;height:40px;border-radius:var(--r-lg);background:var(--brand-soft);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.sb-dot{width:32px;height:32px;border-radius:var(--r-md);background:var(--muted);opacity:.3}
+.sb-spacer{flex:1}
+
+/* Shared elements */
+.torii-white svg rect{fill:white}
+.input-bar{display:flex;align-items:center;gap:8px;width:100%;max-width:480px;margin:0 auto}
+.input-bar input{flex:1;height:48px;border:1px solid var(--border);border-radius:24px;padding:0 20px;font-size:14px;background:var(--bg);color:var(--fg)}
+.input-bar input::placeholder{color:var(--muted-fg)}
+.input-bar button{width:40px;height:40px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.chip{padding:5px 14px;border-radius:var(--r-md);font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.cover-row{display:flex;gap:10px;justify-content:center}
+.cover-row img{width:56px;height:78px;border-radius:var(--r-md);object-fit:cover}
+.cover-row span{font-size:10px;color:var(--muted-fg);max-width:56px;text-align:center;display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ═══ VARIANT A: Full-screen hero bg, input centered ═══ */
+.va-main{flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.va-hero{position:absolute;inset:0;z-index:0}
+.va-hero img{width:100%;height:100%;object-fit:cover;filter:brightness(.55)}
+.va-hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 20%,oklch(20% 0.02 238/.6) 60%,oklch(20% 0.02 238/.85))}
+.va-content{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px}
+.va-logo{margin-bottom:8px}
+.va-title{font-family:"Shippori Mincho B1",serif;font-size:32px;font-weight:700;color:white;text-shadow:0 2px 12px oklch(20% 0.02 238/.3);margin-bottom:4px}
+.va-sub{font-size:14px;color:rgba(255,255,255,.8);margin-bottom:24px;max-width:36ch;text-align:center}
+.va-input{display:flex;align-items:center;gap:8px;width:100%;max-width:480px;margin-bottom:16px}
+.va-input input{flex:1;height:52px;border:none;border-radius:26px;padding:0 22px;font-size:15px;background:oklch(98% 0.008 218/.92);backdrop-filter:blur(8px);box-shadow:0 4px 24px oklch(20% 0.02 238/.15);color:var(--fg)}
+.va-input input::placeholder{color:var(--muted-fg)}
+.va-input button{width:44px;height:44px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px oklch(20% 0.02 238/.15)}
+.va-chips{display:flex;gap:8px;margin-bottom:24px}
+.va-chip{padding:6px 14px;border-radius:20px;font-size:13px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:rgba(255,255,255,.9);cursor:pointer;backdrop-filter:blur(4px)}
+.va-chip:hover{background:rgba(255,255,255,.2)}
+.va-covers{display:flex;gap:10px;justify-content:center}
+.va-covers img{width:52px;height:72px;border-radius:var(--r-md);object-fit:cover;border:1px solid rgba(255,255,255,.15)}
+.va-covers span{font-size:10px;color:rgba(255,255,255,.6);max-width:52px;text-align:center;display:block;margin-top:2px}
+
+/* ═══ VARIANT B: Split — hero left, content right ═══ */
+.vb-main{flex:1;display:flex;overflow:hidden}
+.vb-hero{flex:0 0 45%;position:relative;overflow:hidden}
+.vb-hero img{width:100%;height:100%;object-fit:cover;filter:brightness(.8)}
+.vb-hero-overlay{position:absolute;inset:0;background:linear-gradient(90deg,transparent 50%,var(--bg))}
+.vb-hero-text{position:absolute;bottom:32px;left:24px;color:white;z-index:1}
+.vb-hero-text h2{font-family:"Shippori Mincho B1",serif;font-size:28px;font-weight:700;margin-bottom:4px;text-shadow:0 2px 8px oklch(20% 0.02 238/.4)}
+.vb-hero-text p{font-size:13px;opacity:.8;max-width:24ch}
+.vb-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 32px}
+.vb-greeting{font-size:14px;color:var(--fg);margin-bottom:20px;max-width:32ch;text-align:center;line-height:1.6}
+.vb-input{width:100%;max-width:400px;margin-bottom:16px}
+.vb-input input{width:100%;height:48px;border:1px solid var(--border);border-radius:var(--r-lg);padding:0 16px;font-size:14px;background:var(--bg)}
+.vb-input input:focus{outline:none;border-color:var(--int)}
+.vb-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:24px}
+.vb-covers{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.vb-covers img{width:48px;height:67px;border-radius:var(--r-sm);object-fit:cover}
+
+/* ═══ VARIANT C: Compact hero top, content fills below ═══ */
+.vc-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.vc-hero{position:relative;height:140px;flex-shrink:0;overflow:hidden}
+.vc-hero img{width:100%;height:100%;object-fit:cover;filter:brightness(.7)}
+.vc-hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 30%,oklch(20% 0.02 238/.6))}
+.vc-hero-content{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1}
+.vc-hero-content h2{font-family:"Shippori Mincho B1",serif;font-size:24px;font-weight:700;color:white;text-shadow:0 2px 8px oklch(20% 0.02 238/.3)}
+.vc-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 24px;gap:16px}
+.vc-input{width:100%;max-width:520px}
+.vc-input-wrap{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:var(--r-lg);padding:4px 4px 4px 16px;background:var(--bg);transition:border-color .15s}
+.vc-input-wrap:focus-within{border-color:var(--int)}
+.vc-input-wrap input{flex:1;height:40px;border:none;background:none;font-size:14px;outline:none;color:var(--fg)}
+.vc-input-wrap input::placeholder{color:var(--muted-fg)}
+.vc-input-wrap button{width:36px;height:36px;border-radius:var(--r-md);background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.vc-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.vc-covers{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;max-width:520px;width:100%}
+.vc-cover{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.vc-cover img{width:100%;aspect-ratio:5/7;border-radius:var(--r-md);object-fit:cover}
+.vc-cover span{font-size:10px;color:var(--muted-fg);text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<h1>Welcome Page — 3 Layout Variants</h1>
+<p class="subtitle">选一个你喜欢的布局方向</p>
+
+<!-- ═══ A: Full-screen hero, input as visual center ═══ -->
+<div class="variant">
+<div class="variant-label" style="color:var(--int)">A — 全屏背景 + 居中输入框（Perplexity 风格）</div>
+<div class="variant-body">
+<div class="sb"><div class="sb-logo"><svg viewBox="0 0 72 72" width="24" height="24" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-spacer"></div><div class="sb-dot"></div></div>
+<div class="va-main">
+  <div class="va-hero"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg" alt=""><div class="va-hero-overlay"></div></div>
+  <div class="va-content">
+    <div class="va-logo"><svg viewBox="0 0 72 72" width="36" height="36" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="white"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="white"/><rect x="16" y="21" width="5" height="35" rx="1" fill="white"/><rect x="51" y="21" width="5" height="35" rx="1" fill="white"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="white" opacity=".5"/></svg></div>
+    <div class="va-title">聖地巡礼</div>
+    <p class="va-sub">告诉我你想去哪部动漫的取景地，我来帮你规划</p>
+    <div class="va-input"><input placeholder="输入动漫名称，或描述你的巡礼计划…"><button><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+    <div class="va-chips">
+      <span class="va-chip">🔍 搜索取景地</span>
+      <span class="va-chip">📍 我附近有什么</span>
+      <span class="va-chip">🗺️ 规划路线</span>
+    </div>
+    <div class="va-covers">
+      <div><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt=""><span>ユーフォ</span></div>
+      <div><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt=""><span>君の名は</span></div>
+      <div><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt=""><span>天気の子</span></div>
+      <div><img src="https://image.anitabi.cn/bangumi/485.jpg" alt=""><span>ハルヒ</span></div>
+      <div><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt=""><span>けいおん</span></div>
+      <div><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt=""><span>すずめ</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══ B: Split — hero left, content right ═══ -->
+<div class="variant">
+<div class="variant-label">B — 左右分栏（hero 左 + 内容右）</div>
+<div class="variant-body">
+<div class="sb"><div class="sb-logo"><svg viewBox="0 0 72 72" width="24" height="24" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-spacer"></div><div class="sb-dot"></div></div>
+<div class="vb-main">
+  <div class="vb-hero">
+    <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="">
+    <div class="vb-hero-overlay"></div>
+    <div class="vb-hero-text"><h2>聖地巡礼</h2><p>アニメの舞台を探して巡礼ルートを作ろう</p></div>
+  </div>
+  <div class="vb-content">
+    <p class="vb-greeting">告诉我你想去哪部动漫的取景地，<br>我来帮你规划巡礼路线。</p>
+    <div class="vb-input"><input placeholder="输入动漫名称…"></div>
+    <div class="vb-chips">
+      <span class="chip">🔍 搜索取景地</span>
+      <span class="chip">📍 附近圣地</span>
+      <span class="chip">🗺️ 规划路线</span>
+    </div>
+    <div class="vb-covers">
+      <div><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/485.jpg" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt=""></div>
+      <div><img src="https://image.anitabi.cn/bangumi/27364.jpg" alt=""></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══ C: Compact hero top + spacious content ═══ -->
+<div class="variant">
+<div class="variant-label">C — 窄 hero + 居中内容（当前方案优化版）</div>
+<div class="variant-body">
+<div class="sb"><div class="sb-logo"><svg viewBox="0 0 72 72" width="24" height="24" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-dot"></div><div class="sb-spacer"></div><div class="sb-dot"></div></div>
+<div class="vc-main">
+  <div class="vc-hero"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="vc-hero-overlay"></div><div class="vc-hero-content"><svg viewBox="0 0 72 72" width="28" height="28" fill="none" style="margin-right:8px"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="white"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="white"/><rect x="16" y="21" width="5" height="35" rx="1" fill="white"/><rect x="51" y="21" width="5" height="35" rx="1" fill="white"/></svg><h2>聖地巡礼</h2></div></div>
+  <div class="vc-content">
+    <div class="vc-input">
+      <p style="text-align:center;font-size:14px;color:var(--muted-fg);margin-bottom:8px">告诉我你想去哪部动漫的取景地</p>
+      <div class="vc-input-wrap">
+        <input placeholder="输入动漫名称…">
+        <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>
+    </div>
+    <div class="vc-chips">
+      <span class="chip">🔍 搜索取景地</span>
+      <span class="chip">📍 附近圣地</span>
+      <span class="chip">🗺️ 规划路线</span>
+    </div>
+    <div class="vc-covers">
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt=""><span>ユーフォ</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt=""><span>君の名は</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt=""><span>天気の子</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/485.jpg" alt=""><span>ハルヒ</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt=""><span>けいおん</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt=""><span>すずめ</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt=""><span>たまこ</span></div>
+      <div class="vc-cover"><img src="https://image.anitabi.cn/bangumi/27364.jpg" alt=""><span>氷菓</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<p style="text-align:center;color:var(--muted-fg);font-size:13px;margin-top:24px">选一个字母告诉我 A / B / C ↑</p>
+</body>
+</html>

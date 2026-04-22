@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat in Toolbar — Mockup</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+html,body{overflow:hidden}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.toolbar .chip{flex-shrink:0}
+
+/* Refine input — unfocused state */
+.refine-hint{display:flex;align-items:center;gap:6px;padding:4px 14px;border-radius:var(--r-md);border:1px dashed var(--border);color:var(--muted-fg);font-size:13px;cursor:pointer;transition:all .15s;flex-shrink:0}
+.refine-hint:hover{border-color:var(--int);color:var(--int)}
+.refine-hint svg{width:14px;height:14px;flex-shrink:0}
+
+/* Refine input — focused state (expanded) */
+.refine-expanded{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.refine-expanded input{flex:1;height:36px;border:1px solid var(--int);border-radius:var(--r-md);padding:0 12px;font-size:14px;background:var(--bg);outline:none}
+.refine-expanded .send{width:36px;height:36px;border-radius:var(--r-md);background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.refine-expanded .cancel{font-size:13px;color:var(--muted-fg);background:none;border:none;cursor:pointer;flex-shrink:0}
+
+/* View toggle */
+.view-toggle{display:flex;margin-left:auto;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border);flex-shrink:0}
+.view-toggle button{padding:5px 12px;border:none;font-size:12px;cursor:pointer;background:var(--bg);color:var(--muted-fg)}
+.view-toggle button.a{background:var(--int);color:white}
+
+/* Grid placeholder */
+.grid-area{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px;overflow-y:auto;align-content:start}
+.card{border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border);position:relative}
+.card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.card-bar{position:absolute;bottom:0;left:0;right:0;height:28px;background:linear-gradient(transparent,oklch(20% 0.02 238/.6));display:flex;align-items:flex-end;padding:0 8px 4px;justify-content:space-between}
+.card-bar span{font-size:11px;color:white}
+
+/* Selection bar */
+.selbar{display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--border);background:var(--card);flex-shrink:0}
+.selbar b{font-size:14px}
+.selbar .plan{margin-left:auto;padding:6px 20px;border-radius:var(--r-md);background:var(--int);color:white;border:none;font-size:14px;font-weight:600;cursor:pointer}
+
+/* Refining toast */
+.toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 16px;border-radius:var(--r-md);font-size:13px;z-index:10;display:none}
+.toast.show{display:block}
+
+/* State labels */
+.state-label{position:absolute;top:8px;right:8px;background:var(--int);color:white;font-size:10px;padding:2px 8px;border-radius:var(--r-sm);z-index:5}
+</style>
+</head>
+<body>
+<div style="max-width:1200px;margin:0 auto;padding:24px 16px">
+  <h1 style="font-size:20px;margin-bottom:4px">Chat-in-Toolbar 方案</h1>
+  <p style="font-size:14px;color:var(--muted-fg);margin-bottom:24px">三个状态：默认 / 展开 / 筛选后。没有浮动按钮，没有 popup。</p>
+</div>
+
+<!-- ═══ State 1: Default (unfocused) ═══ -->
+<div style="max-width:1200px;margin:0 auto 32px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;background:var(--bg)">
+  <div style="position:relative">
+    <span class="state-label">状态 1: 默认</span>
+    <div class="toolbar">
+      <span class="chip a">すべて</span>
+      <span class="chip">EP 1-4</span>
+      <span class="chip">EP 5-8</span>
+      <!-- Refine hint: compact, part of toolbar -->
+      <div class="refine-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        输入筛选…
+      </div>
+      <div class="view-toggle"><button class="a">Grid</button><button>Map</button></div>
+    </div>
+    <div class="grid-area" style="height:300px">
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>京都コンサートホール</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>あじろぎの道</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-bar"><span>莵道高</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>宇治橋</span><span>EP2</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>中書島駅</span><span>EP3</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-bar"><span>平等院表参道</span><span>EP3</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>宇治駅前商店街</span><span>EP4</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>朝霧橋</span><span>EP5</span></div></div>
+    </div>
+    <div class="selbar"><b>已选 3 个</b><button class="plan">规划路线</button></div>
+  </div>
+</div>
+
+<!-- ═══ State 2: Focused (expanded input) ═══ -->
+<div style="max-width:1200px;margin:0 auto 32px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;background:var(--bg)">
+  <div style="position:relative">
+    <span class="state-label">状态 2: 展开输入</span>
+    <div class="toolbar">
+      <!-- Chips hidden, input takes over -->
+      <div class="refine-expanded">
+        <input placeholder="例如：只看第8集 / 宇治附近的" autofocus value="只看第8集的">
+        <button class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        <button class="cancel">取消</button>
+      </div>
+    </div>
+    <div class="grid-area" style="height:300px;opacity:.5">
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>京都コンサートホール</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>あじろぎの道</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-bar"><span>莵道高</span><span>EP1</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>宇治橋</span><span>EP2</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>中書島駅</span><span>EP3</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-bar"><span>平等院表参道</span><span>EP3</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="card-bar"><span>宇治駅前商店街</span><span>EP4</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>朝霧橋</span><span>EP5</span></div></div>
+    </div>
+    <div class="selbar"><b>已选 3 个</b><button class="plan">规划路线</button></div>
+  </div>
+</div>
+
+<!-- ═══ State 3: After refinement (updated results) ═══ -->
+<div style="max-width:1200px;margin:0 auto 32px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;background:var(--bg)">
+  <div style="position:relative">
+    <span class="state-label">状态 3: 筛选后</span>
+    <div class="toolbar">
+      <span class="chip">すべて</span>
+      <span class="chip a">EP 8</span>
+      <span style="font-size:12px;color:var(--muted-fg);margin-left:4px">← AI 筛选: "只看第8集"</span>
+      <div class="refine-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        继续筛选…
+      </div>
+      <div class="view-toggle"><button class="a">Grid</button><button>Map</button></div>
+    </div>
+    <div class="grid-area" style="height:300px">
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="card-bar"><span>県神社</span><span>EP8</span></div></div>
+      <div class="card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="card-bar"><span>大吉山展望台</span><span>EP8</span></div></div>
+    </div>
+    <div class="selbar"><b>已选 0 个</b><button class="plan" style="opacity:.5">规划路线</button></div>
+  </div>
+</div>
+
+<p style="text-align:center;color:var(--muted-fg);font-size:13px;padding:0 16px 32px">没有浮动按钮，没有 popup。输入框是工具栏的一部分。</p>
+</body>
+</html>

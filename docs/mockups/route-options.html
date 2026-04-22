@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路线结果 — 3个方案对比</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+
+  :root {
+    --bg: oklch(98% 0.008 218);
+    --fg: oklch(20% 0.025 238);
+    --card: oklch(95% 0.012 215);
+    --muted: oklch(91% 0.016 218);
+    --muted-fg: oklch(45% 0.032 228);
+    --border: oklch(85% 0.022 222);
+    --primary: oklch(60% 0.148 240);
+    --primary-fg: oklch(99% 0.004 220);
+    --walk-bg: oklch(92% 0.02 145);
+    --walk-fg: oklch(35% 0.06 145);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans SC", system-ui, sans-serif;
+    font-weight: 300;
+    background: oklch(94% 0.006 218);
+    color: var(--fg);
+    padding: 32px 24px 64px;
+    line-height: 1.6;
+  }
+
+  h1 {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted-fg);
+    margin-bottom: 48px;
+  }
+
+  .option-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .option-letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--primary-fg);
+    font-family: "Noto Sans SC", sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .option-desc {
+    font-size: 14px;
+    color: var(--muted-fg);
+    margin-bottom: 20px;
+    max-width: 65ch;
+  }
+
+  /* ── Frame ── */
+  .frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px oklch(20% 0.02 238 / 0.06);
+    margin-bottom: 56px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════ */
+  /* Option A: 行程单 / Itinerary Card                                */
+  /* ══════════════════════════════════════════════════════════════════ */
+
+  .itinerary {
+    padding: 28px 24px;
+  }
+  .itin-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .itin-title {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .itin-meta {
+    font-size: 12px;
+    color: var(--muted-fg);
+  }
+  .itin-pacing {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .pace-btn {
+    padding: 4px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted-fg);
+    cursor: pointer;
+  }
+  .pace-btn.active {
+    background: var(--primary);
+    color: var(--primary-fg);
+    border-color: var(--primary);
+  }
+
+  /* Timeline */
+  .timeline { position: relative; }
+  .tl-stop {
+    display: flex;
+    gap: 16px;
+    position: relative;
+    padding-bottom: 8px;
+  }
+  .tl-left {
+    width: 56px;
+    text-align: right;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .tl-time {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--fg);
+  }
+  .tl-dur {
+    font-size: 11px;
+    color: var(--muted-fg);
+  }
+  .tl-line {
+    width: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .tl-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .tl-dot.first {
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 0 0 4px oklch(60% 0.148 240 / 0.15);
+  }
+  .tl-stem {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+  }
+  .tl-content {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 12px;
+  }
+  .tl-name {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .tl-detail {
+    font-size: 12px;
+    color: var(--muted-fg);
+    margin-bottom: 8px;
+  }
+  .tl-photos {
+    display: flex;
+    gap: 6px;
+  }
+  .tl-photo {
+    width: 80px;
+    height: 54px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--muted);
+  }
+
+  /* Walk leg */
+  .tl-walk {
+    display: flex;
+    gap: 16px;
+    padding: 4px 0;
+  }
+  .tl-walk-left { width: 56px; flex-shrink: 0; }
+  .tl-walk-line {
+    width: 24px;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tl-walk-dash {
+    width: 2px;
+    height: 100%;
+    min-height: 32px;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--walk-fg) 0px, var(--walk-fg) 4px,
+      transparent 4px, transparent 8px
+    );
+    opacity: 0.4;
+  }
+  .tl-walk-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: var(--walk-bg);
+    color: var(--walk-fg);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════ */
+  /* Option B: 地图导航                                                */
+  /* ══════════════════════════════════════════════════════════════════ */
+
+  .map-nav {
+    display: flex;
+    height: 420px;
+  }
+  .map-area {
+    flex: 1;
+    background:
+      radial-gradient(circle at 30% 40%, oklch(88% 0.03 200) 0%, transparent 40%),
+      radial-gradient(circle at 70% 60%, oklch(90% 0.02 180) 0%, transparent 30%),
+      oklch(93% 0.01 210);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-fg);
+    font-size: 13px;
+  }
+  /* Simulated map pins */
+  .map-pin {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px oklch(20% 0.02 238 / 0.2);
+  }
+  .map-pin.active {
+    background: oklch(50% 0.2 30);
+    transform: scale(1.15);
+  }
+  /* Route line */
+  .map-route-line {
+    position: absolute;
+    border: 2px dashed oklch(60% 0.1 240 / 0.4);
+    border-radius: 40%;
+    width: 55%;
+    height: 50%;
+    top: 25%;
+    left: 22%;
+    pointer-events: none;
+  }
+
+  .map-cards {
+    width: 260px;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .map-card {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 150ms;
+  }
+  .map-card:hover { background: var(--card); }
+  .map-card.active { background: oklch(93% 0.025 240); }
+  .map-card-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .map-card.active .map-card-num { background: oklch(50% 0.2 30); }
+  .map-card-img {
+    width: 56px;
+    height: 38px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .map-card-info { min-width: 0; }
+  .map-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .map-card-meta {
+    font-size: 11px;
+    color: var(--muted-fg);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════ */
+  /* Option C: 地图 + 时间轴                                           */
+  /* ══════════════════════════════════════════════════════════════════ */
+
+  .combo {
+    display: flex;
+    flex-direction: column;
+    height: 560px;
+  }
+  .combo-map {
+    flex: 1;
+    min-height: 240px;
+    background:
+      radial-gradient(circle at 35% 45%, oklch(88% 0.03 200) 0%, transparent 40%),
+      radial-gradient(circle at 65% 55%, oklch(90% 0.02 180) 0%, transparent 30%),
+      oklch(93% 0.01 210);
+    position: relative;
+  }
+  .combo-divider {
+    height: 1px;
+    background: var(--border);
+  }
+  .combo-timeline {
+    height: 280px;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+  .combo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .combo-title {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .combo-stats {
+    font-size: 12px;
+    color: var(--muted-fg);
+  }
+  /* Horizontal timeline */
+  .h-timeline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 16px 0;
+    overflow-x: auto;
+  }
+  .h-stop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 120px;
+    flex-shrink: 0;
+  }
+  .h-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+  .h-dot.first {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 0 0 4px oklch(60% 0.148 240 / 0.15);
+  }
+  .h-photo {
+    width: 100px;
+    height: 68px;
+    border-radius: 8px;
+    background: var(--muted);
+    object-fit: cover;
+    margin-bottom: 6px;
+  }
+  .h-name {
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    max-width: 110px;
+  }
+  .h-time {
+    font-size: 11px;
+    color: var(--muted-fg);
+    text-align: center;
+  }
+  .h-leg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 60px;
+    padding-top: 3px;
+    flex-shrink: 0;
+  }
+  .h-leg-line {
+    width: 40px;
+    height: 2px;
+    background: var(--border);
+    margin-bottom: 6px;
+  }
+  .h-leg-info {
+    font-size: 10px;
+    color: var(--walk-fg);
+    background: var(--walk-bg);
+    padding: 2px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<h1>路线结果 — 你喜欢哪个？</h1>
+<p class="page-sub">同一条路线（響け！ユーフォニアム · 宇治），三种不同的展示方式</p>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="option-label"><span class="option-letter">A</span> 行程单风格</div>
+<p class="option-desc">像携程/小红书的行程单。一步一步的时间线，每站有照片和时间。<strong>没有地图</strong>，全是文字和图片。适合截图分享。</p>
+
+<div class="frame">
+  <div class="itinerary">
+    <div class="itin-header">
+      <div class="itin-title">響け！ユーフォニアム 宇治巡礼</div>
+      <div class="itin-meta">4 站 · 约 2 小时 · 1.4km</div>
+      <div class="itin-pacing">
+        <button class="pace-btn">悠闲</button>
+        <button class="pace-btn active">普通</button>
+        <button class="pace-btn">紧凑</button>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <!-- Stop 1 -->
+      <div class="tl-stop">
+        <div class="tl-left">
+          <div class="tl-time">9:00</div>
+          <div class="tl-dur">45 min</div>
+        </div>
+        <div class="tl-line"><div class="tl-dot first"></div><div class="tl-stem"></div></div>
+        <div class="tl-content">
+          <div class="tl-name">宇治駅</div>
+          <div class="tl-detail">EP 1 · 出发站 · 3 个取景点</div>
+          <div class="tl-photos">
+            <img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅 scene">
+            <img class="tl-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="莵道高">
+          </div>
+        </div>
+      </div>
+
+      <!-- Walk -->
+      <div class="tl-walk">
+        <div class="tl-walk-left"></div>
+        <div class="tl-walk-line"><div class="tl-walk-dash"></div></div>
+        <div><div class="tl-walk-info">🚶 步行 10 分钟 · 700m</div></div>
+      </div>
+
+      <!-- Stop 2 -->
+      <div class="tl-stop">
+        <div class="tl-left">
+          <div class="tl-time">9:55</div>
+          <div class="tl-dur">35 min</div>
+        </div>
+        <div class="tl-line"><div class="tl-dot"></div><div class="tl-stem"></div></div>
+        <div class="tl-content">
+          <div class="tl-name">あじろぎの道</div>
+          <div class="tl-detail">EP 1 · 7 个取景点</div>
+          <div class="tl-photos">
+            <img class="tl-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道">
+          </div>
+        </div>
+      </div>
+
+      <!-- Walk -->
+      <div class="tl-walk">
+        <div class="tl-walk-left"></div>
+        <div class="tl-walk-line"><div class="tl-walk-dash"></div></div>
+        <div><div class="tl-walk-info">🚶 步行 8 分钟 · 550m</div></div>
+      </div>
+
+      <!-- Stop 3 -->
+      <div class="tl-stop">
+        <div class="tl-left">
+          <div class="tl-time">10:38</div>
+          <div class="tl-dur">30 min</div>
+        </div>
+        <div class="tl-line"><div class="tl-dot"></div><div class="tl-stem"></div></div>
+        <div class="tl-content">
+          <div class="tl-name">平等院表参道</div>
+          <div class="tl-detail">EP 3 · 4 个取景点</div>
+          <div class="tl-photos">
+            <img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="平等院">
+          </div>
+        </div>
+      </div>
+
+      <!-- Walk -->
+      <div class="tl-walk">
+        <div class="tl-walk-left"></div>
+        <div class="tl-walk-line"><div class="tl-walk-dash"></div></div>
+        <div><div class="tl-walk-info">🚶 步行 5 分钟 · 150m</div></div>
+      </div>
+
+      <!-- Stop 4 -->
+      <div class="tl-stop">
+        <div class="tl-left">
+          <div class="tl-time">11:13</div>
+          <div class="tl-dur">20 min</div>
+        </div>
+        <div class="tl-line"><div class="tl-dot"></div></div>
+        <div class="tl-content">
+          <div class="tl-name">京阪宇治駅</div>
+          <div class="tl-detail">EP 5 · 终点 · 2 个取景点</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="option-label"><span class="option-letter">B</span> 地图导航风格</div>
+<p class="option-desc">像 Google Maps 的路线。地图占大部分空间，路线画在上面，右边是可以点的站点卡片。<strong>重点是空间关系</strong>，看得出每站在哪、离多远。</p>
+
+<div class="frame">
+  <div class="map-nav">
+    <div class="map-area">
+      <div class="map-route-line"></div>
+      <div class="map-pin" style="top: 22%; left: 25%;">1</div>
+      <div class="map-pin" style="top: 42%; left: 40%;">2</div>
+      <div class="map-pin active" style="top: 58%; left: 52%;">3</div>
+      <div class="map-pin" style="top: 72%; left: 68%;">4</div>
+      <span style="position:absolute;bottom:12px;left:12px;font-size:11px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:4px;">宇治 · Leaflet 地图</span>
+    </div>
+    <div class="map-cards">
+      <div class="map-card">
+        <div class="map-card-num">1</div>
+        <img class="map-card-img" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="">
+        <div class="map-card-info">
+          <div class="map-card-name">宇治駅</div>
+          <div class="map-card-meta">9:00 · EP 1 · 45 min</div>
+        </div>
+      </div>
+      <div class="map-card">
+        <div class="map-card-num">2</div>
+        <img class="map-card-img" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="">
+        <div class="map-card-info">
+          <div class="map-card-name">あじろぎの道</div>
+          <div class="map-card-meta">9:55 · EP 1 · 35 min</div>
+        </div>
+      </div>
+      <div class="map-card active">
+        <div class="map-card-num">3</div>
+        <img class="map-card-img" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="">
+        <div class="map-card-info">
+          <div class="map-card-name">平等院表参道</div>
+          <div class="map-card-meta">10:38 · EP 3 · 30 min</div>
+        </div>
+      </div>
+      <div class="map-card">
+        <div class="map-card-num">4</div>
+        <img class="map-card-img" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="">
+        <div class="map-card-info">
+          <div class="map-card-name">京阪宇治駅</div>
+          <div class="map-card-meta">11:13 · EP 5 · 20 min</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="option-label"><span class="option-letter">C</span> 地图 + 时间轴（都有）</div>
+<p class="option-desc">上面是地图画路线，下面是行程时间轴。<strong>两个信息都有</strong>，看得到空间也看得到时间。占的空间最大。</p>
+
+<div class="frame">
+  <div class="combo">
+    <div class="combo-map">
+      <div class="map-route-line" style="width:50%;height:45%;top:28%;left:25%;"></div>
+      <div class="map-pin" style="top: 25%; left: 28%;">1</div>
+      <div class="map-pin" style="top: 40%; left: 42%;">2</div>
+      <div class="map-pin" style="top: 55%; left: 55%;">3</div>
+      <div class="map-pin" style="top: 68%; left: 66%;">4</div>
+      <span style="position:absolute;bottom:8px;left:12px;font-size:11px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:4px;">宇治 · Leaflet 地图</span>
+    </div>
+    <div class="combo-header">
+      <div class="combo-title">響け！ユーフォニアム 宇治巡礼</div>
+      <div class="combo-stats">4 站 · 2 小时 · 1.4km</div>
+    </div>
+    <div class="combo-timeline">
+      <div class="h-timeline">
+        <div class="h-stop">
+          <div class="h-dot first"></div>
+          <img class="h-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="">
+          <div class="h-name">宇治駅</div>
+          <div class="h-time">9:00 – 9:45</div>
+        </div>
+        <div class="h-leg">
+          <div class="h-leg-line"></div>
+          <div class="h-leg-info">🚶 10min</div>
+        </div>
+        <div class="h-stop">
+          <div class="h-dot"></div>
+          <img class="h-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="">
+          <div class="h-name">あじろぎの道</div>
+          <div class="h-time">9:55 – 10:30</div>
+        </div>
+        <div class="h-leg">
+          <div class="h-leg-line"></div>
+          <div class="h-leg-info">🚶 8min</div>
+        </div>
+        <div class="h-stop">
+          <div class="h-dot"></div>
+          <img class="h-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="">
+          <div class="h-name">平等院表参道</div>
+          <div class="h-time">10:38 – 11:08</div>
+        </div>
+        <div class="h-leg">
+          <div class="h-leg-line"></div>
+          <div class="h-leg-info">🚶 5min</div>
+        </div>
+        <div class="h-stop">
+          <div class="h-dot"></div>
+          <div class="h-photo" style="display:flex;align-items:center;justify-content:center;font-family:'Shippori Mincho B1',serif;font-size:20px;font-weight:700;color:var(--primary);">聖</div>
+          <div class="h-name">京阪宇治駅</div>
+          <div class="h-time">11:13 – 11:33</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;color:var(--muted-fg);font-size:13px;margin-top:16px;">
+  告诉我你喜欢 A / B / C 或者它们的组合 👆
+</p>
+
+</body>
+</html>

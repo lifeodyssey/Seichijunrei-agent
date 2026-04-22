@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配色对比 — 蓝 vs 朱色</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans SC", system-ui, sans-serif;
+    font-weight: 300;
+    background: oklch(94% 0.006 218);
+    color: oklch(20% 0.025 238);
+    padding: 32px 20px 80px;
+    line-height: 1.6;
+  }
+  h1 {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .subtitle { text-align: center; font-size: 14px; color: oklch(45% 0.03 228); margin-bottom: 48px; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto 40px;
+  }
+  @media (max-width: 800px) { .compare { grid-template-columns: 1fr; } }
+
+  .panel {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid oklch(85% 0.022 222);
+    background: oklch(98% 0.008 218);
+    box-shadow: 0 4px 24px oklch(20% 0.02 238 / 0.05);
+  }
+  .panel-label {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid oklch(85% 0.022 222);
+  }
+
+  /* ── BLUE THEME ── */
+  .blue .panel-label { background: oklch(93% 0.025 240); color: oklch(40% 0.08 240); }
+  .blue { --accent: oklch(60% 0.148 240); --accent-fg: oklch(99% 0.004 220); --accent-soft: oklch(93% 0.025 240); --accent-border: oklch(80% 0.06 240); }
+
+  /* ── VERMILLION THEME ── */
+  .vermillion .panel-label { background: oklch(93% 0.025 25); color: oklch(40% 0.08 25); }
+  .vermillion { --accent: oklch(58% 0.19 28); --accent-fg: oklch(99% 0.005 25); --accent-soft: oklch(94% 0.02 25); --accent-border: oklch(82% 0.06 28); }
+
+  /* ── DUAL THEME ── */
+  .dual .panel-label { background: oklch(93% 0.02 25); color: oklch(40% 0.08 25); }
+  .dual { --accent: oklch(58% 0.19 28); --accent-fg: oklch(99% 0.005 25); --accent-soft: oklch(94% 0.02 25); --accent-border: oklch(82% 0.06 28); --interactive: oklch(60% 0.148 240); --interactive-soft: oklch(93% 0.025 240); }
+
+  .panel-body { padding: 20px; }
+
+  /* ── Shared component styles ── */
+  .demo-shell {
+    display: flex;
+    height: 340px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid oklch(85% 0.022 222);
+  }
+
+  .demo-sidebar {
+    width: 52px;
+    min-width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 0;
+    border-right: 1px solid oklch(85% 0.022 222);
+    background: oklch(98% 0.008 218);
+  }
+  .demo-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    background: var(--accent-soft);
+  }
+  .demo-nav {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .demo-nav.active { background: var(--accent-soft); }
+  .demo-nav-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: oklch(88% 0.016 218);
+  }
+  .demo-nav.active .demo-nav-dot { background: var(--accent-border); }
+
+  .demo-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .demo-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid oklch(85% 0.022 222);
+  }
+  .demo-title {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .demo-meta { font-size: 11px; color: oklch(45% 0.03 228); }
+
+  .demo-chips {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    border-bottom: 1px solid oklch(90% 0.01 218);
+  }
+  .demo-chip {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid oklch(85% 0.022 222);
+    color: oklch(45% 0.03 228);
+    background: oklch(98% 0.008 218);
+  }
+  .demo-chip.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+  }
+
+  .demo-grid {
+    flex: 1;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    overflow: hidden;
+    align-content: start;
+  }
+  .demo-card {
+    aspect-ratio: 4/3;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .demo-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .demo-card-badge {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 500;
+    background: oklch(20% 0.02 238 / 0.65);
+    color: white;
+    backdrop-filter: blur(4px);
+  }
+  .demo-check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Selection bar */
+  .demo-selbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid oklch(85% 0.022 222);
+    background: oklch(96% 0.008 218);
+  }
+  .demo-selbar-count { font-size: 11px; font-weight: 500; color: oklch(30% 0.02 238); }
+  .demo-selbar-btn {
+    margin-left: auto;
+    padding: 5px 14px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .dual .demo-selbar-btn { background: var(--interactive); color: oklch(99% 0.004 220); }
+
+  /* Chat bar */
+  .demo-chatbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-top: 1px solid oklch(90% 0.01 218);
+  }
+  .demo-chatinput {
+    flex: 1;
+    height: 32px;
+    border-radius: 16px;
+    border: 1px solid oklch(85% 0.022 222);
+    padding: 0 12px;
+    font-size: 11px;
+    background: oklch(98% 0.008 218);
+    color: oklch(45% 0.03 228);
+  }
+  .demo-send {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .blue .demo-send { background: var(--accent); }
+  .vermillion .demo-send { background: var(--accent); }
+  .dual .demo-send { background: var(--interactive); }
+
+  /* ── Swatch row ── */
+  .swatches {
+    display: flex;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid oklch(85% 0.022 222);
+  }
+  .swatch-label {
+    font-size: 10px;
+    color: oklch(45% 0.03 228);
+    margin-top: 8px;
+  }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-family: "Shippori Mincho B1", serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin: 40px auto 6px;
+    max-width: 1100px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: oklch(45% 0.03 228);
+    margin: 0 auto 20px;
+    max-width: 1100px;
+  }
+</style>
+</head>
+<body>
+
+<h1>配色对比</h1>
+<p class="subtitle">同一个界面，三种配色方案。看哪个最舒服。</p>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section-title">方案对比</div>
+<div class="section-desc">左边是现在的蓝色，右边是鸟居朱色（不是纯红，是传统的偏橙暖红）</div>
+
+<div class="compare">
+  <!-- BLUE -->
+  <div class="panel blue">
+    <div class="panel-label">现在：矢车菊蓝 oklch(60% 0.148 240)</div>
+    <div class="panel-body">
+      <div class="demo-shell">
+        <div class="demo-sidebar">
+          <div class="demo-logo">
+            <svg viewBox="0 0 72 72" width="22" height="22" fill="none">
+              <rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(60% 0.148 240)"/>
+              <rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(60% 0.148 240)"/>
+              <rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(60% 0.148 240)"/>
+              <rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(60% 0.148 240)"/>
+            </svg>
+          </div>
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+          <div class="demo-nav active"><div class="demo-nav-dot"></div></div>
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+        </div>
+        <div class="demo-content">
+          <div class="demo-header">
+            <div class="demo-title">響け！ユーフォニアム</div>
+            <div class="demo-meta">156 spots · 宇治市</div>
+          </div>
+          <div class="demo-chips">
+            <span class="demo-chip active">All</span>
+            <span class="demo-chip">EP 1-4</span>
+            <span class="demo-chip">EP 5-8</span>
+          </div>
+          <div class="demo-grid">
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div><div class="demo-check">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 2</div><div class="demo-check">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 3</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 4</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 5</div></div>
+          </div>
+          <div class="demo-selbar">
+            <span class="demo-selbar-count">2 spots selected</span>
+            <button class="demo-selbar-btn">Plan Route</button>
+          </div>
+          <div class="demo-chatbar">
+            <input class="demo-chatinput" value="Ask about this anime..." disabled>
+            <div class="demo-send"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch-label">调色板</div>
+      <div class="swatches">
+        <div class="swatch" style="background: oklch(60% 0.148 240);" title="primary"></div>
+        <div class="swatch" style="background: oklch(93% 0.025 240);" title="soft"></div>
+        <div class="swatch" style="background: oklch(98% 0.008 218);" title="bg"></div>
+        <div class="swatch" style="background: oklch(91% 0.016 218);" title="muted"></div>
+        <div class="swatch" style="background: oklch(85% 0.022 222);" title="border"></div>
+        <div class="swatch" style="background: oklch(45% 0.032 228);" title="muted-fg"></div>
+        <div class="swatch" style="background: oklch(20% 0.025 238);" title="fg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERMILLION -->
+  <div class="panel vermillion">
+    <div class="panel-label">方案：鸟居朱色 oklch(58% 0.19 28)</div>
+    <div class="panel-body">
+      <div class="demo-shell">
+        <div class="demo-sidebar">
+          <div class="demo-logo">
+            <svg viewBox="0 0 72 72" width="22" height="22" fill="none">
+              <rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/>
+              <rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/>
+              <rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+              <rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+            </svg>
+          </div>
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+          <div class="demo-nav active"><div class="demo-nav-dot"></div></div>
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+        </div>
+        <div class="demo-content">
+          <div class="demo-header">
+            <div class="demo-title">響け！ユーフォニアム</div>
+            <div class="demo-meta">156 spots · 宇治市</div>
+          </div>
+          <div class="demo-chips">
+            <span class="demo-chip active">All</span>
+            <span class="demo-chip">EP 1-4</span>
+            <span class="demo-chip">EP 5-8</span>
+          </div>
+          <div class="demo-grid">
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div><div class="demo-check">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 2</div><div class="demo-check">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 3</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 4</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 5</div></div>
+          </div>
+          <div class="demo-selbar">
+            <span class="demo-selbar-count">2 spots selected</span>
+            <button class="demo-selbar-btn">Plan Route</button>
+          </div>
+          <div class="demo-chatbar">
+            <input class="demo-chatinput" value="Ask about this anime..." disabled>
+            <div class="demo-send"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch-label">调色板（全部暖色调）</div>
+      <div class="swatches">
+        <div class="swatch" style="background: oklch(58% 0.19 28);" title="primary"></div>
+        <div class="swatch" style="background: oklch(94% 0.02 25);" title="soft"></div>
+        <div class="swatch" style="background: oklch(98% 0.006 25);" title="bg"></div>
+        <div class="swatch" style="background: oklch(91% 0.012 25);" title="muted"></div>
+        <div class="swatch" style="background: oklch(85% 0.018 28);" title="border"></div>
+        <div class="swatch" style="background: oklch(45% 0.025 28);" title="muted-fg"></div>
+        <div class="swatch" style="background: oklch(20% 0.02 28);" title="fg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="section-title">方案 3：混搭（推荐）</div>
+<div class="section-desc">Logo/品牌用朱色，按钮/交互用蓝色。就像红色鸟居在蓝色天空下——这本来就是日本最经典的配色。</div>
+
+<div class="compare">
+  <!-- DUAL -->
+  <div class="panel dual" style="grid-column: 1 / -1; max-width: 550px; margin: 0 auto;">
+    <div class="panel-label">混搭：鸟居朱色品牌 + 矢车菊蓝交互</div>
+    <div class="panel-body">
+      <div class="demo-shell">
+        <div class="demo-sidebar">
+          <div class="demo-logo">
+            <!-- Red torii logo -->
+            <svg viewBox="0 0 72 72" width="22" height="22" fill="none">
+              <rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/>
+              <rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/>
+              <rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+              <rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/>
+            </svg>
+          </div>
+          <!-- Nav items use BLUE active state -->
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+          <div class="demo-nav" style="background: oklch(93% 0.025 240);"><div class="demo-nav-dot" style="background: oklch(80% 0.06 240);"></div></div>
+          <div class="demo-nav"><div class="demo-nav-dot"></div></div>
+        </div>
+        <div class="demo-content">
+          <div class="demo-header">
+            <div class="demo-title">響け！ユーフォニアム</div>
+            <div class="demo-meta">156 spots · 宇治市</div>
+          </div>
+          <div class="demo-chips">
+            <!-- Active chip uses BLUE -->
+            <span class="demo-chip" style="background:oklch(60% 0.148 240);color:oklch(99% 0.004 220);border-color:oklch(60% 0.148 240);">All</span>
+            <span class="demo-chip">EP 1-4</span>
+            <span class="demo-chip">EP 5-8</span>
+          </div>
+          <div class="demo-grid">
+            <!-- Check marks use BLUE -->
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div><div class="demo-check" style="background:oklch(60% 0.148 240);">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 1</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 2</div><div class="demo-check" style="background:oklch(60% 0.148 240);">✓</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 3</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 4</div></div>
+            <div class="demo-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="demo-card-badge">EP 5</div></div>
+          </div>
+          <div class="demo-selbar">
+            <span class="demo-selbar-count">2 spots selected</span>
+            <!-- Button uses BLUE -->
+            <button class="demo-selbar-btn">Plan Route</button>
+          </div>
+          <div class="demo-chatbar">
+            <input class="demo-chatinput" value="Ask about this anime..." disabled>
+            <div class="demo-send"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+          </div>
+        </div>
+      </div>
+      <div class="swatch-label">调色板（朱色品牌 + 蓝色交互 + 蓝调中性色）</div>
+      <div class="swatches">
+        <div class="swatch" style="background: oklch(58% 0.19 28); position:relative;" title="brand">
+          <span style="position:absolute;top:-16px;left:0;font-size:9px;color:oklch(45% 0.03 228);white-space:nowrap;">品牌</span>
+        </div>
+        <div class="swatch" style="background: oklch(60% 0.148 240); position:relative;" title="interactive">
+          <span style="position:absolute;top:-16px;left:0;font-size:9px;color:oklch(45% 0.03 228);white-space:nowrap;">交互</span>
+        </div>
+        <div class="swatch" style="background: oklch(98% 0.008 218);" title="bg"></div>
+        <div class="swatch" style="background: oklch(95% 0.012 215);" title="card"></div>
+        <div class="swatch" style="background: oklch(91% 0.016 218);" title="muted"></div>
+        <div class="swatch" style="background: oklch(85% 0.022 222);" title="border"></div>
+        <div class="swatch" style="background: oklch(45% 0.032 228);" title="muted-fg"></div>
+        <div class="swatch" style="background: oklch(20% 0.025 238);" title="fg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;color:oklch(45% 0.03 228);font-size:13px;margin-top:32px;max-width:50ch;margin-left:auto;margin-right:auto;">
+  朱色 (しゅいろ) 不是纯红，是传统鸟居的温暖偏橙红色。<br>
+  混搭方案保留了现有蓝色中性色调，只把 logo 换成朱色。<br><br>
+  你喜欢哪个？全蓝 / 全朱色 / 混搭？
+</p>
+
+</body>
+</html>

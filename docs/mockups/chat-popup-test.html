@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Popup 方案对比</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --brand:oklch(58% 0.19 28);--brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);--int-fg:oklch(99% 0.004 220);--int-soft:oklch(93% 0.025 240);
+  --bg:oklch(98% 0.008 218);--fg:oklch(20% 0.025 238);--card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);--muted-fg:oklch(45% 0.032 228);--border:oklch(85% 0.022 222);
+  --r-sm:4px;--r-md:8px;--r-lg:12px;
+}
+body{font-family:"Noto Sans SC",system-ui,sans-serif;font-weight:300;background:oklch(94% 0.006 218);color:var(--fg);padding:32px 24px 80px}
+h1{font-family:"Shippori Mincho B1",serif;font-size:24px;font-weight:700;text-align:center;margin-bottom:8px}
+.subtitle{text-align:center;font-size:14px;color:var(--muted-fg);margin-bottom:48px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1200px;margin:0 auto 48px}
+.panel{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 4px 16px oklch(20% 0.02 238/.06)}
+.panel-label{padding:10px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--card)}
+.panel-body{height:500px;position:relative;overflow:hidden;display:flex}
+
+/* Mini sidebar */
+.mini-sb{width:48px;min-width:48px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px}
+.mini-sb-logo{width:32px;height:32px;border-radius:var(--r-md);background:var(--brand-soft);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.mini-sb-btn{width:32px;height:32px;border-radius:6px;background:transparent;border:none;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);cursor:pointer;font-size:14px}
+.mini-sb-btn.a{background:var(--int-soft);color:var(--int)}
+
+/* Content area */
+.mini-content{flex:1;display:flex;flex-direction:column;position:relative;min-width:0}
+.mini-header{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.mini-header h2{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:700}
+.mini-header .meta{font-size:12px;color:var(--muted-fg)}
+.mini-grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px;overflow-y:auto;align-content:start}
+.mini-card{border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--border);position:relative}
+.mini-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.mini-card.sel{border-color:var(--int)}
+.mini-card .ck{position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:var(--int);color:white;font-size:9px;display:flex;align-items:center;justify-content:center}
+
+/* Chat toggle button */
+.chat-btn{position:absolute;bottom:12px;right:12px;height:32px;border-radius:16px;background:var(--int);color:var(--int-fg);border:none;display:flex;align-items:center;gap:5px;padding:0 12px;font-size:12px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px oklch(20% 0.02 238/.12);z-index:5}
+.chat-btn svg{width:14px;height:14px}
+
+/* ═══ POPUP CHAT (方案 A) ═══ */
+.popup-chat{position:absolute;bottom:52px;right:12px;width:320px;height:380px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 8px 32px oklch(20% 0.02 238/.15);z-index:10;display:flex;flex-direction:column;overflow:hidden}
+.popup-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)}
+.popup-header h3{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600}
+.popup-close{width:24px;height:24px;border-radius:50%;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);font-size:14px}
+.popup-messages{flex:1;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.popup-input{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border)}
+.popup-input input{flex:1;height:32px;border:1px solid var(--border);border-radius:16px;padding:0 12px;font-size:12px;background:var(--bg)}
+.popup-input button{width:32px;height:32px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.bubble-u{align-self:flex-end;background:var(--int);color:var(--int-fg);padding:6px 10px;border-radius:10px 10px 3px 10px;font-size:12px;max-width:85%}
+.bubble-a{align-self:flex-start;background:var(--card);padding:6px 10px;border-radius:10px 10px 10px 3px;font-size:12px;max-width:85%;line-height:1.5}
+
+/* Pointer arrow on popup */
+.popup-chat::after{content:"";position:absolute;bottom:-7px;right:24px;width:14px;height:14px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+
+/* ═══ SIDE PANEL (方案 B) ═══ */
+.side-chat{width:260px;min-width:260px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg)}
+.side-chat-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
+.side-chat-header h3{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600}
+.side-messages{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.side-input{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border)}
+.side-input input{flex:1;height:32px;border:1px solid var(--border);border-radius:16px;padding:0 12px;font-size:12px;background:var(--bg)}
+.side-input button{width:32px;height:32px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+
+/* Full-width version for comparison */
+.full-panel{grid-column:1/-1;max-width:800px;margin:0 auto}
+.full-panel .panel-body{height:480px}
+
+/* ═══ Bottom sheet (方案 C) ═══ */
+.bottom-sheet{position:absolute;bottom:0;left:0;right:0;height:55%;background:var(--bg);border-top:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -4px 24px oklch(20% 0.02 238/.1);z-index:10;display:flex;flex-direction:column}
+.bottom-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--muted);margin:8px auto 4px}
+.bottom-sheet .popup-header{background:transparent}
+.dimmed{opacity:.35;pointer-events:none}
+
+.section-label{max-width:1200px;margin:0 auto 12px;font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:600}
+.section-desc{max-width:1200px;margin:-4px auto 16px;font-size:14px;color:var(--muted-fg)}
+</style>
+</head>
+<body>
+
+<h1>Chat 面板方案对比</h1>
+<p class="subtitle">三种方案放在一起看。内容是搜索结果页，用户点了对话按钮后。</p>
+
+<div class="compare">
+
+<!-- ═══ A: Popup ═══ -->
+<div class="panel">
+  <div class="panel-label" style="color:var(--int)">方案 A — Popup 弹窗（推荐）</div>
+  <div class="panel-body">
+    <div class="mini-sb">
+      <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="20" height="20" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+      <div class="mini-sb-btn">📝</div>
+      <div class="mini-sb-btn a">🔍</div>
+      <div class="mini-sb-btn">🧭</div>
+      <div class="mini-sb-btn">❤️</div>
+    </div>
+    <div class="mini-content">
+      <div class="mini-header"><h2>響け！ユーフォニアム</h2><span class="meta">156 · 宇治市</span></div>
+      <div class="mini-grid">
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""></div>
+      </div>
+      <!-- Popup chat -->
+      <div class="popup-chat">
+        <div class="popup-header"><h3>对话</h3><div class="popup-close">×</div></div>
+        <div class="popup-messages">
+          <div class="bubble-u">吹响上低音号的圣地在哪里</div>
+          <div class="bubble-a">找到 156 个取景地，主要在宇治和京都。选几个来规划路线吧！</div>
+          <div class="bubble-u">只看第 8 集的</div>
+          <div class="bubble-a">已筛选 EP8 的圣地，共 12 个。</div>
+        </div>
+        <div class="popup-input">
+          <input placeholder="继续提问…">
+          <button><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        </div>
+      </div>
+      <div class="chat-btn" style="opacity:.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ B: Side Panel ═══ -->
+<div class="panel">
+  <div class="panel-label">方案 B — 侧面板</div>
+  <div class="panel-body">
+    <div class="mini-sb">
+      <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="20" height="20" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+      <div class="mini-sb-btn">📝</div>
+      <div class="mini-sb-btn a">🔍</div>
+      <div class="mini-sb-btn">🧭</div>
+    </div>
+    <div class="mini-content" style="flex:1">
+      <div class="mini-header"><h2>響け！ユーフォニアム</h2><span class="meta">156</span></div>
+      <div class="mini-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+      </div>
+    </div>
+    <div class="side-chat">
+      <div class="side-chat-header"><h3>对话</h3><div class="popup-close">×</div></div>
+      <div class="side-messages">
+        <div class="bubble-u">吹响的圣地</div>
+        <div class="bubble-a">找到 156 个取景地，在宇治和京都。</div>
+        <div class="bubble-u">只看第 8 集</div>
+        <div class="bubble-a">已筛选 EP8，共 12 个。</div>
+      </div>
+      <div class="side-input">
+        <input placeholder="继续提问…">
+        <button><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══ C: Bottom sheet (单独一行) ═══ -->
+<div class="section-label">方案 C — 底部面板（现在的方案）</div>
+<div class="section-desc">对话从底部滑上来，遮住 60% 的内容。</div>
+<div class="panel full-panel" style="margin-bottom:48px">
+  <div class="panel-label" style="color:var(--muted-fg)">方案 C — Bottom Sheet</div>
+  <div class="panel-body">
+    <div class="mini-sb">
+      <div class="mini-sb-logo"><svg viewBox="0 0 72 72" width="20" height="20" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg></div>
+      <div class="mini-sb-btn">📝</div>
+      <div class="mini-sb-btn a">🔍</div>
+      <div class="mini-sb-btn">🧭</div>
+      <div class="mini-sb-btn">❤️</div>
+    </div>
+    <div class="mini-content">
+      <div class="mini-header dimmed"><h2>響け！ユーフォニアム</h2><span class="meta">156 · 宇治市</span></div>
+      <div class="mini-grid dimmed">
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""><div class="ck">✓</div></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt=""></div>
+        <div class="mini-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt=""></div>
+      </div>
+      <!-- Bottom sheet -->
+      <div class="bottom-sheet">
+        <div class="bottom-sheet-handle"></div>
+        <div class="popup-header"><h3>对话</h3><div class="popup-close">↓</div></div>
+        <div class="popup-messages" style="flex:1">
+          <div class="bubble-u">吹响上低音号的圣地在哪里</div>
+          <div class="bubble-a">找到 156 个取景地，主要在宇治和京都。选几个来规划路线吧！</div>
+          <div class="bubble-u">只看第 8 集的</div>
+          <div class="bubble-a">已筛选 EP8 的圣地，共 12 个。</div>
+        </div>
+        <div class="popup-input">
+          <input placeholder="继续提问…">
+          <button><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:800px;margin:0 auto;padding:24px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg)">
+  <h2 style="font-family:'Shippori Mincho B1',serif;font-size:16px;margin-bottom:12px">对比</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:8px 4px;color:var(--muted-fg);font-weight:500"></th>
+      <th style="text-align:center;padding:8px;color:var(--int);font-weight:600">A: Popup</th>
+      <th style="text-align:center;padding:8px;font-weight:500">B: Side Panel</th>
+      <th style="text-align:center;padding:8px;font-weight:500">C: Bottom Sheet</th>
+    </tr>
+    <tr style="border-bottom:1px solid oklch(92% 0.01 218)"><td style="padding:6px 4px">内容可见性</td><td style="text-align:center;padding:6px">✅ 大部分可见</td><td style="text-align:center">⚠️ 内容被压缩</td><td style="text-align:center">❌ 被遮挡 60%</td></tr>
+    <tr style="border-bottom:1px solid oklch(92% 0.01 218)"><td style="padding:6px 4px">对话空间</td><td style="text-align:center;padding:6px">⚠️ 固定 320×380</td><td style="text-align:center">✅ 全高度</td><td style="text-align:center">✅ 大面积</td></tr>
+    <tr style="border-bottom:1px solid oklch(92% 0.01 218)"><td style="padding:6px 4px">同时操作</td><td style="text-align:center;padding:6px">✅ 可以边聊边选</td><td style="text-align:center">✅ 可以</td><td style="text-align:center">❌ 不行</td></tr>
+    <tr style="border-bottom:1px solid oklch(92% 0.01 218)"><td style="padding:6px 4px">移动端适配</td><td style="text-align:center;padding:6px">✅ 变成全屏</td><td style="text-align:center">❌ 空间不够</td><td style="text-align:center">✅ 原生感</td></tr>
+    <tr style="border-bottom:1px solid oklch(92% 0.01 218)"><td style="padding:6px 4px">视觉干扰</td><td style="text-align:center;padding:6px">⚠️ 有浮层感</td><td style="text-align:center">✅ 无层叠</td><td style="text-align:center">⚠️ 遮挡严重</td></tr>
+    <tr><td style="padding:6px 4px;font-weight:500">综合</td><td style="text-align:center;padding:6px;color:var(--int);font-weight:600">推荐</td><td style="text-align:center">适合桌面</td><td style="text-align:center;color:var(--muted-fg)">当前方案</td></tr>
+  </table>
+</div>
+
+<p style="text-align:center;color:var(--muted-fg);font-size:12px;margin-top:32px">选一个告诉我 ↑</p>
+</body>
+</html>

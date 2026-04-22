@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聖地巡礼 — Welcome</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: oklch(98% 0.008 218);
+      --fg: oklch(20% 0.025 238);
+      --card: oklch(95% 0.012 215);
+      --muted: oklch(91% 0.016 218);
+      --muted-fg: oklch(45% 0.032 228);
+      --border: oklch(85% 0.022 222);
+      --primary: oklch(60% 0.148 240);
+      --primary-fg: oklch(99% 0.004 220);
+
+      --font-display: "Shippori Mincho B1", serif;
+      --font-body: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px 60px;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Stagger animation */
+    .stagger {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 600ms var(--ease-out-expo) forwards;
+    }
+
+    .stagger:nth-child(1) { animation-delay: 0ms; }
+    .stagger:nth-child(2) { animation-delay: 50ms; }
+    .stagger:nth-child(3) { animation-delay: 100ms; }
+    .stagger:nth-child(4) { animation-delay: 150ms; }
+    .stagger:nth-child(5) { animation-delay: 200ms; }
+    .stagger:nth-child(6) { animation-delay: 250ms; }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stagger {
+        opacity: 1;
+        transform: none;
+        animation: none;
+      }
+    }
+
+    /* Main content wrapper */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* App mark */
+    .app-mark {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--primary);
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 16px;
+      user-select: none;
+    }
+
+    /* Title */
+    .title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Subtitle */
+    .subtitle {
+      font-size: 15px;
+      color: var(--muted-fg);
+      max-width: 45ch;
+      text-align: center;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    /* Search bar */
+    .search-wrapper {
+      width: 100%;
+      max-width: 560px;
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 52px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 0 56px 0 48px;
+      font-family: var(--font-body);
+      font-size: 15px;
+      color: var(--fg);
+      background: var(--primary-fg);
+      outline: none;
+      transition: border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .search-input::placeholder {
+      color: var(--muted-fg);
+      opacity: 0.7;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px oklch(60% 0.148 240 / 0.15);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+
+    .search-send {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 150ms ease;
+    }
+
+    .search-send:hover {
+      opacity: 0.85;
+    }
+
+    .search-send svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary-fg);
+    }
+
+    /* Quick action chips */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .chip {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--fg);
+      background: transparent;
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      background: var(--card);
+      border-color: var(--primary);
+    }
+
+    /* Popular anime row */
+    .popular-section {
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .popular-scroll {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding: 4px 0 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--muted) transparent;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .popular-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .popular-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .popular-scroll::-webkit-scrollbar-thumb {
+      background: var(--muted);
+      border-radius: 2px;
+    }
+
+    .popular-item {
+      flex: 0 0 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .popular-cover {
+      width: 100px;
+      height: 140px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--muted);
+      transition: box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    .popular-item:hover .popular-cover {
+      box-shadow: 0 4px 16px oklch(20% 0.025 238 / 0.12);
+      transform: translateY(-2px);
+    }
+
+    .popular-title {
+      font-size: 12px;
+      color: var(--muted-fg);
+      text-align: center;
+      width: 100px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+
+    /* Floating hint */
+    .floating-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: var(--muted-fg);
+      text-align: center;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <main class="welcome">
+    <div class="app-mark stagger">聖</div>
+
+    <h1 class="title stagger">聖地巡礼</h1>
+
+    <p class="subtitle stagger">探索动漫取景地，规划你的巡礼路线</p>
+
+    <div class="search-wrapper stagger">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="搜索动漫名称..."
+        autocomplete="off"
+      >
+      <button class="search-send" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="chips stagger">
+      <a class="chip" href="#">響け！ユーフォニアム</a>
+      <a class="chip" href="#">君の名は。</a>
+      <a class="chip" href="#">すずめの戸締まり</a>
+    </div>
+
+    <div class="popular-section stagger">
+      <div class="popular-scroll">
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" loading="lazy">
+          <span class="popular-title">響け！ユーフォニアム</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt="君の名は。" loading="lazy">
+          <span class="popular-title">君の名は。</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt="天気の子" loading="lazy">
+          <span class="popular-title">天気の子</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" loading="lazy">
+          <span class="popular-title">涼宮ハルヒの憂鬱</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/1424.jpg" alt="けいおん！" loading="lazy">
+          <span class="popular-title">けいおん！</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/362577.jpg" alt="すずめの戸締まり" loading="lazy">
+          <span class="popular-title">すずめの戸締まり</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/55113.jpg" alt="たまこまーけっと" loading="lazy">
+          <span class="popular-title">たまこまーけっと</span>
+        </div>
+        <div class="popular-item">
+          <img class="popular-cover" src="https://image.anitabi.cn/bangumi/27364.jpg" alt="氷菓" loading="lazy">
+          <span class="popular-title">氷菓</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="floating-hint">&#x1F4AC; 输入动漫名称或描述你的旅行计划</div>
+</body>
+</html>
