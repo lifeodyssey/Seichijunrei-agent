@@ -36,7 +36,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
 
   if (results.status === "empty" || sorted.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
+      <div className="flex h-full items-center justify-center rounded-[var(--r-lg)] border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
         {t.no_results}
       </div>
     );
@@ -50,7 +50,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
       : sorted;
 
   return (
-    <div className="flex h-full flex-row gap-0 overflow-hidden rounded-lg border border-[var(--color-border)]">
+    <div className="flex h-full flex-row gap-0 overflow-hidden rounded-[var(--r-lg)] border border-[var(--color-border)]">
       {/* Map side — 55% */}
       <div className="relative" style={{ flex: "0 0 55%" }}>
         <LazyBaseMap
@@ -97,7 +97,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
                   <img
                     src={point.screenshot_url}
                     alt=""
-                    className="h-9 w-12 shrink-0 rounded object-cover"
+                    className="h-9 w-12 shrink-0 rounded-[var(--r-sm)] object-cover"
                   />
                 )}
 

@@ -24,7 +24,7 @@ export function FullscreenOverlay({ open, onClose, children }: FullscreenOverlay
     <div className="fixed inset-0 z-50 bg-[var(--color-bg)] animate-in fade-in duration-200">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 rounded-full bg-white/80 backdrop-blur p-2 shadow-md hover:bg-white transition"
+        className="absolute top-4 right-4 z-10 rounded-full bg-[var(--color-bg)]/80 backdrop-blur p-2 shadow-md hover:bg-[var(--color-bg)] transition"
         style={{ transitionDuration: "var(--duration-fast)" }}
         aria-label="Close"
       >

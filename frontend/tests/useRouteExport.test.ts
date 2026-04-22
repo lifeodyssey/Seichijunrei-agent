@@ -39,8 +39,6 @@ function makeItinerary(overrides: Partial<TimedItinerary> = {}): TimedItinerary 
 describe("useRouteExport", () => {
   let openSpy: ReturnType<typeof vi.spyOn>;
   let createElementSpy: ReturnType<typeof vi.spyOn>;
-  let _appendChildSpy: ReturnType<typeof vi.spyOn>;
-  let _removeChildSpy: ReturnType<typeof vi.spyOn>;
   let createObjectUrlSpy: ReturnType<typeof vi.spyOn>;
   let revokeObjectUrlSpy: ReturnType<typeof vi.spyOn>;
   let mockAnchor: HTMLAnchorElement;
@@ -58,8 +56,8 @@ describe("useRouteExport", () => {
         if (tagName === "a") return mockAnchor;
         return originalCreateElement(tagName, ...(args as [ElementCreationOptions?]));
       });
-    _appendChildSpy = vi.spyOn(document.body, "appendChild");
-    _removeChildSpy = vi.spyOn(document.body, "removeChild");
+    vi.spyOn(document.body, "appendChild");
+    vi.spyOn(document.body, "removeChild");
     createObjectUrlSpy = vi
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:fake-url");

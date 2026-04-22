@@ -33,9 +33,9 @@ function ConversationItem({ record, isActive, onSelect }: ConversationItemProps)
       data-testid={`conversation-item-${record.session_id}`}
       data-active={isActive || undefined}
       className={[
-        "mb-0.5 flex items-start gap-2 rounded-lg px-3 py-2.5 cursor-pointer transition",
+        "mb-0.5 flex items-start gap-2 rounded-[var(--r-lg)] px-3 py-2.5 cursor-pointer transition",
         isActive
-          ? "bg-[var(--color-primary)] text-white"
+          ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
           : "hover:bg-[var(--color-muted)]",
       ].join(" ")}
       onClick={onSelect}
@@ -47,7 +47,7 @@ function ConversationItem({ record, isActive, onSelect }: ConversationItemProps)
         <p
           className={[
             "truncate text-xs font-medium",
-            isActive ? "text-white" : "text-[var(--color-fg)]",
+            isActive ? "text-[var(--color-primary-fg)]" : "text-[var(--color-fg)]",
           ].join(" ")}
         >
           {displayTitle.length > 25
@@ -58,7 +58,7 @@ function ConversationItem({ record, isActive, onSelect }: ConversationItemProps)
           <p
             className={[
               "mt-0.5 text-[10px]",
-              isActive ? "text-white/70" : "text-[var(--color-muted-fg)] opacity-60",
+              isActive ? "text-[var(--color-primary-fg)] opacity-70" : "text-[var(--color-muted-fg)] opacity-60",
             ].join(" ")}
           >
             {meta}

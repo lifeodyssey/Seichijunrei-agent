@@ -122,7 +122,7 @@ function CandidateCard({
       }}
     >
       {/* Thumbnail — enlarged for better anime cover visibility */}
-      <span className="relative flex h-14 w-11 shrink-0 overflow-hidden rounded-lg bg-[var(--color-muted)]">
+      <span className="relative flex h-14 w-11 shrink-0 overflow-hidden rounded-[var(--r-lg)] bg-[var(--color-muted)]">
         {candidate.cover_url && !imgError ? (
           <img
             src={candidate.cover_url}
@@ -195,7 +195,7 @@ function SearchAllCard({
       }}
     >
       {/* Icon */}
-      <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--color-muted)] text-sm">
+      <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-[var(--r-lg)] bg-[var(--color-muted)] text-sm">
         {"\uD83D\uDD0D"}
       </span>
 
@@ -244,7 +244,7 @@ function FallbackSuggestionCard({
       }}
     >
       {/* Emoji icon instead of cover */}
-      <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--color-muted)] text-sm">
+      <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-[var(--r-lg)] bg-[var(--color-muted)] text-sm">
         {"\uD83C\uDFAC"}
       </span>
 

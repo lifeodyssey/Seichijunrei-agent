@@ -33,17 +33,9 @@ type ViewMode = "grid" | "map";
 
 interface ResultPanelProps {
   activeResponse: RuntimeResponse | null;
-  onSuggest?: (text: string) => void;
-  onRouteSelected?: (origin: string) => void;
   onRouteConfirmed?: (orderedIds: string[], origin: string) => void;
   defaultOrigin?: string;
   loading?: boolean;
-  /** Collapse result panel → chat-focused mode. */
-  onCollapse?: () => void;
-  /** Expand result panel → full-screen mode. */
-  onExpand?: () => void;
-  /** Whether the panel is currently in full-screen mode. */
-  isFullScreen?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,13 +184,9 @@ function GridContent({ points, selectedIds, onToggle, onDetail }: GridContentPro
 
 export default function ResultPanel({
   activeResponse,
-  onRouteSelected: _onRouteSelected,
   onRouteConfirmed,
   defaultOrigin,
   loading,
-  onCollapse: _onCollapse,
-  onExpand: _onExpand,
-  isFullScreen: _isFullScreen,
 }: ResultPanelProps) {
   const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
@@ -377,7 +365,7 @@ export default function ResultPanel({
               type="button"
               onClick={() => setConfirmMode(true)}
               disabled={loading || selectedIds.size < 2}
-              className="ml-auto flex h-9 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="ml-auto flex h-11 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               规划路线
             </button>

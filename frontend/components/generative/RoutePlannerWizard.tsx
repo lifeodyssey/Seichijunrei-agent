@@ -55,11 +55,11 @@ export default function RoutePlannerWizard({
   onExpandChat,
 }: RoutePlannerWizardProps) {
   const { route: rt } = useDict();
-  const paceOptions = [
+  const paceOptions = useMemo(() => [
     { key: "chill" as const, label: rt.pace_chill, desc: rt.pace_desc.replace("{min}", "45") },
     { key: "normal" as const, label: rt.pace_normal, desc: rt.pace_desc.replace("{min}", "30") },
     { key: "packed" as const, label: rt.pace_packed, desc: rt.pace_desc.replace("{min}", "15") },
-  ];
+  ], [rt]);
   const itinerary = data.route.timed_itinerary ?? EMPTY_ITINERARY;
   const points = data.route.ordered_points;
   const animeTitle = points[0]?.title_cn || points[0]?.title || "";

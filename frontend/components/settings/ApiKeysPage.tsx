@@ -63,7 +63,7 @@ export default function ApiKeysPage() {
         <button
           type="submit"
           disabled={creating || !newKeyName.trim()}
-          className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-[var(--r-lg)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-fg)] disabled:opacity-50"
         >
           {creating ? "Creating..." : "Create key"}
         </button>

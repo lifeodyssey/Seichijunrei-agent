@@ -12,7 +12,7 @@ export default function FallbackList({ data }: FallbackListProps) {
       <ol className="space-y-2">
         {data.route.ordered_points.map((pt, idx) => (
           <li key={pt.id} className="flex items-center gap-2 text-sm text-[var(--color-fg)]">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] font-bold text-white">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] font-bold text-[var(--color-primary-fg)]">
               {idx + 1}
             </span>
             <span className="truncate">{pt.name_cn || pt.name}</span>

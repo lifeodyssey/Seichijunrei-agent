@@ -71,7 +71,7 @@ export default function ChatPanel({
             type="button"
             onClick={onMenuOpen}
             aria-label="Menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)]"
+            className="flex h-11 w-11 items-center justify-center rounded-[var(--r-lg)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)]"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
               <line x1="3" y1="6" x2="21" y2="6" />

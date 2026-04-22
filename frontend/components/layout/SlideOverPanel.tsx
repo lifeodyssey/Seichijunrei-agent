@@ -37,7 +37,7 @@ export function SlideOverPanel({ open, onClose, children, loading }: SlideOverPa
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 rounded-full bg-white/80 p-2 shadow hover:bg-white transition"
+          className="absolute top-4 right-4 z-10 rounded-full bg-[var(--color-bg)]/80 p-2 shadow hover:bg-[var(--color-bg)] transition"
           style={{ transitionDuration: "var(--duration-fast)" }}
           aria-label="Close"
         >

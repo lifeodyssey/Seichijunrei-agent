@@ -50,7 +50,7 @@ export default function SelectionBar({
       <button
         type="button"
         onClick={handleRoute}
-        className="shrink-0 rounded-sm bg-[var(--color-primary)] px-3 py-1 text-[11px] font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="shrink-0 rounded-[var(--r-sm)] bg-[var(--color-primary)] px-3 py-1 text-[11px] font-medium text-[var(--color-primary-fg)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         style={{ transitionDuration: "var(--duration-fast)" }}
         disabled={disabled || count === 0}
       >

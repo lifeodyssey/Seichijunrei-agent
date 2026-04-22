@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ChatMessage } from "../../lib/types";
-import type { Dict, Locale } from "../../lib/i18n";
 import { useDict } from "../../lib/i18n-context";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
@@ -13,8 +12,6 @@ interface ChatPopupProps {
   messages: ChatMessage[];
   sending: boolean;
   activeMessageId: string | null;
-  dict: Dict;
-  locale: Locale;
   onSend: (text: string, coords?: { lat: number; lng: number } | null) => void;
   onActivate: (messageId: string) => void;
 }
@@ -118,7 +115,7 @@ export default function ChatPopup({
         onPointerDown={handlePillPointerDown}
         onPointerMove={handlePillPointerMove}
         onPointerUp={handlePillPointerUp}
-        className="fixed z-50 flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-white shadow-lg"
+        className="fixed z-50 flex h-11 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-[var(--color-primary-fg)] shadow-lg"
         style={{
           bottom: `${72 - pos.y}px`,
           right: `${24 - pos.x}px`,
@@ -183,7 +180,7 @@ export default function ChatPopup({
             type="button"
             onClick={onClose}
             aria-label={t.close}
-            className="flex h-7 w-7 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               <line x1="18" y1="6" x2="6" y2="18" />
