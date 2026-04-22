@@ -222,7 +222,8 @@
   },
   "chat_popup": {
     "continue": "Continue chat…",
-    "title": "Chat"
+    "title": "Chat",
+    "close": "Close chat"
   },
   "nearby": {
     "summary": "Found {total} spots from {count} anime within {radius}",

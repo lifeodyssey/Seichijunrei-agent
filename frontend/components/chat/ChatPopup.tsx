@@ -182,7 +182,7 @@ export default function ChatPopup({
           <button
             type="button"
             onClick={onClose}
-            aria-label={t.title}
+            aria-label={t.close}
             className="flex h-7 w-7 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -206,7 +206,7 @@ export default function ChatPopup({
       <ChatInput
         onSend={(text) => onSend(text)}
         disabled={sending}
-        placeholderOverride="{t.continue}"
+        placeholderOverride={t.continue}
       />
     </div>
   );

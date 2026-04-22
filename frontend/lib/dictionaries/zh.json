@@ -148,8 +148,8 @@
     "no_coords": "⚠ {count}个缺少坐标",
     "episode": "第{ep}集",
     "back_edit": "编辑",
-    "pilgrimage_title": "{count} 站の巡礼",
-    "stats_detail": "約 {h}時間{m}分 · {d}km · 步行{w}分",
+    "pilgrimage_title": "{count} 站巡礼",
+    "stats_detail": "约 {h}小时{m}分 · {d}km · 步行{w}分",
     "pace_chill": "悠闲",
     "pace_normal": "正常",
     "pace_packed": "紧凑",
@@ -200,7 +200,7 @@
   },
   "spot_detail": {
     "back": "返回",
-    "episode": "第{ep}話",
+    "episode": "第{ep}集",
     "address_label": "📍 地址:",
     "timestamp_label": "📸 截图时间:",
     "select": "选择此圣地",
@@ -222,7 +222,8 @@
   },
   "chat_popup": {
     "continue": "继续对话…",
-    "title": "对话"
+    "title": "对话",
+    "close": "关闭对话"
   },
   "nearby": {
     "summary": "附近 {radius} 内找到了 {count} 部动漫的 {total} 个圣地",

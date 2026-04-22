@@ -222,7 +222,8 @@
   },
   "chat_popup": {
     "continue": "会話を続ける…",
-    "title": "チャット"
+    "title": "チャット",
+    "close": "チャットを閉じる"
   },
   "nearby": {
     "summary": "半径 {radius} 以内に {count} 作品の {total} か所の聖地が見つかりました",
