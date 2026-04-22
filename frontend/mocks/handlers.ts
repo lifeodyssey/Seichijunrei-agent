@@ -16,6 +16,9 @@ function classifyQuery(text: string): RuntimeResponse {
   if (t.includes("涼宮") || t.includes("haruhi") || t.includes("凉宫") || t.includes("clarify")) {
     return MOCK_CLARIFY_RESPONSE;
   }
+  if (t.includes("附近的圣地") || t.includes("nearby spots for")) {
+    return MOCK_SEARCH_RESPONSE;
+  }
   if (t.includes("附近") || t.includes("near") || t.includes("nearby") || t.includes("近く")) {
     return MOCK_NEARBY_RESPONSE;
   }

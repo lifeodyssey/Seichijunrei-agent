@@ -6,6 +6,7 @@ import { isVisualResponse } from "../generative/registry";
 import { useDict } from "../../lib/i18n-context";
 import ThinkingProcess from "./ThinkingProcess";
 import ClarificationBubble from "./ClarificationBubble";
+import NearbyBubbleWrapper from "./NearbyBubbleWrapper";
 import ResultAnchor from "./ResultAnchor";
 import FeedbackButtons from "./FeedbackButtons";
 
@@ -45,6 +46,10 @@ export default function MessageBubble({
 
   const isClarification =
     message.response != null && isClarifyData(message.response.data);
+  const isNearby =
+    message.response != null &&
+    message.response.intent === "search_nearby" &&
+    isSearchData(message.response.data);
 
   return (
     <div
@@ -59,6 +64,8 @@ export default function MessageBubble({
         <ThinkingProcess steps={message.steps ?? []} isStreaming={true} />
       ) : message.errorCode ? (
         <ErrorDisplay errorCode={message.errorCode} errorDict={dict.error} onRetry={onRetry} />
+      ) : isNearby && message.response != null ? (
+        <NearbyBubbleWrapper response={message.response} />
       ) : isClarification && message.response != null ? (
         <ClarificationBubble response={message.response} />
       ) : (

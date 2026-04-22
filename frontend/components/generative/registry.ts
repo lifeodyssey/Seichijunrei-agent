@@ -4,6 +4,7 @@ import { isQAData, isRouteData, isSearchData, isClarifyData } from "../../lib/ty
 import type { ClarifyCandidate } from "../../lib/types";
 import PilgrimageGrid from "./PilgrimageGrid";
 import NearbyMap from "./NearbyMap";
+import NearbyBubble from "./NearbyBubble";
 import RouteVisualization from "./RouteVisualization";
 import RoutePlannerWizard from "./RoutePlannerWizard";
 import GeneralAnswer from "./GeneralAnswer";
@@ -22,6 +23,10 @@ export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
   NearbyMap: (response) =>
     isSearchData(response.data)
       ? createElement(NearbyMap, { data: response.data })
+      : null,
+  NearbyBubble: (response, onSuggest) =>
+    isSearchData(response.data)
+      ? createElement(NearbyBubble, { data: response.data, onSuggest })
       : null,
   RouteVisualization: (response) =>
     isRouteData(response.data)
@@ -59,7 +64,7 @@ export function intentToComponent(intent: string): string {
       return "PilgrimageGrid";
     case "search_by_location":
     case "search_nearby":
-      return "NearbyMap";
+      return "NearbyBubble";
     case "plan_route":
     case "plan_selected":
       return "RoutePlannerWizard";
@@ -75,7 +80,6 @@ export function intentToComponent(intent: string): string {
 
 export const VISUAL_COMPONENTS = new Set([
   "PilgrimageGrid",
-  "NearbyMap",
   "RouteVisualization",
   "RoutePlannerWizard",
 ]);
