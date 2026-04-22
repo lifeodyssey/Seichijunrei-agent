@@ -1,4 +1,5 @@
 import type {
+  ClarifyCandidate,
   ClarifyData,
   RuntimeRequest,
   RuntimeResponse,
@@ -123,6 +124,12 @@ function applyClarifyOverride(
   response: RuntimeResponse,
   clarify: { question: string; options: string[] },
 ): RuntimeResponse {
+  // Preserve candidates from the original response data if available
+  const existingCandidates =
+    typeof response.data === "object" && response.data !== null && "candidates" in response.data
+      ? (response.data as unknown as Record<string, unknown>).candidates
+      : undefined;
+
   const data: ClarifyData = {
     intent: response.intent ?? "clarify",
     confidence: 1,
@@ -130,6 +137,7 @@ function applyClarifyOverride(
     message: clarify.question,
     question: clarify.question,
     options: clarify.options,
+    ...(Array.isArray(existingCandidates) ? { candidates: existingCandidates as ClarifyCandidate[] } : {}),
   };
   return { ...response, status: "needs_clarification", data };
 }

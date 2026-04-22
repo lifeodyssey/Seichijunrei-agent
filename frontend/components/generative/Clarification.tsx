@@ -26,24 +26,41 @@ export default function Clarification({
 
   // If we have candidate objects, render the card layout
   if (hasCandidates) {
+    const isCompact = candidates.length <= 4;
     return (
-      <div className="space-y-5 py-2">
-        <p className="max-w-[65ch] text-sm font-light leading-loose text-[var(--color-fg)]">
+      <div className="space-y-3">
+        <p className="text-sm font-light leading-relaxed text-[var(--color-fg)]">
           {message}
         </p>
-        <div className="flex flex-col gap-2">
-          {candidates.map((candidate) => (
-            <CandidateCard
-              key={candidate.title}
-              candidate={candidate}
-              onSelect={() => onSuggest?.(candidate.title)}
+        <div className={isCompact ? "flex gap-3 overflow-x-auto pb-1" : "flex flex-col gap-2"}>
+          {candidates.map((candidate) =>
+            isCompact ? (
+              <CompactCandidateCard
+                key={candidate.title}
+                candidate={candidate}
+                onSelect={() => onSuggest?.(candidate.title)}
+              />
+            ) : (
+              <CandidateCard
+                key={candidate.title}
+                candidate={candidate}
+                onSelect={() => onSuggest?.(candidate.title)}
+              />
+            ),
+          )}
+          {isCompact ? (
+            <CompactSearchAllCard
+              label={t.search_all}
+              candidates={candidates}
+              onSuggest={onSuggest}
             />
-          ))}
-          <SearchAllCard
-            label={t.search_all}
-            candidates={candidates}
-            onSuggest={onSuggest}
-          />
+          ) : (
+            <SearchAllCard
+              label={t.search_all}
+              candidates={candidates}
+              onSuggest={onSuggest}
+            />
+          )}
         </div>
       </div>
     );
@@ -201,6 +218,97 @@ function SearchAllCard({
       >
         ›
       </span>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CompactCandidateCard — horizontal scroll card variant (≤ 4 candidates)
+// ---------------------------------------------------------------------------
+
+function CompactCandidateCard({
+  candidate,
+  onSelect,
+}: {
+  candidate: ClarifyCandidate;
+  onSelect: () => void;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const { clarification: t } = useDict();
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={candidate.title}
+      className="flex w-[130px] shrink-0 flex-col overflow-hidden rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5"
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      <div className="h-[80px] w-full overflow-hidden bg-[var(--color-muted)]">
+        {candidate.cover_url && !imgError ? (
+          <img
+            src={candidate.cover_url}
+            alt={candidate.title}
+            className="h-full w-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <PlaceholderThumbnail />
+        )}
+      </div>
+      <div className="flex flex-col gap-0.5 p-2.5">
+        <span
+          className="line-clamp-2 text-[13px] font-medium text-[var(--color-fg)]"
+          style={{ fontFamily: "var(--app-font-display)" }}
+        >
+          {candidate.title}
+        </span>
+        <span className="text-[11px] font-medium text-[var(--color-primary)]">
+          {candidate.spot_count} {t.spot_label ?? "spots"}
+        </span>
+        <span className="text-[11px] text-[var(--color-muted-fg)]">{candidate.city}</span>
+      </div>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CompactSearchAllCard — matches compact horizontal card style
+// ---------------------------------------------------------------------------
+
+function CompactSearchAllCard({
+  label,
+  candidates,
+  onSuggest,
+}: {
+  label: string;
+  candidates: ClarifyCandidate[];
+  onSuggest?: (text: string) => void;
+}) {
+  function handleClick() {
+    const titles = candidates.map((c) => c.title).join("\u30FB");
+    onSuggest?.(titles);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label={label}
+      className="flex w-[130px] shrink-0 flex-col overflow-hidden rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5"
+      style={{ transitionDuration: "var(--duration-fast)" }}
+    >
+      <div className="flex h-[80px] w-full items-center justify-center bg-[var(--color-muted)] text-2xl">
+        {"\uD83D\uDD0D"}
+      </div>
+      <div className="flex flex-col gap-0.5 p-2.5">
+        <span
+          className="line-clamp-2 text-[13px] font-medium text-[var(--color-fg)]"
+          style={{ fontFamily: "var(--app-font-display)" }}
+        >
+          {label}
+        </span>
+      </div>
     </button>
   );
 }

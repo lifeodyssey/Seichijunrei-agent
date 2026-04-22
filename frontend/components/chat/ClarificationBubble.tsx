@@ -29,11 +29,13 @@ export default function ClarificationBubble({
       : undefined;
 
   return (
-    <Clarification
-      message={response.message}
-      options={options}
-      candidates={candidates}
-      onSuggest={suggest}
-    />
+    <div className="rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3">
+      <Clarification
+        message={response.message}
+        options={options}
+        candidates={candidates}
+        onSuggest={suggest}
+      />
+    </div>
   );
 }

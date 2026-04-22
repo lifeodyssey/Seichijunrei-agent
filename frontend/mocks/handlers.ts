@@ -13,7 +13,7 @@ import type { RuntimeResponse } from "../lib/types";
  */
 function classifyQuery(text: string): RuntimeResponse {
   const t = text.toLowerCase();
-  if (t.includes("涼宮") || t.includes("haruhi") || t.includes("凉宫")) {
+  if (t.includes("涼宮") || t.includes("haruhi") || t.includes("凉宫") || t.includes("clarify")) {
     return MOCK_CLARIFY_RESPONSE;
   }
   if (t.includes("附近") || t.includes("near") || t.includes("nearby") || t.includes("近く")) {
