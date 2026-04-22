@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
@@ -14,6 +15,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PilgrimagePoint } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
+import { haversineKm } from "../../lib/geo";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,25 +27,6 @@ interface RouteConfirmProps {
   defaultOrigin: string;
   onConfirm: (orderedIds: string[], origin: string) => void;
   onBack: () => void;
-}
-
-// ---------------------------------------------------------------------------
-// Haversine helper — approximate distance between consecutive points
-// ---------------------------------------------------------------------------
-
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +163,7 @@ export default function RouteConfirm({
   onConfirm,
   onBack,
 }: RouteConfirmProps) {
+  const { route_confirm: t } = useDict();
   const [orderedPoints, setOrderedPoints] = useState<PilgrimagePoint[]>(points);
   const [origin, setOrigin] = useState(defaultOrigin);
   const [lastRemoved, setLastRemoved] = useState<{ point: PilgrimagePoint; index: number } | null>(null);
@@ -263,13 +248,13 @@ export default function RouteConfirm({
           >
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          返回选择
+          {t.back}
         </button>
         <span
           className="flex-1 text-center text-base font-semibold text-[var(--color-fg)]"
           style={{ fontFamily: "var(--app-font-display)" }}
         >
-          确认路线
+          {t.title}
         </span>
         {/* Spacer for centering */}
         <div className="w-[72px]" />
@@ -278,13 +263,13 @@ export default function RouteConfirm({
       {/* ── Departure input ─────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-[var(--color-border)] px-4 py-3">
         <label className="mb-1 block text-xs text-[var(--color-muted-fg)]">
-          出发站
+          {t.departure_label}
         </label>
         <input
           type="text"
           value={origin}
           onChange={(e) => setOrigin(e.target.value)}
-          placeholder="输入出发车站名称"
+          placeholder={t.departure_placeholder}
           className="h-[44px] w-full rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-fg)] outline-none transition-colors placeholder:text-[var(--color-muted-fg)] focus:border-[var(--color-primary)]"
         />
       </div>
@@ -314,7 +299,7 @@ export default function RouteConfirm({
 
         {orderedPoints.length === 0 && (
           <p className="py-8 text-center text-sm text-[var(--color-muted-fg)]">
-            已移除所有圣地，请返回重新选择
+            {t.empty}
           </p>
         )}
       </div>
@@ -326,7 +311,7 @@ export default function RouteConfirm({
             className="flex items-center justify-between rounded-[var(--r-md)] px-4 py-2"
             style={{ background: "var(--color-fg)", color: "var(--color-bg)", fontSize: 13 }}
           >
-            <span>已移除「{lastRemoved.point.name_cn || lastRemoved.point.name}」</span>
+            <span>{t.removed.replace("{name}", lastRemoved.point.name_cn || lastRemoved.point.name)}</span>
             <button
               type="button"
               onClick={() => {
@@ -339,7 +324,7 @@ export default function RouteConfirm({
               }}
               style={{ fontWeight: 600, marginLeft: 12, color: "oklch(80% 0.12 240)" }}
             >
-              撤销
+              {t.undo}
             </button>
           </div>
         </div>
@@ -352,13 +337,15 @@ export default function RouteConfirm({
             className="font-[family-name:var(--app-font-display)] text-[var(--color-fg)]"
             style={{ fontSize: 14 }}
           >
-            {orderedPoints.length} 个圣地等你探访
+            {t.summary.replace("{count}", String(orderedPoints.length))}
           </div>
           <div
             className="mt-0.5 text-[var(--color-muted-fg)]"
             style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}
           >
-            预计步行 {totalDistanceKm.toFixed(1)}km，约 {Math.max(1, Math.round((totalDistanceKm / 4) * 60))} 分钟可以走完
+            {t.estimate
+              .replace("{distance}", totalDistanceKm.toFixed(1))
+              .replace("{time}", String(Math.max(1, Math.round((totalDistanceKm / 4) * 60))))}
           </div>
         </div>
         <button
@@ -381,7 +368,7 @@ export default function RouteConfirm({
             <circle cx="12" cy="12" r="10" />
             <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
           </svg>
-          开始规划路线
+          {t.start}
         </button>
       </div>
     </div>

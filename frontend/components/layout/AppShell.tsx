@@ -239,13 +239,9 @@ export default function AppShell() {
               >
                 <ResultPanel
                   activeResponse={activeResponse}
-                  onRouteSelected={handleRouteSelected}
                   onRouteConfirmed={handleRouteConfirmed}
                   defaultOrigin={defaultOrigin}
                   loading={isSending && (isRouteResult || !activeResponse)}
-                  onCollapse={layout.collapseResult}
-                  onExpand={layout.expandResult}
-                  isFullScreen={mode === "full-result"}
                 />
               </div>
             )}
@@ -291,8 +287,6 @@ export default function AppShell() {
               messages={messages}
               sending={isSending}
               activeMessageId={activeMessageId}
-              dict={dict}
-              locale={locale}
               onSend={handleSend}
               onActivate={handleActivate}
             />

@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nearby + Clarify — Design Variants</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* ── Page layout overrides ── */
+  html, body { height: auto; overflow: auto; }
+  body { padding: 48px 40px 80px; }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--fg);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .page-sub {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted-fg);
+    margin-bottom: 56px;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 64px; }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 8px;
+    padding-left: 16px;
+    border-left: 4px solid var(--brand);
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--muted-fg);
+    margin-bottom: 28px;
+    padding-left: 20px;
+  }
+
+  /* ── Variant grid ── */
+  .variants {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+
+  /* ── Variant card ── */
+  .variant {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    transition: box-shadow .2s, border-color .2s;
+  }
+  .variant:hover {
+    border-color: var(--int);
+    box-shadow: 0 8px 32px oklch(20% 0.02 238 / .1);
+  }
+  .variant-label {
+    padding: 14px 18px 10px;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--fg);
+    border-bottom: 1px solid var(--border);
+    background: oklch(96.5% 0.008 218);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .variant-label .tag {
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: var(--r-sm);
+    background: var(--int);
+    color: var(--int-fg);
+  }
+  .variant-label .tag.brand { background: var(--brand); }
+
+  /* ── Mini app mockup frame ── */
+  .mockup {
+    display: flex;
+    height: 440px;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Mini sidebar */
+  .m-sidebar {
+    width: 42px;
+    min-width: 42px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 3px;
+    background: var(--bg);
+  }
+  .m-sb-logo {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: var(--brand-soft);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .m-sb-btn {
+    width: 28px; height: 28px;
+    border-radius: 5px;
+    background: transparent;
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted-fg);
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .m-sb-btn.active { background: var(--int-soft); color: var(--int); }
+
+  /* Mini main area */
+  .m-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Chat popup (bottom-right floating) ── */
+  .chat-popup {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 260px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: 0 6px 24px oklch(20% 0.02 238 / .12);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10;
+  }
+  .chat-popup-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted-fg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: oklch(97% 0.006 218);
+  }
+  .chat-popup-header .dot { width: 6px; height: 6px; border-radius: 50%; background: oklch(65% 0.16 145); }
+  .chat-popup-body {
+    flex: 1;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .chat-popup-input {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+  }
+  .chat-popup-input input {
+    flex: 1;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 10px;
+    font-size: 11px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+  }
+  .chat-popup-input button {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--int);
+    border: none;
+    color: white;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Mini bubbles */
+  .m-bubble-user {
+    align-self: flex-end;
+    background: var(--int);
+    color: var(--int-fg);
+    padding: 6px 10px;
+    border-radius: 10px 10px 3px 10px;
+    font-size: 11px;
+    max-width: 85%;
+    line-height: 1.4;
+  }
+  .m-bubble-ai {
+    align-self: flex-start;
+    background: var(--card);
+    padding: 6px 10px;
+    border-radius: 10px 10px 10px 3px;
+    font-size: 11px;
+    max-width: 90%;
+    line-height: 1.4;
+    color: var(--fg);
+  }
+
+  /* ── ResultPanel area ── */
+  .result-panel {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ═══════════════════════════════════════ */
+  /* Clarify C1: Inline Chat Cards          */
+  /* ═══════════════════════════════════════ */
+  .c1-cards-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 6px 0 2px;
+    scrollbar-width: none;
+  }
+  .c1-cards-row::-webkit-scrollbar { display: none; }
+  .c1-card {
+    flex-shrink: 0;
+    width: 100px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .c1-card:hover {
+    border-color: var(--int);
+    transform: translateY(-1px);
+  }
+  .c1-card img {
+    width: 100%;
+    height: 56px;
+    object-fit: cover;
+    display: block;
+    background: var(--muted);
+  }
+  .c1-card-info {
+    padding: 5px 6px;
+  }
+  .c1-card-title {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .c1-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .c1-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--int-soft);
+    color: var(--int);
+  }
+  .c1-city {
+    font-size: 9px;
+    color: var(--muted-fg);
+  }
+
+  /* ═══════════════════════════════════════ */
+  /* Clarify C2: Full-Width Takeover        */
+  /* ═══════════════════════════════════════ */
+  .c2-takeover {
+    padding: 24px 20px;
+    overflow-y: auto;
+    height: 100%;
+  }
+  .c2-header {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+  .c2-sub {
+    font-size: 11px;
+    color: var(--muted-fg);
+    margin-bottom: 16px;
+  }
+  .c2-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .c2-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .c2-item:hover {
+    border-color: var(--int);
+    box-shadow: 0 2px 12px oklch(20% 0.02 238 / .06);
+  }
+  .c2-item img {
+    width: 64px;
+    height: 88px;
+    border-radius: 5px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--muted);
+  }
+  .c2-item-body { flex: 1; min-width: 0; }
+  .c2-item-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 3px;
+  }
+  .c2-item-desc {
+    font-size: 10px;
+    color: var(--muted-fg);
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .c2-item-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .c2-tag {
+    font-size: 9px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--int-soft);
+    color: var(--int);
+  }
+  .c2-tag.loc {
+    background: var(--walk-bg);
+    color: var(--walk-fg);
+  }
+
+  /* ═══════════════════════════════════════ */
+  /* Clarify C3: Suggestion Chips           */
+  /* ═══════════════════════════════════════ */
+  .c3-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+  }
+  .c3-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--fg);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    width: fit-content;
+  }
+  .c3-chip:hover {
+    border-color: var(--int);
+    background: var(--int-soft);
+    color: var(--int);
+  }
+  .c3-chip .emoji { font-size: 12px; }
+
+  /* ═══════════════════════════════════════ */
+  /* Nearby N1: Map-First with Anime Chips  */
+  /* ═══════════════════════════════════════ */
+  .n1-layout { display: flex; height: 100%; }
+  .n1-map-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .n1-chips-bar {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    gap: 5px;
+    z-index: 5;
+    flex-wrap: wrap;
+  }
+  .n1-chip {
+    padding: 3px 9px;
+    border-radius: 14px;
+    font-size: 9px;
+    font-weight: 600;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s;
+  }
+  .n1-chip.euphonium { background: oklch(90% 0.04 240); color: oklch(42% 0.12 240); border-color: oklch(75% 0.06 240); }
+  .n1-chip.keion { background: oklch(92% 0.04 55); color: oklch(42% 0.1 55); border-color: oklch(78% 0.06 55); }
+  .n1-chip.tamako { background: oklch(90% 0.04 145); color: oklch(38% 0.1 145); border-color: oklch(75% 0.06 145); }
+
+  .n1-side {
+    width: 140px;
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: white;
+  }
+  .n1-side-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted-fg);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 4px 2px;
+  }
+  .n1-spot {
+    padding: 5px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background .15s;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .n1-spot:hover { background: var(--card); }
+  .n1-spot-name {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .n1-spot-sub {
+    font-size: 9px;
+    color: var(--muted-fg);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .n1-spot-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .n1-spot-dot.blue { background: oklch(55% 0.12 240); }
+  .n1-spot-dot.orange { background: oklch(55% 0.12 55); }
+  .n1-spot-dot.green { background: oklch(55% 0.12 145); }
+
+  .n1-pin {
+    position: absolute;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 2px 6px oklch(20% 0.02 238 / .25);
+    z-index: 3;
+    border: 1.5px solid white;
+  }
+  .n1-pin.blue { background: oklch(55% 0.12 240); }
+  .n1-pin.orange { background: oklch(55% 0.12 55); }
+  .n1-pin.green { background: oklch(55% 0.12 145); }
+
+  /* ═══════════════════════════════════════ */
+  /* Nearby N2: Grid by Anime Groups        */
+  /* ═══════════════════════════════════════ */
+  .n2-panel {
+    padding: 14px 16px;
+    overflow-y: auto;
+    height: 100%;
+  }
+  .n2-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted-fg);
+    cursor: pointer;
+    margin-bottom: 14px;
+    transition: border-color .15s;
+  }
+  .n2-toggle:hover { border-color: var(--int); color: var(--int); }
+  .n2-group { margin-bottom: 16px; }
+  .n2-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .n2-group-cover {
+    width: 28px; height: 38px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .n2-group-info {}
+  .n2-group-title {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .n2-group-count {
+    font-size: 9px;
+    color: var(--muted-fg);
+  }
+  .n2-scroll-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .n2-scroll-row::-webkit-scrollbar { display: none; }
+  .n2-spot-card {
+    flex-shrink: 0;
+    width: 100px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .n2-spot-card:hover {
+    border-color: var(--int);
+    transform: translateY(-1px);
+  }
+  .n2-spot-card img {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    display: block;
+    background: var(--muted);
+  }
+  .n2-spot-info { padding: 5px 6px; }
+  .n2-spot-name {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .n2-spot-dist {
+    font-size: 9px;
+    color: var(--muted-fg);
+    margin-top: 1px;
+  }
+
+  /* ═══════════════════════════════════════ */
+  /* Nearby N3: Distance Timeline           */
+  /* ═══════════════════════════════════════ */
+  .n3-panel {
+    padding: 14px 16px;
+    overflow-y: auto;
+    height: 100%;
+  }
+  .n3-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .n3-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .n3-map-toggle {
+    padding: 3px 8px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 9px;
+    color: var(--muted-fg);
+    cursor: pointer;
+    font-weight: 500;
+    transition: border-color .15s;
+  }
+  .n3-map-toggle:hover { border-color: var(--int); color: var(--int); }
+  .n3-timeline { display: flex; flex-direction: column; }
+  .n3-entry {
+    display: flex;
+    gap: 10px;
+    position: relative;
+  }
+  .n3-left {
+    width: 40px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .n3-dist-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--int);
+    background: var(--int-soft);
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  .n3-line {
+    width: 1.5px;
+    flex: 1;
+    background: var(--border);
+    margin: 3px 0;
+  }
+  .n3-right {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    padding-bottom: 6px;
+    min-width: 0;
+  }
+  .n3-spot-photo {
+    width: 48px;
+    height: 36px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--muted);
+  }
+  .n3-spot-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .n3-spot-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .n3-anime-chip {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-top: 2px;
+  }
+  .n3-anime-chip.euphonium { background: oklch(90% 0.04 240); color: oklch(42% 0.12 240); }
+  .n3-anime-chip.keion { background: oklch(92% 0.04 55); color: oklch(42% 0.1 55); }
+  .n3-anime-chip.tamako { background: oklch(90% 0.04 145); color: oklch(38% 0.1 145); }
+
+  .n3-walk-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0 2px;
+  }
+  .n3-walk-left {
+    width: 40px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .n3-walk-dash {
+    width: 1.5px;
+    height: 22px;
+    background: repeating-linear-gradient(to bottom, var(--walk-fg) 0 3px, transparent 3px 6px);
+    opacity: .5;
+  }
+  .n3-walk-label {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--walk-fg);
+    background: var(--walk-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── Empty result panel bg ── */
+  .rp-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-fg);
+    font-size: 11px;
+    gap: 4px;
+  }
+  .rp-empty-icon { font-size: 24px; opacity: .4; }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .variants { grid-template-columns: 1fr; max-width: 520px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Nearby + Clarify — Design Variants</h1>
+<p class="page-sub">Seichijunrei 聖地巡礼 — 6 design explorations for disambiguation and nearby discovery</p>
+
+<!-- ═════════════════════════════════════════════════════ -->
+<!-- SECTION 1: CLARIFY                                   -->
+<!-- ═════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">Clarify 消歧义</h2>
+  <p class="section-desc">用户输入 "涼宮" → AI 发现多部相关作品 → 展示候选项让用户选择</p>
+
+  <div class="variants">
+
+    <!-- ── C1: Inline Chat Cards ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag">C1</span>
+        Inline Chat Cards 内嵌卡片
+      </div>
+      <div class="mockup">
+        <!-- Mini sidebar -->
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+          </button>
+        </div>
+
+        <!-- Main area (empty result panel + chat popup) -->
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="rp-empty">
+              <div class="rp-empty-icon">🔍</div>
+              <span>选择作品后显示圣地</span>
+            </div>
+          </div>
+
+          <!-- Chat popup -->
+          <div class="chat-popup" style="max-height: 340px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body">
+              <div class="m-bubble-user">涼宮</div>
+              <div class="m-bubble-ai">
+                <div style="margin-bottom: 6px;">找到了多部相关作品，请选择：</div>
+                <div class="c1-cards-row">
+                  <div class="c1-card">
+                    <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" loading="lazy">
+                    <div class="c1-card-info">
+                      <div class="c1-card-title">涼宮ハルヒの憂鬱</div>
+                      <div class="c1-card-meta">
+                        <span class="c1-badge">134</span>
+                        <span class="c1-city">西宮市</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="c1-card">
+                    <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの消失" loading="lazy" style="filter: brightness(0.85) hue-rotate(20deg);">
+                    <div class="c1-card-info">
+                      <div class="c1-card-title">涼宮ハルヒの消失</div>
+                      <div class="c1-card-meta">
+                        <span class="c1-badge">42</span>
+                        <span class="c1-city">西宮市</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="chat-popup-input">
+              <input type="text" placeholder="选择一部作品…" readonly>
+              <button>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── C2: Full-Width Takeover ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag brand">C2</span>
+        Full-Width Takeover 全屏接管
+      </div>
+      <div class="mockup">
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+          </button>
+        </div>
+
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="c2-takeover">
+              <div class="c2-header">你要找哪一部？</div>
+              <div class="c2-sub">搜索 "涼宮" 找到 2 部相关作品</div>
+              <div class="c2-list">
+                <div class="c2-item">
+                  <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" loading="lazy">
+                  <div class="c2-item-body">
+                    <div class="c2-item-title">涼宮ハルヒの憂鬱</div>
+                    <div class="c2-item-desc">凉宫春日系列主作，以西宮市为主要取景地。SOS团的冒险从这里开始。</div>
+                    <div class="c2-item-tags">
+                      <span class="c2-tag">134 圣地</span>
+                      <span class="c2-tag loc">西宮市</span>
+                      <span class="c2-tag loc">兵庫県</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="c2-item">
+                  <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの消失" loading="lazy" style="filter: brightness(0.85) hue-rotate(20deg);">
+                  <div class="c2-item-body">
+                    <div class="c2-item-title">涼宮ハルヒの消失</div>
+                    <div class="c2-item-desc">剧场版。长门有希改变的世界线，圣地集中在西宮市北口站周边。</div>
+                    <div class="c2-item-tags">
+                      <span class="c2-tag">42 圣地</span>
+                      <span class="c2-tag loc">西宮市</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Minimized chat popup -->
+          <div class="chat-popup" style="max-height: 120px; width: 220px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body" style="padding: 6px 10px;">
+              <div class="m-bubble-user" style="font-size: 10px;">涼宮</div>
+              <div class="m-bubble-ai" style="font-size: 10px;">请在左侧面板选择作品 →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── C3: Suggestion Chips ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag">C3</span>
+        Suggestion Chips 建议按钮
+      </div>
+      <div class="mockup">
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+          </button>
+        </div>
+
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="rp-empty">
+              <div class="rp-empty-icon">🔍</div>
+              <span>选择作品后显示圣地</span>
+            </div>
+          </div>
+
+          <div class="chat-popup" style="max-height: 320px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body">
+              <div class="m-bubble-user">涼宮</div>
+              <div class="m-bubble-ai">
+                <div>找到了多部相关作品：</div>
+                <div class="c3-chips">
+                  <div class="c3-chip">
+                    <span class="emoji">📺</span>
+                    涼宮ハルヒの憂鬱 (134 spots)
+                  </div>
+                  <div class="c3-chip">
+                    <span class="emoji">🎬</span>
+                    涼宮ハルヒの消失 (42 spots)
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="chat-popup-input">
+              <input type="text" placeholder="或直接输入作品名…" readonly>
+              <button>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /variants -->
+</div><!-- /section -->
+
+<!-- ═════════════════════════════════════════════════════ -->
+<!-- SECTION 2: NEARBY                                    -->
+<!-- ═════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">Nearby 附近探索</h2>
+  <p class="section-desc">用户说 "附近有什么" → AI 返回多部作品的附近圣地</p>
+
+  <div class="variants">
+
+    <!-- ── N1: Map-First with Anime Chips ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag">N1</span>
+        Map-First 地图优先
+      </div>
+      <div class="mockup">
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </button>
+        </div>
+
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="n1-layout">
+              <div class="n1-map-area map-bg">
+                <!-- Anime filter chips -->
+                <div class="n1-chips-bar">
+                  <span class="n1-chip euphonium">響け！ユーフォニアム</span>
+                  <span class="n1-chip keion">けいおん！</span>
+                  <span class="n1-chip tamako">たまこまーけっと</span>
+                </div>
+                <!-- Pins -->
+                <div class="n1-pin blue" style="top: 28%; left: 22%;">1</div>
+                <div class="n1-pin blue" style="top: 48%; left: 38%;">2</div>
+                <div class="n1-pin orange" style="top: 35%; left: 55%;">3</div>
+                <div class="n1-pin orange" style="top: 60%; left: 30%;">4</div>
+                <div class="n1-pin green" style="top: 55%; left: 62%;">5</div>
+                <div class="n1-pin green" style="top: 72%; left: 45%;">6</div>
+                <!-- User location -->
+                <div style="position: absolute; top: 45%; left: 45%; width: 12px; height: 12px; border-radius: 50%; background: oklch(55% 0.16 240); border: 2px solid white; box-shadow: 0 0 0 4px oklch(55% 0.16 240 / .2); z-index: 4;"></div>
+                <div class="map-attr">Mapbox GL</div>
+              </div>
+              <div class="n1-side">
+                <div class="n1-side-title">附近 · 6 圣地</div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">宇治橋</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot blue"></span>
+                    響け！· 350m
+                  </div>
+                </div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">大吉山展望台</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot blue"></span>
+                    響け！· 500m
+                  </div>
+                </div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">豊郷小学校</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot orange"></span>
+                    けいおん！· 850m
+                  </div>
+                </div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">旧豊郷小講堂</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot orange"></span>
+                    けいおん！· 1.1km
+                  </div>
+                </div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">出町桝形商店街</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot green"></span>
+                    たまこ · 1.2km
+                  </div>
+                </div>
+                <div class="n1-spot">
+                  <div class="n1-spot-name">鴨川デルタ</div>
+                  <div class="n1-spot-sub">
+                    <span class="n1-spot-dot green"></span>
+                    たまこ · 1.5km
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Minimized chat -->
+          <div class="chat-popup" style="max-height: 100px; width: 200px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body" style="padding: 6px 10px;">
+              <div class="m-bubble-ai" style="font-size: 10px;">找到附近 6 个圣地，来自 3 部作品</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── N2: Grid by Anime Groups ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag brand">N2</span>
+        Grid by Anime 按作品分组
+      </div>
+      <div class="mockup">
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </button>
+        </div>
+
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="n2-panel">
+              <button class="n2-toggle">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                在地图上查看
+              </button>
+
+              <!-- Group 1: 響け！ -->
+              <div class="n2-group">
+                <div class="n2-group-header">
+                  <div style="width: 28px; height: 38px; border-radius: 4px; background: oklch(75% 0.08 240); flex-shrink: 0;"></div>
+                  <div class="n2-group-info">
+                    <div class="n2-group-title">響け！ユーフォニアム</div>
+                    <div class="n2-group-count">附近找到 2 个圣地</div>
+                  </div>
+                </div>
+                <div class="n2-scroll-row">
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治橋" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">宇治橋</div>
+                      <div class="n2-spot-dist">350m · 徒歩5分</div>
+                    </div>
+                  </div>
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="大吉山展望台" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">大吉山展望台</div>
+                      <div class="n2-spot-dist">500m · 徒歩7分</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Group 2: けいおん！ -->
+              <div class="n2-group">
+                <div class="n2-group-header">
+                  <div style="width: 28px; height: 38px; border-radius: 4px; background: oklch(78% 0.08 55); flex-shrink: 0;"></div>
+                  <div class="n2-group-info">
+                    <div class="n2-group-title">けいおん！</div>
+                    <div class="n2-group-count">附近找到 2 个圣地</div>
+                  </div>
+                </div>
+                <div class="n2-scroll-row">
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="豊郷小学校" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">豊郷小学校</div>
+                      <div class="n2-spot-dist">850m · 徒歩11分</div>
+                    </div>
+                  </div>
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="旧豊郷小講堂" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">旧豊郷小講堂</div>
+                      <div class="n2-spot-dist">1.1km · 徒歩14分</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Group 3: たまこまーけっと -->
+              <div class="n2-group">
+                <div class="n2-group-header">
+                  <div style="width: 28px; height: 38px; border-radius: 4px; background: oklch(75% 0.08 145); flex-shrink: 0;"></div>
+                  <div class="n2-group-info">
+                    <div class="n2-group-title">たまこまーけっと</div>
+                    <div class="n2-group-count">附近找到 2 个圣地</div>
+                  </div>
+                </div>
+                <div class="n2-scroll-row">
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="出町桝形商店街" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">出町桝形商店街</div>
+                      <div class="n2-spot-dist">1.2km · 徒歩15分</div>
+                    </div>
+                  </div>
+                  <div class="n2-spot-card">
+                    <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="鴨川デルタ" loading="lazy">
+                    <div class="n2-spot-info">
+                      <div class="n2-spot-name">鴨川デルタ</div>
+                      <div class="n2-spot-dist">1.5km · 徒歩19分</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-popup" style="max-height: 100px; width: 200px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body" style="padding: 6px 10px;">
+              <div class="m-bubble-ai" style="font-size: 10px;">附近有 3 部作品的圣地</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── N3: Distance Timeline ── -->
+    <div class="variant">
+      <div class="variant-label">
+        <span class="tag">N3</span>
+        Distance Timeline 距离时间线
+      </div>
+      <div class="mockup">
+        <div class="m-sidebar">
+          <div class="m-sb-logo">聖</div>
+          <button class="m-sb-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="m-sb-btn active">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </button>
+        </div>
+
+        <div class="m-main">
+          <div class="result-panel">
+            <div class="n3-panel">
+              <div class="n3-header-row">
+                <div class="n3-title">附近圣地</div>
+                <button class="n3-map-toggle">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  地图
+                </button>
+              </div>
+
+              <div class="n3-timeline">
+                <!-- Entry 1 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">350m</span>
+                    <div class="n3-line"></div>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治橋" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">宇治橋</div>
+                      <span class="n3-anime-chip euphonium">響け！ユーフォニアム</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Walk pill -->
+                <div class="n3-walk-pill">
+                  <div class="n3-walk-left">
+                    <div class="n3-walk-dash"></div>
+                  </div>
+                  <span class="n3-walk-label">🚶 2分</span>
+                </div>
+
+                <!-- Entry 2 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">500m</span>
+                    <div class="n3-line"></div>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="大吉山展望台" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">大吉山展望台</div>
+                      <span class="n3-anime-chip euphonium">響け！ユーフォニアム</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Walk pill -->
+                <div class="n3-walk-pill">
+                  <div class="n3-walk-left">
+                    <div class="n3-walk-dash"></div>
+                  </div>
+                  <span class="n3-walk-label">🚶 5分</span>
+                </div>
+
+                <!-- Entry 3 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">850m</span>
+                    <div class="n3-line"></div>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="豊郷小学校" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">豊郷小学校</div>
+                      <span class="n3-anime-chip keion">けいおん！</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Walk pill -->
+                <div class="n3-walk-pill">
+                  <div class="n3-walk-left">
+                    <div class="n3-walk-dash"></div>
+                  </div>
+                  <span class="n3-walk-label">🚶 4分</span>
+                </div>
+
+                <!-- Entry 4 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">1.1km</span>
+                    <div class="n3-line"></div>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="旧豊郷小講堂" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">旧豊郷小講堂</div>
+                      <span class="n3-anime-chip keion">けいおん！</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Walk pill -->
+                <div class="n3-walk-pill">
+                  <div class="n3-walk-left">
+                    <div class="n3-walk-dash"></div>
+                  </div>
+                  <span class="n3-walk-label">🚶 2分</span>
+                </div>
+
+                <!-- Entry 5 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">1.2km</span>
+                    <div class="n3-line"></div>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="出町桝形商店街" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">出町桝形商店街</div>
+                      <span class="n3-anime-chip tamako">たまこまーけっと</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Walk pill -->
+                <div class="n3-walk-pill">
+                  <div class="n3-walk-left">
+                    <div class="n3-walk-dash"></div>
+                  </div>
+                  <span class="n3-walk-label">🚶 4分</span>
+                </div>
+
+                <!-- Entry 6 -->
+                <div class="n3-entry">
+                  <div class="n3-left">
+                    <span class="n3-dist-badge">1.5km</span>
+                  </div>
+                  <div class="n3-right">
+                    <img class="n3-spot-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="鴨川デルタ" loading="lazy">
+                    <div class="n3-spot-body">
+                      <div class="n3-spot-name">鴨川デルタ</div>
+                      <span class="n3-anime-chip tamako">たまこまーけっと</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-popup" style="max-height: 100px; width: 200px;">
+            <div class="chat-popup-header">
+              <div class="dot"></div>
+              AI 助手
+            </div>
+            <div class="chat-popup-body" style="padding: 6px 10px;">
+              <div class="m-bubble-ai" style="font-size: 10px;">最近的圣地在 350m 处</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /variants -->
+</div><!-- /section -->
+
+</body>
+</html>

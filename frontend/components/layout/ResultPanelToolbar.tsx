@@ -53,6 +53,7 @@ export function ResultPanelToolbar({
       {/* Tab row: 按集数 | 按地区 + view toggle */}
       <div className="flex items-center gap-0 px-4 pt-1">
         <button
+          type="button"
           onClick={() => onFilterModeChange("episode")}
           className={cn(
             "px-3 py-1.5 text-[12px] font-medium transition-colors",
@@ -62,6 +63,7 @@ export function ResultPanelToolbar({
           按集数
         </button>
         <button
+          type="button"
           onClick={() => onFilterModeChange("area")}
           className={cn(
             "px-3 py-1.5 text-[12px] font-medium transition-colors",
@@ -74,11 +76,12 @@ export function ResultPanelToolbar({
         <div className="flex-1" />
 
         {/* Grid / map pill toggle */}
-        <div className="flex shrink-0 gap-0.5 rounded-lg bg-[var(--color-card)] p-0.5">
+        <div className="flex shrink-0 gap-0.5 rounded-[var(--r-lg)] bg-[var(--color-card)] p-0.5">
           <button
+            type="button"
             onClick={() => onViewChange("grid")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
+              "flex items-center gap-1.5 rounded-[var(--r-md)] px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
               view === "grid"
                 ? "bg-[var(--color-bg)] text-[var(--color-fg)] shadow-[0_1px_3px_oklch(0%_0_0_/_0.08)]"
                 : "bg-transparent text-[var(--color-muted-fg)]",
@@ -88,9 +91,10 @@ export function ResultPanelToolbar({
             グリッド
           </button>
           <button
+            type="button"
             onClick={() => onViewChange("map")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
+              "flex items-center gap-1.5 rounded-[var(--r-md)] px-3.5 py-1.5 text-[12px] font-medium transition-all duration-150",
               view === "map"
                 ? "bg-[var(--color-bg)] text-[var(--color-fg)] shadow-[0_1px_3px_oklch(0%_0_0_/_0.08)]"
                 : "bg-transparent text-[var(--color-muted-fg)]",
@@ -106,6 +110,7 @@ export function ResultPanelToolbar({
       {chips.length > 0 && (
         <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-1.5">
           <button
+            type="button"
             onClick={() => onChipChange(null)}
             className={cn(
               "shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150",
@@ -116,6 +121,7 @@ export function ResultPanelToolbar({
           </button>
           {chips.map((chip) => (
             <button
+              type="button"
               key={chip}
               onClick={() => onChipChange(chip)}
               className={cn(

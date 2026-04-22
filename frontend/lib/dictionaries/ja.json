@@ -146,7 +146,20 @@
     "no_results": "ルートを作成できませんでした。",
     "spots": "{count}スポット",
     "no_coords": "⚠ {count}件の座標なし",
-    "episode": "第{ep}話"
+    "episode": "第{ep}話",
+    "back_edit": "編集",
+    "pilgrimage_title": "{count} 聖地の巡礼",
+    "stats_detail": "約 {h}時間{m}分 · {d}km · 徒歩{w}分",
+    "pace_chill": "ゆったり",
+    "pace_normal": "普通",
+    "pace_packed": "コンパクト",
+    "pace_desc": "各地点 {min} 分",
+    "export_gmaps": "Google Maps で開く",
+    "export_ics": "カレンダーに書き出す",
+    "chat_label": "チャット",
+    "timeline_spots": "{count} 聖地",
+    "timeline_nearby": "📍 付近に他のアニメ聖地があります",
+    "timeline_nearby_sub": "途中で別の作品のロケ地を通るかもしれません"
   },
   "selection": {
     "count": "{count}件を選択中",
@@ -184,6 +197,40 @@
     "denied": "位置情報が拒否されました",
     "timeout": "位置情報の取得がタイムアウトしました",
     "not_supported": "お使いのブラウザは位置情報に対応していません"
+  },
+  "spot_detail": {
+    "back": "戻る",
+    "episode": "第{ep}話",
+    "address_label": "📍 住所:",
+    "timestamp_label": "📸 スクリーンショット時刻:",
+    "select": "聖地を選択",
+    "selected": "✓ 選択済み",
+    "view_on_map": "マップで見る",
+    "nearby_title": "近くの聖地"
+  },
+  "route_confirm": {
+    "back": "選択に戻る",
+    "title": "ルート確認",
+    "departure_label": "出発駅",
+    "departure_placeholder": "出発駅名を入力",
+    "empty": "すべての聖地が削除されました。戻って再選択してください",
+    "removed": "「{name}」を削除しました",
+    "undo": "元に戻す",
+    "summary": "{count} か所の聖地が待っています",
+    "estimate": "徒歩 {distance}km、約 {time} 分",
+    "start": "ルート計画を開始"
+  },
+  "chat_popup": {
+    "continue": "会話を続ける…",
+    "title": "チャット",
+    "close": "チャットを閉じる"
+  },
+  "nearby": {
+    "summary": "半径 {radius} 以内に {count} 作品の {total} か所の聖地が見つかりました",
+    "spots_distance": "{spotCount} 聖地 · 最寄り {dist}",
+    "view_all": "全 {total} 聖地を表示",
+    "search_anime_nearby": "{title} の近くの聖地を検索",
+    "show_all_nearby": "近くの全聖地を表示"
   },
   "clarification": {
     "examples_label": "例えば：",

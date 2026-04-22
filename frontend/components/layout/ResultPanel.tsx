@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../lib/types";
 import { isSearchData, isRouteData } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
+import { haversineKm } from "../../lib/geo";
 import { useSuggest } from "../../contexts/SuggestContext";
-import SelectionBar from "../generative/SelectionBar";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import RouteConfirm from "../generative/RouteConfirm";
 import { PhotoCard } from "../generative/PhotoCard";
@@ -34,68 +34,9 @@ type ViewMode = "grid" | "map";
 
 interface ResultPanelProps {
   activeResponse: RuntimeResponse | null;
-  onSuggest?: (text: string) => void;
-  onRouteSelected?: (origin: string) => void;
   onRouteConfirmed?: (orderedIds: string[], origin: string) => void;
   defaultOrigin?: string;
   loading?: boolean;
-  /** Collapse result panel → chat-focused mode. */
-  onCollapse?: () => void;
-  /** Expand result panel → full-screen mode. */
-  onExpand?: () => void;
-  /** Whether the panel is currently in full-screen mode. */
-  isFullScreen?: boolean;
-}
-
-// ---------------------------------------------------------------------------
-// Layout controls — collapse / expand buttons at top of result panel
-// ---------------------------------------------------------------------------
-
-function LayoutControls({
-  onCollapse,
-  onExpand,
-  isFullScreen,
-}: {
-  onCollapse?: () => void;
-  onExpand?: () => void;
-  isFullScreen?: boolean;
-}) {
-  if (!onCollapse && !onExpand) return null;
-  return (
-    <div className="flex shrink-0 items-center justify-end gap-1 border-b border-[var(--color-border)] px-3 py-1.5">
-      {onExpand && !isFullScreen && (
-        <button
-          type="button"
-          onClick={onExpand}
-          aria-label="Expand result panel"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
-        >
-          {/* Expand / maximize icon */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <polyline points="15 3 21 3 21 9" />
-            <polyline points="9 21 3 21 3 15" />
-            <line x1="21" y1="3" x2="14" y2="10" />
-            <line x1="3" y1="21" x2="10" y2="14" />
-          </svg>
-        </button>
-      )}
-      {onCollapse && (
-        <button
-          type="button"
-          onClick={onCollapse}
-          aria-label="Collapse result panel"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
-        >
-          {/* Collapse / panel-right icon */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="15" y1="3" x2="15" y2="21" />
-            <polyline points="10 8 6 12 10 16" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -139,16 +80,6 @@ const KNOWN_AREAS: { name: string; lat: number; lng: number; r: number }[] = [
   { name: "奈良", lat: 34.685, lng: 135.805, r: 10 },
   { name: "神戸", lat: 34.690, lng: 135.195, r: 12 },
 ];
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function pointArea(p: PilgrimagePoint): string {
   for (const area of KNOWN_AREAS) {
@@ -244,13 +175,9 @@ function GridContent({ points, selectedIds, onToggle, onDetail }: GridContentPro
 
 export default function ResultPanel({
   activeResponse,
-  onRouteSelected,
   onRouteConfirmed,
   defaultOrigin,
   loading,
-  onCollapse,
-  onExpand,
-  isFullScreen,
 }: ResultPanelProps) {
   const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
@@ -262,10 +189,14 @@ export default function ResultPanel({
   const [detailPoint, setDetailPoint] = useState<PilgrimagePoint | null>(null);
 
   // Reset confirm mode and detail view when response changes (e.g. new search triggered).
-  useEffect(() => {
-    setConfirmMode(false);
-    setDetailPoint(null);
-  }, [activeResponse]);
+  // Track prev response identity in state to trigger reset without useEffect + setState
+  // or ref access during render.
+  const [prevResponse, setPrevResponse] = useState(activeResponse);
+  if (prevResponse !== activeResponse) {
+    setPrevResponse(activeResponse);
+    if (confirmMode) setConfirmMode(false);
+    if (detailPoint !== null) setDetailPoint(null);
+  }
 
   // Extract search points from the response (when available).
   const searchPoints = useMemo<PilgrimagePoint[]>(() => {
@@ -425,7 +356,7 @@ export default function ResultPanel({
               type="button"
               onClick={() => setConfirmMode(true)}
               disabled={loading || selectedIds.size < 2}
-              className="ml-auto flex h-9 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="ml-auto flex h-11 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               规划路线
             </button>

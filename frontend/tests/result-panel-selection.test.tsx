@@ -134,17 +134,6 @@ describe("ResultPanel selection bar", () => {
     expect(screen.queryByTestId("selection-bar")).toBeNull();
   });
 
-  it("calls onRouteSelected when route button is clicked", () => {
-    const onRouteSelected = vi.fn();
-    render(
-      <Wrapper selectedIds={new Set(["pt-001"])}>
-        <ResultPanel activeResponse={makeResponse()} onRouteSelected={onRouteSelected} />
-      </Wrapper>,
-    );
-    fireEvent.click(screen.getByTestId("route-btn"));
-    expect(onRouteSelected).toHaveBeenCalledOnce();
-  });
-
   it("calls clear on PointSelectionContext when clear button is clicked", () => {
     const clear = vi.fn();
     render(

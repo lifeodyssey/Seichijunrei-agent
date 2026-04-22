@@ -11,13 +11,11 @@ import SourceBadge from "./SourceBadge";
 
 function PilgrimageCard({
   point,
-  idx,
   episodeLabel,
   selected,
   onToggle,
 }: {
   point: PilgrimagePoint;
-  idx: number;
   episodeLabel: string;
   selected: boolean;
   onToggle: () => void;
@@ -26,9 +24,6 @@ function PilgrimageCard({
 
   // Treat empty string as absent — same as null for rendering purposes.
   const hasImage = Boolean(point.screenshot_url) && !imgError;
-
-  // City display: fall back to "---" when origin is null or empty.
-  const cityLabel = point.origin || "---";
 
   return (
     <button
@@ -44,7 +39,7 @@ function PilgrimageCard({
     >
       {/* Selection checkmark */}
       {selected && (
-        <span className="absolute right-1.5 top-1.5 z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-white shadow-sm">
+        <span className="absolute right-1.5 top-1.5 z-10 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--color-primary)] text-[11px] font-bold text-[var(--color-primary-fg)] shadow-sm">
           ✓
         </span>
       )}
@@ -136,11 +131,10 @@ function GroupSection({
       </button>
       {open && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {points.map((point, idx) => (
+          {points.map((point) => (
             <PilgrimageCard
               key={point.id}
               point={point}
-              idx={idx}
               episodeLabel={episodeLabel}
               selected={selectedIds.has(point.id)}
               onToggle={() => toggle(point.id)}

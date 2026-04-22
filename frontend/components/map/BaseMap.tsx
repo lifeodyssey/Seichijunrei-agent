@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 /**
@@ -237,7 +238,7 @@ export default function BaseMap({
           <Layer
             type="line"
             paint={{
-              "line-color": "#c85a3a",
+              "line-color": "oklch(58% 0.19 28)",
               "line-width": 3,
               "line-opacity": 0.8,
             }}

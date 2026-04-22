@@ -4,7 +4,6 @@ import {
   MOCK_ROUTE_RESPONSE,
   MOCK_CLARIFY_RESPONSE,
   MOCK_NEARBY_RESPONSE,
-  MOCK_GREET_RESPONSE,
 } from "../lib/mock-data";
 import type { RuntimeResponse } from "../lib/types";
 

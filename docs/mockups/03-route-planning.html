@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Route Planning — Seichijunrei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: oklch(98% 0.008 218);
+  --fg: oklch(20% 0.025 238);
+  --card: oklch(95% 0.012 215);
+  --muted: oklch(91% 0.016 218);
+  --muted-fg: oklch(45% 0.032 228);
+  --border: oklch(85% 0.022 222);
+  --primary: oklch(60% 0.148 240);
+  --primary-fg: oklch(99% 0.004 220);
+  --walk-bg: oklch(92% 0.02 145);
+  --walk-fg: oklch(35% 0.06 145);
+  --active-bg: oklch(95% 0.03 240);
+  --highlight-pin: oklch(65% 0.18 50);
+  --font-display: 'Shippori Mincho B1', serif;
+  --font-body: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --sidebar-width: 56px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Layout */
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sidebar-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 200ms;
+  color: var(--muted-fg);
+}
+
+.sidebar-icon:hover {
+  background: var(--muted);
+}
+
+.sidebar-icon.active {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.sidebar-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* Map section */
+.map-section {
+  flex: 0 0 55%;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 30% 40%, oklch(92% 0.03 145 / 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 60%, oklch(90% 0.02 210 / 0.3) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 80%, oklch(93% 0.015 180 / 0.3) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 20%, oklch(94% 0.01 90 / 0.2) 0%, transparent 35%),
+    linear-gradient(135deg, oklch(95% 0.01 200) 0%, oklch(96% 0.008 160) 100%);
+}
+
+/* Route path SVG */
+.map-route-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Map pins */
+.map-pin {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px oklch(60% 0.148 240 / 0.35);
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.map-pin.start {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+  box-shadow:
+    0 0 0 6px oklch(60% 0.148 240 / 0.15),
+    0 2px 8px oklch(60% 0.148 240 / 0.35);
+}
+
+.map-pin.highlight {
+  background: var(--highlight-pin);
+  box-shadow:
+    0 0 0 5px oklch(65% 0.18 50 / 0.15),
+    0 2px 8px oklch(65% 0.18 50 / 0.35);
+}
+
+.map-attribution {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  font-size: 11px;
+  color: var(--muted-fg);
+  opacity: 0.7;
+}
+
+.map-zoom {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.map-zoom button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: oklch(99% 0.004 220 / 0.9);
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg);
+  backdrop-filter: blur(8px);
+}
+
+.map-zoom button:hover {
+  background: var(--card);
+}
+
+/* Route header */
+.route-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.route-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.route-stats {
+  font-size: 13px;
+  color: var(--muted-fg);
+  font-weight: 500;
+}
+
+.pacing-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.pacing-tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  transition: all 200ms;
+  white-space: nowrap;
+}
+
+.pacing-tab:hover {
+  background: var(--muted);
+}
+
+.pacing-tab.active {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+}
+
+/* Timeline section */
+.timeline-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  padding-bottom: 80px;
+}
+
+.timeline-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.timeline-section::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-section::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Timeline stop */
+.timeline-stop {
+  display: grid;
+  grid-template-columns: 80px 32px 1fr;
+  gap: 0 12px;
+  align-items: start;
+  opacity: 0;
+  animation: fadeInUp 400ms ease forwards;
+}
+
+.timeline-stop:nth-child(1) { animation-delay: 300ms; }
+.timeline-stop:nth-child(2) { animation-delay: 460ms; }
+.timeline-stop:nth-child(3) { animation-delay: 540ms; }
+.timeline-stop:nth-child(4) { animation-delay: 620ms; }
+.timeline-stop:nth-child(5) { animation-delay: 700ms; }
+.timeline-stop:nth-child(6) { animation-delay: 780ms; }
+.timeline-stop:nth-child(7) { animation-delay: 860ms; }
+.timeline-stop:nth-child(8) { animation-delay: 940ms; }
+.timeline-stop:nth-child(9) { animation-delay: 1020ms; }
+
+.timeline-stop.active .stop-content {
+  background: var(--active-bg);
+  border-radius: 8px;
+  transition: background 200ms;
+}
+
+/* Time column */
+.time-col {
+  text-align: right;
+  padding-top: 4px;
+}
+
+.time-main {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.time-duration {
+  font-size: 11px;
+  color: var(--muted-fg);
+  margin-top: 2px;
+}
+
+/* Dot column */
+.dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+
+.dot.start {
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 0 0 4px oklch(60% 0.148 240 / 0.15);
+}
+
+.dot.highlight {
+  background: var(--highlight-pin);
+  box-shadow: 0 0 0 4px oklch(65% 0.18 50 / 0.15);
+}
+
+.dot-line {
+  width: 2px;
+  flex: 1;
+  background: var(--border);
+  margin-top: 4px;
+  min-height: 30px;
+}
+
+/* Stop content */
+.stop-content {
+  padding: 4px 10px 16px;
+}
+
+.stop-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 4px;
+}
+
+.stop-details {
+  font-size: 12px;
+  color: var(--muted-fg);
+  margin-bottom: 8px;
+}
+
+.stop-photo {
+  width: 80px;
+  height: 54px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--muted);
+}
+
+.stop-photo-placeholder {
+  width: 80px;
+  height: 54px;
+  border-radius: 6px;
+  background: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--muted-fg);
+  opacity: 0.6;
+}
+
+/* Walk leg */
+.walk-leg {
+  display: grid;
+  grid-template-columns: 80px 32px 1fr;
+  gap: 0 12px;
+  align-items: center;
+  padding: 6px 0;
+  opacity: 0;
+  animation: fadeInUp 400ms ease forwards;
+}
+
+.walk-leg:nth-child(2) { animation-delay: 380ms; }
+.walk-leg:nth-child(4) { animation-delay: 540ms; }
+.walk-leg:nth-child(6) { animation-delay: 700ms; }
+.walk-leg:nth-child(8) { animation-delay: 860ms; }
+
+.walk-dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.walk-line {
+  width: 2px;
+  height: 28px;
+  border-left: 2px dashed var(--border);
+}
+
+.walk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--walk-bg);
+  color: var(--walk-fg);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Export bar */
+.export-bar {
+  position: sticky;
+  bottom: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.export-btn {
+  flex: 1;
+  padding: 10px 20px;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 200ms;
+}
+
+.export-btn:hover {
+  opacity: 0.9;
+}
+
+.export-link {
+  font-size: 13px;
+  color: var(--muted-fg);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.export-link:hover {
+  color: var(--fg);
+}
+
+/* Bottom panel wrapper */
+.bottom-panel {
+  flex: 0 0 45%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Floating chat bar */
+.chat-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 120px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+  background: oklch(99% 0.004 220 / 0.95);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 4px 20px oklch(20% 0.025 238 / 0.08);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+}
+
+.chat-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--fg);
+}
+
+.chat-input::placeholder {
+  color: var(--muted-fg);
+}
+
+.chat-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: var(--primary-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 200ms;
+}
+
+.chat-send:hover {
+  opacity: 0.9;
+}
+
+.chat-send svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-stop,
+  .walk-leg {
+    animation: none;
+    opacity: 1;
+  }
+  .timeline-stop.active .stop-content {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-icon" title="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+    </div>
+    <div class="sidebar-icon" title="Map">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/>
+      </svg>
+    </div>
+    <div class="sidebar-icon active" title="Routes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/>
+      </svg>
+    </div>
+    <div class="sidebar-icon" title="Saved">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+    <div class="sidebar-icon" title="Settings" style="margin-top: auto;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+    <!-- Map -->
+    <div class="map-section">
+      <!-- Route path -->
+      <svg class="map-route-path" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
+        <path d="M 160 300 C 200 260, 240 180, 300 160 S 400 200, 450 170 S 530 130, 560 150 S 620 220, 660 200"
+              fill="none"
+              stroke="oklch(60% 0.148 240 / 0.4)"
+              stroke-width="2.5"
+              stroke-dasharray="8 6"
+              stroke-linecap="round"/>
+      </svg>
+
+      <!-- Pins -->
+      <div class="map-pin start" style="top: 72%; left: 20%;">1</div>
+      <div class="map-pin" style="top: 38%; left: 38%;">2</div>
+      <div class="map-pin highlight" style="top: 40%; left: 56%;">3</div>
+      <div class="map-pin" style="top: 35%; left: 70%;">4</div>
+      <div class="map-pin" style="top: 48%; left: 83%;">5</div>
+
+      <!-- Attribution -->
+      <span class="map-attribution">宇治 · Map</span>
+
+      <!-- Zoom controls -->
+      <div class="map-zoom">
+        <button>+</button>
+        <button>&minus;</button>
+      </div>
+    </div>
+
+    <!-- Route header -->
+    <div class="route-header">
+      <span class="route-title">響け！ユーフォニアム 宇治巡礼</span>
+      <span class="route-stats">5 stops · 2h 15min · 2.1km</span>
+      <div class="pacing-tabs">
+        <button class="pacing-tab">悠闲 Leisurely</button>
+        <button class="pacing-tab active">普通 Normal</button>
+        <button class="pacing-tab">紧凑 Packed</button>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="bottom-panel">
+      <div class="timeline-section">
+        <!-- Stop 1 -->
+        <div class="timeline-stop">
+          <div class="time-col">
+            <div class="time-main">9:00</div>
+            <div class="time-duration">45 min</div>
+          </div>
+          <div class="dot-col">
+            <div class="dot start"></div>
+            <div class="dot-line"></div>
+          </div>
+          <div class="stop-content">
+            <div class="stop-name">宇治駅</div>
+            <div class="stop-details">EP 1 · 出发站 · 3 spots</div>
+            <img class="stop-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅" loading="lazy">
+          </div>
+        </div>
+
+        <!-- Walk 1 -->
+        <div class="walk-leg">
+          <div class="time-col"></div>
+          <div class="walk-dot-col">
+            <div class="walk-line"></div>
+          </div>
+          <div>
+            <span class="walk-pill">🚶 10 min · 700m</span>
+          </div>
+        </div>
+
+        <!-- Stop 2 -->
+        <div class="timeline-stop">
+          <div class="time-col">
+            <div class="time-main">9:55</div>
+            <div class="time-duration">35 min</div>
+          </div>
+          <div class="dot-col">
+            <div class="dot"></div>
+            <div class="dot-line"></div>
+          </div>
+          <div class="stop-content">
+            <div class="stop-name">あじろぎの道</div>
+            <div class="stop-details">EP 1 · 7 spots</div>
+            <img class="stop-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" loading="lazy">
+          </div>
+        </div>
+
+        <!-- Walk 2 -->
+        <div class="walk-leg">
+          <div class="time-col"></div>
+          <div class="walk-dot-col">
+            <div class="walk-line"></div>
+          </div>
+          <div>
+            <span class="walk-pill">🚶 8 min · 550m</span>
+          </div>
+        </div>
+
+        <!-- Stop 3 (active) -->
+        <div class="timeline-stop active">
+          <div class="time-col">
+            <div class="time-main">10:38</div>
+            <div class="time-duration">30 min</div>
+          </div>
+          <div class="dot-col">
+            <div class="dot highlight"></div>
+            <div class="dot-line"></div>
+          </div>
+          <div class="stop-content">
+            <div class="stop-name">平等院表参道</div>
+            <div class="stop-details">EP 3 · 4 spots</div>
+            <img class="stop-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" loading="lazy">
+          </div>
+        </div>
+
+        <!-- Walk 3 -->
+        <div class="walk-leg">
+          <div class="time-col"></div>
+          <div class="walk-dot-col">
+            <div class="walk-line"></div>
+          </div>
+          <div>
+            <span class="walk-pill">🚶 5 min · 150m</span>
+          </div>
+        </div>
+
+        <!-- Stop 4 -->
+        <div class="timeline-stop">
+          <div class="time-col">
+            <div class="time-main">11:13</div>
+            <div class="time-duration">25 min</div>
+          </div>
+          <div class="dot-col">
+            <div class="dot"></div>
+            <div class="dot-line"></div>
+          </div>
+          <div class="stop-content">
+            <div class="stop-name">興聖寺</div>
+            <div class="stop-details">EP 5 · 2 spots</div>
+            <img class="stop-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="興聖寺" loading="lazy">
+          </div>
+        </div>
+
+        <!-- Walk 4 -->
+        <div class="walk-leg">
+          <div class="time-col"></div>
+          <div class="walk-dot-col">
+            <div class="walk-line"></div>
+          </div>
+          <div>
+            <span class="walk-pill">🚶 12 min · 850m</span>
+          </div>
+        </div>
+
+        <!-- Stop 5 -->
+        <div class="timeline-stop">
+          <div class="time-col">
+            <div class="time-main">11:50</div>
+            <div class="time-duration">15 min</div>
+          </div>
+          <div class="dot-col">
+            <div class="dot"></div>
+          </div>
+          <div class="stop-content">
+            <div class="stop-name">京阪宇治駅</div>
+            <div class="stop-details">EP 7 · 終点</div>
+            <div class="stop-photo-placeholder">聖</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export bar -->
+      <div class="export-bar">
+        <button class="export-btn">Open in Google Maps</button>
+        <a class="export-link">Download .ics</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Floating chat bar -->
+<div class="chat-bar">
+  <input class="chat-input" type="text" placeholder="Adjust your route..." readonly>
+  <button class="chat-send">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+    </svg>
+  </button>
+</div>
+</body>
+</html>

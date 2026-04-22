@@ -4,8 +4,8 @@
     "description": "搜索动漫取景地 · 规划巡礼路线"
   },
   "landing": {
-    "hero": "聖地巡礼",
-    "hero_accent": "巡禮之路",
+    "hero": "圣地巡礼",
+    "hero_accent": "巡礼之路",
     "subtitle": "探索动漫圣地，规划巡礼路线",
     "cta": "开始使用",
     "features": [
@@ -146,7 +146,20 @@
     "no_results": "无法创建路线。",
     "spots": "{count}个景点",
     "no_coords": "⚠ {count}个缺少坐标",
-    "episode": "第{ep}集"
+    "episode": "第{ep}集",
+    "back_edit": "编辑",
+    "pilgrimage_title": "{count} 站巡礼",
+    "stats_detail": "约 {h}小时{m}分 · {d}km · 步行{w}分",
+    "pace_chill": "悠闲",
+    "pace_normal": "正常",
+    "pace_packed": "紧凑",
+    "pace_desc": "各地点 {min} 分",
+    "export_gmaps": "在 Google Maps 中打开",
+    "export_ics": "导出日历",
+    "chat_label": "对话",
+    "timeline_spots": "{count} 个圣地",
+    "timeline_nearby": "📍 附近还有其他动漫圣地",
+    "timeline_nearby_sub": "途中可能会经过其他作品的取景地"
   },
   "selection": {
     "count": "已选{count}个",
@@ -184,6 +197,40 @@
     "denied": "位置权限被拒绝",
     "timeout": "位置获取超时",
     "not_supported": "您的浏览器不支持定位功能"
+  },
+  "spot_detail": {
+    "back": "返回",
+    "episode": "第{ep}集",
+    "address_label": "📍 地址:",
+    "timestamp_label": "📸 截图时间:",
+    "select": "选择此圣地",
+    "selected": "✓ 已选择",
+    "view_on_map": "在地图中查看",
+    "nearby_title": "附近的其他圣地"
+  },
+  "route_confirm": {
+    "back": "返回选择",
+    "title": "确认路线",
+    "departure_label": "出发站",
+    "departure_placeholder": "输入出发车站名称",
+    "empty": "已移除所有圣地，请返回重新选择",
+    "removed": "已移除「{name}」",
+    "undo": "撤销",
+    "summary": "{count} 个圣地等你探访",
+    "estimate": "预计步行 {distance}km，约 {time} 分钟可以走完",
+    "start": "开始规划路线"
+  },
+  "chat_popup": {
+    "continue": "继续对话…",
+    "title": "对话",
+    "close": "关闭对话"
+  },
+  "nearby": {
+    "summary": "附近 {radius} 内找到了 {count} 部动漫的 {total} 个圣地",
+    "spots_distance": "{spotCount} 个圣地 · 最近 {dist}",
+    "view_all": "查看全部 {total} 个圣地",
+    "search_anime_nearby": "搜索 {title} 附近的圣地",
+    "show_all_nearby": "显示所有附近圣地"
   },
   "clarification": {
     "examples_label": "例如：",

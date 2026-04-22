@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { LocaleProvider } from "../lib/i18n-context";
 import MSWProvider from "../mocks/MSWProvider";
-import { Geist } from "next/font/google";
+import { Geist, Outfit, Shippori_Mincho_B1, Noto_Sans_SC } from "next/font/google";
 import { cn } from "@/lib/utils";
 import {
   websiteJsonLd,
@@ -11,6 +11,9 @@ import {
 } from "@/lib/structured-data";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-outfit" });
+const shippori = Shippori_Mincho_B1({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-shippori", preload: false });
+const notoSansSC = Noto_Sans_SC({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-noto", preload: false });
 
 const SITE_URL = "https://seichijunrei.zhenjia.org";
 const SITE_TITLE =
@@ -63,7 +66,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={cn("h-full antialiased", "font-sans", geist.variable)}
+      className={cn("h-full antialiased", "font-sans", geist.variable, outfit.variable, shippori.variable, notoSansSC.variable)}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

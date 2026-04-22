@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f5f5f3">
+<title>Seichijunrei — Design v3</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600&display=swap");
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --brand:oklch(58% 0.19 28);--brand-soft:oklch(94% 0.02 25);
+  --int:oklch(60% 0.148 240);--int-fg:oklch(99% 0.004 220);--int-soft:oklch(93% 0.025 240);
+  --bg:oklch(98% 0.008 218);--fg:oklch(20% 0.025 238);--card:oklch(95% 0.012 215);
+  --muted:oklch(91% 0.016 218);--muted-fg:oklch(45% 0.032 228);--border:oklch(85% 0.022 222);
+  --walk-bg:oklch(92% 0.02 145);--walk-fg:oklch(35% 0.06 145);
+  --error-bg:oklch(94% 0.02 20);--error-fg:oklch(38% 0.09 20);
+  --r-sm:4px;--r-md:8px;--r-lg:12px;
+}
+body{font-family:"Noto Sans SC",system-ui,sans-serif;font-weight:300;background:oklch(94% 0.006 218);color:var(--fg);padding:32px 24px 80px}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--int);outline-offset:2px;border-radius:var(--r-sm)}
+h1{font-family:"Shippori Mincho B1",serif;font-size:28px;font-weight:700;text-wrap:balance}
+h2{font-family:"Shippori Mincho B1",serif;font-size:20px;font-weight:700;text-wrap:balance}
+h3{font-family:"Shippori Mincho B1",serif;font-size:20px;font-weight:600}
+.page-hdr{text-align:center;margin-bottom:48px}
+.page-hdr h1{margin-bottom:4px}
+.page-hdr p{font-size:14px;color:var(--muted-fg)}
+.sec{margin:48px auto 16px;max-width:1200px}
+.sec-num{font-size:12px;font-weight:600;color:var(--int);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.sec-title{margin-bottom:4px}
+.sec-desc{font-size:14px;color:var(--muted-fg)}
+.frame{max-width:1200px;margin:0 auto 32px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 4px 24px oklch(20% 0.02 238/.07)}
+.shell{display:flex;height:560px;overflow:hidden}
+.shell-short{height:380px}
+.shell-med{height:420px}
+.shell-tall{height:640px}
+
+/* ═══ FULL LOGO SVG (with film frame corners) ═══ */
+/* Inline in each usage — sizes: 28 collapsed, 32 expanded, 36 hero */
+
+/* ═══ Sidebar — collapsed (60px) ═══ */
+.sb-c{width:60px;min-width:60px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;background:var(--bg)}
+.sb-c-logo{width:44px;height:44px;border-radius:var(--r-lg);background:var(--brand-soft);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.sb-c-btn{position:relative;width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted-fg);border:none;background:transparent;transition:background .15s}
+.sb-c-btn:hover{background:var(--muted)}
+.sb-c-btn.a{background:var(--int-soft);color:var(--int)}
+.sb-c-btn svg{width:18px;height:18px}
+.sb-c-btn .tip{position:absolute;left:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--fg);color:var(--bg);font-size:12px;font-weight:500;padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:20}
+.sb-c-btn:hover .tip{opacity:1}
+.sb-c .spacer{flex:1}
+
+/* ═══ Sidebar — expanded (220px) with anime context ═══ */
+.sb-e{width:220px;min-width:220px;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 0;background:var(--bg)}
+.sb-logo{display:flex;align-items:center;gap:12px;padding:0 16px 16px}
+.sb-logo-mark{width:44px;height:44px;border-radius:var(--r-lg);background:var(--brand-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-logo span{font-family:"Shippori Mincho B1",serif;font-size:16px;font-weight:700}
+.sb-anime{padding:0 12px 12px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sb-anime img{width:100%;height:100px;object-fit:cover;border-radius:var(--r-md);margin-bottom:8px}
+.sb-anime h3{font-size:14px;font-weight:600;margin-bottom:2px}
+.sb-anime .meta{font-size:12px;color:var(--muted-fg);margin-bottom:8px}
+.sb-progress{height:4px;background:var(--muted);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.sb-progress-bar{height:100%;background:var(--int);border-radius:2px;width:5%}
+.sb-progress-label{font-size:12px;color:var(--muted-fg)}
+.sb-nav{display:flex;flex-direction:column;gap:2px;padding:0 8px;flex:1}
+.n{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:var(--r-md);font-size:14px;color:var(--muted-fg);cursor:pointer;height:40px;border:none;background:transparent;width:100%;text-align:left;transition:background .15s}
+.n:hover{background:var(--muted)}
+.n.a{background:var(--int-soft);color:var(--int);font-weight:500}
+.n svg{width:18px;height:18px;flex-shrink:0}
+.n .ct{margin-left:auto;font-size:12px;color:var(--muted-fg);background:var(--muted);padding:1px 7px;border-radius:var(--r-md)}
+.n.a .ct{background:oklch(85% 0.05 240);color:var(--int)}
+.spacer{flex:1}
+
+/* ═══ Content area ═══ */
+.ct-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;min-width:0}
+.hdr{padding:12px 24px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hdr h2{font-size:20px}
+.hdr .meta{font-size:12px;color:var(--muted-fg)}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tog{display:flex;background:var(--muted);border-radius:var(--r-md);padding:2px;gap:1px}
+.tog button{padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted-fg)}
+.tog button.a{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px oklch(20% 0.02 238/.07)}
+.sort{padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--muted-fg);cursor:pointer}
+.stats{padding:2px 24px 4px;font-size:12px;color:var(--muted-fg)}.stats b{font-weight:500;color:var(--fg)}
+.filters{display:flex;gap:4px;padding:4px 24px 10px;flex-wrap:wrap;align-items:center}
+.chip{padding:4px 12px;border-radius:var(--r-md);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--bg);color:var(--muted-fg);cursor:pointer;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--int)}.chip.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.chip-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+.fl{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-fg);margin-right:2px}
+
+/* Grid 4 cols */
+.grid-wrap{flex:1;overflow-y:auto;padding:0 20px 110px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.gc{position:relative;border-radius:var(--r-md);overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:border-color .15s,transform .15s}
+.gc:hover{border-color:var(--int);transform:translateY(-1px)}
+.gc img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.gc-bar{position:absolute;bottom:0;left:0;right:0;height:32px;background:oklch(20% 0.02 238/.65);display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+.gc-name{font-size:12px;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72%}
+.gc-ep{font-size:12px;color:rgba(255,255,255,.7)}
+.gc-ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.8);transition:opacity .15s,transform .15s}
+.gc.sel .gc-ck{opacity:1;transform:scale(1)}.gc.sel{border-color:var(--int)}
+
+/* Selection bar */
+.selbar{position:absolute;bottom:48px;left:0;right:0;display:flex;align-items:center;gap:10px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);z-index:5;height:44px}
+.selbar b{font-size:14px;font-weight:500}
+.selbar input{height:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:150px;background:var(--bg);color:var(--fg)}
+.selbar input::placeholder{color:var(--muted-fg)}
+.btn-p{padding:6px 20px;border-radius:var(--r-md);border:none;background:var(--int);color:var(--int-fg);font-size:14px;font-weight:600;cursor:pointer;height:36px;min-width:44px;touch-action:manipulation}
+.btn-g{font-size:14px;color:var(--muted-fg);cursor:pointer;background:none;border:none;min-width:44px;height:36px;touch-action:manipulation}
+.selbar .btn-p{margin-left:auto}
+/* Chat toggle: 44px pill with SVG icon + text */
+.chat-tog{position:absolute;bottom:8px;left:24px;height:36px;border-radius:18px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;gap:6px;padding:0 14px;font-size:14px;cursor:pointer;box-shadow:0 2px 6px oklch(20% 0.02 238/.07);z-index:5;color:var(--fg);touch-action:manipulation}
+.chat-tog svg{width:16px;height:16px}
+
+/* ═══ Welcome — cinematic ═══ */
+.welcome{display:flex;height:600px;position:relative;overflow:hidden}
+.w-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.w-hero{position:relative;height:240px;overflow:hidden}
+.w-hero-img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.75)}
+.w-hero-overlay{position:absolute;inset:0;background:linear-gradient(transparent 40%,oklch(20% 0.02 238/.7))}
+.w-hero-content{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:white;z-index:1}
+.w-hero-content h1{color:white;margin-bottom:6px;font-size:28px;text-shadow:0 2px 12px oklch(20% 0.02 238/.3)}
+.w-hero-content p{font-size:14px;opacity:.85;max-width:40ch;margin:0 auto 20px}
+.w-search{display:flex;align-items:center;gap:8px;max-width:480px;margin:0 auto;width:90%}
+.w-search input{flex:1;height:48px;border:none;border-radius:24px;padding:0 20px;font-size:14px;background:oklch(98% 0.008 218/.95);color:var(--fg);backdrop-filter:blur(8px);box-shadow:0 4px 16px oklch(20% 0.02 238/.12)}
+.w-search input::placeholder{color:var(--muted-fg)}
+.w-search button{width:44px;height:44px;border-radius:50%;background:var(--int);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.w-bottom{flex:1;display:flex;flex-direction:column;padding:24px;align-items:center}
+.w-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.w-chip{padding:6px 16px;border:1px solid var(--border);border-radius:20px;font-size:14px;background:var(--bg);color:var(--fg);cursor:pointer;transition:border-color .15s,background .15s;touch-action:manipulation}
+.w-chip:hover{border-color:var(--int);background:var(--card)}
+.w-section-label{font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:12px}
+.w-covers{display:flex;gap:12px;overflow-x:auto;padding:4px 0;max-width:640px}
+.w-cover{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.w-cover img{width:80px;height:112px;border-radius:var(--r-md);object-fit:cover}
+.w-cover span{font-size:12px;color:var(--muted-fg);max-width:80px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ═══ Chat bubbles (shared) ═══ */
+.bubble-user{align-self:flex-end;background:var(--int);color:var(--int-fg);padding:10px 14px;border-radius:14px 14px 4px 14px;font-size:14px;max-width:80%}
+.bubble-ai{align-self:flex-start;background:var(--card);padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:14px;max-width:85%;line-height:1.5}
+
+/* ═══ Route ═══ */
+.route-split{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.route-map{flex:0 0 38%;position:relative;min-height:180px;overflow:hidden;
+  background:
+    radial-gradient(circle at 25% 35%,oklch(90% 0.03 180) 0%,transparent 45%),
+    radial-gradient(circle at 65% 50%,oklch(91% 0.025 200) 0%,transparent 40%),
+    radial-gradient(circle at 50% 70%,oklch(92% 0.02 160) 0%,transparent 35%),
+    linear-gradient(180deg,oklch(94% 0.01 210),oklch(92% 0.015 200));
+}
+/* Subtle grid pattern on map */
+.route-map::before{content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(oklch(80% 0.02 220/.08) 1px,transparent 1px),
+    linear-gradient(90deg,oklch(80% 0.02 220/.08) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0}
+.pin{position:absolute;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:white;box-shadow:0 3px 12px oklch(20% 0.02 238/.25);z-index:2}
+.pin-int{background:var(--int)}.pin-brand{background:var(--brand)}
+/* Active stop floating card on map */
+.map-float{position:absolute;z-index:3;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 4px 16px oklch(20% 0.02 238/.12);display:flex;gap:8px;padding:8px;align-items:center;max-width:200px}
+.map-float img{width:52px;height:36px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.map-float-info{min-width:0}
+.map-float-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-float-ep{font-size:12px;color:var(--brand);font-weight:500}
+.map-float::after{content:"";position:absolute;bottom:-6px;left:24px;width:12px;height:12px;background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+.map-attr{position:absolute;bottom:8px;left:12px;font-size:12px;color:var(--muted-fg);background:var(--bg);padding:2px 8px;border-radius:var(--r-sm);z-index:2}
+/* Route stats bar */
+.route-stats{display:flex;align-items:center;gap:16px;padding:8px 24px;background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted-fg)}
+.route-stats .stat-val{font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.route-stats .stat-label{margin-left:4px}
+.route-stats .stat-sep{width:1px;height:16px;background:var(--border)}
+.route-hdr{display:flex;align-items:center;gap:12px;padding:10px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.route-hdr .meta{font-size:12px;color:var(--muted-fg)}
+.pace{margin-left:auto;display:flex;gap:4px}
+.pace button{padding:4px 12px;border-radius:var(--r-md);border:1px solid var(--border);font-size:12px;font-weight:500;background:var(--bg);color:var(--muted-fg);cursor:pointer;touch-action:manipulation}
+.pace button.a{background:var(--int);color:var(--int-fg);border-color:var(--int)}
+.tl-wrap{flex:1;overflow-y:auto;padding:16px 24px 80px}
+.tl-stop{display:flex;gap:14px;padding-bottom:6px}
+.tl-l{width:56px;text-align:right;flex-shrink:0;padding-top:2px;font-variant-numeric:tabular-nums}.tl-time{font-size:14px;font-weight:500}.tl-dur{font-size:12px;color:var(--muted-fg)}
+.tl-mid{width:24px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--int);flex-shrink:0;z-index:1}
+.tl-dot.first{width:16px;height:16px;box-shadow:0 0 0 4px oklch(60% 0.148 240/.15)}
+.tl-dot.active{background:var(--brand);width:14px;height:14px;box-shadow:0 0 0 4px oklch(58% 0.19 28/.12)}
+.tl-stem{width:2px;flex:1;background:var(--border)}
+.tl-r{flex:1;min-width:0;padding-bottom:12px}.tl-name{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600;margin-bottom:2px}
+.tl-detail{font-size:12px;color:var(--muted-fg);margin-bottom:6px}
+.tl-photo{width:72px;height:48px;border-radius:var(--r-sm);object-fit:cover;background:var(--muted)}
+.tl-r.hi{background:oklch(96% 0.012 215);border-radius:var(--r-md);padding:10px;margin:-10px;margin-bottom:2px}
+.tl-walk{display:flex;gap:14px;padding:6px 0}.tl-walk-l{width:56px;flex-shrink:0}
+.tl-walk-mid{width:24px;display:flex;justify-content:center;flex-shrink:0}
+.tl-dash{width:2px;min-height:32px;background:repeating-linear-gradient(to bottom,var(--walk-fg) 0 4px,transparent 4px 8px);opacity:.55}
+.walk-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:var(--r-md);background:var(--walk-bg);color:var(--walk-fg);font-size:12px;font-weight:500;box-shadow:0 1px 3px oklch(35% 0.06 145/.08)}
+/* Nearby discovery hint inside timeline */
+.tl-discovery{display:flex;gap:14px;padding:4px 0}
+.tl-discovery-card{flex:1;background:var(--walk-bg);border:1px solid oklch(85% 0.03 145);border-radius:var(--r-md);padding:10px 14px;cursor:pointer;transition:border-color .15s}
+.tl-discovery-card:hover{border-color:var(--walk-fg)}
+.tl-discovery-title{font-size:13px;font-weight:500;color:var(--walk-fg);margin-bottom:4px}
+.tl-discovery-meta{font-size:12px;color:var(--muted-fg);margin-bottom:6px}
+.tl-discovery-link{font-size:12px;font-weight:500;color:var(--int);background:none;border:none;cursor:pointer;padding:0}
+.export-bar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:8px 24px;background:var(--bg);border-top:1px solid var(--border);z-index:5}
+.export-bar .btn-p{flex:1;text-align:center;display:flex;align-items:center;justify-content:center}
+
+/* ═══ Nearby ═══ */
+.nearby-layout{display:flex;flex:1;overflow:hidden}
+.nearby-map{flex:1;position:relative;background:radial-gradient(circle at 40% 45%,oklch(90% 0.025 180) 0%,transparent 40%),radial-gradient(circle at 60% 55%,oklch(91% 0.02 200) 0%,transparent 35%),oklch(93% 0.01 210)}
+.user-dot{position:absolute;top:50%;left:45%;width:14px;height:14px;border-radius:50%;background:oklch(55% 0.18 250);transform:translate(-50%,-50%);z-index:2}
+.user-ring{position:absolute;top:50%;left:45%;width:14px;height:14px;border-radius:50%;border:2px solid oklch(55% 0.18 250);transform:translate(-50%,-50%);animation:pulse 1.5s ease-out infinite;z-index:1}
+@keyframes pulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.6}100%{transform:translate(-50%,-50%) scale(3);opacity:0}}
+.nearby-chips{position:absolute;top:10px;left:10px;display:flex;gap:4px;z-index:3}
+.nearby-chips .chip{background:oklch(98% 0.008 218/.92);backdrop-filter:blur(6px);box-shadow:0 1px 4px oklch(20% 0.02 238/.08)}
+.pin-sm{position:absolute;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;box-shadow:0 2px 6px oklch(20% 0.02 238/.15)}
+.pin-blue{background:var(--int)}.pin-green{background:oklch(55% 0.12 145)}.pin-orange{background:oklch(55% 0.12 55)}
+.side-panel{width:260px;min-width:260px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.sp-hdr{padding:14px 16px 8px}.sp-hdr .meta{font-size:12px;color:var(--muted-fg)}
+.sp-list{flex:1;overflow-y:auto;padding:0 12px 12px}
+.sp-card{display:flex;gap:10px;align-items:center;padding:8px 4px;min-height:48px;border-bottom:1px solid oklch(92% 0.01 218);cursor:pointer;transition:background .15s}
+.sp-card:hover{background:var(--card)}
+.sp-card img{width:48px;height:32px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:var(--muted)}
+.sp-info{min-width:0;flex:1}.sp-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sp-meta{font-size:12px;color:var(--muted-fg)}
+.sp-dist{font-size:12px;color:var(--int);font-weight:500;flex-shrink:0;font-variant-numeric:tabular-nums}
+
+/* ═══ Clarification (now as chat conversation) ═══ */
+.clar-chat{flex:1;display:flex;flex-direction:column;max-width:600px;margin:0 auto;width:100%;padding:24px}
+.clar-chat-messages{flex:1;display:flex;flex-direction:column;gap:12px;justify-content:flex-end;padding-bottom:16px}
+.clar-inline-cards{display:flex;gap:12px;margin-top:8px}
+.clar-card{width:200px;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg);transition:transform .15s,box-shadow .15s;cursor:pointer}
+.clar-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px oklch(20% 0.02 238/.08)}
+.clar-card img{width:100%;height:90px;object-fit:cover;display:block}
+.clar-card-body{padding:10px}
+.clar-card-body h4{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:600;margin-bottom:2px}
+.clar-card-body p{font-size:12px;color:var(--muted-fg)}
+.clar-link{font-size:14px;color:var(--int);cursor:pointer;background:none;border:none;padding:0;margin-top:8px;display:inline-block}
+.btn-o{padding:6px 14px;border-radius:var(--r-md);border:1px solid var(--int);background:transparent;color:var(--int);font-size:12px;font-weight:500;cursor:pointer;width:100%;transition:background .15s;height:36px;touch-action:manipulation;margin-top:8px}
+.btn-o:hover{background:var(--int-soft)}
+
+/* ═══ States: loading, empty, error ═══ */
+.skeleton{border-radius:var(--r-md);background:linear-gradient(90deg,var(--muted) 25%,oklch(93% 0.012 218) 50%,var(--muted) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center}
+.empty-state svg{width:48px;height:48px;color:var(--muted-fg);margin-bottom:16px;opacity:.5}
+.empty-state h3{font-size:16px;font-weight:500;margin-bottom:8px}
+.empty-state p{font-size:14px;color:var(--muted-fg);max-width:32ch}
+.error-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--error-bg);border-radius:var(--r-md);margin:8px 24px;font-size:14px;color:var(--error-fg)}
+.error-bar button{background:none;border:1px solid var(--error-fg);color:var(--error-fg);padding:2px 10px;border-radius:var(--r-sm);font-size:12px;cursor:pointer;margin-left:auto}
+
+/* Route confirm */
+.confirm-list{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.confirm-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--card);border-radius:var(--r-sm);font-size:12px}
+.confirm-item span{font-weight:500}
+.confirm-item .idx{width:20px;height:20px;border-radius:50%;background:var(--int);color:white;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ═══ Mobile frame ═══ */
+.mobile-frame{max-width:375px;margin:0 auto 32px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 4px 24px oklch(20% 0.02 238/.07)}
+.mobile-frame .shell{height:667px;flex-direction:column}
+.mobile-frame .sb-c,.mobile-frame .sb-e{display:none}
+.mobile-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.mobile-header .hamburger{width:36px;height:36px;border-radius:var(--r-md);border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted-fg)}
+.mobile-header .m-logo{font-family:"Shippori Mincho B1",serif;font-size:14px;font-weight:700}
+.mobile-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px}
+.mobile-grid .gc{border-radius:var(--r-md)}
+.mobile-grid .gc img{aspect-ratio:4/3}
+.mobile-tl{padding:12px 16px}
+.mobile-tl .tl-stop{gap:10px}
+.mobile-tl .tl-l{width:44px}
+.mobile-bottom{position:absolute;bottom:0;left:0;right:0}
+/* Clicked card detail overlay */
+.card-detail{position:absolute;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -4px 24px oklch(20% 0.02 238/.1);z-index:10;padding:16px 20px;max-height:50%}
+.card-detail-img{width:100%;height:140px;object-fit:cover;border-radius:var(--r-md);margin-bottom:12px}
+.card-detail h3{font-size:16px;margin-bottom:4px}
+.card-detail .meta{font-size:12px;color:var(--muted-fg);margin-bottom:8px}
+.card-detail-actions{display:flex;gap:8px}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="page-hdr"><h1>Seichijunrei — Design v3</h1><p>电影感视觉 + 对话式交互 · 收起侧栏全局化 · 消歧义对话化 · 路线发现卡 · 胶片帧 Logo</p></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J1: Welcome — COLLAPSED SIDEBAR + CINEMATIC HERO + CHAT WELCOME  -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 1</div><h2 class="sec-title">欢迎页</h2><div class="sec-desc">收起侧栏 + 电影感视觉 + 对话式交互。不是搜索引擎，是巡礼助手。</div></div>
+<div class="frame">
+<div class="welcome">
+  <!-- Collapsed sidebar -->
+  <aside class="sb-c">
+    <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-c-btn" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="tip">新对话</span></button>
+    <button class="sb-c-btn a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tip">搜索</span></button>
+    <button class="sb-c-btn" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+    <button class="sb-c-btn" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="tip">收藏</span></button>
+    <div class="spacer"></div>
+    <button class="sb-c-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="tip">设置</span></button>
+  </aside>
+  <!-- Main content -->
+  <div class="w-main">
+    <div class="w-hero">
+      <img class="w-hero-img" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治の風景 — 響け！ユーフォニアム取景地" width="1200" height="240">
+      <div class="w-hero-overlay"></div>
+      <div class="w-hero-content">
+        <div style="margin-bottom:8px">
+          <!-- Hero logo: 36px, white fills -->
+          <svg viewBox="0 0 72 72" width="36" height="36" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="white"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="white"/><rect x="16" y="21" width="5" height="35" rx="1" fill="white"/><rect x="51" y="21" width="5" height="35" rx="1" fill="white"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="white" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="white"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="white"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="white"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="white"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="white"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="white"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="white"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="white"/></svg>
+        </div>
+        <h1>聖地巡礼</h1>
+        <p>告诉我你想去哪部动漫的取景地，我来帮你规划</p>
+      </div>
+    </div>
+    <div class="w-bottom" style="flex:1;justify-content:flex-start;padding-top:16px">
+      <!-- Conversation area -->
+      <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div class="bubble-ai">
+          你好！我可以帮你搜索动漫圣地、规划巡礼路线，或者查找你附近的取景地。想去哪里？
+        </div>
+      </div>
+      <!-- Quick suggestions -->
+      <div class="w-chips">
+        <button class="w-chip" aria-label="搜索響け！ユーフォニアム">響け！ユーフォニアム</button>
+        <button class="w-chip" aria-label="搜索君の名は。">君の名は。</button>
+        <button class="w-chip" aria-label="搜索附近圣地">我在宇治附近</button>
+      </div>
+      <!-- Popular covers -->
+      <div class="w-section-label" style="margin-top:16px">热门动漫</div>
+      <div class="w-covers">
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" width="80" height="112" loading="lazy"><span>ユーフォニアム</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/160209.jpg?plan=h160" alt="君の名は。" width="80" height="112" loading="lazy"><span>君の名は。</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/269235.jpg?plan=h160" alt="天気の子" width="80" height="112" loading="lazy"><span>天気の子</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒ" width="80" height="112" loading="lazy"><span>ハルヒ</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt="けいおん！" width="80" height="112" loading="lazy"><span>けいおん！</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/362577.jpg" alt="すずめの戸締まり" width="80" height="112" loading="lazy"><span>すずめ</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="たまこまーけっと" width="80" height="112" loading="lazy"><span>たまこ</span></div>
+        <div class="w-cover"><img src="https://image.anitabi.cn/bangumi/27364.jpg" alt="氷菓" width="80" height="112" loading="lazy"><span>氷菓</span></div>
+      </div>
+      <!-- Chat input at bottom -->
+      <div class="w-search" style="margin-top:auto;padding-top:16px">
+        <input placeholder="描述你的巡礼计划…" aria-label="输入消息">
+        <button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- State A: 对话中，还没出结果 — COLLAPSED SIDEBAR + FULL-SCREEN CHAT -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">State A</div><h2 class="sec-title">对话中（等待结果）</h2><div class="sec-desc">收起侧栏 + 全屏居中对话。用户发了消息，AI 在回复。</div></div>
+<div class="frame" style="height:420px"><div style="display:flex;height:100%">
+  <!-- Collapsed sidebar -->
+  <aside class="sb-c">
+    <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+    <button class="sb-c-btn" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span class="tip">新对话</span></button>
+    <button class="sb-c-btn a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tip">搜索</span></button>
+    <button class="sb-c-btn" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+    <div class="spacer"></div>
+    <button class="sb-c-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="tip">设置</span></button>
+  </aside>
+  <!-- Chat content -->
+  <div style="flex:1;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:24px">
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:flex-end;padding-bottom:16px">
+      <div class="bubble-user">吹响上低音号的圣地在哪里</div>
+      <div class="bubble-ai">我来帮你搜索「響け！ユーフォニアム」的取景地…<span style="display:inline-flex;gap:4px;margin-left:4px;vertical-align:middle"><span style="width:4px;height:4px;border-radius:50%;background:var(--muted-fg);animation:shimmer 1s infinite"></span><span style="width:4px;height:4px;border-radius:50%;background:var(--muted-fg);animation:shimmer 1s infinite .2s"></span><span style="width:4px;height:4px;border-radius:50%;background:var(--muted-fg);animation:shimmer 1s infinite .4s"></span></span></div>
+    </div>
+    <div class="w-search"><input placeholder="继续输入…" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+  </div>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- State B: Loading → content transition (expanded sidebar + skeleton) -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">State B</div><h2 class="sec-title">搜索中（骨架屏）</h2><div class="sec-desc">结果开始加载，界面从对话切换到内容视图。侧栏展开。</div></div>
+<div class="frame"><div class="shell">
+<aside class="sb-e"><div class="sb-logo"><div class="sb-logo-mark"><svg viewBox="0 0 72 72" width="32" height="32" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div><span>聖地巡礼</span></div>
+<nav class="sb-nav"><button class="n" aria-label="新对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>新对话</button><button class="n a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>搜索</button><button class="n" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>我的路线</button><button class="n" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>收藏</button><button class="n" aria-label="历史"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/></svg>历史</button><div class="spacer"></div><button class="n" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg>设置</button></nav></aside>
+<main class="ct-area">
+  <div class="hdr"><div class="skeleton" style="width:200px;height:24px"></div><div class="skeleton" style="width:100px;height:16px"></div></div>
+  <div class="filters" style="padding-top:12px"><div class="skeleton" style="width:40px;height:24px;border-radius:12px"></div><div class="skeleton" style="width:40px;height:24px;border-radius:12px"></div><div class="skeleton" style="width:40px;height:24px;border-radius:12px"></div></div>
+  <div class="grid-wrap"><div class="grid">
+    <div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div>
+    <div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div><div class="skeleton" style="aspect-ratio:4/3"></div>
+  </div></div>
+  <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:14px;color:var(--muted-fg)">搜索中…</div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J2: Search Results — expanded sidebar with anime context          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 2</div><h2 class="sec-title">搜索结果</h2><div class="sec-desc">侧栏展示动漫信息+巡礼进度。AI 气泡移至右侧选择栏上方。</div></div>
+<div class="frame"><div class="shell">
+<aside class="sb-e">
+  <div class="sb-logo"><div class="sb-logo-mark"><svg viewBox="0 0 72 72" width="32" height="32" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div><span>聖地巡礼</span></div>
+  <div class="sb-anime">
+    <img src="https://image.anitabi.cn/bangumi/115908.jpg?plan=h160" alt="響け！ユーフォニアム" width="196" height="100">
+    <h3>響け！ユーフォニアム</h3>
+    <div class="meta">156 个圣地 · 宇治市, 京都</div>
+    <div class="sb-progress"><div class="sb-progress-bar"></div></div>
+    <div class="sb-progress-label">已巡礼 0 / 156</div>
+  </div>
+  <nav class="sb-nav"><button class="n a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>搜索<span class="ct">156</span></button><button class="n" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>我的路线<span class="ct">3</span></button><button class="n" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>收藏<span class="ct">12</span></button><div class="spacer"></div><button class="n" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg>设置</button></nav>
+</aside>
+<main class="ct-area">
+<!-- Header -->
+<div class="hdr"><h2>響け！ユーフォニアム</h2><span class="meta">156 个圣地 · 宇治市</span><div class="hdr-r"><div class="tog"><button class="a">网格</button><button>地图</button></div></div></div>
+<!-- Tab filters -->
+<div style="display:flex;border-bottom:1px solid var(--border);padding:0 24px">
+  <button style="padding:8px 16px;border:none;background:none;font-size:14px;font-weight:500;color:var(--int);border-bottom:2px solid var(--int);cursor:pointer">按集数</button>
+  <button style="padding:8px 16px;border:none;background:none;font-size:14px;color:var(--muted-fg);border-bottom:2px solid transparent;cursor:pointer">按地区</button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:4px"><span class="stats" style="padding:0">已选 <b>4</b></span><button class="sort">排序 ↓</button></div>
+</div>
+<!-- Level 2 chips -->
+<div class="filters"><span class="chip a">全部</span><span class="chip">EP 1–4</span><span class="chip">EP 5–8</span><span class="chip">EP 9–12</span><span class="chip">EP 13–16</span></div>
+<!-- Photo grid -->
+<div class="grid-wrap"><div class="grid">
+<div class="gc sel"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" width="240" height="180"><div class="gc-bar"><span class="gc-name">京都コンサートホール</span><span class="gc-ep">EP1</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="240" height="180"><div class="gc-bar"><span class="gc-name">あじろぎの道</span><span class="gc-ep">EP1</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="莵道高" width="240" height="180"><div class="gc-bar"><span class="gc-name">莵道高</span><span class="gc-ep">EP1</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治橋" width="240" height="180"><div class="gc-bar"><span class="gc-name">宇治橋</span><span class="gc-ep">EP2</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="中書島駅" width="240" height="180"><div class="gc-bar"><span class="gc-name">中書島駅</span><span class="gc-ep">EP3</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="240" height="180"><div class="gc-bar"><span class="gc-name">平等院表参道</span><span class="gc-ep">EP3</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅前商店街" width="240" height="180"><div class="gc-bar"><span class="gc-name">宇治駅前商店街</span><span class="gc-ep">EP4</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc sel"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="朝霧橋" width="240" height="180"><div class="gc-bar"><span class="gc-name">朝霧橋</span><span class="gc-ep">EP5</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="興聖寺" width="240" height="180"><div class="gc-bar"><span class="gc-name">興聖寺</span><span class="gc-ep">EP6</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京阪宇治駅" width="240" height="180"><div class="gc-bar"><span class="gc-name">京阪宇治駅</span><span class="gc-ep">EP7</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="県神社" width="240" height="180"><div class="gc-bar"><span class="gc-name">県神社</span><span class="gc-ep">EP8</span></div><div class="gc-ck">&#10003;</div></div>
+<div class="gc"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="大吉山展望台" width="240" height="180"><div class="gc-bar"><span class="gc-name">大吉山展望台</span><span class="gc-ep">EP8</span></div><div class="gc-ck">&#10003;</div></div>
+</div></div>
+<!-- Selection bar -->
+<div class="selbar"><b>已选 4 个</b><input placeholder="出发站…" aria-label="出发车站"><button class="btn-p" aria-label="规划路线">规划路线</button><button class="btn-g" aria-label="清除选择">清除</button></div>
+<!-- AI bubble: RIGHT side, ABOVE selection bar at bottom:100px right:24px -->
+<div style="position:absolute;bottom:100px;right:24px;max-width:280px;background:var(--card);border:1px solid var(--border);border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:14px;line-height:1.5;box-shadow:0 2px 8px oklch(20% 0.02 238/.07);z-index:6;cursor:pointer" role="status" title="点击展开对话">
+  找到 156 个圣地，主要集中在宇治和京都。选几个感兴趣的来规划路线吧！
+  <div style="font-size:12px;color:var(--int);margin-top:4px">展开对话 &#9650;</div>
+</div>
+<!-- Chat toggle -->
+<button class="chat-tog" aria-label="打开对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+</main></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Empty state                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">State</div><h2 class="sec-title">无结果</h2><div class="sec-desc">搜索没有匹配时。</div></div>
+<div class="frame" style="height:280px"><div class="shell" style="height:280px">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+  <button class="sb-c-btn a" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></button>
+</aside>
+<main class="ct-area">
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    <h3>没有找到相关圣地</h3>
+    <p>试试搜索动漫的日文原名，或者换一个关键词</p>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="w-chip" aria-label="搜索響け！ユーフォニアム">響け！ユーフォニアム</button><button class="w-chip" aria-label="搜索君の名は。">君の名は。</button></div>
+  </div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Error state                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">State</div><h2 class="sec-title">网络错误</h2><div class="sec-desc">请求失败时。</div></div>
+<div class="frame" style="height:160px"><div class="shell" style="height:160px">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+</aside>
+<main class="ct-area" style="justify-content:center">
+  <div class="error-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    搜索失败，请检查网络连接
+    <button aria-label="重试搜索">重试</button>
+  </div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J2.5: Route Confirmation                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 2.5</div><h2 class="sec-title">路线确认</h2><div class="sec-desc">点击"规划路线"后的中间步骤。确认选中的点、拖拽排序、选出发站。</div></div>
+<div class="frame" style="height:360px"><div class="shell" style="height:360px">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn a" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+</aside>
+<main class="ct-area" style="padding:24px">
+  <h2 style="margin-bottom:4px">确认路线</h2>
+  <p style="font-size:14px;color:var(--muted-fg);margin-bottom:16px">拖拽调整顺序，或移除不想去的点</p>
+  <div class="confirm-list" style="margin-bottom:16px">
+    <div class="confirm-item"><span class="idx">1</span><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" width="40" height="28" style="border-radius:4px;object-fit:cover"><span>京都コンサートホール</span><span style="color:var(--muted-fg);font-size:12px;margin-left:auto">EP1</span><button style="background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:14px;padding:4px" aria-label="移除京都コンサートホール">&#215;</button></div>
+    <div class="confirm-item"><span class="idx">2</span><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="莵道高" width="40" height="28" style="border-radius:4px;object-fit:cover"><span>莵道高</span><span style="color:var(--muted-fg);font-size:12px;margin-left:auto">EP1</span><button style="background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:14px;padding:4px" aria-label="移除莵道高">&#215;</button></div>
+    <div class="confirm-item"><span class="idx">3</span><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="40" height="28" style="border-radius:4px;object-fit:cover"><span>平等院表参道</span><span style="color:var(--muted-fg);font-size:12px;margin-left:auto">EP3</span><button style="background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:14px;padding:4px" aria-label="移除平等院表参道">&#215;</button></div>
+    <div class="confirm-item"><span class="idx">4</span><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="朝霧橋" width="40" height="28" style="border-radius:4px;object-fit:cover"><span>朝霧橋</span><span style="color:var(--muted-fg);font-size:12px;margin-left:auto">EP5</span><button style="background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:14px;padding:4px" aria-label="移除朝霧橋">&#215;</button></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+    <span style="font-size:14px;color:var(--muted-fg)">出发站</span>
+    <input placeholder="如：宇治駅" aria-label="出发车站" style="height:36px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;background:var(--bg);flex:1;max-width:240px">
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn-g" style="height:40px;padding:0 20px" aria-label="返回选择">返回选择</button>
+    <button class="btn-p" style="height:40px;padding:0 24px" aria-label="开始规划">开始规划</button>
+  </div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J3: Route Planning — improved map + timeline + nearby discovery    -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 3</div><h2 class="sec-title">路线规划</h2><div class="sec-desc">地图占 38%，时间轴 62%。更大路标，统计栏，附近发现卡。</div></div>
+<div class="frame"><div class="shell shell-tall">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tip">搜索</span></button>
+  <button class="sb-c-btn a" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+  <button class="sb-c-btn" aria-label="收藏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="tip">收藏</span></button>
+  <div class="spacer"></div>
+  <button class="sb-c-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="tip">设置</span></button>
+</aside>
+<main class="ct-area"><div class="route-split">
+<!-- Map with grid pattern, extra gradients, floating card -->
+<div class="route-map">
+  <!-- Route line SVG -->
+  <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M25 20 Q30 28 38 36 Q43 40 50 48 Q55 54 60 62 Q66 68 72 76" stroke="oklch(60% 0.148 240/.4)" stroke-width=".4" fill="none" stroke-dasharray="1.5 1"/></svg>
+  <!-- Pins (36px) -->
+  <div class="pin pin-int" style="top:16%;left:20%">1</div>
+  <div class="pin pin-int" style="top:32%;left:35%">2</div>
+  <div class="pin pin-brand" style="top:44%;left:47%">3</div>
+  <div class="pin pin-int" style="top:58%;left:57%">4</div>
+  <div class="pin pin-int" style="top:72%;left:69%">5</div>
+  <!-- Active stop floating card near pin 3 -->
+  <div class="map-float" style="top:28%;left:52%">
+    <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="52" height="36">
+    <div class="map-float-info">
+      <div class="map-float-name">平等院表参道</div>
+      <div class="map-float-ep">EP 3</div>
+    </div>
+  </div>
+  <div class="map-attr">宇治 · Map</div>
+</div>
+<!-- Route stats summary bar -->
+<div class="route-stats">
+  <span><span class="stat-val">5</span><span class="stat-label">站</span></span>
+  <div class="stat-sep"></div>
+  <span><span class="stat-val" style="font-variant-numeric:tabular-nums">2.1</span><span class="stat-label">km</span></span>
+  <div class="stat-sep"></div>
+  <span><span class="stat-val" style="font-variant-numeric:tabular-nums">2:15</span><span class="stat-label">小时</span></span>
+  <div class="stat-sep"></div>
+  <span><span class="stat-val" style="font-variant-numeric:tabular-nums">35</span><span class="stat-label">分步行</span></span>
+  <div style="margin-left:auto"></div>
+  <div class="pace"><button aria-label="悠闲节奏">悠闲</button><button class="a" aria-label="正常节奏">正常</button><button aria-label="紧凑节奏">紧凑</button></div>
+</div>
+<!-- Timeline -->
+<div class="tl-wrap">
+<!-- Stop 1 -->
+<div class="tl-stop"><div class="tl-l"><div class="tl-time">9:00</div><div class="tl-dur">45 分</div></div><div class="tl-mid"><div class="tl-dot first"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">宇治駅</div><div class="tl-detail">EP 1 · 出发 · 3 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅" width="72" height="48"></div></div>
+<!-- Walk 1→2 -->
+<div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span style="font-variant-numeric:tabular-nums">10 分 · 700m</span></div></div>
+<!-- Stop 2 -->
+<div class="tl-stop"><div class="tl-l"><div class="tl-time">9:55</div><div class="tl-dur">35 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">あじろぎの道</div><div class="tl-detail">EP 1 · 7 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="72" height="48"></div></div>
+<!-- Walk 2→3 with NEARBY DISCOVERY CARD -->
+<div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:60px"></div></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span style="font-variant-numeric:tabular-nums">8 分 · 550m</span></div></div></div>
+<!-- Nearby discovery hint -->
+<div class="tl-discovery"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash" style="min-height:16px;opacity:.3"></div></div><div class="tl-discovery-card"><div class="tl-discovery-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>附近还有 3 个其他动漫圣地</div><div class="tl-discovery-meta">K-On! &#215;2 · たまこ &#215;1</div><button class="tl-discovery-link" aria-label="查看附近圣地">查看 &#8594;</button></div></div>
+<!-- Stop 3 (active) -->
+<div class="tl-stop"><div class="tl-l"><div class="tl-time">10:38</div><div class="tl-dur">30 分</div></div><div class="tl-mid"><div class="tl-dot active"></div><div class="tl-stem"></div></div><div class="tl-r hi"><div class="tl-name">平等院表参道</div><div class="tl-detail">EP 3 · 4 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="72" height="48"></div></div>
+<!-- Walk 3→4 -->
+<div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span style="font-variant-numeric:tabular-nums">5 分 · 150m</span></div></div>
+<!-- Stop 4 -->
+<div class="tl-stop"><div class="tl-l"><div class="tl-time">11:13</div><div class="tl-dur">25 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">興聖寺</div><div class="tl-detail">EP 5 · 2 个圣地</div><img class="tl-photo" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="興聖寺" width="72" height="48"></div></div>
+<!-- Walk 4→5 -->
+<div class="tl-walk"><div class="tl-walk-l"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M10 22V18L7 15V11L10 9h4l3 2v4l-3 3v4"/></svg><span style="font-variant-numeric:tabular-nums">12 分 · 850m</span></div></div>
+<!-- Stop 5 -->
+<div class="tl-stop"><div class="tl-l"><div class="tl-time">11:50</div><div class="tl-dur">15 分</div></div><div class="tl-mid"><div class="tl-dot"></div></div><div class="tl-r"><div class="tl-name">京阪宇治駅</div><div class="tl-detail">EP 7 · 终点</div></div></div>
+</div>
+</div>
+<div class="export-bar"><button class="btn-p" aria-label="在 Google Maps 中打开">在 Google Maps 中打开</button><button class="btn-g" aria-label="导出日历">.ics</button></div>
+<button class="chat-tog" aria-label="打开对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+</main></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J4: Nearby Discovery                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 4</div><h2 class="sec-title">附近发现</h2><div class="sec-desc">侧栏收起，地图更大。</div></div>
+<div class="frame"><div class="shell">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tip">搜索</span></button>
+  <button class="sb-c-btn" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+  <div class="spacer"></div>
+  <button class="sb-c-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="tip">设置</span></button>
+</aside>
+<main class="ct-area"><div class="nearby-layout">
+<div class="nearby-map">
+<div class="user-dot"></div><div class="user-ring"></div>
+<div class="nearby-chips"><span class="chip a">全部</span><span class="chip">ユーフォ &#215;4</span><span class="chip">けいおん &#215;3</span><span class="chip">たまこ &#215;1</span></div>
+<div class="pin-sm pin-blue" style="top:35%;left:30%">1</div><div class="pin-sm pin-blue" style="top:42%;left:55%">2</div><div class="pin-sm pin-blue" style="top:60%;left:38%">3</div><div class="pin-sm pin-blue" style="top:65%;left:62%">4</div>
+<div class="pin-sm pin-green" style="top:30%;left:58%">K</div><div class="pin-sm pin-green" style="top:55%;left:25%">K</div><div class="pin-sm pin-green" style="top:70%;left:48%">K</div>
+<div class="pin-sm pin-orange" style="top:38%;left:68%">T</div>
+</div>
+<div class="side-panel"><div class="sp-hdr"><h2>附近</h2><div class="meta">1km 内 8 个圣地</div></div>
+<div class="sp-list">
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" width="48" height="32"><div class="sp-info"><div class="sp-name">京都コンサートホール</div><div class="sp-meta">Euphonium EP1</div></div><div class="sp-dist">350m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="48" height="32"><div class="sp-info"><div class="sp-name">あじろぎの道</div><div class="sp-meta">Euphonium EP1</div></div><div class="sp-dist">520m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="宇治橋" width="48" height="32"><div class="sp-info"><div class="sp-name">宇治橋</div><div class="sp-meta">Euphonium EP2</div></div><div class="sp-dist">180m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/bangumi/1424.jpg" alt="修学院離宮" width="48" height="32" style="border-radius:var(--r-sm);object-fit:cover"><div class="sp-info"><div class="sp-name">修学院離宮</div><div class="sp-meta">K-On! EP4</div></div><div class="sp-dist">890m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/bangumi/55113.jpg" alt="出町桝形商店街" width="48" height="32" style="border-radius:var(--r-sm);object-fit:cover"><div class="sp-info"><div class="sp-name">出町桝形商店街</div><div class="sp-meta">Tamako EP1</div></div><div class="sp-dist">620m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="莵道高校前" width="48" height="32"><div class="sp-info"><div class="sp-name">莵道高校前</div><div class="sp-meta">Euphonium EP3</div></div><div class="sp-dist">710m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="出町柳駅" width="48" height="32"><div class="sp-info"><div class="sp-name">出町柳駅</div><div class="sp-meta">K-On! EP1</div></div><div class="sp-dist">950m</div></div>
+<div class="sp-card"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="北白川バス停" width="48" height="32"><div class="sp-info"><div class="sp-name">北白川バス停</div><div class="sp-meta">K-On! EP2</div></div><div class="sp-dist">780m</div></div>
+</div></div>
+</div>
+<button class="chat-tog" aria-label="打开对话"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> 对话</button>
+</main></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- J5: Clarification — AS CHAT CONVERSATION                         -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Journey 5</div><h2 class="sec-title">消歧义</h2><div class="sec-desc">对话形式的消歧义。AI 把选择卡片嵌入聊天气泡内。</div></div>
+<div class="frame"><div class="shell shell-short">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tip">搜索</span></button>
+  <button class="sb-c-btn" aria-label="我的路线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span class="tip">我的路线</span></button>
+  <div class="spacer"></div>
+  <button class="sb-c-btn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg><span class="tip">设置</span></button>
+</aside>
+<main class="ct-area">
+  <div class="clar-chat">
+    <div class="clar-chat-messages">
+      <!-- User bubble -->
+      <div class="bubble-user">涼宮</div>
+      <!-- AI bubble with inline cards -->
+      <div class="bubble-ai" style="max-width:92%">
+        <div style="margin-bottom:8px">找到两部匹配的作品：</div>
+        <div class="clar-inline-cards">
+          <div class="clar-card">
+            <img src="https://image.anitabi.cn/bangumi/485.jpg" alt="涼宮ハルヒの憂鬱" width="200" height="90">
+            <div class="clar-card-body">
+              <h4>涼宮ハルヒの憂鬱</h4>
+              <p>134 个圣地 · 西宮市</p>
+              <button class="btn-o" aria-label="搜索涼宮ハルヒの憂鬱">搜索这部</button>
+            </div>
+          </div>
+          <div class="clar-card">
+            <div style="width:100%;height:90px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-family:'Shippori Mincho B1',serif;font-size:20px;color:var(--brand)">聖</div>
+            <div class="clar-card-body">
+              <h4>涼宮ハルヒの消失</h4>
+              <p>42 个圣地 · 西宮市</p>
+              <button class="btn-o" aria-label="搜索涼宮ハルヒの消失">搜索这部</button>
+            </div>
+          </div>
+        </div>
+        <button class="clar-link" aria-label="搜索全部涼宮作品">全部搜索</button>
+      </div>
+    </div>
+    <!-- Chat input -->
+    <div class="w-search"><input placeholder="继续输入…" aria-label="输入消息"><button aria-label="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></div>
+  </div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Footer                                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- CLICK STATE: Card detail bottom sheet                             -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Click State</div><h2 class="sec-title">圣地详情（点击卡片后）</h2><div class="sec-desc">从网格或地图点击一个圣地后，底部滑出详情面板。</div></div>
+<div class="frame"><div class="shell" style="height:560px">
+<aside class="sb-c">
+  <div class="sb-c-logo"><svg viewBox="0 0 72 72" width="28" height="28" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="12" y="30" width="48" height="3" rx="1.5" fill="oklch(58% 0.19 28)" opacity=".5"/><rect x="2" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="2" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="2" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="2" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="63" y="68.5" width="7" height="1.5" rx=".75" fill="oklch(45% 0.032 228)"/><rect x="68.5" y="63" width="1.5" height="7" rx=".75" fill="oklch(45% 0.032 228)"/></svg></div>
+  <button class="sb-c-btn a" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+</aside>
+<main class="ct-area">
+  <!-- Dimmed grid behind -->
+  <div class="hdr" style="opacity:.5"><h2>響け！ユーフォニアム</h2><span class="meta">156 个圣地 · 宇治市</span></div>
+  <div class="grid-wrap" style="opacity:.35;pointer-events:none"><div class="grid">
+    <div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="" width="240" height="180"><div class="gc-bar"><span class="gc-name">京都コンサートホール</span><span class="gc-ep">EP1</span></div></div>
+    <div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="" width="240" height="180"><div class="gc-bar"><span class="gc-name">あじろぎの道</span><span class="gc-ep">EP1</span></div></div>
+    <div class="gc"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="" width="240" height="180"><div class="gc-bar"><span class="gc-name">莵道高</span><span class="gc-ep">EP1</span></div></div>
+    <div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="" width="240" height="180"><div class="gc-bar"><span class="gc-name">宇治橋</span><span class="gc-ep">EP2</span></div></div>
+  </div></div>
+  <!-- Detail bottom sheet -->
+  <div class="card-detail">
+    <img class="card-detail-img" src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" width="600" height="140">
+    <h3>京都コンサートホール</h3>
+    <div class="meta">響け！ユーフォニアム · EP 1 · 宇治市</div>
+    <p style="font-size:14px;color:var(--fg);margin-bottom:12px;line-height:1.5">久美子たちが演奏会を行ったコンサートホール。第1話の冒頭シーンに登場。</p>
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--r-md);background:var(--muted);font-size:12px;color:var(--muted-fg)">📍 34.7525, 135.7613</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--r-md);background:var(--muted);font-size:12px;color:var(--muted-fg)">📸 3 张照片</span>
+    </div>
+    <div class="card-detail-actions">
+      <button class="btn-p" style="flex:1" aria-label="加入路线">加入路线</button>
+      <button class="btn-g" style="border:1px solid var(--border);border-radius:var(--r-md);padding:0 16px" aria-label="收藏">❤️ 收藏</button>
+      <button class="btn-g" style="border:1px solid var(--border);border-radius:var(--r-md);padding:0 16px" aria-label="地图查看">🗺️ 地图</button>
+    </div>
+  </div>
+</main>
+</div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MOBILE: Search Results                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Mobile</div><h2 class="sec-title">移动端 — 搜索结果</h2><div class="sec-desc">375px 宽度。无侧栏，顶部导航栏，2 列网格，底部操作栏。</div></div>
+<div class="mobile-frame">
+<div style="display:flex;flex-direction:column;height:667px;overflow:hidden;position:relative">
+  <!-- Mobile header -->
+  <div class="mobile-header">
+    <button class="hamburger" aria-label="打开菜单"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <svg viewBox="0 0 72 72" width="22" height="22" fill="none"><rect x="12" y="16" width="48" height="5" rx="2.5" fill="oklch(58% 0.19 28)"/><rect x="8" y="14" width="56" height="3" rx="1.5" fill="oklch(58% 0.19 28)"/><rect x="16" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/><rect x="51" y="21" width="5" height="35" rx="1" fill="oklch(58% 0.19 28)"/></svg>
+    <span class="m-logo">聖地巡礼</span>
+    <div style="margin-left:auto"><button class="hamburger" aria-label="对话"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button></div>
+  </div>
+  <!-- Content -->
+  <div style="padding:12px 12px 4px;display:flex;align-items:center;gap:8px">
+    <h2 style="font-size:16px">響け！ユーフォニアム</h2>
+    <span style="font-size:12px;color:var(--muted-fg)">156</span>
+  </div>
+  <!-- Filters horizontal scroll -->
+  <div style="display:flex;gap:4px;padding:8px 12px;overflow-x:auto;flex-shrink:0">
+    <span class="chip a" style="flex-shrink:0">全部</span>
+    <span class="chip" style="flex-shrink:0">EP 1–4</span>
+    <span class="chip" style="flex-shrink:0">EP 5–8</span>
+    <span class="chip" style="flex-shrink:0">EP 9–12</span>
+    <span class="chip" style="flex-shrink:0">宇治</span>
+    <span class="chip" style="flex-shrink:0">京都</span>
+  </div>
+  <!-- 2-column grid -->
+  <div style="flex:1;overflow-y:auto;padding:4px 12px 80px">
+    <div class="mobile-grid">
+      <div class="gc sel"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" width="160" height="120"><div class="gc-bar"><span class="gc-name">京都コンサートホール</span><span class="gc-ep">EP1</span></div><div class="gc-ck">✓</div></div>
+      <div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" width="160" height="120"><div class="gc-bar"><span class="gc-name">あじろぎの道</span><span class="gc-ep">EP1</span></div><div class="gc-ck">✓</div></div>
+      <div class="gc sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="莵道高" width="160" height="120"><div class="gc-bar"><span class="gc-name">莵道高</span><span class="gc-ep">EP1</span></div><div class="gc-ck">✓</div></div>
+      <div class="gc"><img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治橋" width="160" height="120"><div class="gc-bar"><span class="gc-name">宇治橋</span><span class="gc-ep">EP2</span></div><div class="gc-ck">✓</div></div>
+      <div class="gc"><img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="中書島駅" width="160" height="120"><div class="gc-bar"><span class="gc-name">中書島駅</span><span class="gc-ep">EP3</span></div><div class="gc-ck">✓</div></div>
+      <div class="gc sel"><img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" width="160" height="120"><div class="gc-bar"><span class="gc-name">平等院表参道</span><span class="gc-ep">EP3</span></div><div class="gc-ck">✓</div></div>
+    </div>
+  </div>
+  <!-- Mobile selection bar -->
+  <div style="position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--card);border-top:1px solid var(--border);z-index:5">
+    <b style="font-size:14px">已选 3</b>
+    <button class="btn-p" style="margin-left:auto;height:40px;padding:0 20px" aria-label="规划路线">规划路线</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MOBILE: Route Timeline                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="sec"><div class="sec-num">Mobile</div><h2 class="sec-title">移动端 — 路线规划</h2><div class="sec-desc">375px。地图占顶部 200px，下方时间轴全屏滚动。</div></div>
+<div class="mobile-frame">
+<div style="display:flex;flex-direction:column;height:667px;overflow:hidden;position:relative">
+  <div class="mobile-header">
+    <button class="hamburger" aria-label="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <span class="m-logo">宇治巡礼路线</span>
+    <div style="margin-left:auto;font-size:12px;color:var(--muted-fg)">5 站 · 2.1km</div>
+  </div>
+  <!-- Compact map -->
+  <div style="height:180px;position:relative;flex-shrink:0;background:radial-gradient(circle at 40% 40%,oklch(90% 0.025 180) 0%,transparent 50%),radial-gradient(circle at 60% 55%,oklch(91% 0.02 200) 0%,transparent 40%),oklch(93% 0.01 210)">
+    <div class="pin pin-int" style="top:20%;left:25%;width:28px;height:28px;font-size:12px">1</div>
+    <div class="pin pin-int" style="top:38%;left:42%;width:28px;height:28px;font-size:12px">2</div>
+    <div class="pin pin-brand" style="top:50%;left:55%;width:28px;height:28px;font-size:12px">3</div>
+    <div class="pin pin-int" style="top:65%;left:65%;width:28px;height:28px;font-size:12px">4</div>
+    <div class="pin pin-int" style="top:78%;left:75%;width:28px;height:28px;font-size:12px">5</div>
+  </div>
+  <!-- Pace tabs -->
+  <div style="display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid var(--border)">
+    <div class="pace"><button>悠闲</button><button class="a">正常</button><button>紧凑</button></div>
+  </div>
+  <!-- Timeline -->
+  <div style="flex:1;overflow-y:auto;padding:12px 16px 80px">
+    <div class="tl-stop"><div class="tl-l" style="width:44px"><div class="tl-time">9:00</div><div class="tl-dur">45 分</div></div><div class="tl-mid"><div class="tl-dot first"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">宇治駅</div><div class="tl-detail">EP 1 · 3 个圣地</div></div></div>
+    <div class="tl-walk"><div class="tl-walk-l" style="width:44px"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 10 分 · 700m</div></div>
+    <div class="tl-stop"><div class="tl-l" style="width:44px"><div class="tl-time">9:55</div><div class="tl-dur">35 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">あじろぎの道</div><div class="tl-detail">EP 1 · 7 个圣地</div></div></div>
+    <div class="tl-walk"><div class="tl-walk-l" style="width:44px"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 8 分 · 550m</div></div>
+    <div class="tl-stop"><div class="tl-l" style="width:44px"><div class="tl-time">10:38</div><div class="tl-dur">30 分</div></div><div class="tl-mid"><div class="tl-dot active"></div><div class="tl-stem"></div></div><div class="tl-r hi"><div class="tl-name">平等院表参道</div><div class="tl-detail">EP 3 · 4 个圣地</div></div></div>
+    <div class="tl-walk"><div class="tl-walk-l" style="width:44px"></div><div class="tl-walk-mid"><div class="tl-dash"></div></div><div class="walk-pill">🚶 5 分 · 150m</div></div>
+    <div class="tl-stop"><div class="tl-l" style="width:44px"><div class="tl-time">11:13</div><div class="tl-dur">25 分</div></div><div class="tl-mid"><div class="tl-dot"></div><div class="tl-stem"></div></div><div class="tl-r"><div class="tl-name">興聖寺</div><div class="tl-detail">EP 5 · 2 个圣地</div></div></div>
+  </div>
+  <!-- Mobile export -->
+  <div style="position:absolute;bottom:0;left:0;right:0;display:flex;gap:8px;padding:10px 16px;background:var(--bg);border-top:1px solid var(--border);z-index:5">
+    <button class="btn-p" style="flex:1;height:40px" aria-label="在 Google Maps 中打开">Google Maps</button>
+    <button class="btn-g" style="border:1px solid var(--border);border-radius:var(--r-md);padding:0 16px;height:40px" aria-label="分享">分享</button>
+  </div>
+</div>
+</div>
+
+<p style="text-align:center;color:var(--muted-fg);font-size:12px;margin-top:48px">Seichijunrei Design v3 — 胶片帧 Logo · 收起侧栏全局化 · AI 气泡位置修复 · 路线地图增强 · 附近发现卡 · 消歧义对话化 · focus-visible · aria-labels · prefers-reduced-motion</p>
+</body>
+</html>

@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
 import type { RouteData, TimedItinerary } from "../../lib/types";
 import { useRouteExport } from "../../hooks/useRouteExport";
+import { useDict } from "../../lib/i18n-context";
 import RouteTimeline from "./RouteTimeline";
 
 // ---------------------------------------------------------------------------
@@ -15,12 +17,6 @@ const LazyBaseMap = dynamic(() => import("../map/BaseMap"), { ssr: false });
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const PACE_OPTIONS = [
-  { key: "chill" as const, label: "悠闲", desc: "各地点 45 分" },
-  { key: "normal" as const, label: "正常", desc: "各地点 30 分" },
-  { key: "packed" as const, label: "紧凑", desc: "各地点 15 分" },
-];
 
 const PACE_MULTIPLIER: Record<"chill" | "normal" | "packed", number> = {
   chill: 1.5,
@@ -59,6 +55,12 @@ export default function RoutePlannerWizard({
   onBack,
   onExpandChat,
 }: RoutePlannerWizardProps) {
+  const { route: rt } = useDict();
+  const paceOptions = useMemo(() => [
+    { key: "chill" as const, label: rt.pace_chill, desc: rt.pace_desc.replace("{min}", "45") },
+    { key: "normal" as const, label: rt.pace_normal, desc: rt.pace_desc.replace("{min}", "30") },
+    { key: "packed" as const, label: rt.pace_packed, desc: rt.pace_desc.replace("{min}", "15") },
+  ], [rt]);
   const itinerary = data.route.timed_itinerary ?? EMPTY_ITINERARY;
   const points = data.route.ordered_points;
   const animeTitle = points[0]?.title_cn || points[0]?.title || "";
@@ -132,7 +134,7 @@ export default function RoutePlannerWizard({
               >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
-              编辑
+              {rt.back_edit}
             </button>
           )}
           <div className="flex items-center gap-3">
@@ -173,20 +175,24 @@ export default function RoutePlannerWizard({
                 className="font-[family-name:var(--app-font-display)] text-[var(--color-fg)]"
                 style={{ fontSize: 16, fontWeight: 600 }}
               >
-                {spotCount} 站の巡礼
+                {rt.pilgrimage_title.replace("{count}", String(spotCount))}
               </div>
               <div
                 className="mt-0.5 text-[var(--color-muted-fg)]"
                 style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}
               >
-                約 {hours}時間{String(mins).padStart(2, "0")}分 · {distKm}km · 步行{walkMin}分
+                {rt.stats_detail
+                  .replace("{h}", String(hours))
+                  .replace("{m}", String(mins).padStart(2, "0"))
+                  .replace("{d}", distKm)
+                  .replace("{w}", String(walkMin))}
               </div>
             </div>
 
             {/* Pace toggle */}
             <div className="shrink-0">
               <div className="flex gap-1">
-                {PACE_OPTIONS.map((opt) => (
+                {paceOptions.map((opt) => (
                   <button
                     key={opt.key}
                     type="button"
@@ -206,7 +212,7 @@ export default function RoutePlannerWizard({
                 className="mt-1 text-right text-[var(--color-muted-fg)]"
                 style={{ fontSize: 11 }}
               >
-                {PACE_OPTIONS.find((o) => o.key === pacing)?.desc}
+                {paceOptions.find((o) => o.key === pacing)?.desc}
               </div>
             </div>
           </div>
@@ -229,7 +235,7 @@ export default function RoutePlannerWizard({
             className="flex flex-1 items-center justify-center rounded-[var(--r-md)] bg-[var(--color-primary)] text-sm font-semibold text-[var(--color-primary-fg)]"
             style={{ height: 36, minWidth: 44 }}
           >
-            在 Google Maps 中打开
+            {rt.export_gmaps}
           </button>
           <button
             type="button"
@@ -237,7 +243,7 @@ export default function RoutePlannerWizard({
             className="rounded-[var(--r-md)] border border-[var(--color-border)] bg-transparent text-sm text-[var(--color-muted-fg)]"
             style={{ height: 36, minWidth: 44, padding: "0 12px" }}
           >
-            导出日历
+            {rt.export_ics}
           </button>
           {onExpandChat && (
             <button
@@ -258,7 +264,7 @@ export default function RoutePlannerWizard({
               >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              对话
+              {rt.chat_label}
             </button>
           )}
         </div>

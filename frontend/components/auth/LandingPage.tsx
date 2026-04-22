@@ -330,7 +330,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               className="seichi-reveal-pop rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-[28px_24px] transition-transform hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]"
               style={{ animationDelay: `${i * 0.1}s` }}
             >
-              <div className="mb-3.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[13px] font-semibold text-white">
+              <div className="mb-3.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[13px] font-semibold text-[var(--color-primary-fg)]">
                 {step.num}
               </div>
               <h3 className="font-[family-name:var(--app-font-display)] text-[16px]">

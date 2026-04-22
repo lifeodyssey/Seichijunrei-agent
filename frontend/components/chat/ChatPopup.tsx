@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ChatMessage } from "../../lib/types";
-import type { Dict, Locale } from "../../lib/i18n";
+import { useDict } from "../../lib/i18n-context";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 
@@ -12,8 +12,6 @@ interface ChatPopupProps {
   messages: ChatMessage[];
   sending: boolean;
   activeMessageId: string | null;
-  dict: Dict;
-  locale: Locale;
   onSend: (text: string, coords?: { lat: number; lng: number } | null) => void;
   onActivate: (messageId: string) => void;
 }
@@ -36,8 +34,11 @@ export default function ChatPopup({
   onSend,
   onActivate,
 }: ChatPopupProps) {
+  const { chat_popup: t } = useDict();
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  // Track dragging state reactively so render can read it without accessing ref.current
+  const [isDragging, setIsDragging] = useState(false);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -49,6 +50,7 @@ export default function ChatPopup({
         originX: pos.x,
         originY: pos.y,
       };
+      setIsDragging(true);
     },
     [pos],
   );
@@ -65,6 +67,7 @@ export default function ChatPopup({
 
   const handlePointerUp = useCallback(() => {
     dragRef.current = null;
+    setIsDragging(false);
   }, []);
 
   // Track whether this is a drag (suppress click if dragged)
@@ -112,7 +115,7 @@ export default function ChatPopup({
         onPointerDown={handlePillPointerDown}
         onPointerMove={handlePillPointerMove}
         onPointerUp={handlePillPointerUp}
-        className="fixed z-50 flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-white shadow-lg"
+        className="fixed z-50 flex h-11 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-sm font-medium text-[var(--color-primary-fg)] shadow-lg"
         style={{
           bottom: `${72 - pos.y}px`,
           right: `${24 - pos.x}px`,
@@ -124,7 +127,7 @@ export default function ChatPopup({
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
-        继续对话…
+        {t.continue}
       </button>
     );
   }
@@ -145,7 +148,7 @@ export default function ChatPopup({
       {/* Header — drag handle */}
       <div
         className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] px-4 py-2.5"
-        style={{ cursor: dragRef.current ? "grabbing" : "grab", touchAction: "none" }}
+        style={{ cursor: isDragging ? "grabbing" : "grab", touchAction: "none" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -158,7 +161,7 @@ export default function ChatPopup({
             className="select-none text-sm font-semibold text-[var(--color-fg)]"
             style={{ fontFamily: "var(--app-font-display)" }}
           >
-            对话
+            {t.title}
           </h3>
         </div>
         <div className="flex items-center gap-1">
@@ -176,8 +179,8 @@ export default function ChatPopup({
           <button
             type="button"
             onClick={onClose}
-            aria-label="关闭对话"
-            className="flex h-7 w-7 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
+            aria-label={t.close}
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -200,7 +203,7 @@ export default function ChatPopup({
       <ChatInput
         onSend={(text) => onSend(text)}
         disabled={sending}
-        placeholderOverride="继续对话…"
+        placeholderOverride={t.continue}
       />
     </div>
   );

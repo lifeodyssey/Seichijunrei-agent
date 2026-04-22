@@ -1,18 +1,15 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import dynamic from "next/dynamic";
 import { useDict } from "../../lib/i18n-context";
+import { formatDistanceOpt } from "../../lib/geo";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import NearbyChips, { groupByAnime } from "./NearbyChips";
 
 const LazyBaseMap = dynamic(() => import("../map/BaseMap"), { ssr: false });
-
-function formatDistance(m?: number | null): string {
-  if (m == null) return "";
-  return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
-}
 
 interface NearbyMapProps {
   data: SearchResultData;
@@ -35,7 +32,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
 
   if (results.status === "empty" || sorted.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
+      <div className="flex h-full items-center justify-center rounded-[var(--r-lg)] border border-[var(--color-border)] p-4 text-sm text-[var(--color-muted-fg)]">
         {t.no_results}
       </div>
     );
@@ -49,7 +46,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
       : sorted;
 
   return (
-    <div className="flex h-full flex-row gap-0 overflow-hidden rounded-lg border border-[var(--color-border)]">
+    <div className="flex h-full flex-row gap-0 overflow-hidden rounded-[var(--r-lg)] border border-[var(--color-border)]">
       {/* Map side — 55% */}
       <div className="relative" style={{ flex: "0 0 55%" }}>
         <LazyBaseMap
@@ -96,7 +93,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
                   <img
                     src={point.screenshot_url}
                     alt=""
-                    className="h-9 w-12 shrink-0 rounded object-cover"
+                    className="h-9 w-12 shrink-0 rounded-[var(--r-sm)] object-cover"
                   />
                 )}
 
@@ -119,7 +116,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
                     className="shrink-0 text-xs font-medium text-[var(--color-primary)]"
                     style={{ fontVariantNumeric: "tabular-nums" }}
                   >
-                    {formatDistance(point.distance_m)}
+                    {formatDistanceOpt(point.distance_m)}
                   </span>
                 )}
               </button>

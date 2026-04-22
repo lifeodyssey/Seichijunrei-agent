@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { ChatMessage, RuntimeResponse } from "../lib/types";
 import {
   MOCK_SEARCH_RESPONSE,
@@ -54,12 +54,8 @@ function matchRoute(text: string): { response: RuntimeResponse; delayMs: number 
 // ── useMockChat ───────────────────────────────────────────────────────────
 
 export function useMockChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sending, setSending] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Seed the greeting on mount
-  useEffect(() => {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    // Seed the greeting on mount via initializer (avoids setState in effect).
     const greetMsg: ChatMessage = {
       id: createMessageId(),
       role: "assistant",
@@ -68,8 +64,10 @@ export function useMockChat() {
       loading: false,
       timestamp: Date.now(),
     };
-    setMessages([greetMsg]);
-  }, []);
+    return [greetMsg];
+  });
+  const [sending, setSending] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const appendMessages = useCallback((...nextMessages: ChatMessage[]) => {
     if (nextMessages.length === 0) return;

@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seichijunrei — Search Results</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Shippori+Mincho+B1:wght@700&display=swap" rel="stylesheet">
+<style>
+/* ─── Design Tokens ─── */
+:root {
+  --bg: oklch(98% 0.008 218);
+  --fg: oklch(20% 0.025 238);
+  --card: oklch(95% 0.012 215);
+  --muted: oklch(91% 0.016 218);
+  --muted-fg: oklch(45% 0.032 228);
+  --border: oklch(85% 0.022 222);
+  --primary: oklch(60% 0.148 240);
+  --primary-fg: oklch(99% 0.004 220);
+  --sidebar-bg: oklch(96% 0.010 218);
+  --sidebar-active: oklch(92% 0.020 230);
+  --font-display: "Shippori Mincho B1", Georgia, serif;
+  --font-body: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Reset ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ─── App Layout ─── */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: 56px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 20;
+}
+
+.sidebar-logo {
+  width: 38px;
+  height: 38px;
+  background: var(--sidebar-active);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+  user-select: none;
+}
+
+.sidebar-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out);
+  position: relative;
+}
+
+.sidebar-btn:hover {
+  background: var(--sidebar-active);
+  color: var(--fg);
+}
+
+.sidebar-btn.active {
+  background: var(--sidebar-active);
+  color: var(--primary);
+}
+
+.sidebar-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-spacer { flex: 1; }
+
+/* Tooltips */
+.sidebar-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--fg);
+  color: var(--primary-fg);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms;
+}
+
+.sidebar-btn:hover::after {
+  opacity: 1;
+}
+
+/* ─── Main Content ─── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 28px 32px 140px;
+  position: relative;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.header-left {}
+
+.header-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fg);
+  line-height: 1.3;
+}
+
+.header-meta {
+  font-size: 13px;
+  color: var(--muted-fg);
+  margin-top: 4px;
+}
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  transition: background 150ms, color 150ms;
+}
+
+.view-toggle-btn.active {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.view-toggle-btn:not(.active):hover {
+  background: var(--muted);
+}
+
+/* ─── Filter Bar ─── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-fg);
+  cursor: pointer;
+  transition: all 150ms var(--ease-out);
+}
+
+.filter-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+}
+
+/* ─── Photo Grid ─── */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.photo-card {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 300ms var(--ease-out), box-shadow 300ms var(--ease-out);
+  aspect-ratio: 4 / 3;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: cardEnter 300ms var(--ease-out) forwards;
+}
+
+.photo-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px oklch(20% 0.025 238 / 0.12);
+}
+
+.photo-card.hero {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 28px 12px 10px;
+  background: linear-gradient(to top, oklch(15% 0.02 240 / 0.72) 0%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.photo-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: oklch(97% 0.005 220);
+}
+
+.photo-card-ep {
+  font-size: 10px;
+  font-weight: 600;
+  background: oklch(20% 0.025 238 / 0.5);
+  color: oklch(95% 0.005 220);
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* ─── Selection Checkmark ─── */
+.photo-card-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid oklch(97% 0.005 220 / 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms var(--ease-out);
+  background: oklch(20% 0.02 238 / 0.3);
+}
+
+.photo-card.selected .photo-card-check {
+  background: var(--primary);
+  border-color: var(--primary);
+  animation: checkPop 150ms var(--ease-out);
+}
+
+.photo-card-check svg {
+  width: 13px;
+  height: 13px;
+  stroke: oklch(97% 0.005 220);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 150ms, transform 150ms var(--ease-out);
+}
+
+.photo-card.selected .photo-card-check svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ─── Selection Bar ─── */
+.selection-bar {
+  position: fixed;
+  bottom: 72px;
+  left: 56px;
+  right: 0;
+  padding: 12px 32px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+}
+
+.selection-bar-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.selection-bar-input {
+  flex: 1;
+  max-width: 240px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.selection-bar-input::placeholder {
+  color: var(--muted-fg);
+}
+
+.selection-bar-input:focus {
+  border-color: var(--primary);
+}
+
+.selection-bar-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.btn-primary {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+
+.btn-primary:hover { opacity: 0.88; }
+
+.btn-ghost {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted-fg);
+  border: none;
+  cursor: pointer;
+  transition: color 150ms;
+}
+
+.btn-ghost:hover { color: var(--fg); }
+
+/* ─── Floating Chat Bar ─── */
+.chat-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 56px;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.chat-bar-inner {
+  width: 100%;
+  max-width: 480px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 18px;
+  border-radius: 22px;
+  background: oklch(98% 0.008 218 / 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 12px oklch(20% 0.025 238 / 0.08), 0 0 0 1px var(--border);
+  pointer-events: all;
+}
+
+.chat-bar-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--fg);
+  outline: none;
+}
+
+.chat-bar-input::placeholder {
+  color: var(--muted-fg);
+}
+
+.chat-bar-send {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 150ms;
+  flex-shrink: 0;
+}
+
+.chat-bar-send:hover { opacity: 0.85; }
+
+.chat-bar-send svg {
+  width: 15px;
+  height: 15px;
+  stroke: var(--primary-fg);
+  fill: none;
+}
+
+/* ─── Animations ─── */
+@keyframes cardEnter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes checkPop {
+  0% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+.photo-card:nth-child(1) { animation-delay: 0ms; }
+.photo-card:nth-child(2) { animation-delay: 30ms; }
+.photo-card:nth-child(3) { animation-delay: 60ms; }
+.photo-card:nth-child(4) { animation-delay: 90ms; }
+.photo-card:nth-child(5) { animation-delay: 120ms; }
+.photo-card:nth-child(6) { animation-delay: 150ms; }
+.photo-card:nth-child(7) { animation-delay: 180ms; }
+.photo-card:nth-child(8) { animation-delay: 210ms; }
+.photo-card:nth-child(9) { animation-delay: 240ms; }
+.photo-card:nth-child(10) { animation-delay: 270ms; }
+.photo-card:nth-child(11) { animation-delay: 300ms; }
+.photo-card:nth-child(12) { animation-delay: 330ms; }
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  .photo-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .photo-card:hover {
+    transform: none;
+  }
+  .photo-card.selected .photo-card-check {
+    animation: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <!-- Sidebar -->
+  <nav class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-logo" aria-label="Seichijunrei">聖</div>
+
+    <button class="sidebar-btn" data-tooltip="New chat" aria-label="New chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+    </button>
+
+    <button class="sidebar-btn active" data-tooltip="Search" aria-label="Search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.35-4.35"/>
+      </svg>
+    </button>
+
+    <button class="sidebar-btn" data-tooltip="Routes" aria-label="Routes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+      </svg>
+    </button>
+
+    <button class="sidebar-btn" data-tooltip="History" aria-label="History">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+        <path d="M12 7v5l4 2"/>
+      </svg>
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <button class="sidebar-btn" data-tooltip="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1 class="header-title">響け！ユーフォニアム</h1>
+        <p class="header-meta">156 spots · 宇治市, 京都</p>
+      </div>
+      <div class="view-toggle">
+        <button class="view-toggle-btn active">Grid</button>
+        <button class="view-toggle-btn">Map</button>
+      </div>
+    </header>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <button class="filter-chip active">All</button>
+      <button class="filter-chip">EP 1-4</button>
+      <button class="filter-chip">EP 5-8</button>
+      <button class="filter-chip">EP 9-12</button>
+      <button class="filter-chip">EP 13-16</button>
+    </div>
+
+    <!-- Photo Grid -->
+    <div class="photo-grid">
+      <!-- Card 1: Hero (selected) -->
+      <div class="photo-card hero selected">
+        <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京都コンサートホール" loading="eager">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">京都コンサートホール</span>
+          <span class="photo-card-ep">EP 1</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="あじろぎの道" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">あじろぎの道</span>
+          <span class="photo-card-ep">EP 1</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 3 (selected) -->
+      <div class="photo-card selected">
+        <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="莵道高" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">莵道高</span>
+          <span class="photo-card-ep">EP 1</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治橋" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">宇治橋</span>
+          <span class="photo-card-ep">EP 2</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="中書島駅" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">中書島駅</span>
+          <span class="photo-card-ep">EP 3</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="平等院表参道" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">平等院表参道</span>
+          <span class="photo-card-ep">EP 3</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 7 (selected) -->
+      <div class="photo-card selected">
+        <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="宇治駅前商店街" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">宇治駅前商店街</span>
+          <span class="photo-card-ep">EP 4</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 8 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="朝霧橋" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">朝霧橋</span>
+          <span class="photo-card-ep">EP 5</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 9 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="興聖寺" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">興聖寺</span>
+          <span class="photo-card-ep">EP 6</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 10 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160" alt="京阪宇治駅" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">京阪宇治駅</span>
+          <span class="photo-card-ep">EP 7</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 11 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160" alt="県神社" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">県神社</span>
+          <span class="photo-card-ep">EP 8</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card 12 -->
+      <div class="photo-card">
+        <img src="https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160" alt="大吉山展望台" loading="lazy">
+        <div class="photo-card-overlay">
+          <span class="photo-card-name">大吉山展望台</span>
+          <span class="photo-card-ep">EP 8</span>
+        </div>
+        <div class="photo-card-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Selection Bar -->
+<div class="selection-bar">
+  <span class="selection-bar-count">3 spots selected</span>
+  <input class="selection-bar-input" type="text" placeholder="出発駅を入力...">
+  <div class="selection-bar-actions">
+    <button class="btn-ghost">Clear</button>
+    <button class="btn-primary">Plan Route</button>
+  </div>
+</div>
+
+<!-- Floating Chat Bar -->
+<div class="chat-bar">
+  <div class="chat-bar-inner">
+    <input class="chat-bar-input" type="text" placeholder="Ask anything about this anime...">
+    <button class="chat-bar-send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// Toggle card selection on click
+document.querySelectorAll('.photo-card').forEach(card => {
+  card.addEventListener('click', () => {
+    card.classList.toggle('selected');
+    updateSelectionCount();
+  });
+});
+
+function updateSelectionCount() {
+  const count = document.querySelectorAll('.photo-card.selected').length;
+  const bar = document.querySelector('.selection-bar');
+  const countEl = document.querySelector('.selection-bar-count');
+  if (count > 0) {
+    bar.style.display = 'flex';
+    countEl.textContent = count + ' spots selected';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// Filter chip toggle
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+// View toggle
+document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

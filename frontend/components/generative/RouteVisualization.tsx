@@ -54,7 +54,7 @@ export default function RouteVisualization({ data }: RouteVisualizationProps) {
             ) : null}
           </div>
           <Button variant="outline" size="xs" onClick={handleOpenGoogleMaps}>
-            在 Google Maps 中打开
+            {t.export_gmaps}
           </Button>
         </div>
         <ScrollArea className="min-h-0 flex-1">

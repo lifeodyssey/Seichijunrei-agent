@@ -69,7 +69,7 @@ export default function LocationPrompt({
 
   return (
     <div
-      className="mx-auto mb-2 flex max-w-[680px] flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-white p-3 shadow-sm"
+      className="mx-auto mb-2 flex max-w-[680px] flex-col gap-2 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 shadow-sm"
       role="region"
       aria-label="location prompt"
     >
@@ -80,7 +80,7 @@ export default function LocationPrompt({
               <button
                 type="button"
                 onClick={handleUseCurrentLocation}
-                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
                 style={{ transitionDuration: "var(--duration-fast)" }}
               >
                 <span aria-hidden="true">📍</span>
@@ -90,7 +90,7 @@ export default function LocationPrompt({
                 <button
                   type="button"
                   onClick={handleEnterStation}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-sm text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
                   style={{ transitionDuration: "var(--duration-fast)" }}
                 >
                   {t.enter_station}
@@ -132,12 +132,12 @@ export default function LocationPrompt({
             value={stationValue}
             onChange={(e) => setStationValue(e.target.value)}
             placeholder={t.enter_station}
-            className="flex-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-sm outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--color-muted-fg)]"
+            className="flex-1 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--color-muted-fg)]"
           />
           <button
             type="submit"
             disabled={!stationValue.trim()}
-            className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-sm text-white disabled:opacity-40"
+            className="rounded-[var(--r-lg)] bg-[var(--color-primary)] px-3 py-1.5 text-sm text-[var(--color-primary-fg)] disabled:opacity-40"
           >
             OK
           </button>

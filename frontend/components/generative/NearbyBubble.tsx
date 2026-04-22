@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
+import { formatDistance } from "../../lib/geo";
 import { groupByAnime, CHIP_COLORS } from "./NearbyChips";
 
 interface NearbyBubbleProps {
@@ -11,16 +13,10 @@ interface NearbyBubbleProps {
 
 interface AnimeCardProps {
   title: string;
-  spotCount: number;
-  closestDistance: number;
   colorIndex: number;
   imageUrl: string | null;
+  spotsDistanceLabel: string;
   onClick: () => void;
-}
-
-function formatDistance(meters: number): string {
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
 }
 
 function colorValue(hue: number, chroma: number, lightness: number): string {
@@ -29,10 +25,9 @@ function colorValue(hue: number, chroma: number, lightness: number): string {
 
 function AnimeNearbyCard({
   title,
-  spotCount,
-  closestDistance,
   colorIndex,
   imageUrl,
+  spotsDistanceLabel,
   onClick,
 }: AnimeCardProps) {
   const [imgError, setImgError] = useState(false);
@@ -55,7 +50,7 @@ function AnimeNearbyCard({
         <img
           src={imageUrl}
           alt=""
-          className="h-8 w-10 shrink-0 rounded object-cover"
+          className="h-8 w-10 shrink-0 rounded-[var(--r-sm)] object-cover"
           style={{ background: "var(--color-muted)" }}
           onError={() => setImgError(true)}
         />
@@ -68,7 +63,7 @@ function AnimeNearbyCard({
           {title}
         </span>
         <span className="text-xs text-[var(--color-muted-fg)]">
-          {spotCount} 个圣地 · 最近 {formatDistance(closestDistance)}
+          {spotsDistanceLabel}
         </span>
       </span>
       <span className="shrink-0 text-sm text-[var(--color-muted-fg)]" aria-hidden="true">
@@ -79,6 +74,7 @@ function AnimeNearbyCard({
 }
 
 export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
+  const { nearby: nt } = useDict();
   const points = data.results.rows;
 
   const groupsWithDistance = useMemo(() => {
@@ -108,12 +104,15 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
   }, [points]);
 
   const total = points.length;
-  const radius = data.results.strategy === "geo" ? "1km" : "1km";
+  const radius = "1km";
 
   return (
     <div>
       <p className="text-sm font-light leading-loose text-[var(--color-fg)]">
-        附近 {radius} 内找到了 {groupsWithDistance.length} 部动漫的 {total} 个圣地
+        {nt.summary
+          .replace("{radius}", radius)
+          .replace("{count}", String(groupsWithDistance.length))
+          .replace("{total}", String(total))}
       </p>
 
       <div className="mt-3 flex flex-col gap-2">
@@ -121,25 +120,26 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
           <AnimeNearbyCard
             key={group.bangumi_id}
             title={group.title}
-            spotCount={group.points_count}
-            closestDistance={group.closestDistance}
             colorIndex={group.color_index}
             imageUrl={group.imageUrl}
-            onClick={() => onSuggest?.(`搜索 ${group.title} 附近的圣地`)}
+            spotsDistanceLabel={nt.spots_distance
+              .replace("{spotCount}", String(group.points_count))
+              .replace("{dist}", formatDistance(group.closestDistance))}
+            onClick={() => onSuggest?.(nt.search_anime_nearby.replace("{title}", group.title))}
           />
         ))}
       </div>
 
       <button
         type="button"
-        onClick={() => onSuggest?.("显示所有附近圣地")}
+        onClick={() => onSuggest?.(nt.show_all_nearby)}
         className="mt-3 flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-muted)]"
         style={{ minHeight: 44 }}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-white">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-[var(--color-primary-fg)]">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </span>
-        <span className="flex-1 text-left text-sm text-[var(--color-fg)]">查看全部 {total} 个圣地</span>
+        <span className="flex-1 text-left text-sm text-[var(--color-fg)]">{nt.view_all.replace("{total}", String(total))}</span>
         <span className="text-sm text-[var(--color-muted-fg)]">→</span>
       </button>
     </div>

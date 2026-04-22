@@ -32,7 +32,7 @@ export default function ResultAnchor({
       ].join(" ")}
       style={{ transitionDuration: "var(--duration-fast)", transitionTimingFunction: "var(--ease-out-quint)" }}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-sm text-white">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-lg)] bg-[var(--color-primary)] text-sm text-[var(--color-primary-fg)]">
         {"\uD83D\uDCCD"}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
