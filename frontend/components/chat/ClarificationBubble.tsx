@@ -29,7 +29,7 @@ export default function ClarificationBubble({
       : undefined;
 
   return (
-    <div className="rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3">
+    <div className="max-w-[480px] rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3">
       <Clarification
         message={response.message}
         options={options}

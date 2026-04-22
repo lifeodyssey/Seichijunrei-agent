@@ -113,7 +113,7 @@ function CandidateCard({
       type="button"
       onClick={onSelect}
       aria-label={candidate.title}
-      className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
+      className="flex items-center gap-3 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
       style={{
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quint)",
@@ -186,7 +186,7 @@ function SearchAllCard({
       type="button"
       onClick={handleClick}
       aria-label={label}
-      className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
+      className="flex items-center gap-3 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
       style={{
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quint)",
@@ -235,7 +235,7 @@ function FallbackSuggestionCard({
       type="button"
       onClick={onSelect}
       aria-label={label}
-      className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
+      className="flex items-center gap-3 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left transition-all hover:border-[var(--color-primary)] hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0"
       style={{
         transitionDuration: "var(--duration-fast)",
         transitionTimingFunction: "var(--ease-out-quint)",

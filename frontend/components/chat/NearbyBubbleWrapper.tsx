@@ -9,7 +9,7 @@ export default function NearbyBubbleWrapper({ response }: { response: RuntimeRes
   const suggest = useSuggest();
   if (!isSearchData(response.data)) return null;
   return (
-    <div className="rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3">
+    <div className="max-w-[480px] rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3">
       <NearbyBubble data={response.data} onSuggest={suggest} />
     </div>
   );

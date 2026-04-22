@@ -115,7 +115,7 @@ function ErrorDisplay({
   const key = mapErrorToKey(errorCode);
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-red-600">{errorDict[key]}</span>
+      <span className="text-[var(--color-error-fg)]">{errorDict[key]}</span>
       {onRetry && (
         <button
           type="button"
