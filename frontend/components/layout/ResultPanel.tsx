@@ -11,6 +11,7 @@ import SelectionBar from "../generative/SelectionBar";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import RouteConfirm from "../generative/RouteConfirm";
 import { PhotoCard } from "../generative/PhotoCard";
+import SpotDetail from "../generative/SpotDetail";
 import { ResultPanelToolbar } from "./ResultPanelToolbar";
 import type { FilterMode } from "./ResultPanelToolbar";
 import { ResultPanelEmptyState } from "./ResultPanelEmptyState";
@@ -210,9 +211,10 @@ interface GridContentProps {
   points: PilgrimagePoint[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
+  onDetail?: (point: PilgrimagePoint) => void;
 }
 
-function GridContent({ points, selectedIds, onToggle }: GridContentProps) {
+function GridContent({ points, selectedIds, onToggle, onDetail }: GridContentProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4">
       <div
@@ -228,6 +230,7 @@ function GridContent({ points, selectedIds, onToggle }: GridContentProps) {
             point={point}
             selected={selectedIds.has(point.id)}
             onToggle={onToggle}
+            onDetail={onDetail}
           />
         ))}
       </div>
@@ -256,10 +259,12 @@ export default function ResultPanel({
   const [activeEpRange, setActiveEpRange] = useState<string | null>(null);
   const [activeArea, setActiveArea] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState(false);
+  const [detailPoint, setDetailPoint] = useState<PilgrimagePoint | null>(null);
 
-  // Reset confirm mode when response changes (e.g. new search triggered).
+  // Reset confirm mode and detail view when response changes (e.g. new search triggered).
   useEffect(() => {
     setConfirmMode(false);
+    setDetailPoint(null);
   }, [activeResponse]);
 
   // Extract search points from the response (when available).
@@ -342,6 +347,24 @@ export default function ResultPanel({
       );
     }
 
+    // ── Detail mode: show SpotDetail for a single point ─────────────────
+    if (detailPoint) {
+      return (
+        <section
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
+          style={{ animation: "slide-in-right 0.3s ease-out" }}
+        >
+          <SpotDetail
+            point={detailPoint}
+            onBack={() => setDetailPoint(null)}
+            onSelect={(id) => { toggle(id); setDetailPoint(null); }}
+            isSelected={selectedIds.has(detailPoint.id)}
+            nearbyPoints={searchPoints}
+          />
+        </section>
+      );
+    }
+
     return (
       <section
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
@@ -371,6 +394,7 @@ export default function ResultPanel({
             points={visiblePoints}
             selectedIds={selectedIds}
             onToggle={toggle}
+            onDetail={setDetailPoint}
           />
         ) : (
           <div className="relative flex-1 overflow-hidden">
