@@ -87,8 +87,19 @@ export default function SpotDetail({
     <div className="flex h-full min-h-0 flex-1 overflow-hidden">
       {/* ── Left column (55%) ──────────────────────────────────────────── */}
       <div className="flex w-[55%] shrink-0 flex-col overflow-y-auto p-5">
+        {/* Back button */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-3 flex items-center gap-1 text-sm text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-primary)]"
+          style={{ minHeight: 44 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          返回
+        </button>
+
         {/* Large screenshot */}
-        <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: "4/3" }}>
+        <div className="w-full overflow-hidden rounded-[var(--r-lg)]" style={{ aspectRatio: "4/3" }}>
           {point.screenshot_url ? (
             <img
               src={point.screenshot_url}
@@ -105,18 +116,6 @@ export default function SpotDetail({
             </div>
           )}
         </div>
-
-        {/* Back button */}
-        <button
-          type="button"
-          onClick={onBack}
-          className="mt-4 flex min-h-[44px] items-center gap-1 self-start text-sm text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-fg)]"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          返回
-        </button>
 
         {/* Spot name */}
         <h2
@@ -154,7 +153,7 @@ export default function SpotDetail({
             className={
               isSelected
                 ? "flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] border border-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary)] transition-opacity hover:opacity-80"
-                : "flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                : "flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90"
             }
           >
             {isSelected && "✓ "}选择此圣地
@@ -174,10 +173,10 @@ export default function SpotDetail({
       {/* ── Right column (45%) ─────────────────────────────────────────── */}
       <div className="flex w-[45%] flex-col gap-4 overflow-y-auto border-l border-[var(--color-border)] p-5">
         {/* Mini map */}
-        <div className="w-full overflow-hidden rounded-lg" style={{ height: 200 }}>
+        <div className="w-full overflow-hidden rounded-[var(--r-lg)]" style={{ height: 280 }}>
           <LazyMap
             points={[point]}
-            height={200}
+            height={280}
             scrollWheelZoom={false}
           />
         </div>
@@ -185,7 +184,10 @@ export default function SpotDetail({
         {/* Nearby spots */}
         {nearby.length > 0 && (
           <div>
-            <h3 className="text-[13px] font-semibold text-[var(--color-fg)]">
+            <h3
+              className="text-[13px] font-semibold text-[var(--color-fg)]"
+              style={{ fontFamily: "var(--app-font-display)" }}
+            >
               附近的其他圣地
             </h3>
             <ul className="mt-2 flex flex-col gap-1.5">
