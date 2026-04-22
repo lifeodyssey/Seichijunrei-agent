@@ -23,6 +23,7 @@ interface RouteSelectionDeps {
 interface RouteSelectionResult {
   routeSending: boolean;
   handleRouteSelected: (origin: string) => Promise<void>;
+  handleRouteConfirmed: (orderedIds: string[], origin: string) => Promise<void>;
   abortRoute: () => void;
 }
 
@@ -137,5 +138,92 @@ export function useRouteSelection({
     ],
   );
 
-  return { routeSending, handleRouteSelected, abortRoute };
+  const handleRouteConfirmed = useCallback(
+    async (orderedIds: string[], origin: string) => {
+      if (orderedIds.length === 0 || isSending) return;
+
+      const actionText = buildSelectedRouteActionText(orderedIds.length, origin, locale);
+      const userMessage: ChatMessage = {
+        id: createMessageId(),
+        role: "user" as const,
+        text: actionText,
+        timestamp: Date.now(),
+      };
+      const placeholderId = createMessageId();
+      const placeholder: ChatMessage = {
+        id: placeholderId,
+        role: "assistant" as const,
+        text: "",
+        loading: true,
+        steps: [],
+        timestamp: Date.now(),
+      };
+
+      routeAbortRef.current?.abort();
+      const controller = new AbortController();
+      routeAbortRef.current = controller;
+
+      clearSelectedPoints();
+      setActiveMessageId(null);
+      setDrawerOpen(false);
+      appendMessages(userMessage, placeholder);
+      setRouteSending(true);
+
+      try {
+        const response = (await sendSelectedRoute(
+          orderedIds,
+          origin,
+          sessionId,
+          locale,
+          controller.signal,
+        )) as RuntimeResponse;
+
+        if (controller.signal.aborted) {
+          removeMessage(placeholderId);
+          return;
+        }
+
+        if (response.session_id) {
+          setSessionId(response.session_id);
+        }
+
+        replaceMessage(placeholderId, (message) => ({
+          ...message,
+          text: response.message,
+          response,
+          loading: false,
+        }));
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          removeMessage(placeholderId);
+          return;
+        }
+        const errorText = error instanceof Error ? error.message : "Unknown error";
+        replaceMessage(placeholderId, (message) => ({
+          ...message,
+          text: `Error: ${errorText}`,
+          loading: false,
+        }));
+      } finally {
+        if (routeAbortRef.current === controller) {
+          routeAbortRef.current = null;
+        }
+        setRouteSending(false);
+      }
+    },
+    [
+      appendMessages,
+      clearSelectedPoints,
+      isSending,
+      locale,
+      removeMessage,
+      replaceMessage,
+      sessionId,
+      setSessionId,
+      setActiveMessageId,
+      setDrawerOpen,
+    ],
+  );
+
+  return { routeSending, handleRouteSelected, handleRouteConfirmed, abortRoute };
 }

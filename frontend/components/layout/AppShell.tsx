@@ -105,6 +105,8 @@ export default function AppShell() {
   }, [messages]);
 
   // Auto-activate latest visual response + open chat popup on desktop
+  // Route results: popup starts minimized (pill) — user's focus is on map + timeline
+  // Search results: popup auto-opens — user may want to refine immediately
   useEffect(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -112,10 +114,11 @@ export default function AppShell() {
     if (!isVisualResponse(last.response)) return;
     const id = last.id;
     const mobile = isMobile;
+    const isRoute = last.response.data ? isRouteData(last.response.data) : false;
     queueMicrotask(() => {
       setActiveMessageId(id);
       if (mobile) setDrawerOpen(true);
-      else setChatPopupOpen(true);
+      else setChatPopupOpen(!isRoute);
     });
   }, [messages, isMobile]);
 
@@ -138,7 +141,7 @@ export default function AppShell() {
     });
   }, [isMobile]);
 
-  const { routeSending, handleRouteSelected, abortRoute } = useRouteSelection({
+  const { routeSending, handleRouteSelected, handleRouteConfirmed, abortRoute } = useRouteSelection({
     selectedIds,
     sessionId,
     locale,
@@ -237,6 +240,7 @@ export default function AppShell() {
                 <ResultPanel
                   activeResponse={activeResponse}
                   onRouteSelected={handleRouteSelected}
+                  onRouteConfirmed={handleRouteConfirmed}
                   defaultOrigin={defaultOrigin}
                   loading={isSending && (isRouteResult || !activeResponse)}
                   onCollapse={layout.collapseResult}

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../lib/types";
-import { isSearchData } from "../../lib/types";
+import { isSearchData, isRouteData } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
 import { useSuggest } from "../../contexts/SuggestContext";
 import SelectionBar from "../generative/SelectionBar";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
+import RouteConfirm from "../generative/RouteConfirm";
 import { PhotoCard } from "../generative/PhotoCard";
 import { ResultPanelToolbar } from "./ResultPanelToolbar";
 import type { FilterMode } from "./ResultPanelToolbar";
@@ -34,6 +35,7 @@ interface ResultPanelProps {
   activeResponse: RuntimeResponse | null;
   onSuggest?: (text: string) => void;
   onRouteSelected?: (origin: string) => void;
+  onRouteConfirmed?: (orderedIds: string[], origin: string) => void;
   defaultOrigin?: string;
   loading?: boolean;
   /** Collapse result panel → chat-focused mode. */
@@ -240,6 +242,7 @@ function GridContent({ points, selectedIds, onToggle }: GridContentProps) {
 export default function ResultPanel({
   activeResponse,
   onRouteSelected,
+  onRouteConfirmed,
   defaultOrigin,
   loading,
   onCollapse,
@@ -252,12 +255,24 @@ export default function ResultPanel({
   const [filterMode, setFilterMode] = useState<FilterMode>("episode");
   const [activeEpRange, setActiveEpRange] = useState<string | null>(null);
   const [activeArea, setActiveArea] = useState<string | null>(null);
+  const [confirmMode, setConfirmMode] = useState(false);
+
+  // Reset confirm mode when response changes (e.g. new search triggered).
+  useEffect(() => {
+    setConfirmMode(false);
+  }, [activeResponse]);
 
   // Extract search points from the response (when available).
   const searchPoints = useMemo<PilgrimagePoint[]>(() => {
     if (!activeResponse || !isSearchData(activeResponse.data)) return [];
     return (activeResponse.data as SearchResultData).results.rows;
   }, [activeResponse]);
+
+  // Selected points as full PilgrimagePoint[] objects (for RouteConfirm).
+  const selectedPoints = useMemo<PilgrimagePoint[]>(
+    () => searchPoints.filter((p) => selectedIds.has(p.id)),
+    [searchPoints, selectedIds],
+  );
 
   // Episode range filter chips — only built when episode data exists.
   const epRanges = useMemo(() => buildEpRanges(searchPoints), [searchPoints]);
@@ -306,6 +321,26 @@ export default function ResultPanel({
     // Prewarm Mapbox GL when results arrive — shaves ~800ms off first map render
     prewarmMapbox();
     const isEmpty = searchPoints.length === 0;
+
+    // ── Confirm mode: show RouteConfirm instead of grid/map ──────────────
+    if (confirmMode) {
+      return (
+        <section
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
+          style={{ animation: "slide-in-right 0.3s ease-out" }}
+        >
+          <RouteConfirm
+            points={selectedPoints}
+            defaultOrigin={defaultOrigin ?? ""}
+            onConfirm={(ids, origin) => {
+              setConfirmMode(false);
+              onRouteConfirmed?.(ids, origin);
+            }}
+            onBack={() => setConfirmMode(false)}
+          />
+        </section>
+      );
+    }
 
     return (
       <section
@@ -364,7 +399,7 @@ export default function ResultPanel({
             </span>
             <button
               type="button"
-              onClick={() => onRouteSelected?.(defaultOrigin ?? "")}
+              onClick={() => setConfirmMode(true)}
               disabled={loading || selectedIds.size < 2}
               className="ml-auto flex h-9 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
@@ -383,8 +418,22 @@ export default function ResultPanel({
     );
   }
 
+  // ── Route results: full-bleed (no padding) for horizontal split layout ────
+  if (isRouteData(activeResponse.data)) {
+    return (
+      <section
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
+        style={{ animation: "slide-in-right 0.3s ease-out" }}
+      >
+        <div className="flex-1 overflow-hidden">
+          <GenerativeUIRenderer response={activeResponse} onSuggest={onSuggest} />
+        </div>
+      </section>
+    );
+  }
+
   // ── Other response types: fall through to GenerativeUIRenderer ────────────
-  // (route results, QA, greet, etc.) — keep existing GenerativeUI path.
+  // (QA, greet, etc.) — keep existing GenerativeUI path with padding.
   return (
     <section
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"
