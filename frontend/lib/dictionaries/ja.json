@@ -148,7 +148,7 @@
     "no_coords": "⚠ {count}件の座標なし",
     "episode": "第{ep}話",
     "back_edit": "編集",
-    "pilgrimage_title": "{count} 駅の巡礼",
+    "pilgrimage_title": "{count} 聖地の巡礼",
     "stats_detail": "約 {h}時間{m}分 · {d}km · 徒歩{w}分",
     "pace_chill": "ゆったり",
     "pace_normal": "普通",

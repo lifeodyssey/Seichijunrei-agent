@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import { formatDistance } from "../../lib/geo";
 import { groupByAnime, CHIP_COLORS } from "./NearbyChips";
 
 interface NearbyBubbleProps {
@@ -18,11 +19,6 @@ interface AnimeCardProps {
   imageUrl: string | null;
   spotsDistanceLabel: string;
   onClick: () => void;
-}
-
-function formatDistance(meters: number): string {
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
 }
 
 function colorValue(hue: number, chroma: number, lightness: number): string {

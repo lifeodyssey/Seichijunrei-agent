@@ -4,31 +4,13 @@ import { useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
+import { haversineM, formatDistance } from "../../lib/geo";
 
 // ---------------------------------------------------------------------------
 // Lazy BaseMap — Mapbox GL requires window
 // ---------------------------------------------------------------------------
 
 const LazyMap = dynamic(() => import("../map/BaseMap"), { ssr: false });
-
-// ---------------------------------------------------------------------------
-// Haversine distance (meters)
-// ---------------------------------------------------------------------------
-
-function haversineM(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 // ---------------------------------------------------------------------------
 // Format helpers
@@ -39,11 +21,6 @@ function formatTime(seconds: number | null): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function formatDistance(meters: number): string {
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
 }
 
 // ---------------------------------------------------------------------------

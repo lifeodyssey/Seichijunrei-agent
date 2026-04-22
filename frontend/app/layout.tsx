@@ -12,7 +12,7 @@ import {
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-outfit" });
-const shippori = Shippori_Mincho_B1({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-shippori" });
+const shippori = Shippori_Mincho_B1({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--font-shippori", preload: false });
 const notoSansSC = Noto_Sans_SC({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-noto", preload: false });
 
 const SITE_URL = "https://seichijunrei.zhenjia.org";

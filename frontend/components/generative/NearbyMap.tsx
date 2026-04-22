@@ -5,15 +5,11 @@ import { useMemo, useState } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import dynamic from "next/dynamic";
 import { useDict } from "../../lib/i18n-context";
+import { formatDistanceOpt } from "../../lib/geo";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import NearbyChips, { groupByAnime } from "./NearbyChips";
 
 const LazyBaseMap = dynamic(() => import("../map/BaseMap"), { ssr: false });
-
-function formatDistance(m?: number | null): string {
-  if (m == null) return "";
-  return m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)}km`;
-}
 
 interface NearbyMapProps {
   data: SearchResultData;
@@ -120,7 +116,7 @@ export default function NearbyMap({ data }: NearbyMapProps) {
                     className="shrink-0 text-xs font-medium text-[var(--color-primary)]"
                     style={{ fontVariantNumeric: "tabular-nums" }}
                   >
-                    {formatDistance(point.distance_m)}
+                    {formatDistanceOpt(point.distance_m)}
                   </span>
                 )}
               </button>

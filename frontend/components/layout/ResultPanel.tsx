@@ -6,6 +6,7 @@ import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../l
 import { isSearchData, isRouteData } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
+import { haversineKm } from "../../lib/geo";
 import { useSuggest } from "../../contexts/SuggestContext";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import RouteConfirm from "../generative/RouteConfirm";
@@ -79,16 +80,6 @@ const KNOWN_AREAS: { name: string; lat: number; lng: number; r: number }[] = [
   { name: "奈良", lat: 34.685, lng: 135.805, r: 10 },
   { name: "神戸", lat: 34.690, lng: 135.195, r: 12 },
 ];
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function pointArea(p: PilgrimagePoint): string {
   for (const area of KNOWN_AREAS) {
