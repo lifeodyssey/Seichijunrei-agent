@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { PilgrimagePoint } from "../../lib/types";
 import { PhotoCard } from "../generative/PhotoCard";
@@ -73,19 +73,27 @@ function VirtualGrid({
 }: GridContentProps & { parentRef: React.RefObject<HTMLDivElement | null> }) {
   const [cols, setCols] = useState(3);
   const rowCount = Math.ceil(points.length / cols);
+  const elRef = useRef<HTMLDivElement | null>(null);
 
-  // Measure container width to compute columns
-  const measureRef = useMemo(() => {
+  // Measure container width to compute columns via ResizeObserver with cleanup
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width ?? 800;
       setCols(Math.max(1, Math.floor(w / (COL_MIN_WIDTH + GAP))));
     });
-    return (el: HTMLDivElement | null) => {
-      if (el) ro.observe(el);
-      // assign to parent ref for virtualizer
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const measureRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      elRef.current = el;
       (parentRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-    };
-  }, [parentRef]);
+    },
+    [parentRef],
+  );
 
   const virtualizer = useVirtualizer({
     count: rowCount,

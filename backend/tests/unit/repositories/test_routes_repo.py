@@ -54,9 +54,12 @@ async def test_save_route_without_origin(
     )
     assert result == "route-uuid-abc"
     sql = pool.fetchrow.await_args.args[0]
-    # No-origin path uses NULL directly in SQL, no ST_MakePoint
-    assert "NULL" in sql
-    assert "ST_MakePoint" not in sql
+    # Single CASE WHEN statement handles both paths
+    assert "CASE WHEN" in sql
+    # origin_lon ($4) and origin_lat ($5) are passed as None
+    args = pool.fetchrow.await_args.args
+    assert args[4] is None  # origin_lon
+    assert args[5] is None  # origin_lat
 
 
 async def test_save_route_raises_when_no_row(

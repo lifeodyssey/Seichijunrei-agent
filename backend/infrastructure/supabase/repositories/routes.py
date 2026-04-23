@@ -36,50 +36,31 @@ class RoutesRepository:
             raise TypeError(f"Not serializable: {type(o).__name__}")
 
         route_json = json.dumps(route_data, default=_default)
-        has_origin_coords = origin_lat is not None and origin_lon is not None
-        if has_origin_coords:
-            row = _require_row(
-                await self._pool.fetchrow(
-                    """
-                    INSERT INTO routes (session_id, bangumi_id, origin_station,
-                                        origin_location, point_ids,
-                                        total_distance, total_duration, route_data)
-                    VALUES ($1, $2, $3, ST_MakePoint($4, $5)::geography,
-                            $6, $7, $8, $9::jsonb)
-                    RETURNING id
-                    """,
-                    session_id,
-                    bangumi_id,
-                    origin_station,
-                    origin_lon,
-                    origin_lat,
-                    point_ids,
-                    total_distance,
-                    total_duration,
-                    route_json,
-                ),
-                operation="save_route",
-            )
-        else:
-            row = _require_row(
-                await self._pool.fetchrow(
-                    """
-                    INSERT INTO routes (session_id, bangumi_id, origin_station,
-                                        origin_location, point_ids,
-                                        total_distance, total_duration, route_data)
-                    VALUES ($1, $2, $3, NULL, $4, $5, $6, $7::jsonb)
-                    RETURNING id
-                    """,
-                    session_id,
-                    bangumi_id,
-                    origin_station,
-                    point_ids,
-                    total_distance,
-                    total_duration,
-                    route_json,
-                ),
-                operation="save_route",
-            )
+        row = _require_row(
+            await self._pool.fetchrow(
+                """
+                INSERT INTO routes (session_id, bangumi_id, origin_station,
+                                    origin_location, point_ids,
+                                    total_distance, total_duration, route_data)
+                VALUES ($1, $2, $3,
+                        CASE WHEN $4 IS NOT NULL
+                             THEN ST_MakePoint($4, $5)::geography
+                             ELSE NULL END,
+                        $6, $7, $8, $9::jsonb)
+                RETURNING id
+                """,
+                session_id,
+                bangumi_id,
+                origin_station,
+                origin_lon,
+                origin_lat,
+                point_ids,
+                total_distance,
+                total_duration,
+                route_json,
+            ),
+            operation="save_route",
+        )
         return str(row["id"])
 
     async def get_user_routes(

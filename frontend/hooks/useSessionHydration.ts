@@ -28,6 +28,7 @@ export function useSessionHydration({
       .then((msgs) => {
         if (!active) return;
         if (msgs.length === 0) { clearRef.current(); return; }
+        clearRef.current(); // Clear previous session's messages
         const hydrated = msgs.map((m, i) => ({
           id: `hydrated-${i}-${Date.now()}`,
           role: m.role,

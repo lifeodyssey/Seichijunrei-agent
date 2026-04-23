@@ -107,11 +107,11 @@ export function SortableItem({ point, index, onRemove }: SortableItemProps) {
         )}
       </div>
 
-      {/* Remove button — visible on hover */}
+      {/* Remove button — always partially visible, full on hover/focus */}
       <button
         type="button"
         onClick={() => onRemove(point.id)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] opacity-0 transition-opacity hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] group-hover:opacity-100"
+        className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] opacity-40 transition-opacity hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] group-hover:opacity-100 focus-visible:opacity-100"
         aria-label={`${t.remove_label} ${displayName}`}
       >
         <svg

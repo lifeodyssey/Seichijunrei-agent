@@ -30,8 +30,14 @@ async def handle_feedback(
 ) -> JSONResponse:
     db = _require_supabase(_get_db_from_request(request))
 
-    # Validate session ownership when session_id is provided and user is authenticated
-    if payload.session_id and auth.user_id:
+    # Validate session ownership when session_id is provided
+    if payload.session_id:
+        if not auth.user_id:
+            return _error_response(
+                "authentication_error",
+                "Authentication required for session feedback.",
+                status_code=401,
+            )
         owns = await db.session.check_session_owner(payload.session_id, auth.user_id)
         if not owns:
             return _error_response(

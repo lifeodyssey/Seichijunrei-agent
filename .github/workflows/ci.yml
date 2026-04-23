@@ -147,8 +147,7 @@ jobs:
         with:
           files: frontend/coverage/lcov.info
           flags: frontend
-          fail_ci_if_error: false
-        continue-on-error: true
+          fail_ci_if_error: true
 
   frontend-build:
     name: Frontend Build
