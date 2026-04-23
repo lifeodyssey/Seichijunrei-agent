@@ -47,7 +47,7 @@
     "jsdom": "^29.0.2",
     "msw": "^2.13.4",
     "tailwindcss": "^4.2.2",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.4",
     "vitest-axe": "^0.1.0"
   },
