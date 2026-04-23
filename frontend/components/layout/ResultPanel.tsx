@@ -6,29 +6,23 @@ import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../l
 import { isSearchData, isRouteData } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
-import { haversineKm } from "../../lib/geo";
 import { useSuggest } from "../../contexts/SuggestContext";
 import GenerativeUIRenderer from "../generative/GenerativeUIRenderer";
 import RouteConfirm from "../generative/RouteConfirm";
-import { PhotoCard } from "../generative/PhotoCard";
 import SpotDetail from "../generative/SpotDetail";
 import { ResultPanelToolbar } from "./ResultPanelToolbar";
 import type { FilterMode } from "./ResultPanelToolbar";
 import { ResultPanelEmptyState } from "./ResultPanelEmptyState";
+import { GridContent } from "./ResultGridContent";
+import { epRangeLabel, buildEpRanges, buildAreasI18n, pointAreaI18n } from "./ResultPanelHelpers";
 import { prewarmMapbox } from "../map/prewarm";
 
-// ---------------------------------------------------------------------------
 // Map — lazy-loaded with ssr:false (Mapbox GL requires window)
-// ---------------------------------------------------------------------------
 
 const LazyMap = dynamic(
   () => import("../map/BaseMap"),
   { ssr: false },
 );
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type ViewMode = "grid" | "map";
 
@@ -39,66 +33,7 @@ interface ResultPanelProps {
   loading?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Episode-range helpers
-// ---------------------------------------------------------------------------
-
-const EP_RANGE = 4; // episodes per bucket
-
-function epRangeLabel(ep: number): string {
-  const start = Math.floor((ep - 1) / EP_RANGE) * EP_RANGE + 1;
-  const end = start + EP_RANGE - 1;
-  return `EP ${start}-${end}`;
-}
-
-function buildEpRanges(points: PilgrimagePoint[]): string[] {
-  const ranges = new Set<string>();
-  for (const p of points) {
-    if (p.episode != null) {
-      ranges.add(epRangeLabel(p.episode));
-    }
-  }
-  // Sort ranges numerically by their start episode.
-  // Extract the first run of digits (e.g. "EP 5-8" → "5") for comparison.
-  return Array.from(ranges).sort((a, b) => {
-    const numA = parseInt(a.match(/\d+/)?.[0] ?? "0", 10);
-    const numB = parseInt(b.match(/\d+/)?.[0] ?? "0", 10);
-    return numA - numB;
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Area helpers — derive region from coordinates
-// ---------------------------------------------------------------------------
-
-/** Known areas with center coordinates and radius (km). */
-const KNOWN_AREAS: { name: string; lat: number; lng: number; r: number }[] = [
-  { name: "宇治", lat: 34.888, lng: 135.802, r: 4 },
-  { name: "伏見", lat: 34.930, lng: 135.764, r: 5 },
-  { name: "京都市", lat: 34.985, lng: 135.758, r: 12 },
-  { name: "大阪", lat: 34.686, lng: 135.520, r: 15 },
-  { name: "奈良", lat: 34.685, lng: 135.805, r: 10 },
-  { name: "神戸", lat: 34.690, lng: 135.195, r: 12 },
-];
-
-function pointArea(p: PilgrimagePoint): string {
-  for (const area of KNOWN_AREAS) {
-    if (haversineKm(p.latitude, p.longitude, area.lat, area.lng) <= area.r) {
-      return area.name;
-    }
-  }
-  return "その他";
-}
-
-function buildAreas(points: PilgrimagePoint[]): string[] {
-  const areas = new Set<string>();
-  for (const p of points) areas.add(pointArea(p));
-  return Array.from(areas).sort();
-}
-
-// ---------------------------------------------------------------------------
 // Loading skeleton
-// ---------------------------------------------------------------------------
 
 function LoadingSkeleton() {
   return (
@@ -121,9 +56,7 @@ function LoadingSkeleton() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // No-results state
-// ---------------------------------------------------------------------------
 
 function NoResults() {
   const { grid: t } = useDict();
@@ -134,44 +67,7 @@ function NoResults() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Grid content
-// ---------------------------------------------------------------------------
-
-interface GridContentProps {
-  points: PilgrimagePoint[];
-  selectedIds: Set<string>;
-  onToggle: (id: string) => void;
-  onDetail?: (point: PilgrimagePoint) => void;
-}
-
-function GridContent({ points, selectedIds, onToggle, onDetail }: GridContentProps) {
-  return (
-    <div className="flex-1 overflow-y-auto p-4">
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          gap: "12px",
-        }}
-      >
-        {points.map((point) => (
-          <PhotoCard
-            key={point.id}
-            point={point}
-            selected={selectedIds.has(point.id)}
-            onToggle={onToggle}
-            onDetail={onDetail}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // ResultPanel
-// ---------------------------------------------------------------------------
 
 export default function ResultPanel({
   activeResponse,
@@ -179,6 +75,7 @@ export default function ResultPanel({
   defaultOrigin,
   loading,
 }: ResultPanelProps) {
+  const { result_panel: rp } = useDict();
   const onSuggest = useSuggest();
   const { selectedIds, toggle, clear } = usePointSelectionContext();
   const [view, setView] = useState<ViewMode>("grid");
@@ -214,7 +111,7 @@ export default function ResultPanel({
   const epRanges = useMemo(() => buildEpRanges(searchPoints), [searchPoints]);
 
   // Area filter chips — derived from coordinates.
-  const areas = useMemo(() => buildAreas(searchPoints), [searchPoints]);
+  const areas = useMemo(() => buildAreasI18n(searchPoints, rp.other_area), [searchPoints, rp.other_area]);
 
   // Filtered points based on active filter mode + selection.
   const visiblePoints = useMemo<PilgrimagePoint[]>(() => {
@@ -225,8 +122,8 @@ export default function ResultPanel({
       );
     }
     if (activeArea === null) return searchPoints;
-    return searchPoints.filter((p) => pointArea(p) === activeArea);
-  }, [searchPoints, filterMode, activeEpRange, activeArea]);
+    return searchPoints.filter((p) => pointAreaI18n(p, rp.other_area) === activeArea);
+  }, [searchPoints, filterMode, activeEpRange, activeArea, rp.other_area]);
 
   // Old SelectionBar and LayoutControls removed — selection bar is now
   // inside PilgrimageGrid (bottom-fixed), and layout controls are not needed
@@ -336,7 +233,7 @@ export default function ResultPanel({
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                   <circle cx="12" cy="10" r="3" />
                 </svg>
-                <span className="text-xs">地图加载中…</span>
+                <span className="text-xs">{rp.map_loading}</span>
               </div>
             </div>
             <LazyMap points={visiblePoints} selectedIds={selectedIds} onToggle={toggle} />
@@ -350,7 +247,7 @@ export default function ResultPanel({
             style={{ animation: "slide-up 0.2s var(--ease-out-expo)" }}
           >
             <span className="text-sm font-medium text-[var(--color-fg)]">
-              已选 {selectedIds.size} 个
+              {rp.selected.replace("{count}", String(selectedIds.size))}
             </span>
             <button
               type="button"
@@ -358,14 +255,14 @@ export default function ResultPanel({
               disabled={loading || selectedIds.size < 2}
               className="ml-auto flex h-11 items-center gap-2 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              规划路线
+              {rp.plan_route}
             </button>
             <button
               type="button"
               onClick={clear}
               className="text-sm text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-fg)]"
             >
-              清除
+              {rp.clear}
             </button>
           </div>
         )}

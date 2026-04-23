@@ -1,0 +1,423 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Snapshot: FallbackList > renders fallback list with route data 1`] = `
+<div>
+  <div
+    class="flex-1 overflow-auto p-4"
+  >
+    <ol
+      class="space-y-2"
+    >
+      <li
+        class="flex items-center gap-2 text-sm text-[var(--color-fg)]"
+      >
+        <span
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] font-bold text-[var(--color-primary-fg)]"
+        >
+          1
+        </span>
+        <span
+          class="truncate"
+        >
+          宇治站
+        </span>
+      </li>
+    </ol>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: GeneralAnswer > renders QA data 1`] = `
+<div>
+  <div
+    class="py-2"
+  >
+    <p
+      class="max-w-[65ch] text-sm font-light leading-loose text-[var(--color-fg)]"
+    >
+      テスト回答です。
+    </p>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: NearbyBubble > renders nearby bubble 1`] = `
+<div>
+  <div>
+    <p
+      class="text-sm font-light leading-loose text-[var(--color-fg)]"
+    >
+      半径 1km 以内に 1 作品の 1 か所の聖地が見つかりました
+    </p>
+    <div
+      class="mt-3 flex flex-col gap-2"
+    >
+      <button
+        class="flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-muted)]"
+        style="min-height: 44px;"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+          class="h-2.5 w-2.5 shrink-0 rounded-full"
+          style="background-color: oklch(0.55 0.148 240);"
+        />
+        <img
+          alt=""
+          class="h-8 w-10 shrink-0 rounded-[var(--r-sm)] object-cover"
+          src="https://example.com/img.jpg"
+          style="background: var(--color-muted);"
+        />
+        <span
+          class="flex min-w-0 flex-1 flex-col gap-0.5"
+        >
+          <span
+            class="truncate text-sm text-[var(--color-fg)]"
+            style="font-family: var(--app-font-display);"
+          >
+            響け！ユーフォニアム
+          </span>
+          <span
+            class="text-xs text-[var(--color-muted-fg)]"
+          >
+            1 聖地 · 最寄り 0m
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          class="shrink-0 text-sm text-[var(--color-muted-fg)]"
+        >
+          →
+        </span>
+      </button>
+    </div>
+    <button
+      class="mt-3 flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-muted)]"
+      style="min-height: 44px;"
+      type="button"
+    >
+      <span
+        class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-[var(--color-primary-fg)]"
+      >
+        <svg
+          fill="none"
+          height="12"
+          stroke="currentColor"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="12"
+        >
+          <path
+            d="M5 12h14M12 5l7 7-7 7"
+          />
+        </svg>
+      </span>
+      <span
+        class="flex-1 text-left text-sm text-[var(--color-fg)]"
+      >
+        全 1 聖地を表示
+      </span>
+      <span
+        class="text-sm text-[var(--color-muted-fg)]"
+      >
+        →
+      </span>
+    </button>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: NearbyBubbleWrapper > renders with search data 1`] = `
+<div>
+  <div
+    class="max-w-[480px] rounded-2xl rounded-bl bg-[var(--color-card)] px-4 py-3"
+  >
+    <div>
+      <p
+        class="text-sm font-light leading-loose text-[var(--color-fg)]"
+      >
+        半径 1km 以内に 1 作品の 1 か所の聖地が見つかりました
+      </p>
+      <div
+        class="mt-3 flex flex-col gap-2"
+      >
+        <button
+          class="flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-muted)]"
+          style="min-height: 44px;"
+          type="button"
+        >
+          <span
+            aria-hidden="true"
+            class="h-2.5 w-2.5 shrink-0 rounded-full"
+            style="background-color: oklch(0.55 0.148 240);"
+          />
+          <img
+            alt=""
+            class="h-8 w-10 shrink-0 rounded-[var(--r-sm)] object-cover"
+            src="https://example.com/img.jpg"
+            style="background: var(--color-muted);"
+          />
+          <span
+            class="flex min-w-0 flex-1 flex-col gap-0.5"
+          >
+            <span
+              class="truncate text-sm text-[var(--color-fg)]"
+              style="font-family: var(--app-font-display);"
+            >
+              響け！ユーフォニアム
+            </span>
+            <span
+              class="text-xs text-[var(--color-muted-fg)]"
+            >
+              1 聖地 · 最寄り 0m
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            class="shrink-0 text-sm text-[var(--color-muted-fg)]"
+          >
+            →
+          </span>
+        </button>
+      </div>
+      <button
+        class="mt-3 flex w-full items-center gap-3 rounded-[var(--r-md)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-muted)]"
+        style="min-height: 44px;"
+        type="button"
+      >
+        <span
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[10px] text-[var(--color-primary-fg)]"
+        >
+          <svg
+            fill="none"
+            height="12"
+            stroke="currentColor"
+            stroke-width="2.5"
+            viewBox="0 0 24 24"
+            width="12"
+          >
+            <path
+              d="M5 12h14M12 5l7 7-7 7"
+            />
+          </svg>
+        </span>
+        <span
+          class="flex-1 text-left text-sm text-[var(--color-fg)]"
+        >
+          全 1 聖地を表示
+        </span>
+        <span
+          class="text-sm text-[var(--color-muted-fg)]"
+        >
+          →
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: PhotoCard > renders photo card 1`] = `
+<div>
+  <div
+    aria-pressed="false"
+    class="group relative cursor-pointer overflow-hidden rounded-[var(--r-lg)] border-2 bg-[var(--color-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg border-transparent"
+    role="button"
+    tabindex="0"
+  >
+    <button
+      aria-label="查看详情"
+      class="absolute left-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-bg)] text-[var(--color-muted-fg)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:text-[var(--color-primary)]"
+      type="button"
+    >
+      <svg
+        fill="none"
+        height="14"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        width="14"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+        />
+        <line
+          x1="12"
+          x2="12"
+          y1="16"
+          y2="12"
+        />
+        <line
+          x1="12"
+          x2="12.01"
+          y1="8"
+          y2="8"
+        />
+      </svg>
+    </button>
+    <div
+      class="relative aspect-[16/10] overflow-hidden"
+    >
+      <img
+        alt="宇治駅"
+        class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+        height="200"
+        src="https://example.com/img.jpg"
+        width="320"
+      />
+      <span
+        class="absolute left-2 top-2 rounded-[5px] bg-[var(--color-fg)]/55 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--color-bg)] backdrop-blur-[4px]"
+      >
+        第1話
+      </span>
+    </div>
+    <div
+      class="px-3 py-2.5"
+    >
+      <p
+        class="truncate text-[13px] font-medium text-[var(--color-fg)]"
+      >
+        宇治駅
+      </p>
+      <p
+        class="mt-0.5 truncate text-[11px] text-[var(--color-muted-fg)]"
+      >
+        響け！ユーフォニアム
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: ResultAnchor > renders anchor button 1`] = `
+<div>
+  <button
+    class="group/anchor flex w-full max-w-[320px] items-center gap-3 rounded-xl border p-3 text-left transition-all border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/60 hover:-translate-y-0.5 hover:shadow-sm"
+    style="transition-duration: var(--duration-fast); transition-timing-function: var(--ease-out-quint);"
+    type="button"
+  >
+    <span
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-lg)] bg-[var(--color-primary)] text-sm text-[var(--color-primary-fg)]"
+    >
+      📍
+    </span>
+    <span
+      class="flex min-w-0 flex-1 flex-col gap-0.5"
+    >
+      <span
+        class="truncate text-xs font-medium text-[var(--color-fg)]"
+      >
+        3件の結果
+      </span>
+      <span
+        class="text-[11px] text-[var(--color-muted-fg)]"
+      >
+        タップして表示
+      </span>
+    </span>
+    <span
+      class="shrink-0 text-sm text-[var(--color-muted-fg)] transition-transform group-hover/anchor:translate-x-0.5"
+      style="transition-duration: var(--duration-fast);"
+    >
+      ›
+    </span>
+  </button>
+</div>
+`;
+
+exports[`Snapshot: SpotDetail > renders spot detail page 1`] = `
+<div>
+  <div
+    class="flex h-full min-h-0 flex-1 overflow-hidden"
+  >
+    <div
+      class="flex w-[55%] shrink-0 flex-col overflow-y-auto p-5"
+    >
+      <button
+        class="mb-3 flex items-center gap-1 text-sm text-[var(--color-muted-fg)] transition-colors hover:text-[var(--color-primary)]"
+        style="min-height: 44px;"
+        type="button"
+      >
+        <svg
+          fill="none"
+          height="16"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="16"
+        >
+          <polyline
+            points="15 18 9 12 15 6"
+          />
+        </svg>
+        戻る
+      </button>
+      <div
+        class="w-full overflow-hidden rounded-[var(--r-lg)]"
+        style="aspect-ratio: 4/3;"
+      >
+        <img
+          alt="宇治駅"
+          class="h-full w-full object-cover"
+          height="300"
+          src="https://example.com/img.jpg"
+          width="400"
+        />
+      </div>
+      <h2
+        class="mt-3 font-[family-name:var(--app-font-display)] text-[20px] font-bold leading-tight text-[var(--color-fg)]"
+      >
+        宇治站
+      </h2>
+      <p
+        class="mt-1 text-[14px] text-[var(--color-muted-fg)]"
+      >
+        吹响！上低音号
+         · 第1話
+      </p>
+      <p
+        class="mt-1 text-[12px] text-[var(--color-muted-fg)]"
+        style="font-variant-numeric: tabular-nums;"
+      >
+        📸 スクリーンショット時刻:
+         
+        01:25
+      </p>
+      <div
+        class="mt-5 flex flex-wrap gap-3"
+      >
+        <button
+          class="flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-primary-fg)] transition-opacity hover:opacity-90"
+          type="button"
+        >
+          聖地を選択
+        </button>
+        <a
+          class="flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] border border-[var(--color-border)] px-5 text-sm font-medium text-[var(--color-fg)] transition-colors hover:bg-[var(--color-muted)]"
+          href="https://www.google.com/maps?q=34.88,135.8"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          マップで見る
+        </a>
+      </div>
+    </div>
+    <div
+      class="flex w-[45%] flex-col gap-4 overflow-y-auto border-l border-[var(--color-border)] p-5"
+    >
+      <div
+        class="w-full overflow-hidden rounded-[var(--r-lg)]"
+        style="height: 280px;"
+      >
+        <div
+          data-testid="dynamic-stub"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -38,6 +38,7 @@ export default function SelectionBar({
       <input
         value={origin}
         onChange={(event) => setOrigin(event.target.value)}
+        aria-label={t.placeholder}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             handleRoute();

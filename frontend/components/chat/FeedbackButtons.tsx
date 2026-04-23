@@ -49,7 +49,7 @@ export default function FeedbackButtons({ message, userQuery }: FeedbackButtonsP
         <button
           aria-label={t.feedback_good_title}
           onClick={() => handleFeedback("good")}
-          className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded text-base text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_good_title}
         >
           👍
@@ -57,7 +57,7 @@ export default function FeedbackButtons({ message, userQuery }: FeedbackButtonsP
         <button
           aria-label={t.feedback_bad_title}
           onClick={() => handleFeedback("bad")}
-          className="rounded px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
+          className="flex h-[44px] w-[44px] items-center justify-center rounded text-base text-[var(--color-muted-fg)] transition hover:text-[var(--color-fg)]"
           title={t.feedback_bad_title}
         >
           👎
@@ -70,6 +70,7 @@ export default function FeedbackButtons({ message, userQuery }: FeedbackButtonsP
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder={t.feedback_placeholder}
+            aria-label={t.feedback_placeholder}
             className="flex-1 border-b border-[var(--color-border)] bg-transparent px-0 py-1 text-xs outline-none focus:border-[var(--color-primary)]"
           />
           <button

@@ -17,7 +17,6 @@ interface MessageBubbleProps {
   isActive?: boolean;
   onOpenDrawer?: () => void;
   onRetry?: () => void;
-  onSuggest?: (text: string) => void;
 }
 
 export default function MessageBubble({
@@ -55,6 +54,7 @@ export default function MessageBubble({
     <div
       className="group flex flex-col gap-2.5"
       style={{ animation: "slide-up-fade 300ms var(--ease-out-quint) both" }}
+      aria-live="polite"
     >
       <p className="text-[8px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)] opacity-40">
         {t.bot_name}

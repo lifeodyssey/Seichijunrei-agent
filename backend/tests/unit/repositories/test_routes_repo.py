@@ -39,6 +39,7 @@ async def test_save_route_returns_route_id(
     sql = pool.fetchrow.await_args.args[0]
     assert "INSERT INTO routes" in sql
     assert "RETURNING id" in sql
+    assert "ST_MakePoint" in sql
 
 
 async def test_save_route_without_origin(
@@ -52,8 +53,10 @@ async def test_save_route_without_origin(
         route_data={},
     )
     assert result == "route-uuid-abc"
-    call_args = pool.fetchrow.await_args.args
-    assert call_args[4] is None  # origin_location param
+    sql = pool.fetchrow.await_args.args[0]
+    # No-origin path uses NULL directly in SQL, no ST_MakePoint
+    assert "NULL" in sql
+    assert "ST_MakePoint" not in sql
 
 
 async def test_save_route_raises_when_no_row(

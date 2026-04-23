@@ -15,6 +15,18 @@ export default defineConfig({
       "**/tests/supabase-config.test.ts",
       "**/tests/type-guards.test.ts",
     ],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      include: ["components/**", "hooks/**", "lib/**", "contexts/**"],
+      exclude: ["**/node_modules/**", "lib/mock-data/**"],
+      thresholds: {
+        lines: 60,
+        statements: 56,
+        functions: 49,
+        branches: 50,
+      },
+    },
   },
   resolve: {
     alias: {

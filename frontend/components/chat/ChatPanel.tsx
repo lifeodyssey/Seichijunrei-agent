@@ -18,7 +18,6 @@ interface ChatPanelProps {
   onSend: (text: string, coords?: { lat: number; lng: number } | null) => void;
   onActivate: (messageId: string) => void;
   onOpenDrawer?: () => void;
-  onSuggest?: (text: string) => void;
   isMobile?: boolean;
   /** Adaptive layout mode — controls width and centering. */
   layoutMode?: LayoutMode;

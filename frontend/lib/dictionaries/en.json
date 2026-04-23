@@ -232,6 +232,26 @@
     "search_anime_nearby": "Search {title} spots nearby",
     "show_all_nearby": "Show all nearby spots"
   },
+  "toolbar": {
+    "tab_episode": "By Episode",
+    "tab_area": "By Area",
+    "grid": "Grid",
+    "map": "Map",
+    "all": "All"
+  },
+  "drawer": {
+    "title": "History",
+    "new_chat": "+ New chat",
+    "recent": "Recent",
+    "empty": "No conversations yet"
+  },
+  "result_panel": {
+    "map_loading": "Loading map…",
+    "selected": "{count} selected",
+    "plan_route": "Plan route",
+    "clear": "Clear",
+    "other_area": "Other"
+  },
   "clarification": {
     "examples_label": "For example:",
     "search_all": "Search all titles",

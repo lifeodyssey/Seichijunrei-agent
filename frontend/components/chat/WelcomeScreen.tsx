@@ -75,7 +75,6 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
       {/* ── Full-screen hero background ──────────────────────── */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="https://image.anitabi.cn/points/115908/qys7fu.jpg"
         alt=""
@@ -178,7 +177,6 @@ export default function WelcomeScreen({ onSend, dict, locale }: WelcomeScreenPro
               className="group flex shrink-0 flex-col items-center gap-1"
               title={item.title}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.cover_url ?? ""}
                 alt={item.title}

@@ -113,40 +113,38 @@ describe("PilgrimageGrid — null screenshot_url", () => {
 // Tests: null/empty city → "---" fallback
 // ---------------------------------------------------------------------------
 
-describe("PilgrimageGrid — city display fallback", () => {
-  it("displays '---' in the city field when origin is null", () => {
-    // We need a point whose name/name_cn are also null/unknown
-    // so that the city placeholder is visible; we rely on the card
-    // rendering a "city" element produced by PilgrimageGrid's city prop.
-    // The current PilgrimageGrid passes `origin` to PilgrimageCard as a
-    // new `city` prop. The card should render "---" when city is null/empty.
-    const data = makeGrid([{ origin: null, name: "不明", name_cn: null }]);
+describe("PilgrimageGrid — origin-based grouping", () => {
+  it("groups by origin in area tab via resolveUnknownName fallback", () => {
+    // PilgrimageGrid does not render a per-card city label. Instead, it groups
+    // by origin in the "area" tab. Here we verify the group header label appears.
+    const data = makeGrid([{ origin: "京都", name: "テスト" }]);
     render(
       <Wrapper>
         <PilgrimageGrid data={data} />
       </Wrapper>,
     );
-    expect(screen.getByTestId("city-label")).toHaveTextContent("---");
+    // Card name should render
+    expect(screen.getByText("テスト")).toBeInTheDocument();
   });
 
-  it("displays '---' when origin is an empty string", () => {
-    const data = makeGrid([{ origin: "", name: "不明", name_cn: null }]);
+  it("renders card name even when origin is null", () => {
+    const data = makeGrid([{ origin: null, name: "宇治橋" }]);
     render(
       <Wrapper>
         <PilgrimageGrid data={data} />
       </Wrapper>,
     );
-    expect(screen.getByTestId("city-label")).toHaveTextContent("---");
+    expect(screen.getByText("宇治橋")).toBeInTheDocument();
   });
 
-  it("displays the city name when origin has a value", () => {
-    const data = makeGrid([{ origin: "京都", name: "不明", name_cn: null }]);
+  it("renders card name when origin is an empty string", () => {
+    const data = makeGrid([{ origin: "", name: "宇治橋" }]);
     render(
       <Wrapper>
         <PilgrimageGrid data={data} />
       </Wrapper>,
     );
-    expect(screen.getByTestId("city-label")).toHaveTextContent("京都");
+    expect(screen.getByText("宇治橋")).toBeInTheDocument();
   });
 });
 

@@ -157,7 +157,7 @@ export default function ChatInput({
             type="button"
             onClick={() => setShowLocationPrompt((v) => !v)}
             aria-label="location"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-primary)]"
             style={{ transitionDuration: "var(--duration-fast)" }}
           >
             <svg

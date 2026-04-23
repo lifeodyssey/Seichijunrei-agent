@@ -22,25 +22,7 @@ vi.mock("@/components/generative/GenerativeUIRenderer", () => ({
   ),
 }));
 
-vi.mock("@/components/generative/SelectionBar", () => ({
-  default: ({
-    count,
-    onRoute,
-    onClear,
-  }: {
-    count: number;
-    defaultOrigin: string;
-    onRoute: (o: string) => void;
-    onClear: () => void;
-    disabled?: boolean;
-  }) => (
-    <div data-testid="selection-bar">
-      <span data-testid="selection-count">{count}件選択</span>
-      <button onClick={() => onRoute("")} data-testid="route-btn">ルートを作成</button>
-      <button onClick={onClear} data-testid="clear-btn">クリア</button>
-    </div>
-  ),
-}));
+// SelectionBar is no longer used in ResultPanel's bottom bar; it renders inline.
 
 vi.mock("next/dynamic", () => ({
   default: (_loader: unknown, opts?: { ssr?: boolean }) => {
@@ -113,7 +95,8 @@ describe("ResultPanel selection bar", () => {
         <ResultPanel activeResponse={makeResponse()} />
       </Wrapper>,
     );
-    expect(screen.getByTestId("selection-bar")).toBeInTheDocument();
+    // ja dict: "選択中 {count} 件"
+    expect(screen.getByText(/選択中 1 件/)).toBeInTheDocument();
   });
 
   it("shows correct count in selection bar", () => {
@@ -122,7 +105,7 @@ describe("ResultPanel selection bar", () => {
         <ResultPanel activeResponse={makeResponse()} />
       </Wrapper>,
     );
-    expect(screen.getByTestId("selection-count")).toHaveTextContent("2件選択");
+    expect(screen.getByText(/選択中 2 件/)).toBeInTheDocument();
   });
 
   it("does not show selection bar when no points are selected", () => {
@@ -141,7 +124,8 @@ describe("ResultPanel selection bar", () => {
         <ResultPanel activeResponse={makeResponse()} />
       </Wrapper>,
     );
-    fireEvent.click(screen.getByTestId("clear-btn"));
+    // ja dict: "クリア"
+    fireEvent.click(screen.getByText("クリア"));
     expect(clear).toHaveBeenCalledOnce();
   });
 
@@ -152,8 +136,8 @@ describe("ResultPanel selection bar", () => {
       </Wrapper>,
     );
     fireEvent.click(screen.getByRole("button", { name: /マップ/i }));
-    expect(screen.getByTestId("selection-bar")).toBeInTheDocument();
+    expect(screen.getByText(/選択中 1 件/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /グリッド/i }));
-    expect(screen.getByTestId("selection-bar")).toBeInTheDocument();
+    expect(screen.getByText(/選択中 1 件/)).toBeInTheDocument();
   });
 });

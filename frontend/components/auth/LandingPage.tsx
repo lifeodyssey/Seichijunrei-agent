@@ -3,97 +3,15 @@
 import { useState } from "react";
 import { useDict, useLocale } from "../../lib/i18n-context";
 import { useScrollReveal } from "../../hooks/useScrollReveal";
+import {
+  FLOAT_CARDS,
+  ANIME_GALLERY,
+  FLOAT_CARD_STYLES,
+  FLOAT_DELAYS,
+  handleImageError,
+} from "./LandingData";
 
-/* ── Anitabi floating photo cards ── */
-const FLOAT_CARDS: {
-  src: string;
-  label: string;
-  ep: string;
-  cls: string;
-  rotate: string;
-}[] = [
-  {
-    src: "https://image.anitabi.cn/points/115908/qys7fu.jpg?plan=h160",
-    label: "京都コンサートホール",
-    ep: "EP1",
-    cls: "fc-1",
-    rotate: "-3deg",
-  },
-  {
-    src: "https://image.anitabi.cn/points/160209/al3yeri_1770054618536.jpg?plan=h160",
-    label: "マンション桂",
-    ep: "君の名は。",
-    cls: "fc-2",
-    rotate: "2deg",
-  },
-  {
-    src: "https://image.anitabi.cn/points/115908/7evkbmy2.jpg?plan=h160",
-    label: "あじろぎの道",
-    ep: "EP1",
-    cls: "fc-3",
-    rotate: "-1deg",
-  },
-  {
-    src: "https://image.anitabi.cn/points/160209/3ik9kj0e.jpg?plan=h160",
-    label: "信濃町歩道橋",
-    ep: "君の名は。",
-    cls: "fc-4",
-    rotate: "3deg",
-  },
-  {
-    src: "https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160",
-    label: "莵道高",
-    ep: "EP1",
-    cls: "fc-5",
-    rotate: "-2deg",
-  },
-  {
-    src: "https://image.anitabi.cn/points/160209/3ik9kjew.jpg?plan=h160",
-    label: "LABI新宿東口館前",
-    ep: "君の名は。",
-    cls: "fc-6",
-    rotate: "1deg",
-  },
-];
-
-/* ── Anime gallery ── */
-const ANIME_GALLERY: {
-  bangumiId: string;
-  title: string;
-  count: string;
-}[] = [
-  { bangumiId: "115908", title: "響け！ユーフォニアム", count: "156 スポット · 宇治市" },
-  { bangumiId: "160209", title: "君の名は。", count: "89 スポット · 新宿/飛騨" },
-  { bangumiId: "269235", title: "天気の子", count: "72 スポット · 東京" },
-  { bangumiId: "485", title: "涼宮ハルヒの憂鬱", count: "134 スポット · 西宮市" },
-  { bangumiId: "1424", title: "けいおん！", count: "98 スポット · 京都/豊郷" },
-  { bangumiId: "362577", title: "すずめの戸締まり", count: "65 スポット · 九州〜東北" },
-  { bangumiId: "55113", title: "たまこまーけっと", count: "47 スポット · 出町柳" },
-  { bangumiId: "27364", title: "氷菓", count: "82 スポット · 高山市" },
-];
-
-/* ── Float card position styles ── */
-const FLOAT_CARD_STYLES: Record<string, React.CSSProperties> = {
-  "fc-1": { top: "18%", left: "8%", width: 140, height: 95 },
-  "fc-2": { top: "28%", right: "12%", width: 160, height: 108 },
-  "fc-3": { bottom: "30%", left: "6%", width: 130, height: 88 },
-  "fc-4": { bottom: "22%", right: "8%", width: 150, height: 100 },
-  "fc-5": { top: "50%", left: "18%", width: 120, height: 80 },
-  "fc-6": { top: "14%", left: "35%", width: 110, height: 75 },
-};
-
-const FLOAT_DELAYS: Record<string, string> = {
-  "fc-1": "0.2s",
-  "fc-2": "0.4s",
-  "fc-3": "0.6s",
-  "fc-4": "0.8s",
-  "fc-5": "1.0s",
-  "fc-6": "0.3s",
-};
-
-interface LandingPageProps {
-  onOpenAuth: () => void;
-}
+interface LandingPageProps { onOpenAuth: () => void }
 
 export default function LandingPage({ onOpenAuth }: LandingPageProps) {
   const dict = useDict();
@@ -102,10 +20,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
   const addRevealRef = useScrollReveal();
   const [searchQuery, setSearchQuery] = useState("");
 
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onOpenAuth();
-  }
+  const handleSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); onOpenAuth(); };
 
   return (
     <div
@@ -151,7 +66,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           </button>
         </div>
       </header>
-
       {/* ── Section 1: HERO ── */}
       <section
         data-testid="hero-section"
@@ -164,7 +78,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               "radial-gradient(ellipse 900px 900px at 50% 45%, oklch(93% 0.020 220), var(--color-bg))",
           }}
         />
-
         {/* ── Floating photo cards ── */}
         <div
           data-testid="floating-cards"
@@ -182,7 +95,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 animation: `seichi-float-in 0.8s ease-out ${FLOAT_DELAYS[card.cls]} forwards`,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={card.src}
                 alt={card.label}
@@ -190,15 +102,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 height={108}
                 loading="lazy"
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  target.style.display = "none";
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.style.background =
-                      "linear-gradient(135deg, oklch(88% 0.04 240), oklch(82% 0.06 260))";
-                  }
-                }}
+                onError={handleImageError}
               />
               <div
                 className="absolute inset-x-0 bottom-0 px-2.5 py-1.5 text-[10px] font-medium text-white"
@@ -215,7 +119,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             </div>
           ))}
         </div>
-
         {/* ── Hero center content ── */}
         <div className="relative z-[5] max-w-[560px] px-6 text-center">
           <h1
@@ -230,7 +133,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           >
             {landing.hero_subtitle}
           </p>
-
           {/* Search bar */}
           <form
             onSubmit={handleSearchSubmit}
@@ -257,32 +159,20 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             </button>
           </form>
         </div>
-
         {/* ── Stats ── */}
         <div
           className="relative z-[5] mt-12 flex gap-12 sm:gap-12"
           style={{ animation: "seichi-fade-up 0.8s ease-out 0.4s backwards" }}
         >
-          {(
-            [
-              ["2,400+", landing.stats_spots],
-              ["180+", landing.stats_anime],
-              ["47", landing.stats_prefectures],
-            ] as const
-          ).map(([num, label]) => (
+          {([["2,400+", landing.stats_spots], ["180+", landing.stats_anime], ["47", landing.stats_prefectures]] as const).map(([num, label]) => (
             <div key={num} className="text-center">
-              <div
-                className="font-[family-name:var(--app-font-display)] text-[32px] font-semibold text-[var(--color-primary)]"
-              >
+              <div className="font-[family-name:var(--app-font-display)] text-[32px] font-semibold text-[var(--color-primary)]">
                 {num}
               </div>
-              <div className="mt-0.5 text-[11px] text-[var(--color-muted-fg)]">
-                {label}
-              </div>
+              <div className="mt-0.5 text-[11px] text-[var(--color-muted-fg)]">{label}</div>
             </div>
           ))}
         </div>
-
         {/* ── Scroll cue ── */}
         <div
           className="absolute bottom-7 z-[5] flex flex-col items-center gap-1 text-[11px] text-[var(--color-muted-fg)]"
@@ -297,7 +187,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           </span>
         </div>
       </section>
-
       {/* ── Section 2: 3-step How It Works ── */}
       <section
         data-testid="steps-section"
@@ -315,7 +204,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
         >
           {landing.steps_sub}
         </p>
-
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           {(
             [
@@ -343,7 +231,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           ))}
         </div>
       </section>
-
       {/* ── Section 3: Anime Gallery ── */}
       <section
         data-testid="gallery-section"
@@ -361,7 +248,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
         >
           {landing.gallery_sub}
         </p>
-
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {ANIME_GALLERY.map((anime, i) => (
             <div
@@ -376,7 +262,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 if (e.key === "Enter" || e.key === " ") onOpenAuth();
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`https://image.anitabi.cn/bangumi/${anime.bangumiId}.jpg?plan=h160`}
                 alt={anime.title}
@@ -384,15 +269,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 height={160}
                 loading="lazy"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  target.style.display = "none";
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.style.background =
-                      "linear-gradient(135deg, oklch(88% 0.04 240), oklch(82% 0.06 260))";
-                  }
-                }}
+                onError={handleImageError}
               />
               <div
                 className="absolute inset-0 flex flex-col justify-end p-3"
@@ -409,54 +286,11 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
           ))}
         </div>
       </section>
-
       {/* ── Footer ── */}
       <footer className="border-t border-[var(--color-border)] py-7 text-center text-[11px] text-[var(--color-muted-fg)]">
         <span style={{ fontFamily: "var(--app-font-display)" }}>聖地巡礼</span>{" "}
         · seichijunrei
       </footer>
-
-      {/* ── Animation styles ── */}
-      <style>{`
-        @keyframes seichi-fade-up {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes seichi-fade-down {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes seichi-float-in {
-          from { opacity: 0; transform: translateY(20px) scale(0.95); }
-          to   { opacity: 0.85; transform: translateY(0) scale(1); }
-        }
-        @keyframes seichi-bounce {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(6px); }
-        }
-
-        .seichi-reveal,
-        .seichi-reveal-pop { opacity: 0; }
-        .seichi-reveal.seichi-visible {
-          animation: seichi-fade-up 0.65s ease-out forwards;
-        }
-        .seichi-reveal-pop.seichi-visible {
-          animation: seichi-pop-in 0.5s ease-out forwards;
-        }
-        @keyframes seichi-pop-in {
-          from { opacity: 0; transform: scale(0.95) translateY(8px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .seichi-reveal,
-          .seichi-reveal-pop { opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-          [data-testid="floating-cards"] > div:nth-child(n+3) { display: none; }
-        }
-      `}</style>
     </div>
   );
 }

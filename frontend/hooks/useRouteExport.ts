@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import type { TimedItinerary } from "../lib/types";
+import { isSafeUrl } from "../lib/url";
 
 interface RouteExportHandlers {
   exportGoogleMaps: () => void;
@@ -11,7 +12,8 @@ interface RouteExportHandlers {
 export function useRouteExport(itinerary: TimedItinerary): RouteExportHandlers {
   const exportGoogleMaps = useCallback(() => {
     const urls = itinerary.export_google_maps_url;
-    if (urls.length > 0) window.open(urls[0], "_blank");
+    const url = urls[0];
+    if (isSafeUrl(url)) window.open(url, "_blank", "noopener,noreferrer");
   }, [itinerary.export_google_maps_url]);
 
   const exportIcs = useCallback(() => {

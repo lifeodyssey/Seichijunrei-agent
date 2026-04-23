@@ -232,6 +232,26 @@
     "search_anime_nearby": "搜索 {title} 附近的圣地",
     "show_all_nearby": "显示所有附近圣地"
   },
+  "toolbar": {
+    "tab_episode": "按集数",
+    "tab_area": "按地区",
+    "grid": "网格",
+    "map": "地图",
+    "all": "全部"
+  },
+  "drawer": {
+    "title": "历史",
+    "new_chat": "+ 新对话",
+    "recent": "最近",
+    "empty": "还没有对话"
+  },
+  "result_panel": {
+    "map_loading": "地图加载中…",
+    "selected": "已选 {count} 个",
+    "plan_route": "规划路线",
+    "clear": "清除",
+    "other_area": "其他"
+  },
   "clarification": {
     "examples_label": "例如：",
     "search_all": "搜索所有作品",

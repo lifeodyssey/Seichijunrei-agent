@@ -23,6 +23,17 @@ globalThis.IntersectionObserver = class IntersectionObserver {
 // scrollIntoView is not implemented in jsdom
 window.HTMLElement.prototype.scrollIntoView = function () {};
 
+// Suppress mapbox-gl Worker error in jsdom (no WebGL/Worker support)
+globalThis.Worker = class Worker {
+  constructor() {}
+  postMessage() {}
+  terminate() {}
+  addEventListener() {}
+  removeEventListener() {}
+  onmessage = null;
+  onerror = null;
+} as unknown as typeof Worker;
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();

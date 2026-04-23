@@ -1,6 +1,6 @@
 # Seichijunrei Agent - Makefile
 
-.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format typecheck check clean build db-diff db-list db-pull db-push db-push-dry db-reset
+.PHONY: help install dev serve test test-all test-cov test-integration test-eval lint format typecheck check clean build db-diff db-list db-pull db-push db-push-dry db-reset fe-lint fe-typecheck fe-test fe-test-cov fe-build fe-check check-all
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -71,6 +71,29 @@ typecheck:
 	uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
 
 check: lint typecheck test
+
+# ── Frontend ──────────────────────────────────────────────────
+
+fe-lint:
+	cd frontend && npx eslint .
+
+fe-typecheck:
+	cd frontend && npx tsc --noEmit
+
+fe-test:
+	cd frontend && npx vitest run
+
+fe-test-cov:
+	cd frontend && npx vitest run --coverage
+
+fe-build:
+	cd frontend && npm run build
+
+fe-check: fe-lint fe-typecheck fe-test
+
+# ── Full check (backend + frontend) ──────────────────────────
+
+check-all: check fe-check
 
 clean:
 	rm -rf __pycache__ .pytest_cache .coverage htmlcov coverage.xml

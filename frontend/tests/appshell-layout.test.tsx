@@ -123,7 +123,7 @@ describe("AppShell interactions", () => {
 
   it("clicking the New chat button does not crash and leaves layout intact", () => {
     render(<AppShell />);
-    const newChatBtn = screen.getByRole("button", { name: /new chat/i });
+    const newChatBtn = screen.getByRole("button", { name: /新对话/i });
     fireEvent.click(newChatBtn);
     expect(screen.getByTestId("icon-sidebar")).toBeInTheDocument();
   });
@@ -131,7 +131,7 @@ describe("AppShell interactions", () => {
   it("clicking the History button opens the conversation drawer", () => {
     render(<AppShell />);
     expect(screen.queryByTestId("conversation-drawer")).toBeNull();
-    const historyBtn = screen.getByRole("button", { name: /history/i });
+    const historyBtn = screen.getByRole("button", { name: /历史/i });
     fireEvent.click(historyBtn);
     expect(screen.getByTestId("conversation-drawer")).toBeInTheDocument();
   });

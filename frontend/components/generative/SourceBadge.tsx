@@ -77,18 +77,10 @@ export default function SourceBadge({
       {showEpisodeBadge && (
         <span
           data-testid="episode-badge"
+          className="absolute bottom-2 left-2 select-none pointer-events-none rounded-sm px-1.5 py-0.5 text-[10px] leading-snug"
           style={{
-            position: "absolute",
-            bottom: "8px",
-            left: "8px",
-            borderRadius: "2px",
-            backgroundColor: "rgba(0,0,0,0.6)",
-            padding: "2px 6px",
-            fontSize: "10px",
-            color: "rgba(255,255,255,0.85)",
-            lineHeight: 1.4,
-            userSelect: "none",
-            pointerEvents: "none",
+            backgroundColor: "oklch(0% 0 0 / 0.6)",
+            color: "oklch(100% 0 0 / 0.85)",
           }}
         >
           {episodeLabel}

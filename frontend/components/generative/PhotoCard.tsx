@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import type { PilgrimagePoint } from "../../lib/types";
@@ -63,6 +62,8 @@ export function PhotoCard({ point, selected, onToggle, onDetail }: PhotoCardProp
           <img
             src={point.screenshot_url}
             alt={point.name}
+            width={320}
+            height={200}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
           />
         ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import type { PilgrimagePoint } from "../../lib/types";
+import { colorValue } from "../../lib/color";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,10 +43,6 @@ export const CHIP_COLORS: {
   { hue: 10,  chroma: 0.150, bg: "chip-color-4-bg", text: "chip-color-4-text", dot: "chip-color-4-dot", activeBg: "chip-color-4-active-bg", activeText: "chip-color-4-active-text" },
   { hue: 190, chroma: 0.120, bg: "chip-color-5-bg", text: "chip-color-5-text", dot: "chip-color-5-dot", activeBg: "chip-color-5-active-bg", activeText: "chip-color-5-active-text" },
 ];
-
-function colorValue(hue: number, chroma: number, lightness: number): string {
-  return `oklch(${lightness}% ${chroma} ${hue})`;
-}
 
 function chipInlineStyles(color: (typeof CHIP_COLORS)[number], isActive: boolean) {
   const accent = colorValue(color.hue, color.chroma, 55);

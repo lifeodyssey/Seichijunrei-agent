@@ -46,15 +46,16 @@ describe("WelcomeScreen", () => {
 
   it("renders 3 quick-action cards", () => {
     renderWelcomeScreen();
-    expect(screen.getByText("作品で探す")).toBeInTheDocument();
+    // Component uses inline locale strings, not dict.welcome_screen
+    expect(screen.getByText("聖地を検索")).toBeInTheDocument();
     expect(screen.getByText("近くの聖地")).toBeInTheDocument();
-    expect(screen.getByText("ルートを作成")).toBeInTheDocument();
+    expect(screen.getByText("ルート計画")).toBeInTheDocument();
   });
 
   it("quick-action card tap calls onSend with the correct query", () => {
     const onSend = vi.fn();
     renderWelcomeScreen(onSend);
-    fireEvent.click(screen.getByText("作品で探す"));
+    fireEvent.click(screen.getByText("聖地を検索"));
     expect(onSend).toHaveBeenCalledOnce();
     expect(onSend).toHaveBeenCalledWith("君の名は の聖地を教えて");
   });
@@ -69,11 +70,11 @@ describe("WelcomeScreen", () => {
   it("route quick-action sends corresponding ja query", () => {
     const onSend = vi.fn();
     renderWelcomeScreen(onSend);
-    fireEvent.click(screen.getByText("ルートを作成"));
+    fireEvent.click(screen.getByText("ルート計画"));
     expect(onSend).toHaveBeenCalledWith("響け！ユーフォニアム の聖地を巡るルートを作って");
   });
 
-  it("renders popular_label section header when bangumi popular chips load", async () => {
+  it("renders anime cover chips when bangumi popular data loads", async () => {
     server.use(
       http.get("http://localhost:8000/v1/bangumi/popular", () => {
         return HttpResponse.json({
@@ -84,9 +85,9 @@ describe("WelcomeScreen", () => {
       }),
     );
     renderWelcomeScreen();
-    // The popular_label text should appear once the async fetch resolves
-    const label = await screen.findByText("人気の作品");
-    expect(label).toBeInTheDocument();
+    // The popular anime title should appear as a cover chip
+    const chip = await screen.findByTitle("响け");
+    expect(chip).toBeInTheDocument();
   });
 
   it("does not crash when /v1/bangumi/popular returns empty", async () => {
@@ -98,9 +99,9 @@ describe("WelcomeScreen", () => {
     // Should render without throwing
     expect(() => renderWelcomeScreen()).not.toThrow();
     // Quick actions still visible
-    expect(screen.getByText("作品で探す")).toBeInTheDocument();
-    // Chip section header must be absent when list is empty
-    expect(screen.queryByText("人気の作品")).not.toBeInTheDocument();
+    expect(screen.getByText("聖地を検索")).toBeInTheDocument();
+    // Fallback covers should appear when list is empty
+    expect(screen.getByTitle("響け！ユーフォニアム")).toBeInTheDocument();
   });
 
   it("does not crash on /v1/bangumi/popular network failure", async () => {
@@ -110,7 +111,7 @@ describe("WelcomeScreen", () => {
       }),
     );
     expect(() => renderWelcomeScreen()).not.toThrow();
-    expect(screen.getByText("作品で探す")).toBeInTheDocument();
+    expect(screen.getByText("聖地を検索")).toBeInTheDocument();
   });
 
   it("renders tagline in Chinese when zh dict provided", () => {
@@ -127,15 +128,15 @@ describe("WelcomeScreen", () => {
 
   it("renders quick-action labels in Chinese", () => {
     renderWelcomeScreen(vi.fn(), zhFull, "zh");
-    expect(screen.getByText("搜索作品")).toBeInTheDocument();
-    expect(screen.getByText("附近圣地")).toBeInTheDocument();
-    expect(screen.getByText("创建路线")).toBeInTheDocument();
+    expect(screen.getByText("搜索取景地")).toBeInTheDocument();
+    expect(screen.getByText("我附近有什么")).toBeInTheDocument();
+    expect(screen.getByText("规划路线")).toBeInTheDocument();
   });
 
   it("renders quick-action labels in English", () => {
     renderWelcomeScreen(vi.fn(), enFull, "en");
-    expect(screen.getByText("Search by anime")).toBeInTheDocument();
-    expect(screen.getByText("Nearby spots")).toBeInTheDocument();
-    expect(screen.getByText("Plan a route")).toBeInTheDocument();
+    expect(screen.getByText("Search spots")).toBeInTheDocument();
+    expect(screen.getByText("Near me")).toBeInTheDocument();
+    expect(screen.getByText("Plan route")).toBeInTheDocument();
   });
 });

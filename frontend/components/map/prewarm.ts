@@ -14,9 +14,8 @@ export function prewarmMapbox(): void {
   prewarmed = true;
 
   // Dynamic import so this module stays SSR-safe
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  import("mapbox-gl").then((mod: any) => {
-    const prewarm = mod.prewarm ?? mod.default?.prewarm;
-    if (typeof prewarm === "function") prewarm();
+  import("mapbox-gl").then((mod: { prewarm?: () => void; default?: { prewarm?: () => void } }) => {
+    const fn = mod.prewarm ?? mod.default?.prewarm;
+    if (typeof fn === "function") fn();
   });
 }

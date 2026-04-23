@@ -145,6 +145,15 @@ class SessionRepository:
             return dict(raw)
         return None
 
+    async def check_session_owner(self, session_id: str, user_id: str) -> bool:
+        """Return True if the conversation belongs to the given user."""
+        row = await self._pool.fetchrow(
+            "SELECT 1 FROM conversations WHERE session_id = $1 AND user_id = $2",
+            session_id,
+            user_id,
+        )
+        return row is not None
+
     async def delete_session_state(self, session_id: str) -> None:
         """Delete session state by session ID."""
         await self._pool.execute("DELETE FROM sessions WHERE id = $1", session_id)

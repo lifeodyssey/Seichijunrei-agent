@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { memo, useState, useMemo } from "react";
 import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import SourceBadge from "./SourceBadge";
 
-function PilgrimageCard({
+const PilgrimageCard = memo(function PilgrimageCard({
   point,
   episodeLabel,
   selected,
@@ -47,10 +47,11 @@ function PilgrimageCard({
       {/* Image with dark overlay bar */}
       <div className="relative aspect-[4/3] overflow-hidden">
         {hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={point.screenshot_url!}
             alt={point.name_cn || point.name}
+            width={320}
+            height={240}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
             onError={() => setImgError(true)}
@@ -95,7 +96,7 @@ function PilgrimageCard({
       </div>
     </button>
   );
-}
+});
 
 function GroupSection({
   label,
@@ -121,6 +122,7 @@ function GroupSection({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="flex items-center gap-2 text-left"
       >
         <span className="text-[10px] text-[var(--color-muted-fg)] transition-transform" style={{ display: "inline-block", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>

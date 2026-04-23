@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo } from "react";
@@ -85,6 +84,8 @@ export default function SpotDetail({
             <img
               src={point.screenshot_url}
               alt={point.name}
+              width={400}
+              height={300}
               className="h-full w-full object-cover"
             />
           ) : (

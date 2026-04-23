@@ -229,6 +229,7 @@ class RuntimeAPI:
             record_exc = getattr(span, "record_exception", None)
             if callable(record_exc):
                 record_exc(exc)
+            logger.error("pipeline_unhandled_exception", exc_info=exc)
             return (
                 None,
                 PublicAPIResponse(
@@ -239,7 +240,7 @@ class RuntimeAPI:
                     errors=[
                         PublicAPIError(
                             code=ErrorCode.INTERNAL_ERROR.value,
-                            message=str(exc),
+                            message="An internal error occurred. Please try again.",
                         )
                     ],
                 ),

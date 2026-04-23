@@ -18,15 +18,18 @@ const I18nContext = createContext<I18nCtx>({
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
+  // detectLocale() runs once via the state initializer — stable across renders.
   const [locale, setLocaleState] = useState<Locale>(() => detectLocale());
   const [dict, setDict] = useState<Dict>(defaultDict as Dict);
 
+  // Load the detected locale's dictionary on mount. Adding `locale` to deps is
+  // safe: setLocale already handles subsequent changes, and re-loading is idempotent.
   useEffect(() => {
     document.documentElement.lang = locale;
     if (locale !== DEFAULT_LOCALE) {
       loadDict(locale).then((d) => setDict(d as Dict));
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount with initial detected locale
+  }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);

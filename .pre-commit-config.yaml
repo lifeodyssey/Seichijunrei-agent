@@ -3,6 +3,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: '__snapshots__/'
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
@@ -24,3 +25,31 @@ repos:
         types: [python]
         pass_filenames: false
         always_run: true
+
+      - id: frontend-typecheck
+        name: frontend typecheck
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+
+      - id: frontend-lint
+        name: frontend lint
+        entry: bash -c 'cd frontend && npx eslint .'
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+
+      - id: frontend-test-coverage
+        name: frontend tests + coverage (lines>=60%)
+        entry: bash -c 'cd frontend && npx vitest run --coverage'
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+
+      - id: backend-test-coverage
+        name: backend tests + coverage (lines>=80%)
+        entry: bash -c 'uv run pytest backend/tests/unit/ -q --cov --cov-fail-under=80'
+        language: system
+        types: [python]
+        pass_filenames: false
