@@ -1,0 +1,79 @@
+[
+  {
+    "id": "clarify-ambiguous-anime",
+    "query": "凉宫",
+    "locale": "zh",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["question", "options", "status", "candidates"]
+  },
+  {
+    "id": "clarify-japanese-ambiguous",
+    "query": "響け",
+    "locale": "ja",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["question", "options", "status", "candidates"]
+  },
+  {
+    "id": "search-bangumi-clear",
+    "query": "君の名は の聖地を教えて",
+    "locale": "ja",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"]
+  },
+  {
+    "id": "search-bangumi-zh",
+    "query": "取景地 涼宮ハルヒの憂鬱",
+    "locale": "zh",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"]
+  },
+  {
+    "id": "greet-chinese",
+    "query": "你好",
+    "locale": "zh",
+    "expected_stage": "greet_user",
+    "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "greet-identity",
+    "query": "你是谁",
+    "locale": "zh",
+    "expected_stage": "greet_user",
+    "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "nearby-without-location",
+    "query": "附近有什么圣地？",
+    "locale": "zh",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["question", "status"]
+  },
+  {
+    "id": "nearby-with-location",
+    "query": "宇治站附近有什么圣地？",
+    "locale": "ja",
+    "expected_stage": "search_nearby",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"],
+    "expected_nearby_fields": ["distance_m"]
+  },
+  {
+    "id": "route-query",
+    "query": "響け！ユーフォニアム の聖地を巡るルートを作って",
+    "locale": "ja",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["route"],
+    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
+  }
+]
