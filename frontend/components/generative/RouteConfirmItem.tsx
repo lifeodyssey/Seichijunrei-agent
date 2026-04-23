@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PilgrimagePoint } from "../../lib/types";
+import { useDict } from "../../lib/i18n-context";
 
 // ---------------------------------------------------------------------------
 // Drag handle — 2×3 grid of small dots
@@ -12,7 +13,7 @@ export function DragGrip() {
   return (
     <div
       className="flex shrink-0 cursor-grab flex-col gap-[3px] transition-opacity duration-150"
-      style={{ color: "oklch(60% 0.148 240 / 0.25)" }}
+      style={{ color: "color-mix(in oklch, var(--color-primary) 25%, transparent)" }}
       aria-hidden
     >
       {[0, 1, 2].map((row) => (
@@ -36,6 +37,7 @@ export interface SortableItemProps {
 }
 
 export function SortableItem({ point, index, onRemove }: SortableItemProps) {
+  const { route_confirm: t } = useDict();
   const {
     attributes,
     listeners,
@@ -77,6 +79,8 @@ export function SortableItem({ point, index, onRemove }: SortableItemProps) {
         <img
           src={point.screenshot_url}
           alt=""
+          width={48}
+          height={36}
           className="h-9 w-12 shrink-0 rounded-[var(--r-sm)] object-cover"
           loading="lazy"
         />
@@ -96,7 +100,7 @@ export function SortableItem({ point, index, onRemove }: SortableItemProps) {
         >
           {displayName}
         </span>
-        {point.episode != null && (
+        {typeof point.episode === "number" && point.episode > 0 && (
           <span className="shrink-0 rounded-[var(--r-sm)] bg-[var(--color-muted)] px-1.5 py-0.5 text-[11px] text-[var(--color-muted-fg)]">
             EP {point.episode}
           </span>
@@ -108,7 +112,7 @@ export function SortableItem({ point, index, onRemove }: SortableItemProps) {
         type="button"
         onClick={() => onRemove(point.id)}
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] opacity-0 transition-opacity hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] group-hover:opacity-100"
-        aria-label={`移除 ${displayName}`}
+        aria-label={`${t.remove_label} ${displayName}`}
       >
         <svg
           width="14"

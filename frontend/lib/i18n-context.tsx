@@ -22,19 +22,18 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => detectLocale());
   const [dict, setDict] = useState<Dict>(defaultDict as Dict);
 
-  // Load the detected locale's dictionary on mount. Adding `locale` to deps is
-  // safe: setLocale already handles subsequent changes, and re-loading is idempotent.
+  // The effect owns all loading — setLocale only updates locale state.
   useEffect(() => {
+    let cancelled = false;
     document.documentElement.lang = locale;
-    if (locale !== DEFAULT_LOCALE) {
-      loadDict(locale).then((d) => setDict(d as Dict));
-    }
+    loadDict(locale).then((d) => {
+      if (!cancelled) setDict(d as Dict);
+    });
+    return () => { cancelled = true; };
   }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    document.documentElement.lang = newLocale;
-    loadDict(newLocale).then((d) => setDict(d as Dict));
   }, []);
 
   return (

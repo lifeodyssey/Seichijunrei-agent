@@ -171,7 +171,7 @@ export const EUPHONIUM_POINTS: PilgrimagePoint[] = [
       "https://image.anitabi.cn/points/115908/7eyih3xg.jpg?plan=h160",
     bangumi_id: "115908",
     latitude: 34.8915,
-    longitude: 135.8110,
+    longitude: 135.811,
     title: "響け！ユーフォニアム",
     title_cn: "吹响！上低音号",
   },

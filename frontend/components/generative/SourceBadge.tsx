@@ -79,8 +79,8 @@ export default function SourceBadge({
           data-testid="episode-badge"
           className="absolute bottom-2 left-2 select-none pointer-events-none rounded-sm px-1.5 py-0.5 text-[10px] leading-snug"
           style={{
-            backgroundColor: "oklch(0% 0 0 / 0.6)",
-            color: "oklch(100% 0 0 / 0.85)",
+            backgroundColor: "color-mix(in oklch, var(--color-fg) 60%, transparent)",
+            color: "color-mix(in oklch, var(--color-bg) 85%, transparent)",
           }}
         >
           {episodeLabel}

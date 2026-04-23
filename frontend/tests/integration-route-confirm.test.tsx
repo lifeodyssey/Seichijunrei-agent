@@ -123,7 +123,7 @@ describe("Integration: Route confirmation flow", () => {
     );
 
     // Click the remove button for 宇治站
-    const removeBtn = screen.getByLabelText("移除 宇治站");
+    const removeBtn = screen.getByLabelText("削除 宇治站");
     await user.click(removeBtn);
 
     // 宇治站 should be gone
@@ -150,7 +150,7 @@ describe("Integration: Route confirmation flow", () => {
     );
 
     // Remove 宇治站
-    await user.click(screen.getByLabelText("移除 宇治站"));
+    await user.click(screen.getByLabelText("削除 宇治站"));
     expect(screen.queryByText("宇治站")).not.toBeInTheDocument();
 
     // Click undo
@@ -228,7 +228,7 @@ describe("Integration: Route confirmation flow", () => {
     );
 
     // Remove 平等院
-    await user.click(screen.getByLabelText("移除 平等院"));
+    await user.click(screen.getByLabelText("削除 平等院"));
     expect(screen.queryByText("平等院")).not.toBeInTheDocument();
 
     // Undo
@@ -255,8 +255,8 @@ describe("Integration: Route confirmation flow", () => {
     );
 
     // Remove two points
-    await user.click(screen.getByLabelText("移除 宇治站"));
-    await user.click(screen.getByLabelText("移除 平等院"));
+    await user.click(screen.getByLabelText("削除 宇治站"));
+    await user.click(screen.getByLabelText("削除 平等院"));
 
     // Confirm button should be disabled (need >= 2 points)
     const confirmBtn = screen.getByText(defaultDict.route_confirm.start);

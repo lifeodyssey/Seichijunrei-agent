@@ -32,6 +32,7 @@ export default function RouteVisualization({ data }: RouteVisualizationProps) {
       .map((p) => `${p.latitude},${p.longitude}`)
       .join("/")}`;
     if (isSafeUrl(url)) window.open(url, "_blank", "noopener,noreferrer");
+    else { console.warn("Rejected unsafe URL:", url); }
   };
 
   return (

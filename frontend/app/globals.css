@@ -296,6 +296,8 @@ a { color: inherit; }
     animation: none !important;
     transition: none !important;
   }
+  .seichi-reveal,
+  .seichi-reveal-pop { opacity: 1 !important; }
 }
 
 /* ── Touch targets (opt-in via data attribute, auto for standalone interactive elements) ── */

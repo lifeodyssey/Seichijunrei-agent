@@ -5,7 +5,7 @@
  * - Renders a numbered stop entry for each stop in the itinerary -> unit
  * - Shows arrival time and dwell duration per stop -> unit
  * - Renders a transit leg connector between consecutive stops -> unit
- * - Renders summary stats (spot_count, total_minutes, total_distance_m) -> unit
+ * - Renders per-stop photo count using locale dict -> unit
  * - No transit connector shown after the last stop -> unit
  */
 
@@ -81,7 +81,7 @@ describe("RouteTimeline", () => {
     it("shows both stops in order", () => {
       render(<RouteTimeline itinerary={makeItinerary()} />);
       const names = screen.getAllByText(/宇治駅|平等院/);
-      expect(names).toHaveLength(2);
+      expect(names.map((n) => n.textContent)).toEqual(["宇治駅", "平等院"]);
     });
 
     it("shows arrival time for each stop", () => {
@@ -127,7 +127,7 @@ describe("RouteTimeline", () => {
     });
   });
 
-  describe("summary section", () => {
+  describe("per-stop photo count", () => {
     it("shows photo count in each stop using ja dict", () => {
       // Default fixture has photo_count: 3 for each stop
       render(<RouteTimeline itinerary={makeItinerary()} />);

@@ -20,6 +20,7 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       include: ["components/**", "hooks/**", "lib/**", "contexts/**"],
       exclude: ["**/node_modules/**", "lib/mock-data/**"],
+      // Floors based on current coverage — ratchet up as tests improve
       thresholds: {
         lines: 60,
         statements: 56,

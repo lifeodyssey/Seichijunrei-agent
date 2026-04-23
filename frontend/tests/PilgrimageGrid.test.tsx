@@ -2,7 +2,7 @@
  * PilgrimageGrid missing-data handling unit tests (TDD).
  *
  * AC coverage:
- * - Points with null/empty city display "---" -> unit
+ * - Points group by origin (null/empty origin falls back via resolveUnknownName) -> unit
  * - Points with null screenshot_url render placeholder background -> unit
  * - Points with episode = 0 or null omit episode badge entirely -> unit
  *   (episode-badge omission is also tested in SourceBadge.test.tsx; here we

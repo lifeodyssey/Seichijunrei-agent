@@ -142,9 +142,10 @@ export default function ConversationDrawer({
       {/* Backdrop */}
       <button
         type="button"
-        className="fixed inset-0 z-40 bg-black/30"
+        className="fixed inset-0 z-40"
+        style={{ background: "color-mix(in oklch, var(--color-fg) 30%, transparent)" }}
         onClick={onClose}
-        aria-label="Close conversation drawer"
+        aria-label={t.close}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
       />
 
@@ -165,7 +166,7 @@ export default function ConversationDrawer({
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 hover:bg-[var(--color-muted)] transition"
-            aria-label="Close conversation drawer"
+            aria-label={t.close}
           >
             <svg
               width="18"

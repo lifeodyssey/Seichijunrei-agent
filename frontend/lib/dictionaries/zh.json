@@ -218,7 +218,8 @@
     "undo": "撤销",
     "summary": "{count} 个圣地等你探访",
     "estimate": "预计步行 {distance}km，约 {time} 分钟可以走完",
-    "start": "开始规划路线"
+    "start": "开始规划路线",
+    "remove_label": "移除"
   },
   "chat_popup": {
     "continue": "继续对话…",
@@ -243,7 +244,8 @@
     "title": "历史",
     "new_chat": "+ 新对话",
     "recent": "最近",
-    "empty": "还没有对话"
+    "empty": "还没有对话",
+    "close": "关闭"
   },
   "result_panel": {
     "map_loading": "地图加载中…",

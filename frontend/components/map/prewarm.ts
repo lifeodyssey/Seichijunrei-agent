@@ -17,5 +17,5 @@ export function prewarmMapbox(): void {
   import("mapbox-gl").then((mod: { prewarm?: () => void; default?: { prewarm?: () => void } }) => {
     const fn = mod.prewarm ?? mod.default?.prewarm;
     if (typeof fn === "function") fn();
-  });
+  }).catch(() => { prewarmed = false; });
 }

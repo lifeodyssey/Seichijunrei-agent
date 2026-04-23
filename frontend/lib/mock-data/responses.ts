@@ -15,16 +15,16 @@ export const MOCK_SEARCH_RESPONSE: RuntimeResponse = {
   intent: "search_bangumi",
   session_id: SESSION_ID,
   message:
-    "找到了「響け！ユーフォニアム」的 156 个取景地，主要分布在宇治市和京都市区。",
+    `找到了「響け！ユーフォニアム」的 ${EUPHONIUM_POINTS.length} 个取景地，主要分布在宇治市和京都市区。`,
   data: {
     results: {
       rows: EUPHONIUM_POINTS,
-      row_count: 12,
+      row_count: EUPHONIUM_POINTS.length,
       strategy: "sql",
       status: "ok",
     },
     message:
-      "找到了「響け！ユーフォニアム」的 156 个取景地，主要分布在宇治市和京都市区。",
+      `找到了「響け！ユーフォニアム」的 ${EUPHONIUM_POINTS.length} 个取景地，主要分布在宇治市和京都市区。`,
     status: "ok",
   },
   session: baseSession(1),
@@ -76,15 +76,15 @@ export const MOCK_NEARBY_RESPONSE: RuntimeResponse = {
   status: "ok",
   intent: "search_nearby",
   session_id: SESSION_ID,
-  message: "在宇治市 1km 范围内找到了 8 个动漫取景地。",
+  message: `在宇治市 1km 范围内找到了 ${NEARBY_POINTS.length} 个动漫取景地。`,
   data: {
     results: {
       rows: NEARBY_POINTS,
-      row_count: 8,
+      row_count: NEARBY_POINTS.length,
       strategy: "geo",
       status: "ok",
     },
-    message: "在宇治市 1km 范围内找到了 8 个动漫取景地。",
+    message: `在宇治市 1km 范围内找到了 ${NEARBY_POINTS.length} 个动漫取景地。`,
     status: "ok",
   },
   session: baseSession(1),
