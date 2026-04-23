@@ -1,0 +1,18 @@
+---
+engines:
+  eslint:
+    enabled: true
+  ruff:
+    enabled: true
+
+exclude_paths:
+  - "frontend/tests/__snapshots__/**"
+  - "frontend/lib/mock-data/**"
+  - "frontend/components/ui/**"
+  - "frontend/components/map/**"
+  - "frontend/public/**"
+  - "frontend/coverage/**"
+  - "frontend/out/**"
+  - "backend/tests/eval/**"
+  - "docs/**"
+  - "**/*.snap"
