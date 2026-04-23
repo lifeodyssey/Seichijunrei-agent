@@ -56,7 +56,7 @@ function pointArea(p: PilgrimagePoint): string | null {
 export function buildAreasI18n(points: PilgrimagePoint[], otherLabel: string): string[] {
   const areas = new Set<string>();
   for (const p of points) areas.add(pointArea(p) ?? otherLabel);
-  return Array.from(areas).sort();
+  return Array.from(areas).sort((a, b) => a.localeCompare(b));
 }
 
 export function pointAreaI18n(p: PilgrimagePoint, otherLabel: string): string {

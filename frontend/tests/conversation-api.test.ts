@@ -1,13 +1,19 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { it, expect, beforeAll } from "vitest";
 import type { RuntimeResponse } from "../lib/types";
 
+// Set env vars before any module that reads them is imported
 process.env.NEXT_PUBLIC_RUNTIME_URL = "https://runtime.example";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 
-const api = require("../lib/api") as typeof import("../lib/api");
-const { supabase } = require("../lib/supabase") as typeof import("../lib/supabase");
+let api: typeof import("../lib/api");
+let supabase: (typeof import("../lib/supabase"))["supabase"];
+
+beforeAll(async () => {
+  api = await import("../lib/api");
+  const supabaseModule = await import("../lib/supabase");
+  supabase = supabaseModule.supabase;
+});
 
 function setAccessToken(token: string | null) {
   Object.defineProperty(supabase.auth, "getSession", {
@@ -64,7 +70,7 @@ function buildRuntimeResponse(overrides: Partial<RuntimeResponse> = {}): Runtime
   };
 }
 
-test("fetchConversations returns an empty list when the user is unauthenticated", async () => {
+it("fetchConversations returns an empty list when the user is unauthenticated", async () => {
   setAccessToken(null);
   let fetchCalled = false;
   global.fetch = (async () => {
@@ -74,11 +80,11 @@ test("fetchConversations returns an empty list when the user is unauthenticated"
 
   const records = await api.fetchConversations();
 
-  assert.deepEqual(records, []);
-  assert.equal(fetchCalled, false);
+  expect(records).toEqual([]);
+  expect(fetchCalled).toBe(false);
 });
 
-test("fetchConversations sends an authorized GET request", async () => {
+it("fetchConversations sends an authorized GET request", async () => {
   setAccessToken("token-123");
   const payload = [
     {
@@ -100,16 +106,16 @@ test("fetchConversations sends an authorized GET request", async () => {
 
   const records = await api.fetchConversations();
 
-  assert.deepEqual(records, payload);
-  assert.equal(fetchArgs?.[0], "https://runtime.example/v1/conversations");
-  assert.deepEqual(fetchArgs?.[1], {
+  expect(records).toEqual(payload);
+  expect(fetchArgs?.[0]).toBe("https://runtime.example/v1/conversations");
+  expect(fetchArgs?.[1]).toEqual({
     headers: {
       Authorization: "Bearer token-123",
     },
   });
 });
 
-test("patchConversationTitle encodes the session id and sends the title", async () => {
+it("patchConversationTitle encodes the session id and sends the title", async () => {
   setAccessToken("token-123");
   let fetchArgs: Parameters<typeof fetch> | null = null;
   global.fetch = (async (...args: Parameters<typeof fetch>) => {
@@ -121,11 +127,10 @@ test("patchConversationTitle encodes the session id and sends the title", async 
 
   await api.patchConversationTitle("sess/1", "  宇治  ");
 
-  assert.equal(
-    fetchArgs?.[0],
+  expect(fetchArgs?.[0]).toBe(
     "https://runtime.example/v1/conversations/sess%2F1",
   );
-  assert.deepEqual(fetchArgs?.[1], {
+  expect(fetchArgs?.[1]).toEqual({
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -135,7 +140,7 @@ test("patchConversationTitle encodes the session id and sends the title", async 
   });
 });
 
-test("patchConversationTitle throws when the rename request fails", async () => {
+it("patchConversationTitle throws when the rename request fails", async () => {
   setAccessToken("token-123");
   global.fetch = (async () =>
     ({
@@ -143,13 +148,12 @@ test("patchConversationTitle throws when the rename request fails", async () => 
       status: 500,
     }) as Response) as typeof fetch;
 
-  await assert.rejects(
+  await expect(
     () => api.patchConversationTitle("sess-1", "宇治"),
-    /Rename failed \(500\)/,
-  );
+  ).rejects.toThrow(/Rename failed \(500\)/);
 });
 
-test("sendSelectedRoute posts selected ids, origin, locale, and auth", async () => {
+it("sendSelectedRoute posts selected ids, origin, locale, and auth", async () => {
   setAccessToken("token-123");
   const response = buildRuntimeResponse({
     intent: "plan_selected",
@@ -172,15 +176,15 @@ test("sendSelectedRoute posts selected ids, origin, locale, and auth", async () 
     "en",
   );
 
-  assert.deepEqual(result, response);
-  assert.equal(fetchArgs?.[0], "https://runtime.example/v1/runtime");
+  expect(result).toEqual(response);
+  expect(fetchArgs?.[0]).toBe("https://runtime.example/v1/runtime");
   const requestInit = fetchArgs?.[1] as RequestInit | undefined;
-  assert.equal(requestInit?.method, "POST");
-  assert.deepEqual(requestInit?.headers, {
+  expect(requestInit?.method).toBe("POST");
+  expect(requestInit?.headers).toEqual({
     "Content-Type": "application/json",
     Authorization: "Bearer token-123",
   });
-  assert.deepEqual(JSON.parse(String(requestInit?.body)), {
+  expect(JSON.parse(String(requestInit?.body))).toEqual({
     text: "Create a route with 2 selected stops from Uji Station.",
     session_id: "sess-selected",
     locale: "en",
@@ -189,7 +193,7 @@ test("sendSelectedRoute posts selected ids, origin, locale, and auth", async () 
   });
 });
 
-test("sendMessageStream parses SSE frames that use event lines", async () => {
+it("sendMessageStream parses SSE frames that use event lines", async () => {
   setAccessToken("token-123");
   const response = buildRuntimeResponse({
     session_id: "sess-event-lines",
@@ -216,14 +220,14 @@ test("sendMessageStream parses SSE frames that use event lines", async () => {
     },
   );
 
-  assert.deepEqual(seenSteps, [
+  expect(seenSteps).toEqual([
     { tool: "resolve_points", status: "running" },
     { tool: "resolve_points", status: "done" },
   ]);
-  assert.deepEqual(result, response);
+  expect(result).toEqual(response);
 });
 
-test("sendMessageStream keeps supporting legacy JSON event payloads", async () => {
+it("sendMessageStream keeps supporting legacy JSON event payloads", async () => {
   setAccessToken("token-123");
   const response = buildRuntimeResponse({
     session_id: "sess-legacy-json",
@@ -249,8 +253,8 @@ test("sendMessageStream keeps supporting legacy JSON event payloads", async () =
     },
   );
 
-  assert.deepEqual(seenSteps, [
+  expect(seenSteps).toEqual([
     { tool: "search_bangumi", status: "running" },
   ]);
-  assert.deepEqual(result, response);
+  expect(result).toEqual(response);
 });

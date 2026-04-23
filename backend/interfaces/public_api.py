@@ -416,8 +416,7 @@ class RuntimeAPI:
 
         try:
             result = await self._db.user_memory.get_user_memory(user_id)
-            # Return widened to dict[str, object] for callers expecting the broader type
-            return result  # type: ignore[return-value]
+            return dict(result) if result else None
         except Exception:
             logger.warning("get_user_memory_failed", user_id=user_id)
             return None

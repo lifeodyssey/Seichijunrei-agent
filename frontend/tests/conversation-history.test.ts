@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { it, expect } from "vitest";
 import type { ConversationRecord } from "../lib/types";
 import {
   getConversationDisplayTitle,
@@ -16,17 +15,16 @@ const EXISTING_RECORD: ConversationRecord = {
   updated_at: "2026-04-01T12:00:00.000Z",
 };
 
-test("getConversationDisplayTitle falls back to the first query", () => {
-  assert.equal(
+it("getConversationDisplayTitle falls back to the first query", () => {
+  expect(
     getConversationDisplayTitle({
       ...EXISTING_RECORD,
       title: null,
     }),
-    EXISTING_RECORD.first_query,
-  );
+  ).toBe(EXISTING_RECORD.first_query);
 });
 
-test("upsertConversationRecord inserts a new conversation at the top", () => {
+it("upsertConversationRecord inserts a new conversation at the top", () => {
   const nextRecords = upsertConversationRecord(
     [EXISTING_RECORD],
     "sess-new",
@@ -34,13 +32,13 @@ test("upsertConversationRecord inserts a new conversation at the top", () => {
     "2026-04-02T08:00:00.000Z",
   );
 
-  assert.equal(nextRecords[0]?.session_id, "sess-new");
-  assert.equal(nextRecords[0]?.first_query, "京都駅から回りたい");
-  assert.equal(nextRecords[0]?.title, null);
-  assert.equal(nextRecords[1]?.session_id, "sess-existing");
+  expect(nextRecords[0]?.session_id).toBe("sess-new");
+  expect(nextRecords[0]?.first_query).toBe("京都駅から回りたい");
+  expect(nextRecords[0]?.title).toBe(null);
+  expect(nextRecords[1]?.session_id).toBe("sess-existing");
 });
 
-test("upsertConversationRecord refreshes an existing conversation without overwriting its title", () => {
+it("upsertConversationRecord refreshes an existing conversation without overwriting its title", () => {
   const nextRecords = upsertConversationRecord(
     [EXISTING_RECORD],
     "sess-existing",
@@ -48,7 +46,7 @@ test("upsertConversationRecord refreshes an existing conversation without overwr
     "2026-04-02T09:30:00.000Z",
   );
 
-  assert.deepEqual(nextRecords, [
+  expect(nextRecords).toEqual([
     {
       ...EXISTING_RECORD,
       updated_at: "2026-04-02T09:30:00.000Z",
@@ -56,7 +54,7 @@ test("upsertConversationRecord refreshes an existing conversation without overwr
   ]);
 });
 
-test("renameConversationRecord updates the title and bumps recency", () => {
+it("renameConversationRecord updates the title and bumps recency", () => {
   const olderRecord: ConversationRecord = {
     session_id: "sess-older",
     title: "旧タイトル",
@@ -72,12 +70,12 @@ test("renameConversationRecord updates the title and bumps recency", () => {
     "2026-04-03T00:00:00.000Z",
   );
 
-  assert.equal(nextRecords[0]?.session_id, "sess-older");
-  assert.equal(nextRecords[0]?.title, "新タイトル");
-  assert.equal(nextRecords[0]?.updated_at, "2026-04-03T00:00:00.000Z");
+  expect(nextRecords[0]?.session_id).toBe("sess-older");
+  expect(nextRecords[0]?.title).toBe("新タイトル");
+  expect(nextRecords[0]?.updated_at).toBe("2026-04-03T00:00:00.000Z");
 });
 
-test("mergeConversationLists keeps optimistic local rows while preferring fetched duplicates", () => {
+it("mergeConversationLists keeps optimistic local rows while preferring fetched duplicates", () => {
   const fetched: ConversationRecord[] = [
     {
       ...EXISTING_RECORD,
@@ -98,7 +96,7 @@ test("mergeConversationLists keeps optimistic local rows while preferring fetche
 
   const merged = mergeConversationLists(optimistic, fetched);
 
-  assert.equal(merged.length, 2);
-  assert.deepEqual(merged[0], fetched[0]);
-  assert.equal(merged[1]?.session_id, "sess-local");
+  expect(merged.length).toBe(2);
+  expect(merged[0]).toEqual(fetched[0]);
+  expect(merged[1]?.session_id).toBe("sess-local");
 });
