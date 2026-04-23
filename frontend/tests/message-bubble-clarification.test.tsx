@@ -66,7 +66,7 @@ function makeBotMessage(response: RuntimeResponse): ChatMessage {
 describe("MessageBubble needs_clarification rendering", () => {
   it("renders Clarification inline for needs_clarification status", () => {
     const message = makeBotMessage(makeClarifyResponse([CANDIDATE_WITH_COVER]));
-    render(<MessageBubble message={message} onSuggest={vi.fn()} />);
+    render(<MessageBubble message={message} />);
     expect(screen.getByText(/どちらの作品ですか/)).toBeInTheDocument();
   });
 
@@ -74,14 +74,14 @@ describe("MessageBubble needs_clarification rendering", () => {
     const message = makeBotMessage(
       makeClarifyResponse([CANDIDATE_WITH_COVER, CANDIDATE_NO_COVER]),
     );
-    render(<MessageBubble message={message} onSuggest={vi.fn()} />);
+    render(<MessageBubble message={message} />);
     expect(screen.getByRole("button", { name: /涼宮ハルヒの憂鬱/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /涼宮ハルヒの消失/ })).toBeInTheDocument();
   });
 
   it("does NOT render the result anchor for needs_clarification responses", () => {
     const message = makeBotMessage(makeClarifyResponse([CANDIDATE_WITH_COVER]));
-    render(<MessageBubble message={message} onSuggest={vi.fn()} />);
+    render(<MessageBubble message={message} />);
     const anchorBtn = screen.queryByRole("button", { name: /件の結果|results/ });
     expect(anchorBtn).toBeNull();
   });

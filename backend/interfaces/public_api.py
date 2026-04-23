@@ -229,6 +229,7 @@ class RuntimeAPI:
             record_exc = getattr(span, "record_exception", None)
             if callable(record_exc):
                 record_exc(exc)
+            logger.error("pipeline_unhandled_exception", exc_info=exc)
             return (
                 None,
                 PublicAPIResponse(
@@ -239,7 +240,7 @@ class RuntimeAPI:
                     errors=[
                         PublicAPIError(
                             code=ErrorCode.INTERNAL_ERROR.value,
-                            message=str(exc),
+                            message="An internal error occurred. Please try again.",
                         )
                     ],
                 ),
@@ -415,8 +416,7 @@ class RuntimeAPI:
 
         try:
             result = await self._db.user_memory.get_user_memory(user_id)
-            # Return widened to dict[str, object] for callers expecting the broader type
-            return result  # type: ignore[return-value]
+            return dict(result) if result else None
         except Exception:
             logger.warning("get_user_memory_failed", user_id=user_id)
             return None

@@ -10,11 +10,20 @@ export default defineConfig({
 
     exclude: [
       "**/node_modules/**",
-      "**/tests/conversation-api.test.ts",
-      "**/tests/conversation-history.test.ts",
-      "**/tests/supabase-config.test.ts",
-      "**/tests/type-guards.test.ts",
     ],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      include: ["components/**", "hooks/**", "lib/**", "contexts/**"],
+      exclude: ["**/node_modules/**", "lib/mock-data/**"],
+      // Floors based on current coverage — only ratchet UP, never lower
+      thresholds: {
+        lines: 71,
+        statements: 68,
+        functions: 61,
+        branches: 58,
+      },
+    },
   },
   resolve: {
     alias: {

@@ -218,7 +218,8 @@
     "undo": "元に戻す",
     "summary": "{count} か所の聖地が待っています",
     "estimate": "徒歩 {distance}km、約 {time} 分",
-    "start": "ルート計画を開始"
+    "start": "ルート計画を開始",
+    "remove_label": "削除"
   },
   "chat_popup": {
     "continue": "会話を続ける…",
@@ -231,6 +232,27 @@
     "view_all": "全 {total} 聖地を表示",
     "search_anime_nearby": "{title} の近くの聖地を検索",
     "show_all_nearby": "近くの全聖地を表示"
+  },
+  "toolbar": {
+    "tab_episode": "集数別",
+    "tab_area": "地域別",
+    "grid": "グリッド",
+    "map": "マップ",
+    "all": "すべて"
+  },
+  "drawer": {
+    "title": "履歴",
+    "new_chat": "+ 新しいチャット",
+    "recent": "最近",
+    "empty": "まだ会話がありません",
+    "close": "閉じる"
+  },
+  "result_panel": {
+    "map_loading": "地図を読み込み中…",
+    "selected": "選択中 {count} 件",
+    "plan_route": "ルートを計画",
+    "clear": "クリア",
+    "other_area": "その他"
   },
   "clarification": {
     "examples_label": "例えば：",

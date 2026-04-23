@@ -12,7 +12,6 @@ interface ResultSheetProps {
   response: RuntimeResponse | null;
   open: boolean;
   onClose: () => void;
-  onSuggest?: (text: string) => void;
   onRouteSelected?: (origin: string) => void;
   defaultOrigin?: string;
   loading?: boolean;

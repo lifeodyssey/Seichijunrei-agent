@@ -5,14 +5,19 @@
  * - Renders a numbered stop entry for each stop in the itinerary -> unit
  * - Shows arrival time and dwell duration per stop -> unit
  * - Renders a transit leg connector between consecutive stops -> unit
- * - Renders summary stats (spot_count, total_minutes, total_distance_m) -> unit
+ * - Renders per-stop photo count using locale dict -> unit
  * - No transit connector shown after the last stop -> unit
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import RouteTimeline from "@/components/generative/RouteTimeline";
 import type { TimedItinerary, TimedStop, TransitLeg } from "@/lib/types";
+import jaDict from "@/lib/dictionaries/ja.json";
+
+vi.mock("@/lib/i18n-context", () => ({
+  useDict: () => jaDict,
+}));
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -73,11 +78,10 @@ describe("RouteTimeline", () => {
       expect(screen.getByText("平等院")).toBeInTheDocument();
     });
 
-    it("shows sequential stop numbers", () => {
+    it("shows both stops in order", () => {
       render(<RouteTimeline itinerary={makeItinerary()} />);
-      // Both "1" and "2" appear as numbered badges.
-      expect(screen.getAllByText("1").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("2").length).toBeGreaterThan(0);
+      const names = screen.getAllByText(/宇治駅|平等院/);
+      expect(names.map((n) => n.textContent)).toEqual(["宇治駅", "平等院"]);
     });
 
     it("shows arrival time for each stop", () => {
@@ -92,7 +96,7 @@ describe("RouteTimeline", () => {
         legs: [],
       });
       render(<RouteTimeline itinerary={itinerary} />);
-      expect(screen.getByText(/30min/)).toBeInTheDocument();
+      expect(screen.getByText(/30 分/)).toBeInTheDocument();
     });
 
     it("shows photo count for each stop", () => {
@@ -101,14 +105,15 @@ describe("RouteTimeline", () => {
         legs: [],
       });
       render(<RouteTimeline itinerary={itinerary} />);
-      expect(screen.getByText(/7 scenes/)).toBeInTheDocument();
+      // ja dict: "{count} 聖地"
+      expect(screen.getByText(/7 聖地/)).toBeInTheDocument();
     });
   });
 
   describe("transit leg rendering", () => {
     it("renders a transit leg connector between two consecutive stops", () => {
       render(<RouteTimeline itinerary={makeItinerary()} />);
-      expect(screen.getByText(/10min/)).toBeInTheDocument();
+      expect(screen.getByText(/10 分/)).toBeInTheDocument();
     });
 
     it("does not render a transit connector after the last stop", () => {
@@ -122,22 +127,13 @@ describe("RouteTimeline", () => {
     });
   });
 
-  describe("summary section", () => {
-    it("shows total spot count", () => {
+  describe("per-stop photo count", () => {
+    it("shows photo count in each stop using ja dict", () => {
+      // Default fixture has photo_count: 3 for each stop
       render(<RouteTimeline itinerary={makeItinerary()} />);
-      // spot_count is 2 — appears in summary dl
-      const cells = screen.getAllByText("2");
-      expect(cells.length).toBeGreaterThan(0);
-    });
-
-    it("shows total duration in minutes", () => {
-      render(<RouteTimeline itinerary={makeItinerary()} />);
-      expect(screen.getByText("120min")).toBeInTheDocument();
-    });
-
-    it("shows total distance formatted as km", () => {
-      render(<RouteTimeline itinerary={makeItinerary()} />);
-      expect(screen.getByText("1.4 km")).toBeInTheDocument();
+      // ja dict: "{count} 聖地" → "3 聖地"
+      const badges = screen.getAllByText(/3 聖地/);
+      expect(badges.length).toBeGreaterThan(0);
     });
   });
 });

@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import type { TimedItinerary, TimedStop, TransitLeg } from "../../lib/types";
@@ -47,14 +46,6 @@ export default function RouteTimeline({
 
   return (
     <div className="flex flex-col">
-      {/* Pulse animation for active dot (single-fire) */}
-      <style>{`
-        @keyframes dot-pulse {
-          0% { box-shadow: 0 0 0 0 oklch(58% 0.19 28 / 0.35); }
-          70% { box-shadow: 0 0 0 8px oklch(58% 0.19 28 / 0); }
-          100% { box-shadow: 0 0 0 8px oklch(58% 0.19 28 / 0); }
-        }
-      `}</style>
 
       {stops.map((stop, idx) => {
         const nextStop = idx < stops.length - 1 ? stops[idx + 1] : null;

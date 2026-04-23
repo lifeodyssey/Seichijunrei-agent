@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 /**
@@ -18,6 +17,23 @@ import type { PilgrimagePoint } from "../../lib/types";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+interface Bounds { minLat: number; maxLat: number; minLng: number; maxLng: number }
+
+function computeBounds(points: PilgrimagePoint[]): Bounds {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const p of points) {
+    if (p.latitude < minLat) minLat = p.latitude;
+    if (p.latitude > maxLat) maxLat = p.latitude;
+    if (p.longitude < minLng) minLng = p.longitude;
+    if (p.longitude > maxLng) maxLng = p.longitude;
+  }
+  return { minLat, maxLat, minLng, maxLng };
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -74,13 +90,7 @@ export default function BaseMap({
       return { latitude: validPoints[0].latitude, longitude: validPoints[0].longitude, zoom: 14 };
     }
     // Calculate bounds center and approximate zoom
-    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-    for (const p of validPoints) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
+    const { minLat, maxLat, minLng, maxLng } = computeBounds(validPoints);
     const latSpan = maxLat - minLat;
     const lngSpan = maxLng - minLng;
     const span = Math.max(latSpan, lngSpan);
@@ -113,13 +123,7 @@ export default function BaseMap({
     (evt: { target: MapRef["getMap"] extends () => infer R ? R : never }) => {
       // Fit bounds on load
       if (validPoints.length > 1) {
-        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-        for (const p of validPoints) {
-          if (p.latitude < minLat) minLat = p.latitude;
-          if (p.latitude > maxLat) maxLat = p.latitude;
-          if (p.longitude < minLng) minLng = p.longitude;
-          if (p.longitude > maxLng) maxLng = p.longitude;
-        }
+        const { minLat, maxLat, minLng, maxLng } = computeBounds(validPoints);
         evt.target.fitBounds(
           [[minLng, minLat], [maxLng, maxLat]],
           { padding: 50, duration: 0 },

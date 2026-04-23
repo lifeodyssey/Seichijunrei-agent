@@ -35,25 +35,29 @@ class RoutesRepository:
                 return o.isoformat()
             raise TypeError(f"Not serializable: {type(o).__name__}")
 
-        origin_location = (
-            f"POINT({origin_lon} {origin_lat})" if origin_lat and origin_lon else None
-        )
+        route_json = json.dumps(route_data, default=_default)
         row = _require_row(
             await self._pool.fetchrow(
                 """
-                INSERT INTO routes (session_id, bangumi_id, origin_station, origin_location,
-                                    point_ids, total_distance, total_duration, route_data)
-                VALUES ($1, $2, $3, ST_GeogFromText($4), $5, $6, $7, $8::jsonb)
+                INSERT INTO routes (session_id, bangumi_id, origin_station,
+                                    origin_location, point_ids,
+                                    total_distance, total_duration, route_data)
+                VALUES ($1, $2, $3,
+                        CASE WHEN $4 IS NOT NULL
+                             THEN ST_MakePoint($4, $5)::geography
+                             ELSE NULL END,
+                        $6, $7, $8, $9::jsonb)
                 RETURNING id
                 """,
                 session_id,
                 bangumi_id,
                 origin_station,
-                origin_location,
+                origin_lon,
+                origin_lat,
                 point_ids,
                 total_distance,
                 total_duration,
-                json.dumps(route_data, default=_default),
+                route_json,
             ),
             operation="save_route",
         )

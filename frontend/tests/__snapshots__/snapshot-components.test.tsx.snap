@@ -1,0 +1,866 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Snapshot: ApiKeysPage > renders settings page 1`] = `
+<div>
+  <div
+    class="mx-auto max-w-2xl px-4 py-8"
+  >
+    <h1
+      class="mb-2 text-xl font-semibold text-[var(--color-fg)]"
+    >
+      API Keys
+    </h1>
+    <p
+      class="mb-6 text-sm text-[var(--color-muted-fg)]"
+    >
+      Use API keys to call the runtime from CLI tools, scripts, or AI agents. The key is shown once — save it immediately.
+    </p>
+    <form
+      class="mb-8 flex gap-2"
+    >
+      <input
+        class="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-muted-fg)] focus:border-[var(--color-primary)] focus:outline-none"
+        placeholder="Key name (e.g. My CLI Agent)"
+        value=""
+      />
+      <button
+        class="rounded-[var(--r-lg)] bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-fg)] disabled:opacity-50"
+        disabled=""
+        type="submit"
+      >
+        Create key
+      </button>
+    </form>
+    <p
+      class="text-sm text-[var(--color-muted-fg)]"
+    >
+      No API keys yet.
+    </p>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: ChatHeader > renders without crashing 1`] = `
+<div>
+  <header
+    class="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-5"
+  >
+    <div
+      class="flex items-center gap-2"
+    >
+      <h1
+        class="font-[family-name:var(--app-font-display)] text-sm font-semibold text-[var(--color-fg)]"
+      >
+        聖地巡礼
+      </h1>
+    </div>
+    <button
+      class="rounded-md px-3 py-1.5 text-xs font-light text-[var(--color-primary)] transition hover:bg-[var(--color-muted)]"
+      style="transition-duration: var(--duration-fast);"
+      type="button"
+    >
+      + 新しい会話
+    </button>
+  </header>
+</div>
+`;
+
+exports[`Snapshot: ChatPopup > renders when open 1`] = `
+<div>
+  <div
+    class="fixed z-50 flex flex-col overflow-hidden border border-[var(--color-border)] bg-[var(--color-bg)]"
+    style="bottom: 72px; right: 24px; width: 340px; height: 420px; border-radius: var(--r-lg); box-shadow: 0 8px 32px oklch(20% 0.02 238 / 0.18); animation: popup-enter 0.2s var(--ease-out-expo);"
+  >
+    <div
+      class="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] px-4 py-2.5"
+      style="cursor: grab; touch-action: none;"
+    >
+      <div
+        class="flex items-center gap-2"
+      >
+        <svg
+          aria-hidden="true"
+          class="text-[var(--color-muted-fg)]"
+          fill="none"
+          height="14"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="1.8"
+          viewBox="0 0 24 24"
+          width="14"
+        >
+          <path
+            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          />
+        </svg>
+        <h3
+          class="select-none text-sm font-semibold text-[var(--color-fg)]"
+          style="font-family: var(--app-font-display);"
+        >
+          チャット
+        </h3>
+      </div>
+      <div
+        class="flex items-center gap-1"
+      >
+        <div
+          aria-hidden="true"
+          class="flex flex-col gap-0.5 px-2 opacity-30"
+        >
+          <div
+            class="flex gap-0.5"
+          >
+            <span
+              class="block h-1 w-1 rounded-full bg-current"
+            />
+            <span
+              class="block h-1 w-1 rounded-full bg-current"
+            />
+          </div>
+          <div
+            class="flex gap-0.5"
+          >
+            <span
+              class="block h-1 w-1 rounded-full bg-current"
+            />
+            <span
+              class="block h-1 w-1 rounded-full bg-current"
+            />
+          </div>
+        </div>
+        <button
+          aria-label="チャットを閉じる"
+          class="flex h-9 w-9 items-center justify-center rounded-[var(--r-sm)] text-[var(--color-muted-fg)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            fill="none"
+            height="14"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="14"
+          >
+            <line
+              x1="18"
+              x2="6"
+              y1="6"
+              y2="18"
+            />
+            <line
+              x1="6"
+              x2="18"
+              y1="6"
+              y2="18"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex min-h-0 flex-1 flex-col"
+    >
+      <div
+        class="flex flex-1 items-center justify-center px-6 py-8"
+      >
+        <div
+          class="w-full max-w-md rounded-[28px] border border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-card)_88%,white)] p-6 shadow-[0_24px_80px_oklch(20%_0.025_238_/_0.06)]"
+          style="animation: slide-up-fade 400ms var(--ease-out-quint) both;"
+        >
+          <div
+            class="space-y-3"
+          >
+            <p
+              class="font-[family-name:var(--app-font-display)] text-3xl text-[var(--color-fg)]"
+            >
+              聖地巡礼
+            </p>
+            <p
+              class="text-sm font-light leading-7 text-[var(--color-fg)]"
+            >
+              作品から聖地を探したり、場所ごとに近くのスポットを見たり、巡礼ルートをまとめて計画できます。
+            </p>
+          </div>
+          <div
+            class="mt-5 flex flex-col gap-2.5"
+          >
+            <button
+              class="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-left text-sm font-light text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+              style="transition-duration: var(--duration-fast); animation: slide-up-fade 350ms var(--ease-out-quint) 100ms both;"
+              type="button"
+            >
+              <span>
+                作品名で探す
+              </span>
+              <span
+                aria-hidden="true"
+              >
+                →
+              </span>
+            </button>
+            <button
+              class="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-left text-sm font-light text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+              style="transition-duration: var(--duration-fast); animation: slide-up-fade 350ms var(--ease-out-quint) 160ms both;"
+              type="button"
+            >
+              <span>
+                場所で探す
+              </span>
+              <span
+                aria-hidden="true"
+              >
+                →
+              </span>
+            </button>
+            <button
+              class="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-left text-sm font-light text-[var(--color-fg)] transition-colors hover:border-[var(--color-primary)]/50 hover:text-[var(--color-primary)]"
+              style="transition-duration: var(--duration-fast); animation: slide-up-fade 350ms var(--ease-out-quint) 220ms both;"
+              type="button"
+            >
+              <span>
+                ルートを作る
+              </span>
+              <span
+                aria-hidden="true"
+              >
+                →
+              </span>
+            </button>
+          </div>
+          <p
+            class="mt-5 text-xs font-light leading-6 text-[var(--color-muted-fg)]"
+            style="animation: slide-up-fade 350ms var(--ease-out-quint) 320ms both;"
+          >
+            まずは挨拶して、何ができるか聞いてみても大丈夫です。
+          </p>
+        </div>
+      </div>
+    </div>
+    <div
+      class="px-4 pb-4 pt-2"
+    >
+      <div
+        class="mx-auto flex w-full max-w-[520px] items-end gap-2 rounded-[var(--r-lg)] border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2.5 transition-colors focus-within:border-[var(--color-primary)]"
+        style="transition-duration: var(--duration-fast);"
+      >
+        <textarea
+          aria-label="会話を続ける…"
+          class="flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none focus:outline-none focus-visible:outline-none placeholder:text-[var(--color-muted-fg)] disabled:opacity-50"
+          placeholder="会話を続ける…"
+          rows="1"
+          style="min-height: 24px; max-height: 120px; height: 0px; overflow-y: hidden;"
+        />
+        <button
+          aria-label="送信"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-md)] transition-all duration-150"
+          disabled=""
+          style="opacity: 0.3; background: var(--color-muted); color: var(--color-muted-fg);"
+        >
+          <svg
+            aria-hidden="true"
+            fill="none"
+            height="16"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="16"
+          >
+            <polygon
+              points="22 2 15 22 11 13 2 9 22 2"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: FullscreenOverlay > renders when open 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-50 bg-[var(--color-bg)] animate-in fade-in duration-200"
+  >
+    <button
+      aria-label="Close"
+      class="absolute top-4 right-4 z-10 rounded-full bg-[var(--color-bg)]/80 backdrop-blur p-2 shadow-md hover:bg-[var(--color-bg)] transition"
+      style="transition-duration: var(--duration-fast);"
+    >
+      <svg
+        fill="none"
+        height="16"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-width="2"
+        viewBox="0 0 16 16"
+        width="16"
+      >
+        <path
+          d="M4 4l8 8M12 4l-8 8"
+        />
+      </svg>
+    </button>
+    <p>
+      Overlay content
+    </p>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: IconSidebar > renders with nav buttons 1`] = `
+<div>
+  <aside
+    class="flex w-[60px] min-w-[60px] flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg)] py-3"
+    data-testid="icon-sidebar"
+  >
+    <button
+      aria-label="聖地巡礼 home"
+      class="group relative mb-3 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-[var(--r-lg)] border-none bg-[var(--color-brand-soft)] transition-transform duration-150 hover:scale-105"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="28"
+        viewBox="0 0 72 72"
+        width="28"
+      >
+        <rect
+          fill="var(--color-brand)"
+          height="5"
+          rx="2.5"
+          width="48"
+          x="12"
+          y="16"
+        />
+        <rect
+          fill="var(--color-brand)"
+          height="3"
+          rx="1.5"
+          width="56"
+          x="8"
+          y="14"
+        />
+        <rect
+          fill="var(--color-brand)"
+          height="35"
+          rx="1"
+          width="5"
+          x="16"
+          y="21"
+        />
+        <rect
+          fill="var(--color-brand)"
+          height="35"
+          rx="1"
+          width="5"
+          x="51"
+          y="21"
+        />
+        <rect
+          fill="var(--color-brand)"
+          height="3"
+          opacity=".5"
+          rx="1.5"
+          width="48"
+          x="12"
+          y="30"
+        />
+        <rect
+          fill="var(--color-muted-fg)"
+          height="1.5"
+          rx=".75"
+          width="7"
+          x="2"
+          y="2"
+        />
+        <rect
+          fill="var(--color-muted-fg)"
+          height="7"
+          rx=".75"
+          width="1.5"
+          x="2"
+          y="2"
+        />
+        <rect
+          fill="var(--color-muted-fg)"
+          height="1.5"
+          rx=".75"
+          width="7"
+          x="63"
+          y="2"
+        />
+        <rect
+          fill="var(--color-muted-fg)"
+          height="7"
+          rx=".75"
+          width="1.5"
+          x="68.5"
+          y="2"
+        />
+      </svg>
+    </button>
+    <button
+      aria-label="新对话"
+      class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] border-none cursor-pointer transition-colors duration-150 bg-transparent text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)]"
+      data-active="false"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="18"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
+        width="18"
+      >
+        <path
+          d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+        />
+        <path
+          d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+        />
+      </svg>
+      <span
+        class="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-sm)] bg-[var(--color-fg)] px-2.5 py-1 text-xs font-medium text-[var(--color-bg)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20"
+      >
+        新对话
+      </span>
+    </button>
+    <button
+      aria-label="历史"
+      class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] border-none cursor-pointer transition-colors duration-150 bg-transparent text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)]"
+      data-active="false"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="18"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
+        width="18"
+      >
+        <polyline
+          points="12 8 12 12 14 14"
+        />
+        <path
+          d="M3.05 11a9 9 0 1 0 .5-4.5"
+        />
+        <polyline
+          points="3 3 3 9 9 9"
+        />
+      </svg>
+      <span
+        class="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-sm)] bg-[var(--color-fg)] px-2.5 py-1 text-xs font-medium text-[var(--color-bg)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20"
+      >
+        历史
+      </span>
+    </button>
+    <button
+      aria-label="收藏"
+      class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] border-none cursor-pointer transition-colors duration-150 bg-transparent text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)]"
+      data-active="false"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="18"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
+        width="18"
+      >
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"
+        />
+      </svg>
+      <span
+        class="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-sm)] bg-[var(--color-fg)] px-2.5 py-1 text-xs font-medium text-[var(--color-bg)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20"
+      >
+        收藏
+      </span>
+    </button>
+    <div
+      aria-hidden="true"
+      class="flex-1"
+    />
+    <button
+      aria-label="设置"
+      class="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--r-md)] border-none cursor-pointer transition-colors duration-150 bg-transparent text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)]"
+      data-active="false"
+      type="button"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="18"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
+        width="18"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="3"
+        />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </svg>
+      <span
+        class="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-[var(--r-sm)] bg-[var(--color-fg)] px-2.5 py-1 text-xs font-medium text-[var(--color-bg)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-20"
+      >
+        设置
+      </span>
+    </button>
+  </aside>
+</div>
+`;
+
+exports[`Snapshot: MessageList > renders a list of messages 1`] = `
+<div>
+  <div
+    class="flex-1 overflow-y-auto py-6"
+  >
+    <div
+      class="mx-auto w-full max-w-2xl space-y-5 px-5"
+    >
+      <div
+        style="animation: slide-up-fade 300ms var(--ease-out-quint) 0ms both;"
+      >
+        <div
+          class="flex justify-end"
+          style="animation: slide-up-fade 300ms var(--ease-out-quint) both;"
+        >
+          <div
+            class="max-w-[70%] rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-normal text-[var(--color-primary-fg)]"
+          >
+            テスト
+          </div>
+        </div>
+      </div>
+      <div
+        style="animation: slide-up-fade 300ms var(--ease-out-quint) 40ms both;"
+      >
+        <div
+          class="group flex flex-col gap-2.5"
+          style="animation: slide-up-fade 300ms var(--ease-out-quint) both;"
+        >
+          <p
+            class="text-[8px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)] opacity-40"
+          >
+            聖地巡礼
+          </p>
+          <p
+            class="text-sm font-light leading-loose text-[var(--color-fg)]"
+          >
+            回答
+          </p>
+        </div>
+      </div>
+      <div />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: ResultPanelEmptyState > renders empty state 1`] = `
+<div>
+  <div
+    class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+  >
+    <div
+      class="pointer-events-none absolute inset-0"
+      style="background: radial-gradient(80% 70% at 50% 50%, oklch(0.93 0.025 240 / 0.15), transparent 70%);"
+    />
+    <div
+      class="relative flex flex-col items-center gap-4 text-center"
+    >
+      <div
+        class="flex h-16 w-16 items-center justify-center rounded-2xl"
+        style="background: oklch(0.9 0.04 240 / 0.3);"
+      >
+        <span
+          class="text-2xl"
+        >
+          🗾
+        </span>
+      </div>
+      <p
+        class="font-[family-name:var(--app-font-display)] text-lg font-semibold text-[var(--color-fg)]"
+        style="opacity: 0.7;"
+      >
+        聖地を探してみよう
+      </p>
+      <p
+        class="max-w-[240px] text-xs font-light leading-relaxed text-[var(--color-muted-fg)]"
+      >
+        アニメのタイトルを入力すると、聖地巡礼スポットがここに表示されます
+      </p>
+      <div
+        class="mt-2 flex gap-1.5"
+      >
+        <div
+          class="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
+          style="opacity: 0.4; animation: pulse 1.5s ease-in-out 0s infinite;"
+        />
+        <div
+          class="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
+          style="opacity: 0.4; animation: pulse 1.5s ease-in-out 0.3s infinite;"
+        />
+        <div
+          class="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]"
+          style="opacity: 0.4; animation: pulse 1.5s ease-in-out 0.6s infinite;"
+        />
+      </div>
+    </div>
+    <style>
+      
+        @keyframes pulse {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.3); }
+        }
+      
+    </style>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: ResultPanelToolbar > renders toolbar with tabs and chips 1`] = `
+<div>
+  <div
+    class="flex shrink-0 flex-col border-b border-[var(--color-border)] bg-[var(--color-bg)]"
+  >
+    <div
+      class="flex items-center gap-0 px-4 pt-1"
+    >
+      <button
+        class="min-h-[44px] px-3 py-2.5 text-[12px] font-medium transition-colors text-[var(--color-fg)] border-b-2 border-[var(--color-primary)]"
+        type="button"
+      >
+        集数別
+      </button>
+      <button
+        class="min-h-[44px] px-3 py-2.5 text-[12px] font-medium transition-colors text-[var(--color-muted-fg)] border-b-2 border-transparent"
+        type="button"
+      >
+        地域別
+      </button>
+      <div
+        class="flex-1"
+      />
+      <div
+        class="flex shrink-0 gap-0.5 rounded-[var(--r-lg)] bg-[var(--color-card)] p-0.5"
+      >
+        <button
+          class="flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] px-3.5 py-2.5 text-[12px] font-medium transition-all duration-150 bg-[var(--color-bg)] text-[var(--color-fg)] shadow-[0_1px_3px_oklch(0%_0_0_/_0.08)]"
+          type="button"
+        >
+          <span>
+            📷
+          </span>
+          グリッド
+        </button>
+        <button
+          class="flex min-h-[44px] items-center gap-1.5 rounded-[var(--r-md)] px-3.5 py-2.5 text-[12px] font-medium transition-all duration-150 bg-transparent text-[var(--color-muted-fg)]"
+          type="button"
+        >
+          <span>
+            🗺
+          </span>
+          マップ
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex items-center gap-1.5 overflow-x-auto px-4 py-1.5"
+    >
+      <button
+        class="shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150 bg-[var(--color-primary)] text-[var(--color-bg)] border-[var(--color-primary)]"
+        type="button"
+      >
+        すべて
+      </button>
+      <button
+        class="shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150 bg-[var(--color-bg)] text-[var(--color-muted-fg)] border-[var(--color-border)]"
+        type="button"
+      >
+        EP 1-4
+      </button>
+      <button
+        class="shrink-0 rounded-[18px] border px-3 py-1 text-[11px] font-medium transition-all duration-150 bg-[var(--color-bg)] text-[var(--color-muted-fg)] border-[var(--color-border)]"
+        type="button"
+      >
+        EP 5-8
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: RouteVisualization > renders with route data 1`] = `
+<div>
+  <div
+    class="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)]"
+  >
+    <div
+      class="relative h-[60%] shrink-0"
+    >
+      <div
+        data-testid="dynamic-stub"
+      />
+    </div>
+    <div
+      class="flex min-h-0 flex-1 flex-col border-t border-[var(--color-border)] bg-[var(--color-bg)]"
+    >
+      <div
+        class="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2"
+      >
+        <div>
+          <p
+            class="text-xs text-[var(--color-muted-fg)]"
+          >
+            1スポット
+          </p>
+        </div>
+        <button
+          class="group/button inline-flex shrink-0 items-center justify-center border bg-clip-padding font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3"
+          data-slot="button"
+          tabindex="0"
+          type="button"
+        >
+          Google Maps で開く
+        </button>
+      </div>
+      <div
+        class="relative min-h-0 flex-1"
+        data-slot="scroll-area"
+        role="presentation"
+        style="position: relative; --scroll-area-corner-height: 0px; --scroll-area-corner-width: 0px;"
+      >
+        <div
+          class="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 base-ui-disable-scrollbar"
+          data-id="base-ui-_r_0_-viewport"
+          data-slot="scroll-area-viewport"
+          role="presentation"
+          style="overflow: scroll;"
+          tabindex="-1"
+        >
+          <div
+            class="divide-y divide-[var(--color-border)]"
+          >
+            <div
+              class="flex items-center gap-2.5 px-3 py-2.5"
+            >
+              <div
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+              >
+                1
+              </div>
+              <div
+                class="min-w-0"
+              >
+                <p
+                  class="truncate text-xs font-medium text-[var(--color-fg)]"
+                >
+                  宇治站
+                </p>
+                <p
+                  class="text-[10px] text-[var(--color-muted-fg)]"
+                >
+                  第1話
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: SlideOverPanel > renders when open 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
+  />
+  <div
+    class="fixed top-0 right-0 z-50 h-full w-[520px] max-w-[90vw] bg-[var(--color-bg)]
+          shadow-xl border-l border-[var(--color-border)]
+          transition-transform duration-200 ease-out
+          translate-x-0"
+  >
+    <button
+      aria-label="Close"
+      class="absolute top-4 right-4 z-10 rounded-full bg-[var(--color-bg)]/80 p-2 shadow hover:bg-[var(--color-bg)] transition"
+      style="transition-duration: var(--duration-fast);"
+    >
+      <svg
+        fill="none"
+        height="16"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-width="2"
+        viewBox="0 0 16 16"
+        width="16"
+      >
+        <path
+          d="M4 4l8 8M12 4l-8 8"
+        />
+      </svg>
+    </button>
+    <div
+      class="h-full overflow-y-auto p-6 pt-14"
+    >
+      <p>
+        Content
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot: ThinkingProcess > renders with steps 1`] = `
+<div>
+  <div
+    class="mb-2"
+  >
+    <button
+      class="flex items-center gap-1.5 text-xs text-[var(--color-muted-fg)] hover:text-[var(--color-fg)] transition-colors"
+      style="transition-duration: var(--duration-fast);"
+    >
+      <span
+        class=""
+      >
+        🧠
+      </span>
+      <span>
+        resolve_anime
+      </span>
+      <span
+        class="text-[10px]"
+      >
+        ▶
+      </span>
+    </button>
+  </div>
+</div>
+`;

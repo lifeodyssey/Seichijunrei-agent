@@ -98,7 +98,8 @@ describe("ChatPanel", () => {
       });
 
       const onSend = vi.fn();
-      renderChatPanel([], onSend);
+      // Render with one message so ChatInput is visible (empty renders WelcomeScreen)
+      renderChatPanel([makeMessage("m1", "user", "テスト")], onSend);
 
       // Open the location prompt
       const locationBtn = screen.getByRole("button", { name: /location/i });

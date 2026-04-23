@@ -5,6 +5,7 @@ import type { SearchResultData, PilgrimagePoint } from "../../lib/types";
 import { useDict } from "../../lib/i18n-context";
 import { formatDistance } from "../../lib/geo";
 import { groupByAnime, CHIP_COLORS } from "./NearbyChips";
+import { colorValue } from "../../lib/color";
 
 interface NearbyBubbleProps {
   data: SearchResultData;
@@ -17,10 +18,6 @@ interface AnimeCardProps {
   imageUrl: string | null;
   spotsDistanceLabel: string;
   onClick: () => void;
-}
-
-function colorValue(hue: number, chroma: number, lightness: number): string {
-  return `oklch(${lightness}% ${chroma} ${hue})`;
 }
 
 function AnimeNearbyCard({

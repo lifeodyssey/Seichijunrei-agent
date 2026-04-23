@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-import assert from "node:assert/strict";
-import test from "node:test";
+import { it, expect, vi } from "vitest";
 
-test("getSupabaseClient returns null when public env vars are missing", () => {
+it("getSupabaseClient returns null when public env vars are missing", async () => {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const modulePath = require.resolve("../lib/supabase");
-  delete require.cache[modulePath];
+  // Reset the module so it re-evaluates with missing env vars
+  vi.resetModules();
 
-  const supabaseModule = require("../lib/supabase") as typeof import("../lib/supabase");
+  const supabaseModule = await import("../lib/supabase");
 
-  assert.equal(supabaseModule.getSupabaseClient(), null);
+  expect(supabaseModule.getSupabaseClient()).toBe(null);
 });

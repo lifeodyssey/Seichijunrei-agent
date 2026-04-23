@@ -3,6 +3,7 @@
 import type { ConversationRecord } from "@/lib/types";
 import { getConversationDisplayTitle } from "../../lib/conversation-history";
 import { relativeTime } from "../../lib/time-utils";
+import { useDict } from "../../lib/i18n-context";
 
 interface ConversationDrawerProps {
   open: boolean;
@@ -70,6 +71,7 @@ function ConversationItem({ record, isActive, onSelect }: ConversationItemProps)
 }
 
 function EmptyConversations() {
+  const { drawer: t } = useDict();
   return (
     <div
       data-testid="conversation-drawer-empty"
@@ -77,7 +79,7 @@ function EmptyConversations() {
     >
       <span className="text-2xl" aria-hidden="true">🗾</span>
       <p className="text-xs text-center">
-        まだ会話がありません
+        {t.empty}
       </p>
     </div>
   );
@@ -96,12 +98,13 @@ function ConversationList({
   onSelectConversation,
   onClose,
 }: ConversationListProps) {
+  const { drawer: t } = useDict();
   if (conversations.length === 0) return <EmptyConversations />;
 
   return (
     <>
       <p className="pb-2 text-[10px] font-medium uppercase tracking-widest text-[var(--color-muted-fg)] opacity-60">
-        最近
+        {t.recent}
       </p>
       {conversations.map((record) => (
         <ConversationItem
@@ -131,17 +134,18 @@ export default function ConversationDrawer({
   onSelectConversation,
   onNewChat,
 }: ConversationDrawerProps) {
+  const { drawer: t } = useDict();
   if (!open) return null;
 
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/30"
+      <button
+        type="button"
+        className="fixed inset-0 z-40"
+        style={{ background: "color-mix(in oklch, var(--color-fg) 30%, transparent)" }}
         onClick={onClose}
-        role="button"
-        tabIndex={0}
-        aria-label="Close conversation drawer"
+        aria-label={t.close}
         onKeyDown={(e) => e.key === "Escape" && onClose()}
       />
 
@@ -157,12 +161,12 @@ export default function ConversationDrawer({
           <span
             className="font-[family-name:var(--app-font-display)] text-base font-semibold text-[var(--color-fg)]"
           >
-            履歴
+            {t.title}
           </span>
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 hover:bg-[var(--color-muted)] transition"
-            aria-label="Close conversation drawer"
+            aria-label={t.close}
           >
             <svg
               width="18"
@@ -184,7 +188,7 @@ export default function ConversationDrawer({
             onClick={() => { onNewChat(); onClose(); }}
             className="w-full rounded-lg border border-[var(--color-border)] py-2 text-left text-sm font-light text-[var(--color-fg)] px-3 hover:bg-[var(--color-muted)] transition"
           >
-            + 新しいチャット
+            {t.new_chat}
           </button>
         </div>
 

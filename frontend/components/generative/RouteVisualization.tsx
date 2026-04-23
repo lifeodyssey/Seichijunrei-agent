@@ -3,6 +3,7 @@
 import type { RouteData } from "../../lib/types";
 import dynamic from "next/dynamic";
 import { useDict } from "../../lib/i18n-context";
+import { isSafeUrl } from "../../lib/url";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
@@ -30,7 +31,8 @@ export default function RouteVisualization({ data }: RouteVisualizationProps) {
       .filter((p) => p.latitude && p.longitude)
       .map((p) => `${p.latitude},${p.longitude}`)
       .join("/")}`;
-    window.open(url, "_blank");
+    if (isSafeUrl(url)) window.open(url, "_blank", "noopener,noreferrer");
+    else { console.warn("Rejected unsafe URL:", url); }
   };
 
   return (

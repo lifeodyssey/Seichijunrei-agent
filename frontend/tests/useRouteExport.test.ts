@@ -75,6 +75,7 @@ describe("useRouteExport", () => {
       expect(openSpy).toHaveBeenCalledWith(
         "https://maps.google.com/?q=test",
         "_blank",
+        "noopener,noreferrer",
       );
     });
 

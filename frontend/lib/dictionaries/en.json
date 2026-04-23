@@ -218,7 +218,8 @@
     "undo": "Undo",
     "summary": "{count} spots waiting for you",
     "estimate": "~{distance}km walk, about {time} min",
-    "start": "Start Route Planning"
+    "start": "Start Route Planning",
+    "remove_label": "Remove"
   },
   "chat_popup": {
     "continue": "Continue chat…",
@@ -231,6 +232,27 @@
     "view_all": "View all {total} spots",
     "search_anime_nearby": "Search {title} spots nearby",
     "show_all_nearby": "Show all nearby spots"
+  },
+  "toolbar": {
+    "tab_episode": "By Episode",
+    "tab_area": "By Area",
+    "grid": "Grid",
+    "map": "Map",
+    "all": "All"
+  },
+  "drawer": {
+    "title": "History",
+    "new_chat": "+ New chat",
+    "recent": "Recent",
+    "empty": "No conversations yet",
+    "close": "Close"
+  },
+  "result_panel": {
+    "map_loading": "Loading map…",
+    "selected": "{count} selected",
+    "plan_route": "Plan route",
+    "clear": "Clear",
+    "other_area": "Other"
   },
   "clarification": {
     "examples_label": "For example:",
