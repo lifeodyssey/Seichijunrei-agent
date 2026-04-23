@@ -95,3 +95,20 @@ async def test_delete_session_state_calls_execute(
     pool.execute.assert_awaited_once()
     sql = pool.execute.await_args.args[0]
     assert "DELETE FROM sessions" in sql
+
+
+async def test_check_session_owner_returns_true_when_owned(
+    repo: SessionRepository, pool: AsyncMock
+) -> None:
+    pool.fetchrow.return_value = {"?column?": 1}
+    result = await repo.check_session_owner("sess-1", "user-1")
+    assert result is True
+    pool.fetchrow.assert_awaited_once()
+
+
+async def test_check_session_owner_returns_false_when_not_owned(
+    repo: SessionRepository, pool: AsyncMock
+) -> None:
+    pool.fetchrow.return_value = None
+    result = await repo.check_session_owner("sess-1", "user-999")
+    assert result is False
