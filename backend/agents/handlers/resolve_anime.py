@@ -70,8 +70,14 @@ async def execute(
             "data": {"bangumi_id": bangumi_id, "title": title},
         }
 
-    # 2. Bangumi.tv API fallback
-    gateway = BangumiClientGateway()
+    # 2. Bangumi.tv API fallback — reuse shared gateway if available
+    from backend.agents.retriever import Retriever
+
+    gateway = (
+        retriever.bangumi_gateway
+        if isinstance(retriever, Retriever)
+        else BangumiClientGateway()
+    )
     bangumi_id = await gateway.search_by_title(title)
     if bangumi_id:
         await upsert_bangumi_title(title, bangumi_id)

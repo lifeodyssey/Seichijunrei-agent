@@ -92,6 +92,13 @@ class Retriever:
                 bangumi=BangumiClientGateway()
             )
 
+    @property
+    def bangumi_gateway(self) -> BangumiClientGateway:
+        """Expose the Bangumi gateway for reuse by handlers (e.g., resolve_anime)."""
+        if not hasattr(self, "_bangumi_gateway"):
+            self._bangumi_gateway = BangumiClientGateway()
+        return self._bangumi_gateway
+
     def choose_strategy(self, request: RetrievalRequest) -> RetrievalStrategy:
         """Choose a retrieval strategy without an LLM."""
         if request.tool == "search_nearby":
