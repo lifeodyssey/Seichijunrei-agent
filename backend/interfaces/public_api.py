@@ -299,7 +299,7 @@ class RuntimeAPI:
                     ),
                     persist_user_only=True,
                 )
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError):
                 logger.warning(
                     "finally_persist_user_msg_failed",
                     session_id=session_id,
@@ -320,7 +320,7 @@ class RuntimeAPI:
                 status=status,
                 latency_ms=int(elapsed_ms),
             )
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TypeError):
             logger.warning("request_log_failed", session_id=session_id)
 
 
@@ -358,7 +358,7 @@ async def _apply_translation_gate(
     try:
         translated = await translate_text(message, target_locale=locale)
         final["message"] = translated
-    except Exception:
+    except (OSError, RuntimeError, ValueError, TypeError):
         logger.warning("translation_gate_failed", locale=locale)
     if on_step is not None:
         await on_step("translate", "done", {}, "", "")

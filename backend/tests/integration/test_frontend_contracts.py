@@ -12,6 +12,11 @@ from typing import cast
 
 import pytest
 
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None  # type: ignore[assignment]
+
 _API_URL = os.environ.get("SEICHI_API_URL", "")
 _API_KEY = os.environ.get("SEICHI_API_KEY", "")
 
@@ -28,30 +33,30 @@ _HDR: dict[str, str] = {
     "Content-Type": "application/json",
 }
 
+_TIMEOUT = aiohttp.ClientTimeout(total=30) if aiohttp else None
 
-async def _post(path: str, body: dict[str, object]) -> tuple[int, dict[str, object]]:
-    import aiohttp
 
+async def _request(
+    method: str,
+    path: str,
+    body: dict[str, object] | None = None,
+) -> tuple[int, dict[str, object]]:
+    """Shared HTTP helper for POST/GET against the runtime API."""
+    assert aiohttp is not None, "aiohttp is required for contract tests"
+    kwargs: dict[str, object] = {"headers": _HDR, "timeout": _TIMEOUT}
+    if body is not None:
+        kwargs["json"] = body
     async with aiohttp.ClientSession() as s:
-        async with s.post(
-            f"{_API_URL}{path}",
-            json=body,
-            headers=_HDR,
-            timeout=aiohttp.ClientTimeout(total=30),
-        ) as r:
+        async with getattr(s, method)(f"{_API_URL}{path}", **kwargs) as r:
             return r.status, cast(dict[str, object], await r.json())
 
 
-async def _get(path: str) -> tuple[int, object]:
-    import aiohttp
+async def _post(path: str, body: dict[str, object]) -> tuple[int, dict[str, object]]:
+    return await _request("post", path, body)
 
-    async with aiohttp.ClientSession() as s:
-        async with s.get(
-            f"{_API_URL}{path}",
-            headers=_HDR,
-            timeout=aiohttp.ClientTimeout(total=30),
-        ) as r:
-            return r.status, await r.json()
+
+async def _get(path: str) -> tuple[int, dict[str, object]]:
+    return await _request("get", path)
 
 
 async def _search_euphonium() -> list[dict[str, object]]:
@@ -75,6 +80,15 @@ async def _plan_route(point_ids: list[str]) -> tuple[int, dict[str, object]]:
             "locale": "ja",
         },
     )
+
+
+async def _search_and_plan() -> tuple[list[dict[str, object]], dict[str, object]]:
+    """Search + plan route combo used by AC-4 tests."""
+    rows = await _search_euphonium()
+    ids = [str(r["id"]) for r in rows[:3]]
+    assert len(ids) >= 2, "Need at least 2 points"
+    _, body = await _plan_route(ids)
+    return rows, body
 
 
 def _parse_sse(raw: str) -> list[dict[str, object]]:
@@ -207,18 +221,11 @@ class TestAC4PlanSelectedRoute:
     """Route planning with selected point IDs returns timed itinerary."""
 
     async def test_plan_selected_returns_route(self) -> None:
-        rows = await _search_euphonium()
-        ids = [str(r["id"]) for r in rows[:3]]
-        assert len(ids) >= 2, "Need at least 2 points"
-        status, body = await _plan_route(ids)
-        assert status == 200
+        _, body = await _search_and_plan()
         assert body["intent"] in ("plan_selected", "plan_route")
 
     async def test_route_has_ordered_points_and_count(self) -> None:
-        rows = await _search_euphonium()
-        ids = [str(r["id"]) for r in rows[:3]]
-        status, body = await _plan_route(ids)
-        assert status == 200
+        _, body = await _search_and_plan()
         route = cast(dict[str, object], cast(dict[str, object], body["data"])["route"])
         ordered = cast(list[object], route["ordered_points"])
         assert isinstance(ordered, list) and len(ordered) >= 2
@@ -226,10 +233,7 @@ class TestAC4PlanSelectedRoute:
 
     async def test_route_has_timed_itinerary(self) -> None:
         """Frontend needs timed_itinerary for timeline display."""
-        rows = await _search_euphonium()
-        ids = [str(r["id"]) for r in rows[:3]]
-        status, body = await _plan_route(ids)
-        assert status == 200
+        _, body = await _search_and_plan()
         route = cast(dict[str, object], cast(dict[str, object], body["data"])["route"])
         assert "timed_itinerary" in route, "route must contain timed_itinerary"
         itin = cast(dict[str, object], route["timed_itinerary"])
@@ -246,14 +250,13 @@ class TestAC5SSEStream:
     """SSE streaming returns step events + done event with full response."""
 
     async def _stream_euphonium(self) -> list[dict[str, object]]:
-        import aiohttp
-
+        assert aiohttp is not None
         async with aiohttp.ClientSession() as s:
             async with s.post(
                 f"{_API_URL}/v1/runtime/stream",
                 json={"text": "響け！ユーフォニアム", "locale": "ja"},
                 headers=_HDR,
-                timeout=aiohttp.ClientTimeout(total=30),
+                timeout=_TIMEOUT,
             ) as r:
                 assert r.status == 200
                 return _parse_sse(await r.text())
@@ -284,13 +287,13 @@ class TestAC6BangumiPopular:
     async def test_popular_returns_200_list(self) -> None:
         status, body = await _get("/v1/bangumi/popular")
         assert status == 200
-        items = cast(dict[str, object], body).get("bangumi")
-        assert isinstance(items, list) and len(items) > 0
+        assert isinstance(body.get("bangumi"), list)
+        assert len(cast(list[object], body["bangumi"])) > 0
 
     async def test_popular_items_have_required_fields(self) -> None:
         status, body = await _get("/v1/bangumi/popular")
         assert status == 200
-        items = cast(list[dict[str, object]], cast(dict[str, object], body)["bangumi"])
+        items = cast(list[dict[str, object]], body["bangumi"])
         for item in items:
             assert "id" in item or "bangumi_id" in item
             assert "title" in item

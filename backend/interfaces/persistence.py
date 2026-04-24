@@ -31,6 +31,12 @@ from backend.interfaces.session_facade import (
 
 logger = structlog.get_logger(__name__)
 
+# Common exception base for best-effort DB/IO persistence calls.
+# asyncpg raises asyncpg.PostgresError (subclass of Exception) for SQL errors
+# and OSError for connection issues. We also catch RuntimeError (pool closed)
+# and ValueError (malformed data).
+_PERSIST_ERRORS = (OSError, RuntimeError, ValueError, TypeError)
+
 
 async def persist_result(
     *,
@@ -107,6 +113,21 @@ async def persist_result(
     return session_state, True
 
 
+async def _safe_insert_message(
+    insert_fn: object,
+    session_id: str,
+    *args: object,
+    label: str,
+) -> None:
+    """Best-effort message insert with structured logging on failure."""
+    if not callable(insert_fn):
+        return
+    try:
+        await insert_fn(session_id, *args)
+    except _PERSIST_ERRORS:
+        logger.warning(f"{label}_failed", session_id=session_id)
+
+
 async def persist_messages(
     *,
     db: object,
@@ -121,25 +142,28 @@ async def persist_messages(
     if insert_message is None:
         return
 
-    try:
-        await insert_message(session_id, "user", user_text)
-    except Exception:
-        logger.warning("insert_user_message_failed", session_id=session_id)
+    await _safe_insert_message(
+        insert_message, session_id, "user", user_text, label="insert_user_message"
+    )
 
     if persist_user_only:
         return
 
-    try:
-        response_data: dict[str, object] | None = None
-        if result is not None:
-            response_data = {
-                "intent": result.intent,
-                "success": result.success,
-                "final_output": result.final_output,
-            }
-        await insert_message(session_id, "assistant", response.message, response_data)
-    except Exception:
-        logger.warning("insert_bot_message_failed", session_id=session_id)
+    response_data: dict[str, object] | None = None
+    if result is not None:
+        response_data = {
+            "intent": result.intent,
+            "success": result.success,
+            "final_output": result.final_output,
+        }
+    await _safe_insert_message(
+        insert_message,
+        session_id,
+        "assistant",
+        response.message,
+        response_data,
+        label="insert_bot_message",
+    )
 
 
 async def persist_session(
@@ -177,7 +201,7 @@ async def persist_user_state(
     if isinstance(db, SupabaseClient):
         try:
             await db.session.upsert_conversation(session_id, user_id, request.text)
-        except Exception:
+        except _PERSIST_ERRORS:
             logger.warning("upsert_conversation_failed", session_id=session_id)
         else:
             raw_prev_ints = previous_state.get("interactions")
@@ -207,7 +231,7 @@ async def persist_user_state(
             bangumi_id=bangumi_id,
             anime_title=anime_title,
         )
-    except Exception:
+    except _PERSIST_ERRORS:
         logger.warning("upsert_user_memory_failed", user_id=user_id)
 
 
@@ -218,7 +242,7 @@ async def load_user_memory(db: object, user_id: str | None) -> dict[str, object]
     try:
         result = await db.user_memory.get_user_memory(user_id)
         return dict(result) if result else None
-    except Exception:
+    except _PERSIST_ERRORS:
         logger.warning("get_user_memory_failed", user_id=user_id)
         return None
 

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 from backend.agents.translation import (
     TranslationResult,
     _lookup_db,
+    translate_text,
     translate_title,
 )
 
@@ -83,17 +84,48 @@ class TestTranslateTitle:
         assert result.confidence == 1.0
 
     async def test_no_db_falls_through_returns_fallback(self) -> None:
-        """When DB is None and title is gibberish, should return llm_fallback."""
+        """When DB is None and all lookups fail, should return llm_fallback."""
         from unittest.mock import patch
 
-        # Mock Bangumi API to avoid real network call in unit test
-        with patch(
-            "backend.agents.translation._lookup_bangumi_api",
-            return_value=None,
+        with (
+            patch(
+                "backend.agents.translation._lookup_bangumi_api",
+                return_value=None,
+            ),
+            patch(
+                "backend.agents.translation.translation_agent",
+                MagicMock(),
+            ) as mock_agent,
         ):
+            mock_agent.run = AsyncMock(side_effect=RuntimeError("no model configured"))
             result = await translate_title(
                 "nonexistent_anime_xyz", target_locale="zh", db=None
             )
         assert isinstance(result, TranslationResult)
-        # With mocked API returning None, should be fallback
-        assert result.source in ("bangumi_api", "web_search", "llm_fallback")
+        assert result.source == "llm_fallback"
+
+
+class TestTranslateText:
+    async def test_translate_text_returns_original_on_error(self) -> None:
+        from unittest.mock import patch
+
+        with patch(
+            "backend.agents.translation.translation_agent",
+            MagicMock(),
+        ) as mock_agent:
+            mock_agent.run = AsyncMock(side_effect=RuntimeError("model error"))
+            result = await translate_text("hello world", target_locale="zh")
+        assert result == "hello world"
+
+    async def test_translate_text_strips_output(self) -> None:
+        from unittest.mock import patch
+
+        mock_result = MagicMock()
+        mock_result.output = "  翻译结果  "
+        with patch(
+            "backend.agents.translation.translation_agent",
+            MagicMock(),
+        ) as mock_agent:
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            result = await translate_text("test", target_locale="zh")
+        assert result == "翻译结果"

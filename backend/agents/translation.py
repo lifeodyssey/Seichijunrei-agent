@@ -95,7 +95,7 @@ async def _lookup_bangumi_api(title: str, target_locale: str) -> str | None:
                 if name_cn and all(ord(c) < 128 for c in str(name_cn)):
                     return str(name_cn)
             return None
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("bangumi_api_translation_failed", title=title, error=str(exc))
         return None
 
@@ -200,7 +200,7 @@ async def translate_title(
                 source="web_search",
                 confidence=0.7,
             )
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("translation_agent_failed", title=title, error=str(exc))
 
     # 4. Fallback — return original
@@ -233,6 +233,6 @@ async def translate_text(
             deps=deps,
         )
         return result.output.strip()
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("text_translation_failed", error=str(exc))
         return text
