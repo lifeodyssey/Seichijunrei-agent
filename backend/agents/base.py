@@ -77,12 +77,32 @@ def _normalize_gemini_model(model_name: str) -> GoogleModel:
     return model
 
 
+def _resolve_api_key_for_base_url(base_url: str) -> str | None:
+    """Resolve the best API key for a given base URL.
+
+    Checks MIMO_API_KEY for mimo endpoints, then falls back to
+    OPENAI_COMPAT_API_KEY from settings.
+    """
+    mimo_url = os.environ.get("MIMO_BASE_URL", "")
+    if mimo_url and base_url.rstrip("/").startswith(mimo_url.rstrip("/")):
+        key = os.environ.get("MIMO_API_KEY")
+        if key:
+            return key
+    # Also match by domain for inline @url specs
+    if "xiaomimimo.com" in base_url:
+        key = os.environ.get("MIMO_API_KEY")
+        if key:
+            return key
+    return None
+
+
 def _parse_openai_compat_model(
     spec: str, *, base_url_override: str | None = None, api_key: str | None = None
 ) -> OpenAIChatModel:
     """Build an OpenAI-compatible model from a spec string."""
     base_url: str | None
-    if "@" in spec:
+    has_inline_url = "@" in spec
+    if has_inline_url:
         name, inline_base_url = spec.split("@", 1)
         base_url = inline_base_url
     else:
@@ -91,9 +111,17 @@ def _parse_openai_compat_model(
     model_name = name.removeprefix("openai:")
     if not base_url:
         raise ValueError("OpenAI-compatible model requires a base URL")
+    # When the spec has an inline @url, prefer URL-specific key over the
+    # generic settings key — different providers need different keys.
+    url_specific_key = _resolve_api_key_for_base_url(base_url)
+    resolved_key = (
+        url_specific_key
+        if (has_inline_url and url_specific_key)
+        else (api_key or url_specific_key)
+    )
     provider = OpenAIProvider(
         base_url=base_url,
-        api_key=api_key or None,
+        api_key=resolved_key or None,
         http_client=_build_http_client(),
     )
     return OpenAIChatModel(model_name, provider=provider)
@@ -124,14 +152,21 @@ def parse_model_spec(
     if not use_settings_fallbacks:
         return primary
 
-    fallback_spec = settings.fallback_agent_model
-    if not fallback_spec:
-        return primary
-    if fallback_spec == model:
+    fallback_specs: list[str] = []
+    fb1 = settings.fallback_agent_model
+    if fb1 and fb1 != model:
+        fallback_specs.append(fb1)
+    fb2 = getattr(settings, "fallback_agent_model_2", None)
+    if isinstance(fb2, str) and fb2 and fb2 != model:
+        fallback_specs.append(fb2)
+
+    if not fallback_specs:
         return primary
 
-    fallback_model = parse_model_spec(fallback_spec, use_settings_fallbacks=False)
-    return FallbackModel(primary, fallback_model)
+    fallback_models = [
+        parse_model_spec(spec, use_settings_fallbacks=False) for spec in fallback_specs
+    ]
+    return FallbackModel(primary, *fallback_models)
 
 
 def get_default_model() -> Model:

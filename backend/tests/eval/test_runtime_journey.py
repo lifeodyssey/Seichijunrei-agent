@@ -125,14 +125,14 @@ _DB_OVERRIDE: object | None = None
 
 
 async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
-    """Run run_pipeline and capture stage contract info."""
-    from backend.agents.pipeline import run_pipeline
+    """Run the pilgrimage agent and capture stage contract info."""
+    from backend.agents.pilgrimage_agent import run_pilgrimage_agent
 
     db = _DB_OVERRIDE if _DB_OVERRIDE is not None else _make_mock_db()
 
-    result = await run_pipeline(
-        inp.query,
-        db,
+    result = await run_pilgrimage_agent(
+        text=inp.query,
+        db=db,
         model=_get_eval_model(),
         locale=inp.locale,
     )

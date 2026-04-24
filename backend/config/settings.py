@@ -21,12 +21,12 @@ def _mask_secret(value: str | None, visible_chars: int = 4) -> str:
 
 def _is_gemini_model(model_name: str | None) -> bool:
     """Return True when a model spec points at Gemini."""
-    return bool(model_name) and "gemini" in model_name.lower()
+    return isinstance(model_name, str) and "gemini" in model_name.lower()
 
 
 def _is_openai_compat_model(model_name: str | None) -> bool:
     """Return True when a model spec uses the repo's OpenAI-compatible path."""
-    return bool(model_name) and model_name.lower().startswith("openai:")
+    return isinstance(model_name, str) and model_name.lower().startswith("openai:")
 
 
 def _is_local_base_url(base_url: str | None) -> bool:
@@ -123,16 +123,20 @@ class Settings(BaseSettings):
 
     # Agent model
     default_agent_model: str = Field(
-        default="google-gla:gemini-3.1-pro-preview",
+        default="openai:gpt-5.4",
         description="Default primary LLM model for pydantic-ai agents",
     )
     fallback_agent_model: str | None = Field(
-        default="openai:gpt-5.4",
-        description="Fallback LLM model when the default provider fails",
+        default="openai:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1",
+        description="First fallback LLM model when the default provider fails",
+    )
+    fallback_agent_model_2: str | None = Field(
+        default="google-gla:gemini-3.1-pro-preview",
+        description="Second fallback LLM model",
     )
     openai_compat_base_url: str = Field(
         default="https://api.univibe.cc/openai",
-        description="Base URL for the OpenAI-compatible fallback provider",
+        description="Base URL for the OpenAI-compatible provider",
     )
 
     # Migrations
@@ -238,15 +242,16 @@ class Settings(BaseSettings):
     def validate_api_keys(self) -> list[str]:
         """Validate required API keys are present."""
         missing: list[str] = []
-        uses_gemini = _is_gemini_model(self.default_agent_model) or _is_gemini_model(
-            self.fallback_agent_model
-        )
+        all_models = [
+            self.default_agent_model,
+            self.fallback_agent_model,
+            self.fallback_agent_model_2,
+        ]
+        uses_gemini = any(_is_gemini_model(m) for m in all_models)
         if uses_gemini and not self.gemini_api_key:
             missing.append("GEMINI_API_KEY")
 
-        uses_openai_compat = _is_openai_compat_model(
-            self.default_agent_model
-        ) or _is_openai_compat_model(self.fallback_agent_model)
+        uses_openai_compat = any(_is_openai_compat_model(m) for m in all_models)
         if uses_openai_compat:
             if not self.openai_compat_base_url:
                 missing.append("OPENAI_COMPAT_BASE_URL")
