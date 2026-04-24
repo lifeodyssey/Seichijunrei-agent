@@ -1,12 +1,12 @@
 {
   "case_count": 392,
-  "model": "openai:gpt-5.4",
+  "model": "google-gla:gemini-3.1-pro-preview",
   "scores": {
-    "DataKeysEvaluator": 0.10714285714285714,
+    "DataKeysEvaluator": 1.0,
     "MessageMinLenEvaluator": 1.0,
     "NearbyFieldsEvaluator": 1.0,
     "ResultsKeysEvaluator": 1.0,
     "RouteKeysEvaluator": 1.0,
-    "StageEvaluator": 0.10714285714285714
+    "StageEvaluator": 1.0
   }
 }
