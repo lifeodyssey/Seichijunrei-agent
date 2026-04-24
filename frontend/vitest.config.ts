@@ -18,10 +18,10 @@ export default defineConfig({
       exclude: ["**/node_modules/**", "lib/mock-data/**"],
       // Floors based on current coverage — only ratchet UP, never lower
       thresholds: {
-        lines: 71,
+        lines: 72,
         statements: 68,
-        functions: 61,
-        branches: 58,
+        functions: 62,
+        branches: 59,
       },
     },
   },
