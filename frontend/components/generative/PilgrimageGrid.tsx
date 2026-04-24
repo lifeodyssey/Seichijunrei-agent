@@ -205,7 +205,11 @@ export default function PilgrimageGrid({ data }: PilgrimageGridProps) {
     );
   }
 
-  const animeTitle = results.rows[0]?.title_cn || results.rows[0]?.title || "";
+  const animeTitle = results.metadata?.anime_title_cn
+    || results.metadata?.anime_title
+    || results.rows[0]?.title_cn
+    || results.rows[0]?.title
+    || "";
 
   return (
     <div className="space-y-5">

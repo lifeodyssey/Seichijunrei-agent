@@ -73,8 +73,25 @@ function AnimeNearbyCard({
 export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
   const { nearby: nt } = useDict();
   const points = data.results.rows;
+  const backendGroups = data.results.nearby_groups;
 
   const groupsWithDistance = useMemo(() => {
+    // Prefer backend-provided nearby_groups when available
+    if (backendGroups && backendGroups.length > 0) {
+      return backendGroups.map((bg, index) => {
+        const firstPoint = points.find((p) => p.bangumi_id === bg.bangumi_id);
+        return {
+          bangumi_id: bg.bangumi_id,
+          title: bg.title,
+          points_count: bg.points_count,
+          color_index: index % CHIP_COLORS.length,
+          closestDistance: bg.closest_distance_m,
+          imageUrl: bg.cover_url ?? firstPoint?.screenshot_url ?? null,
+        };
+      });
+    }
+
+    // Fallback: compute groups from raw points (backward compat for old sessions)
     const groups = groupByAnime(points);
     const pointsByBangumi = new Map<string, PilgrimagePoint[]>();
     for (const point of points) {
@@ -98,10 +115,11 @@ export default function NearbyBubble({ data, onSuggest }: NearbyBubbleProps) {
         imageUrl,
       };
     });
-  }, [points]);
+  }, [points, backendGroups]);
 
   const total = points.length;
-  const radius = "1km";
+  const radiusM = data.results.metadata?.radius_m;
+  const radius = radiusM ? formatDistance(radiusM) : "1km";
 
   return (
     <div>

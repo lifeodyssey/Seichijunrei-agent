@@ -5,6 +5,7 @@
 export type {
   Intent,
   PilgrimagePoint,
+  NearbyGroup,
   ResultsMeta,
   SearchResultData,
   RouteData,

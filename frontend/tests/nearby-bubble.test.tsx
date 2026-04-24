@@ -149,6 +149,39 @@ describe("NearbyBubble", () => {
     expect(onSuggest).toHaveBeenCalledWith(zhDict.nearby.show_all_nearby);
   });
 
+  it("uses backend nearby_groups when available", () => {
+    const dataWithGroups = makeSearchData(ALL_POINTS);
+    dataWithGroups.results.nearby_groups = [
+      {
+        bangumi_id: "bg-001",
+        title: "響け！ユーフォニアム",
+        cover_url: "https://example.com/eupho-cover.jpg",
+        points_count: 3,
+        closest_distance_m: 50,
+      },
+      {
+        bangumi_id: "bg-002",
+        title: "君の名は。",
+        cover_url: null,
+        points_count: 2,
+        closest_distance_m: 120,
+      },
+    ];
+    render(<NearbyBubble data={dataWithGroups} />);
+    expect(screen.getByText("響け！ユーフォニアム")).toBeInTheDocument();
+    expect(screen.getByText("君の名は。")).toBeInTheDocument();
+    expect(screen.getByText(/3 个圣地 · 最近 50m/)).toBeInTheDocument();
+    expect(screen.getByText(/2 个圣地 · 最近 120m/)).toBeInTheDocument();
+  });
+
+  it("uses metadata.radius_m for summary distance", () => {
+    const dataWithRadius = makeSearchData(ALL_POINTS);
+    dataWithRadius.results.metadata = { radius_m: 5000 };
+    render(<NearbyBubble data={dataWithRadius} />);
+    const summary = screen.getByText(/5km/);
+    expect(summary).toBeInTheDocument();
+  });
+
   it("shows summary text with anime count and total spots", () => {
     render(
       <NearbyBubble data={makeSearchData(ALL_POINTS)} />,

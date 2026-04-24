@@ -19,6 +19,12 @@ export function parseResponseData(raw: unknown): Record<string, unknown> | null 
  * DB stores: { intent, success, final_output: { results, status, message, ... } }
  * Frontend expects: RuntimeResponse { intent, success, status, message, data: { results | route } }
  *
+ * The PydanticAI-native backend writes final_output with clarify data
+ * (question, options, candidates, status) at the top level of final_output,
+ * not nested under a separate key. This function handles that correctly
+ * because final_output is mapped directly to `data`, and the frontend type
+ * guards (isClarifyData, isSearchData, etc.) inspect `data` contents.
+ *
  * This bridges the gap so hydrated messages render correctly.
  */
 export function hydrateResponseData(
