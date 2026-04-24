@@ -9,6 +9,11 @@ from backend.infrastructure.supabase.helpers import (
 )
 
 
+def _escape_ilike(value: str) -> str:
+    """Escape ILIKE metacharacters (%, _) so they match literally."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class BangumiRepository:
     """Bangumi table data access."""
 
@@ -80,13 +85,14 @@ class BangumiRepository:
 
     async def find_bangumi_by_title(self, title: str) -> str | None:
         """Find a bangumi ID by matching title or title_cn."""
+        pattern = f"%{_escape_ilike(title)}%"
         row = await self._pool.fetchrow(
             """
             SELECT id FROM bangumi
             WHERE title ILIKE $1 OR title_cn ILIKE $1
             LIMIT 1
             """,
-            f"%{title}%",
+            pattern,
         )
         return str(row["id"]) if row else None
 
@@ -95,6 +101,7 @@ class BangumiRepository:
 
         Used for ambiguity detection: if len(results) > 1, the query is ambiguous.
         """
+        pattern = f"%{_escape_ilike(title)}%"
         rows = await self._pool.fetch(
             """
             SELECT id, title, title_cn,
@@ -106,7 +113,7 @@ class BangumiRepository:
             ORDER BY points_count DESC NULLS LAST
             LIMIT 10
             """,
-            f"%{title}%",
+            pattern,
         )
         return [dict(r) for r in rows]
 

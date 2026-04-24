@@ -167,7 +167,7 @@ class TestConversationPersistence:
             return MagicMock()
 
         with patch(
-            "backend.interfaces.public_api.asyncio.create_task",
+            "backend.interfaces.persistence.asyncio.create_task",
             side_effect=_capture_task,
         ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
@@ -202,7 +202,7 @@ class TestConversationPersistence:
             },
         )
 
-        with patch("backend.interfaces.public_api.asyncio.create_task") as create_task:
+        with patch("backend.interfaces.persistence.asyncio.create_task") as create_task:
             api = RuntimeAPI(mock_db, session_store=store)
             await api.handle(
                 PublicAPIRequest(text="京吹", session_id=session_id),
@@ -302,7 +302,7 @@ class TestCompactThresholdTrigger:
             return MagicMock()
 
         with patch(
-            "backend.interfaces.public_api.asyncio.create_task",
+            "backend.interfaces.persistence.asyncio.create_task",
             side_effect=_capture_task,
         ):
             api = RuntimeAPI(mock_db, session_store=store)

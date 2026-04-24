@@ -28,6 +28,7 @@ from backend.agents.sql_agent import SQLAgent, SQLResult  # noqa: F401
 from backend.application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from backend.application.use_cases.get_bangumi_subject import GetBangumiSubject
 from backend.domain.entities import Point
+from backend.domain.ports import DatabasePort
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
 from backend.infrastructure.supabase.client import SupabaseClient
@@ -70,7 +71,7 @@ class Retriever:
 
     def __init__(
         self,
-        db: object,
+        db: DatabasePort,
         *,
         sql_agent: SQLAgent | None = None,
         cache: ResponseCache | None = None,

@@ -32,7 +32,7 @@ def setup_test_environment():
 @pytest.mark.integration
 async def test_persisted_clarify_response_hydrates_correctly(real_db) -> None:
     """Clarify response stored in DB should hydrate with question/candidates."""
-    from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+    from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     result = await run_pilgrimage_agent(
         text="凉宫",
@@ -70,7 +70,7 @@ async def test_persisted_clarify_response_hydrates_correctly(real_db) -> None:
 @pytest.mark.integration
 async def test_persisted_search_response_hydrates_correctly(real_db) -> None:
     """Search response stored in DB should hydrate with results.rows."""
-    from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+    from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     result = await run_pilgrimage_agent(
         text="君の名は の聖地を教えて",
@@ -91,7 +91,7 @@ async def test_persisted_search_response_hydrates_correctly(real_db) -> None:
 @pytest.mark.integration
 async def test_persisted_greet_response_hydrates_correctly(real_db) -> None:
     """Greet response stored in DB should hydrate with message."""
-    from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+    from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     result = await run_pilgrimage_agent(
         text="你好",
@@ -108,6 +108,7 @@ async def test_persisted_greet_response_hydrates_correctly(real_db) -> None:
 async def test_conversation_messages_api_returns_stored_response(real_db) -> None:
     """GET /v1/conversations/{id}/messages should return persisted messages."""
     import httpx
+
     from backend.infrastructure.session import InMemorySessionStore
     from backend.interfaces.fastapi_service import create_fastapi_app
     from backend.interfaces.public_api import RuntimeAPI
@@ -144,6 +145,7 @@ async def test_conversation_messages_api_returns_stored_response(real_db) -> Non
 async def test_conversations_list_api(real_db) -> None:
     """GET /v1/conversations should return conversation list."""
     import httpx
+
     from backend.infrastructure.session import InMemorySessionStore
     from backend.interfaces.fastapi_service import create_fastapi_app
     from backend.interfaces.public_api import RuntimeAPI

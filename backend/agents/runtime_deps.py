@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from backend.agents.executor_agent import StepResult
 from backend.agents.models import PlanStep
 from backend.agents.retriever import Retriever
+from backend.domain.ports import DatabasePort
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
 
 OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
@@ -17,7 +18,7 @@ OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
 class RuntimeDeps:
     """Deps container injected into pilgrimage agent runs."""
 
-    db: object
+    db: DatabasePort
     locale: str
     query: str
 

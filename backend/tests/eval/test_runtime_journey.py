@@ -100,7 +100,7 @@ _DB_OVERRIDE: object | None = None
 
 async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
     """Run the pilgrimage agent against real DB and capture stage contract."""
-    from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+    from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     if _DB_OVERRIDE is None:
         raise RuntimeError(

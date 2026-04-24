@@ -78,7 +78,9 @@ class ExecutorAgent:
     """Executes ExecutionPlan steps deterministically."""
 
     def __init__(self, db: object) -> None:
-        self._retriever = Retriever(db)
+        from backend.domain.ports import DatabasePort
+
+        self._retriever = Retriever(cast(DatabasePort, db))
         self._db = db
 
     async def execute(

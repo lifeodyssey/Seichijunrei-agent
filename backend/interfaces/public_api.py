@@ -1,34 +1,38 @@
 """Thin public API surface over the runtime pipeline.
 
-This module provides a stable request/response contract that future HTTP or
-RPC adapters can wrap without depending directly on internal pipeline types.
-
-Orchestration logic only -- response building and session management are
-delegated to ``response_builder`` and ``session_facade`` respectively.
+Orchestration logic only — response building lives in ``response_builder``,
+session management in ``session_facade``, and persistence in ``persistence``.
 """
 
 from __future__ import annotations
 
-import asyncio
 import re
-from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from time import perf_counter
+from typing import cast
 from uuid import uuid4
 
 import structlog
 from pydantic_ai.models import Model
 
 from backend.agents.executor_agent import ExecutorAgent, PipelineResult
-from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+from backend.agents.pilgrimage_runner import run_pilgrimage_agent
+from backend.agents.runtime_deps import OnStep
 from backend.agents.translation import translate_text
 from backend.application.errors import ApplicationError, ErrorCode
+from backend.domain.ports import DatabasePort
 from backend.infrastructure.observability import (
     get_runtime_tracer,
     record_runtime_request,
 )
 from backend.infrastructure.session import SessionStore, create_session_store
-from backend.infrastructure.supabase.client import SupabaseClient
+from backend.interfaces.persistence import (
+    build_response_session,
+    extract_plan_steps,
+    load_session_state,
+    load_user_memory,
+    persist_messages,
+    persist_result,
+)
 from backend.interfaces.response_builder import (
     application_error_response,
     pipeline_result_to_public_response,
@@ -39,20 +43,12 @@ from backend.interfaces.schemas import (
     PublicAPIResponse,
 )
 from backend.interfaces.session_facade import (
-    COMPACT_THRESHOLD,
-    MAX_ROUTE_HISTORY,
-    SessionUpdate,
     build_context_block,
     build_selected_points_plan,
-    build_session_summary,
-    build_updated_session_state,
-    compact_session_interactions,
     extract_context_delta,
-    generate_and_save_title,
     normalize_session_state,
 )
 
-# Re-export for backward compatibility
 __all__ = [
     "PublicAPIError",
     "PublicAPIRequest",
@@ -64,13 +60,6 @@ __all__ = [
 
 logger = structlog.get_logger(__name__)
 
-# Backward-compatible aliases for private names used by tests
-_build_context_block = build_context_block
-_extract_context_delta = extract_context_delta
-_compact_session_interactions = compact_session_interactions
-
-_OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
-
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 _KANA_RE = re.compile(r"[\u3040-\u30ff]")
 
@@ -78,16 +67,11 @@ _KANA_RE = re.compile(r"[\u3040-\u30ff]")
 def detect_language(text: str) -> str:
     """Detect whether *text* is Chinese, Japanese, or English.
 
-    Heuristic:
-    - Contains kana (hiragana/katakana) -> Japanese
-    - Contains CJK ideographs but no kana -> Chinese
-    - Otherwise -> English
+    Heuristic: kana → ja, CJK only → zh, else → en.
     """
-    has_kana = bool(_KANA_RE.search(text))
-    if has_kana:
+    if _KANA_RE.search(text):
         return "ja"
-    has_cjk = bool(_CJK_RE.search(text))
-    if has_cjk:
+    if _CJK_RE.search(text):
         return "zh"
     return "en"
 
@@ -110,7 +94,7 @@ class RuntimeAPI:
         *,
         model: Model | str | None = None,
         user_id: str | None = None,
-        on_step: _OnStep | None = None,
+        on_step: OnStep | None = None,
     ) -> PublicAPIResponse:
         """Execute the runtime pipeline and normalize its output."""
         session_id = request.session_id or None
@@ -122,7 +106,6 @@ class RuntimeAPI:
         with tracer.start_as_current_span("runtime.handle") as span:
             _set_span_request_attrs(span, session_id, request, effective_model, user_id)
 
-            # Input guardrails (non-blocking — log only)
             from backend.agents.guardrails import detect_prompt_injection
 
             if detect_prompt_injection(request.text):
@@ -146,7 +129,7 @@ class RuntimeAPI:
                     response.session_id = None
                     response.session = {}
                     response.route_history = []
-                    user_message_persisted = True  # ephemeral, skip persistence
+                    user_message_persisted = True
                     return response
 
                 if session_id is None:
@@ -155,7 +138,9 @@ class RuntimeAPI:
 
                 response.session_id = session_id
 
-                session_state, user_message_persisted = await self._persist_result(
+                session_state, user_message_persisted = await persist_result(
+                    db=self._db,
+                    session_store=self._session_store,
                     session_id=session_id,
                     request=request,
                     result=result,
@@ -165,11 +150,11 @@ class RuntimeAPI:
                     user_id=user_id,
                 )
 
-                response.session = build_session_summary(session_state)
-                raw_rh = session_state["route_history"]
-                response.route_history = (
-                    list(raw_rh) if isinstance(raw_rh, list) else []
-                )
+                session_summary, route_history = build_response_session(session_state)
+                response.session = session_summary
+                response.route_history = [
+                    r for r in route_history if isinstance(r, dict)
+                ]
                 return response
             except Exception as exc:
                 span.record_exception(exc)
@@ -212,11 +197,11 @@ class RuntimeAPI:
     ) -> tuple[dict[str, object], dict[str, object] | None]:
         """Load session state and build context block."""
         previous_state = (
-            await self._load_session_state(session_id)
+            await load_session_state(self._session_store, session_id)
             if session_id
             else normalize_session_state(None)
         )
-        user_memory = await self._load_user_memory(user_id)
+        user_memory = await load_user_memory(self._db, user_id)
         context = build_context_block(previous_state, user_memory=user_memory)
         if request.origin_lat is not None and request.origin_lng is not None:
             if context is None:
@@ -230,7 +215,7 @@ class RuntimeAPI:
         request: PublicAPIRequest,
         context: dict[str, object] | None,
         effective_model: Model | str | None,
-        on_step: _OnStep | None,
+        on_step: OnStep | None,
         span: object,
     ) -> tuple[PipelineResult | None, PublicAPIResponse, dict[str, object]]:
         """Run the pipeline (or synthetic plan) and map result to response."""
@@ -248,7 +233,7 @@ class RuntimeAPI:
             else:
                 result = await run_pilgrimage_agent(
                     text=request.text,
-                    db=self._db,
+                    db=cast(DatabasePort, self._db),
                     model=effective_model,
                     locale=request.locale,
                     context=context,
@@ -280,108 +265,13 @@ class RuntimeAPI:
                 ),
                 context_delta,
             )
-        await self._apply_translation_gate(result, request.locale, on_step)
+        await _apply_translation_gate(result, request.locale, on_step)
         response = pipeline_result_to_public_response(
             result,
             include_debug=request.include_debug,
         )
         context_delta = extract_context_delta(result)
         return result, response, context_delta
-
-    @staticmethod
-    async def _apply_translation_gate(
-        result: PipelineResult,
-        locale: str,
-        on_step: _OnStep | None,
-    ) -> None:
-        """Translate the pipeline message when its language mismatches *locale*."""
-        final = result.final_output
-        if not final:
-            return
-        message = final.get("message")
-        if not isinstance(message, str) or not message:
-            return
-        detected = detect_language(message)
-        if detected == locale:
-            return
-        if on_step is not None:
-            await on_step("translate", "running", {}, "", "")
-        translated = await translate_text(message, target_locale=locale)
-        final["message"] = translated
-        if on_step is not None:
-            await on_step("translate", "done", {}, "", "")
-
-    async def _persist_result(
-        self,
-        *,
-        session_id: str,
-        request: PublicAPIRequest,
-        result: PipelineResult | None,
-        response: PublicAPIResponse,
-        context_delta: dict[str, object],
-        previous_state: dict[str, object],
-        user_id: str | None,
-    ) -> tuple[dict[str, object], bool]:
-        """Persist session state, route, user state, and messages."""
-        session_state = build_updated_session_state(
-            previous_state,
-            SessionUpdate(
-                request=request,
-                response_intent=response.intent,
-                response_status=response.status,
-                response_success=response.success,
-                response_message=response.message,
-                context_delta=context_delta,
-            ),
-        )
-
-        route_record = None
-        if result is not None:
-            route_record = await self._maybe_persist_route(
-                session_id=session_id,
-                request=request,
-                result=result,
-                response=response,
-            )
-
-        if route_record is not None:
-            raw_rh = session_state["route_history"]
-            route_history: list[object] = (
-                list(raw_rh) if isinstance(raw_rh, list) else []
-            )
-            route_history.append(route_record)
-            session_state["route_history"] = route_history[-MAX_ROUTE_HISTORY:]
-
-        await self._persist_session(session_id, session_state, response)
-        await self._persist_user_state(
-            session_id=session_id,
-            user_id=user_id,
-            request=request,
-            response=response,
-            result=result,
-            context_delta=context_delta,
-            previous_state=previous_state,
-        )
-        await self._persist_messages(
-            session_id=session_id,
-            user_text=request.text,
-            result=result,
-            response=response,
-            persist_user_only=not response.success,
-        )
-
-        raw_ints = session_state.get("interactions")
-        interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
-        if interaction_count >= COMPACT_THRESHOLD:
-            asyncio.create_task(
-                compact_session_interactions(
-                    session_id,
-                    session_state,
-                    self._session_store,
-                )
-            )
-
-        return session_state, True
 
     async def _log_request(
         self,
@@ -398,7 +288,8 @@ class RuntimeAPI:
         """Persist user message on error (best-effort) and log request."""
         if not user_message_persisted and session_id and request.text:
             try:
-                await self._persist_messages(
+                await persist_messages(
+                    db=self._db,
                     session_id=session_id,
                     user_text=request.text,
                     result=None,
@@ -424,206 +315,13 @@ class RuntimeAPI:
                 session_id=session_id,
                 query_text=request.text,
                 locale=request.locale,
-                plan_steps=_extract_plan_steps(result),
+                plan_steps=extract_plan_steps(result),
                 intent=intent,
                 status=status,
                 latency_ms=int(elapsed_ms),
             )
         except Exception:
             logger.warning("request_log_failed", session_id=session_id)
-
-    async def _persist_messages(
-        self,
-        *,
-        session_id: str,
-        user_text: str,
-        result: PipelineResult | None,
-        response: PublicAPIResponse,
-        persist_user_only: bool = False,
-    ) -> None:
-        """Persist user and bot messages to conversation_messages (best-effort)."""
-        insert_message = getattr(self._db, "insert_message", None)
-        if insert_message is None:
-            return
-
-        try:
-            await insert_message(session_id, "user", user_text)
-        except Exception:
-            logger.warning("insert_user_message_failed", session_id=session_id)
-
-        if persist_user_only:
-            return
-
-        try:
-            response_data: dict[str, object] | None = None
-            if result is not None:
-                response_data = {
-                    "intent": result.intent,
-                    "success": result.success,
-                    "final_output": result.final_output,
-                }
-            await insert_message(
-                session_id, "assistant", response.message, response_data
-            )
-        except Exception:
-            logger.warning("insert_bot_message_failed", session_id=session_id)
-
-    async def _load_user_memory(self, user_id: str | None) -> dict[str, object] | None:
-        if not user_id or not isinstance(self._db, SupabaseClient):
-            return None
-
-        try:
-            result = await self._db.user_memory.get_user_memory(user_id)
-            return dict(result) if result else None
-        except Exception:
-            logger.warning("get_user_memory_failed", user_id=user_id)
-            return None
-
-    async def _persist_user_state(
-        self,
-        *,
-        session_id: str,
-        user_id: str | None,
-        request: PublicAPIRequest,
-        response: PublicAPIResponse,
-        result: PipelineResult | None,
-        context_delta: dict[str, object],
-        previous_state: dict[str, object],
-    ) -> None:
-        if not user_id or result is None or not response.success:
-            return
-
-        if isinstance(self._db, SupabaseClient):
-            try:
-                await self._db.session.upsert_conversation(
-                    session_id, user_id, request.text
-                )
-            except Exception:
-                logger.warning("upsert_conversation_failed", session_id=session_id)
-            else:
-                raw_prev_ints = previous_state.get("interactions")
-                is_first_interaction = (
-                    len(raw_prev_ints) == 0 if isinstance(raw_prev_ints, list) else True
-                )
-                if is_first_interaction:
-                    asyncio.create_task(
-                        generate_and_save_title(
-                            session_id=session_id,
-                            first_query=request.text,
-                            response_message=response.message,
-                            db=self._db,
-                            user_id=user_id,
-                        )
-                    )
-
-        bangumi_id = context_delta.get("bangumi_id")
-        if not isinstance(bangumi_id, str) or not isinstance(self._db, SupabaseClient):
-            return
-
-        anime_title_raw = context_delta.get("anime_title")
-        anime_title = anime_title_raw if isinstance(anime_title_raw, str) else None
-        try:
-            await self._db.user_memory.upsert_user_memory(
-                user_id,
-                bangumi_id=bangumi_id,
-                anime_title=anime_title,
-            )
-        except Exception:
-            logger.warning("upsert_user_memory_failed", user_id=user_id)
-
-    async def _load_session_state(self, session_id: str) -> dict[str, object]:
-        state = await self._session_store.get(session_id)
-        return normalize_session_state(state)
-
-    async def _persist_session(
-        self,
-        session_id: str,
-        session_state: dict[str, object],
-        response: PublicAPIResponse,
-    ) -> None:
-        await self._session_store.set(session_id, session_state)
-
-        if isinstance(self._db, SupabaseClient):
-            metadata = {
-                "intent": response.intent,
-                "status": response.status,
-                "updated_at": session_state["updated_at"],
-            }
-            await self._db.session.upsert_session(
-                session_id, session_state, metadata=metadata
-            )
-
-    async def _maybe_persist_route(
-        self,
-        *,
-        session_id: str,
-        request: PublicAPIRequest,
-        result: PipelineResult,
-        response: PublicAPIResponse,
-    ) -> dict[str, object] | None:
-        if not response.success or result.intent != "plan_route":
-            return None
-
-        route_data = response.data.get("route")
-        if not isinstance(route_data, dict):
-            return None
-
-        ordered_points = route_data.get("ordered_points")
-        if not isinstance(ordered_points, list) or not ordered_points:
-            return None
-
-        point_ids = [
-            str(point["id"])
-            for point in ordered_points
-            if isinstance(point, dict) and point.get("id") is not None
-        ]
-        if not point_ids:
-            return None
-
-        plan_params = _get_plan_params(result)
-        bangumi_id_raw = plan_params.get("bangumi") or _infer_bangumi_id(
-            response.data.get("results")
-        )
-        if not isinstance(bangumi_id_raw, str):
-            return None
-        bangumi_id = bangumi_id_raw
-
-        origin_station = plan_params.get("origin")
-        if not isinstance(origin_station, str):
-            origin_station = None
-        if (
-            origin_station is None
-            and request.origin_lat is not None
-            and request.origin_lng is not None
-        ):
-            origin_station = f"{request.origin_lat},{request.origin_lng}"
-
-        route_record: dict[str, object] = {
-            "route_id": None,
-            "bangumi_id": bangumi_id,
-            "origin_station": origin_station,
-            "point_count": len(point_ids),
-            "status": response.status,
-            "created_at": datetime.now(UTC).isoformat(),
-        }
-
-        if isinstance(self._db, SupabaseClient):
-            route_id = await self._db.routes.save_route(
-                session_id,
-                bangumi_id,
-                point_ids,
-                {
-                    "message": response.message,
-                    "results": response.data.get("results"),
-                    "route": route_data,
-                },
-                origin_station=origin_station,
-                origin_lat=request.origin_lat,
-                origin_lon=request.origin_lng,
-            )
-            route_record["route_id"] = route_id
-
-        return route_record
 
 
 async def handle_public_request(
@@ -633,11 +331,34 @@ async def handle_public_request(
     model: Model | str | None = None,
     session_store: SessionStore | None = None,
     user_id: str | None = None,
-    on_step: _OnStep | None = None,
+    on_step: OnStep | None = None,
 ) -> PublicAPIResponse:
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)
     return await api.handle(request, model=model, user_id=user_id, on_step=on_step)
+
+
+async def _apply_translation_gate(
+    result: PipelineResult,
+    locale: str,
+    on_step: OnStep | None,
+) -> None:
+    """Translate the pipeline message when its language mismatches *locale*."""
+    final = result.final_output
+    if not final:
+        return
+    message = final.get("message")
+    if not isinstance(message, str) or not message:
+        return
+    detected = detect_language(message)
+    if detected == locale:
+        return
+    if on_step is not None:
+        await on_step("translate", "running", {}, "", "")
+    translated = await translate_text(message, target_locale=locale)
+    final["message"] = translated
+    if on_step is not None:
+        await on_step("translate", "done", {}, "", "")
 
 
 def _set_span_request_attrs(
@@ -671,44 +392,3 @@ def _runtime_model_label(model: object) -> str | None:
         except Exception:
             return model
     return describe_model(model)
-
-
-def _get_plan_params(result: PipelineResult) -> dict[str, object]:
-    for step in result.plan.steps:
-        if step.params:
-            return dict(step.params)
-    return {}
-
-
-def _infer_bangumi_id(results: object) -> str | None:
-    if not isinstance(results, dict):
-        return None
-    rows = results.get("rows")
-    if not isinstance(rows, list) or not rows:
-        return None
-    first_row = rows[0]
-    if not isinstance(first_row, dict):
-        return None
-    bangumi_id = first_row.get("bangumi_id")
-    return str(bangumi_id) if bangumi_id is not None else None
-
-
-def _extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
-    if result is None:
-        return None
-
-    steps: list[str] = []
-    for step in getattr(result.plan, "steps", []) or []:
-        tool = getattr(step, "tool", None)
-        if tool is not None:
-            steps.append(getattr(tool, "value", str(tool)))
-            continue
-
-        step_type = getattr(step, "step_type", None)
-        if step_type is not None:
-            steps.append(getattr(step_type, "value", str(step_type)))
-            continue
-
-        steps.append(str(step))
-
-    return steps

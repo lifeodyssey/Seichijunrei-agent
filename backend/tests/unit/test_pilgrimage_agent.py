@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from pydantic_ai.models.test import TestModel
 
-from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
 
 async def test_run_pilgrimage_agent_adapts_clarify_output_to_pipeline_result() -> None:
