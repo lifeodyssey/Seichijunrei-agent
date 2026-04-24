@@ -273,7 +273,7 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
         report = journey_dataset.evaluate_sync(
             evaluate_journey,
             name=f"journey_eval_db_{_EVAL_MODEL_ID}",
-            max_concurrency=100,
+            max_concurrency=10,
         )
     finally:
         _DB_OVERRIDE = None
@@ -342,7 +342,7 @@ if __name__ == "__main__":
         report = await journey_dataset.evaluate(
             evaluate_journey,
             name=f"journey_eval_{mid}",
-            max_concurrency=100,
+            max_concurrency=10,
         )
         report.print(include_input=True, include_output=True)
         avg = report.averages()
