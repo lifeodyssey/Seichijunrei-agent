@@ -107,7 +107,7 @@ class RouteModel(BaseModel):
     anime_title_cn: str | None = None
     status: Literal["ok", "empty"] | None = None
     summary: dict[str, object] | None = None
-    timed_itinerary: TimedItinerary
+    timed_itinerary: TimedItinerary = Field(default_factory=TimedItinerary)
 
 
 class RouteDataModel(BaseModel):

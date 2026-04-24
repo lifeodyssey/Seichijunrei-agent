@@ -18,6 +18,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import threading
 from typing import TypeVar, overload
 
 import httpx
@@ -45,35 +46,38 @@ def _build_http_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(trust_env=False, timeout=30.0)
 
 
+_GOOGLE_MODEL_LOCK = threading.Lock()
+
+_PROXY_VARS = (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+)
+
+
 def _normalize_gemini_model(model_name: str) -> GoogleModel:
     """Build a GoogleModel from a repo config string.
 
     Note: Google genai SDK creates an internal sync httpx client that reads
     process proxy env vars. We temporarily save and clear them during
-    construction, then restore after. This is scoped to GoogleModel only.
+    construction, then restore after. Thread-safe via lock.
     """
     from backend.config import get_settings
 
-    # Save and clear proxy env for Google SDK sync client construction
-    _proxy_vars = (
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-    )
-    saved = {k: os.environ.pop(k) for k in _proxy_vars if k in os.environ}
-
-    normalized = model_name.removeprefix("google-gla:")
-    provider = GoogleProvider(
-        api_key=get_settings().gemini_api_key or None,
-        http_client=_build_http_client(),
-    )
-    model = GoogleModel(normalized, provider=provider)
-
-    # Restore proxy env vars
-    os.environ.update(saved)
+    with _GOOGLE_MODEL_LOCK:
+        saved = {k: os.environ.pop(k) for k in _PROXY_VARS if k in os.environ}
+        try:
+            normalized = model_name.removeprefix("google-gla:")
+            provider = GoogleProvider(
+                api_key=get_settings().gemini_api_key or None,
+                http_client=_build_http_client(),
+            )
+            model = GoogleModel(normalized, provider=provider)
+        finally:
+            os.environ.update(saved)
     return model
 
 

@@ -86,18 +86,19 @@ def test_search_response_model_accepts_rows_and_nearby_groups() -> None:
 
 
 def test_route_response_model_requires_timed_itinerary() -> None:
-    with pytest.raises(ValidationError):
-        RouteResponseModel(
-            intent="plan_route",
-            message="已为你规划好路线。",
-            data={
-                "route": {
-                    "ordered_points": [],
-                    "point_count": 0,
-                }
-            },
-            ui={"component": "RoutePlannerWizard"},
-        )
+    # timed_itinerary now has a default factory, so missing it should NOT raise
+    model = RouteResponseModel(
+        intent="plan_route",
+        message="已为你规划好路线。",
+        data={
+            "route": {
+                "ordered_points": [],
+                "point_count": 0,
+            }
+        },
+        ui={"component": "RoutePlannerWizard"},
+    )
+    assert model.data.route.timed_itinerary is not None
 
     model = RouteResponseModel(
         intent="plan_route",

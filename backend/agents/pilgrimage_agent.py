@@ -461,10 +461,18 @@ async def web_search(
 
     Returns a text summary of the top search results.
     """
+    import asyncio
+    from functools import partial
+
     from ddgs import DDGS
 
-    with DDGS() as ddgs:
-        results = list(ddgs.text(query, max_results=5))
+    def _search_sync(q: str) -> list[dict[str, str]]:
+        with DDGS() as ddgs:
+            return list(ddgs.text(q, max_results=5))
+
+    # Run synchronous DDGS in a thread to avoid blocking the event loop
+    loop = asyncio.get_running_loop()
+    results = await loop.run_in_executor(None, partial(_search_sync, query))
     if not results:
         return f"No results found for: {query}"
     lines = []
@@ -585,24 +593,16 @@ async def run_pilgrimage_agent(
     result.step_results = list(deps.step_results)
 
     final_output: dict[str, object] = {
-        "success": all(sr.success for sr in deps.step_results),
+        "success": all(sr.success for sr in deps.step_results)
+        if deps.step_results
+        else True,
         "message": str(output.message),
     }
 
-    from backend.agents.runtime_models import (
-        ClarifyResponseModel as _Clarify,
-    )
-    from backend.agents.runtime_models import (
-        RouteResponseModel as _Route,
-    )
-    from backend.agents.runtime_models import (
-        SearchResponseModel as _Search,
-    )
-
-    if isinstance(output, _Clarify):
+    if isinstance(output, ClarifyResponseModel):
         final_output["status"] = "needs_clarification"
         final_output.update(output.data.model_dump(mode="json"))
-    elif isinstance(output, _Search):
+    elif isinstance(output, SearchResponseModel):
         tool_key = str(output.intent)
         tool_payload = deps.tool_state.get(tool_key)
         payload = (
@@ -612,7 +612,7 @@ async def run_pilgrimage_agent(
         )
         final_output["status"] = _status_from_payload(payload, fallback="ok")
         final_output["results"] = payload
-    elif isinstance(output, _Route):
+    elif isinstance(output, RouteResponseModel):
         tool_key = str(output.intent)
         tool_payload = deps.tool_state.get(tool_key)
         payload = (
