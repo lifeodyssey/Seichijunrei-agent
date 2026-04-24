@@ -5,6 +5,19 @@ from __future__ import annotations
 from backend.agents.models import PlanStep
 
 
+def _build_candidates(options: list[str]) -> list[dict[str, object]]:
+    """Build minimal clarify candidates from plain-text options."""
+    return [
+        {
+            "title": option,
+            "cover_url": None,
+            "spot_count": 0,
+            "city": "",
+        }
+        for option in options
+    ]
+
+
 async def execute(
     step: PlanStep,
     context: dict[str, object],
@@ -46,12 +59,19 @@ async def execute_clarify(
         if isinstance(raw_options, list)
         else []
     )
+    raw_candidates = params.get("candidates")
+    candidates = (
+        [candidate for candidate in raw_candidates if isinstance(candidate, dict)]
+        if isinstance(raw_candidates, list)
+        else _build_candidates(options)
+    )
     return {
         "tool": "clarify",
         "success": True,
         "data": {
             "question": question,
             "options": options,
+            "candidates": candidates,
             "status": "needs_clarification",
         },
     }

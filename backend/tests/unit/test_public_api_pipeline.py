@@ -22,7 +22,7 @@ def _make_result(
     steps: list[PlanStep] | None = None,
     final_output: dict | None = None,
 ) -> PipelineResult:
-    """Build a fake PipelineResult for tests that mock run_pipeline."""
+    """Build a fake PipelineResult for tests that mock the runtime agent."""
     plan = ExecutionPlan(
         reasoning="test",
         locale=locale,
@@ -41,12 +41,21 @@ def _make_result(
 
 @pytest.fixture(autouse=True)
 def _mock_pipeline(monkeypatch):
-    """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
+    """Mock run_pilgrimage_agent — avoids LLM calls in unit tests."""
 
-    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
+    async def _fake(
+        *,
+        text: str,
+        db: object,
+        model: object | None = None,
+        locale: str = "ja",
+        context: dict[str, object] | None = None,
+        on_step: object | None = None,
+    ) -> PipelineResult:
+        _ = (text, db, model, context, on_step)
         return _make_result(locale=locale)
 
-    monkeypatch.setattr("backend.interfaces.public_api.run_pipeline", _fake)
+    monkeypatch.setattr("backend.interfaces.public_api.run_pilgrimage_agent", _fake)
 
 
 @pytest.fixture
@@ -114,11 +123,20 @@ class TestRuntimeAPIExecution:
         )
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
         ):
+            _ = (text, db, model, locale, context, on_step)
             return result
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db)
             response = await api.handle(
                 PublicAPIRequest(text="从京都站出发去吹响的圣地", include_debug=True)
@@ -167,11 +185,20 @@ class TestRuntimeAPIExecution:
         )
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
         ):
+            _ = (text, db, model, locale, context, on_step)
             return result
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db)
             response = await api.handle(
                 PublicAPIRequest(
@@ -198,13 +225,20 @@ class TestRuntimeAPIExecution:
             },
         )
 
-        async def fake_run_pipeline(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+        async def fake_run_agent(
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, context, on_step)
             return result
 
         monkeypatch.setattr(
-            "backend.interfaces.public_api.run_pipeline", fake_run_pipeline
+            "backend.interfaces.public_api.run_pilgrimage_agent", fake_run_agent
         )
 
         db = MagicMock()
@@ -256,7 +290,7 @@ class TestSelectedPointIdsBypass:
 
         with (
             patch(
-                "backend.interfaces.public_api.run_pipeline",
+                "backend.interfaces.public_api.run_pilgrimage_agent",
                 new=AsyncMock(side_effect=AssertionError("planner should be bypassed")),
             ),
             patch("backend.interfaces.public_api.ExecutorAgent", return_value=executor),

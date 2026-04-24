@@ -19,7 +19,7 @@ import structlog
 from pydantic_ai.models import Model
 
 from backend.agents.executor_agent import ExecutorAgent, PipelineResult
-from backend.agents.pipeline import run_pipeline
+from backend.agents.pilgrimage_agent import run_pilgrimage_agent
 from backend.application.errors import ApplicationError, ErrorCode
 from backend.infrastructure.observability import (
     get_runtime_tracer,
@@ -70,7 +70,7 @@ _OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
 
 
 class RuntimeAPI:
-    """Thin interface-layer facade over ``run_pipeline``."""
+    """Thin interface-layer facade over the runtime agent."""
 
     def __init__(
         self,
@@ -212,9 +212,9 @@ class RuntimeAPI:
                     on_step=on_step,
                 )
             else:
-                result = await run_pipeline(
-                    request.text,
-                    self._db,
+                result = await run_pilgrimage_agent(
+                    text=request.text,
+                    db=self._db,
                     model=effective_model,
                     locale=request.locale,
                     context=context,

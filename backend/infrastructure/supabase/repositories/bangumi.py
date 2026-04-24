@@ -101,3 +101,36 @@ class BangumiRepository:
             bangumi_id,
             title,
         )
+
+    async def find_candidate_details_by_titles(
+        self, titles: list[str]
+    ) -> list[dict[str, object]]:
+        """Lookup candidate details for a list of titles, preserving input order.
+
+        This is used to enrich clarification candidates with cover/city/spot_count
+        without requiring the frontend to guess or synthesize fields.
+        """
+        if not titles:
+            return []
+
+        rows = await self._pool.fetch(
+            """
+            SELECT
+              requested.title AS title,
+              b.id AS bangumi_id,
+              COALESCE(b.cover_url_local, b.cover_url, b.cover_url_upstream) AS cover_url,
+              COALESCE(b.city, '') AS city,
+              COALESCE(b.points_count, 0) AS points_count
+            FROM unnest($1::text[]) WITH ORDINALITY AS requested(title, ord)
+            LEFT JOIN LATERAL (
+              SELECT id, cover_url, cover_url_local, cover_url_upstream, city, points_count
+              FROM bangumi
+              WHERE title ILIKE requested.title OR title_cn ILIKE requested.title
+              ORDER BY points_count DESC NULLS LAST
+              LIMIT 1
+            ) b ON TRUE
+            ORDER BY requested.ord
+            """,
+            titles,
+        )
+        return [dict(r) for r in rows]

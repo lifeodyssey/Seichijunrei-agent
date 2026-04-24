@@ -22,6 +22,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -54,14 +55,9 @@ def make_model(model_id: str | None = None) -> object:
     return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
-_EVAL_MODEL: object | None = None
-
-
+@lru_cache(maxsize=1)
 def _get_eval_model() -> object:
-    global _EVAL_MODEL  # noqa: PLW0603
-    if _EVAL_MODEL is None:
-        _EVAL_MODEL = make_model()
-    return _EVAL_MODEL
+    return make_model()
 
 
 # ── Case types ───────────────────────────────────────────────────────
@@ -340,13 +336,13 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
     print(f"\n{'=' * 60}")
     print(f"  Model:     {_EVAL_MODEL_ID}")
     print(f"  DB mode:   {db_mode}")
-    print(f"  Stage:       {stage_score:.1%}")
-    print(f"  Message:     {message_score:.1%}")
-    print(f"  Data keys:   {keys_score:.1%}")
-    print(f"  Results keys:{results_score:.1%}")
-    print(f"  Route keys:  {route_score:.1%}")
-    print(f"  Nearby:      {nearby_score:.1%}")
-    print(f"  Cases:       {len(CASES)}")
+    print(f"  Stage:        {stage_score:.1%}")
+    print(f"  Message:      {message_score:.1%}")
+    print(f"  Data keys:    {keys_score:.1%}")
+    print(f"  Results keys: {results_score:.1%}")
+    print(f"  Route keys:   {route_score:.1%}")
+    print(f"  Nearby:       {nearby_score:.1%}")
+    print(f"  Cases:        {len(CASES)}")
     print(f"{'=' * 60}")
 
     if not baseline_scores:

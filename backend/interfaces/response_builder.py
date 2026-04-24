@@ -41,16 +41,17 @@ def pipeline_result_to_public_response(
     ]
     component = _UI_MAP.get(result.intent)
     ui = {"component": component} if component else None
+    data = {
+        key: value
+        for key, value in final_output.items()
+        if key not in {"success", "intent", "errors"} and value is not None
+    }
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
         status=str(final_output.get("status", "ok" if result.success else "error")),
         intent=result.intent,
         message=str(final_output.get("message") or ""),
-        data={
-            k: final_output[k]
-            for k in ("results", "route")
-            if final_output.get(k) is not None
-        },
+        data=data,
         errors=errors,
         ui=ui,
     )

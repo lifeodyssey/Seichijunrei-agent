@@ -6,7 +6,6 @@ import structlog
 
 from backend.agents.models import PlanStep
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
-from backend.infrastructure.supabase.client import SupabaseClient
 
 logger = structlog.get_logger(__name__)
 
@@ -28,11 +27,14 @@ async def execute(
     if not title:
         return {"tool": "resolve_anime", "success": False, "error": "No title provided"}
 
-    if not isinstance(db, SupabaseClient):
+    repo = getattr(db, "bangumi", None)
+    find_bangumi_by_title = getattr(repo, "find_bangumi_by_title", None)
+    upsert_bangumi_title = getattr(repo, "upsert_bangumi_title", None)
+    if not callable(find_bangumi_by_title) or not callable(upsert_bangumi_title):
         return {"tool": "resolve_anime", "success": False, "error": "DB not available"}
 
     # 1. DB lookup
-    bangumi_id = await db.bangumi.find_bangumi_by_title(title)
+    bangumi_id = await find_bangumi_by_title(title)
     if bangumi_id:
         logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
         return {
@@ -45,7 +47,7 @@ async def execute(
     gateway = BangumiClientGateway()
     bangumi_id = await gateway.search_by_title(title)
     if bangumi_id:
-        await db.bangumi.upsert_bangumi_title(title, bangumi_id)
+        await upsert_bangumi_title(title, bangumi_id)
         logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
         return {
             "tool": "resolve_anime",

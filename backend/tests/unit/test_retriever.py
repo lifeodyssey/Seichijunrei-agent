@@ -105,6 +105,7 @@ class TestRetrievalExecution:
         assert result.success
         assert result.strategy == RetrievalStrategy.GEO
         assert result.row_count == 1
+        assert result.metadata["radius_m"] == 5000
         mock_db.points.search_points_by_location.assert_awaited_once()
         mock_db.pool.fetch.assert_not_called()
 

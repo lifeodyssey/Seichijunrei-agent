@@ -156,10 +156,13 @@ class Retriever:
 
     async def _execute_geo(self, request: RetrievalRequest) -> RetrievalResult:
         anchor = request.location or request.origin or ""
-        rows, error = await fetch_geo_rows(
-            self._db, anchor, radius_m=request.radius or 5000
-        )
-        metadata: dict[str, object] = {"source": "geo", "anchor": anchor}
+        radius_m = request.radius or 5000
+        rows, error = await fetch_geo_rows(self._db, anchor, radius_m=radius_m)
+        metadata: dict[str, object] = {
+            "source": "geo",
+            "anchor": anchor,
+            "radius_m": radius_m,
+        }
         if not error and len(rows) < 5:
             suggestions = await get_area_suggestions(self._db, anchor)
             if suggestions:

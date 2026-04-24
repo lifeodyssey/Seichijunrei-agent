@@ -42,7 +42,7 @@ def _build_http_client() -> httpx.AsyncClient:
     Uses trust_env=False to scope proxy bypass to provider clients only,
     without mutating process-wide os.environ.
     """
-    return httpx.AsyncClient(trust_env=False)
+    return httpx.AsyncClient(trust_env=False, timeout=30.0)
 
 
 def _normalize_gemini_model(model_name: str) -> GoogleModel:

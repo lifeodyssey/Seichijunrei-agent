@@ -19,7 +19,7 @@ def _make_result(
     steps: list[PlanStep] | None = None,
     final_output: dict | None = None,
 ) -> PipelineResult:
-    """Build a fake PipelineResult for tests that mock run_pipeline."""
+    """Build a fake PipelineResult for tests that mock the runtime agent."""
     plan = ExecutionPlan(
         reasoning="test",
         locale=locale,
@@ -38,12 +38,21 @@ def _make_result(
 
 @pytest.fixture(autouse=True)
 def _mock_pipeline(monkeypatch):
-    """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
+    """Mock run_pilgrimage_agent — avoids LLM calls in unit tests."""
 
-    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
+    async def _fake(
+        *,
+        text: str,
+        db: object,
+        model: object | None = None,
+        locale: str = "ja",
+        context: dict[str, object] | None = None,
+        on_step: object | None = None,
+    ) -> PipelineResult:
+        _ = (text, db, model, context, on_step)
         return _make_result(locale=locale)
 
-    monkeypatch.setattr("backend.interfaces.public_api.run_pipeline", _fake)
+    monkeypatch.setattr("backend.interfaces.public_api.run_pilgrimage_agent", _fake)
 
 
 @pytest.fixture
@@ -73,8 +82,15 @@ class TestGreetUserEphemeral:
         result.final_output = {"success": True, "status": "info", "message": "Hello!"}
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
         ):
+            _ = (text, db, model, locale, context, on_step)
             return result
 
         db = MagicMock()
@@ -90,7 +106,9 @@ class TestGreetUserEphemeral:
         session_store.delete = AsyncMock()
         session_store.close = AsyncMock()
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(db=db, session_store=session_store)
             response = await api.handle(PublicAPIRequest(text="hi"), user_id="u1")
 
@@ -214,11 +232,20 @@ class TestUserMemoryUpsert:
         ]
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
         ):
+            _ = (text, db, model, locale, context, on_step)
             return result
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             await api.handle(PublicAPIRequest(text="響け"), user_id="u1")
 
