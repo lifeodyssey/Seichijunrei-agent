@@ -51,6 +51,8 @@ async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:
     client._user_memory = None
     client._routes = None
     client._messages = None
-    # _ensure_repos will lazy-init from _pool on first method call.
+    # Initialize repositories against the injected pool so the testcontainer-backed
+    # client behaves like a connected SupabaseClient.
+    client._init_repos(db_pool)
     yield client
     # Pool lifecycle managed by db_pool fixture — nothing to close here.

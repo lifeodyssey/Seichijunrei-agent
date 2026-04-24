@@ -1,15 +1,15 @@
 """Runtime journey eval — validates frontend stage contracts.
 
-Runs runtime_journey_v1 dataset through the current pipeline and checks:
+Runs runtime_journey_v1 dataset through the pilgrimage agent and checks:
 - final intent/stage matches expected
 - final message is non-empty and meets minimum length
 - required data keys are present in the final response
 
-Usage:
-    # pytest (mock DB — fast, no Docker)
-    USE_MOCK_DB=1 uv run pytest backend/tests/eval/test_runtime_journey.py -v -m integration --no-cov
+All evals run against a real testcontainer PostgreSQL (with seed data).
+No mock DB fallback — the eval must test the real product chain.
 
-    # pytest (with testcontainer — needs Docker)
+Usage:
+    # pytest (requires Docker for testcontainer)
     uv run pytest backend/tests/eval/test_runtime_journey.py -v -m integration --no-cov
 
     # standalone
@@ -22,7 +22,6 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -37,11 +36,10 @@ from backend.tests.eval.eval_common import (
     write_baseline,
 )
 
-# Load root .env so GEMINI_API_KEY is available at eval time.
+# Load root .env so API keys are available at eval time.
 load_dotenv(Path(__file__).parents[3] / ".env")
 
 # ── Pluggable model ──────────────────────────────────────────────────
-
 
 _DEFAULT_MODEL_ID = "openai:gpt-5.4"
 _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL_ID)
@@ -55,9 +53,14 @@ def make_model(model_id: str | None = None) -> object:
     return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
-@lru_cache(maxsize=1)
+_EVAL_MODEL: object | None = None
+
+
 def _get_eval_model() -> object:
-    return make_model()
+    global _EVAL_MODEL  # noqa: PLW0603
+    if _EVAL_MODEL is None:
+        _EVAL_MODEL = make_model()
+    return _EVAL_MODEL
 
 
 # ── Case types ───────────────────────────────────────────────────────
@@ -90,49 +93,24 @@ class JourneyExpected:
     expected_route_keys: list[str]
 
 
-# ── Task under test ──────────────────────────────────────────────────
-
-
-def _make_mock_db() -> object:
-    """Build a MagicMock DB for standalone / no-Docker fallback."""
-    from unittest.mock import AsyncMock, MagicMock
-
-    db = MagicMock()
-    pool = AsyncMock()
-    pool.fetch = AsyncMock(return_value=[])
-    db.pool = pool
-    db.search_points_by_location = AsyncMock(return_value=[])
-    db.query_bangumi_points = AsyncMock(return_value=[])
-    db.query_nearby_points = AsyncMock(return_value=[])
-    db.bangumi.find_bangumi_by_title = AsyncMock(return_value="262243")
-    db.bangumi.upsert_bangumi_title = AsyncMock(return_value=None)
-    db.save_route = AsyncMock(return_value=None)
-    db.load_route = AsyncMock(return_value=None)
-    db.bangumi.find_candidate_details_by_titles = AsyncMock(return_value=[])
-    db.bangumi.list_popular = AsyncMock(return_value=[])
-    db.get_points_by_bangumi = AsyncMock(return_value=[])
-    db.bangumi.get_bangumi = AsyncMock(return_value=None)
-    db.insert_message = AsyncMock(return_value=None)
-    db.insert_request_log = AsyncMock(return_value=None)
-    db.upsert_bangumi = AsyncMock(return_value=None)
-    db.upsert_bangumi_title = AsyncMock(return_value=None)
-    db.bangumi.get_bangumi_by_area = AsyncMock(return_value=[])
-    db.save_route_id = AsyncMock(return_value="mock-route-id")
-    return db
-
+# ── Task under test (testcontainer only, no mock DB) ─────────────────
 
 _DB_OVERRIDE: object | None = None
 
 
 async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
-    """Run the pilgrimage agent and capture stage contract info."""
+    """Run the pilgrimage agent against real DB and capture stage contract."""
     from backend.agents.pilgrimage_agent import run_pilgrimage_agent
 
-    db = _DB_OVERRIDE if _DB_OVERRIDE is not None else _make_mock_db()
+    if _DB_OVERRIDE is None:
+        raise RuntimeError(
+            "Eval requires real DB (testcontainer). "
+            "Ensure the real_db fixture is available."
+        )
 
     result = await run_pilgrimage_agent(
         text=inp.query,
-        db=db,
+        db=_DB_OVERRIDE,
         model=_get_eval_model(),
         locale=inp.locale,
     )
@@ -158,10 +136,9 @@ async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
         route = data.get("route")
         if isinstance(route, dict):
             route_keys = list(route.keys())
-        # Extract per-row fields from first row for nearby field checking
         rows = results.get("rows", []) if isinstance(results, dict) else []
         if rows and isinstance(rows[0], dict):
-            nearby_fields = list(rows[0].keys()) if rows else []
+            nearby_fields = list(rows[0].keys())
 
     return JourneyOutput(
         intent=intent,
@@ -201,7 +178,6 @@ class DataKeysEvaluator(Evaluator[JourneyInput, JourneyOutput]):
     def evaluate(self, ctx: EvaluatorContext[JourneyInput, JourneyOutput]) -> float:
         expected = set(ctx.expected_output.expected_data_keys)
         if not expected:
-            # no specific keys required (e.g. greet)
             return 1.0
         actual = set(ctx.output.data_keys) if ctx.output else set()
         return 1.0 if expected.issubset(actual) else 0.0
@@ -276,33 +252,28 @@ journey_dataset = Dataset(
 )
 
 
-# ── Pytest integration ───────────────────────────────────────────────
-
-
-def _use_mock_db() -> bool:
-    return os.environ.get("USE_MOCK_DB", "").strip() in ("1", "true", "yes")
-
+# ── Pytest integration (testcontainer only) ──────────────────────────
 
 _LAYER = "runtime_journey"
 
 
 @pytest.mark.integration
 def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
-    """Run runtime journey eval with testcontainer or mock DB fallback."""
+    """Run runtime journey eval against real testcontainer DB."""
     global _DB_OVERRIDE  # noqa: PLW0603
 
-    if not _use_mock_db():
-        try:
-            real_db = request.getfixturevalue("real_db")
-            _DB_OVERRIDE = real_db
-        except pytest.FixtureLookupError:
-            pass
+    try:
+        real_db = request.getfixturevalue("real_db")
+    except pytest.FixtureLookupError:
+        pytest.skip("real_db fixture not available — Docker required for eval.")
+        return
 
+    _DB_OVERRIDE = real_db
     try:
         report = journey_dataset.evaluate_sync(
             evaluate_journey,
             name=f"journey_eval_db_{_EVAL_MODEL_ID}",
-            max_concurrency=1,
+            max_concurrency=100,
         )
     finally:
         _DB_OVERRIDE = None
@@ -311,9 +282,7 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
 
     avg = report.averages()
     if avg is None:
-        pytest.skip(
-            "All eval cases errored — model endpoint unreachable or mock DB insufficient."
-        )
+        pytest.skip("All eval cases errored — check model endpoint and DB.")
     stage_score = avg.scores.get("StageEvaluator", 0)
     message_score = avg.scores.get("MessageMinLenEvaluator", 0)
     keys_score = avg.scores.get("DataKeysEvaluator", 0)
@@ -321,7 +290,6 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
     route_score = avg.scores.get("RouteKeysEvaluator", 0)
     nearby_score = avg.scores.get("NearbyFieldsEvaluator", 0)
 
-    db_mode = "testcontainer" if not _use_mock_db() else "mock"
     current_scores = {
         "StageEvaluator": stage_score,
         "MessageMinLenEvaluator": message_score,
@@ -334,8 +302,8 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
         _LAYER, _EVAL_MODEL_ID, expected_case_count=len(CASES)
     )
     print(f"\n{'=' * 60}")
-    print(f"  Model:     {_EVAL_MODEL_ID}")
-    print(f"  DB mode:   {db_mode}")
+    print(f"  Model:        {_EVAL_MODEL_ID}")
+    print("  DB mode:      testcontainer")
     print(f"  Stage:        {stage_score:.1%}")
     print(f"  Message:      {message_score:.1%}")
     print(f"  Data keys:    {keys_score:.1%}")
@@ -374,10 +342,12 @@ if __name__ == "__main__":
         report = await journey_dataset.evaluate(
             evaluate_journey,
             name=f"journey_eval_{mid}",
-            max_concurrency=1,
+            max_concurrency=100,
         )
         report.print(include_input=True, include_output=True)
         avg = report.averages()
+        if avg is None:
+            raise SystemExit("All eval cases errored.")
         current_scores = {
             "StageEvaluator": avg.scores.get("StageEvaluator", 0),
             "MessageMinLenEvaluator": avg.scores.get("MessageMinLenEvaluator", 0),
