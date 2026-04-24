@@ -123,15 +123,15 @@ class Settings(BaseSettings):
 
     # Agent model
     default_agent_model: str = Field(
-        default="openai:gpt-5.4",
-        description="Default primary LLM model for pydantic-ai agents",
+        default="google-gla:gemini-3.1-pro-preview",
+        description="Default primary LLM model (100% eval score, $2/$12 per 1M)",
     )
     fallback_agent_model: str | None = Field(
-        default="openai:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1",
+        default="openai:gpt-5.4",
         description="First fallback LLM model when the default provider fails",
     )
     fallback_agent_model_2: str | None = Field(
-        default="google-gla:gemini-3.1-pro-preview",
+        default="openai:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1",
         description="Second fallback LLM model",
     )
     openai_compat_base_url: str = Field(
