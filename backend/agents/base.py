@@ -93,6 +93,10 @@ def _resolve_api_key_for_base_url(base_url: str) -> str | None:
         key = os.environ.get("MIMO_API_KEY")
         if key:
             return key
+    if "deepseek.com" in base_url:
+        key = os.environ.get("DEEPSEEK_API_KEY")
+        if key:
+            return key
     return None
 
 
