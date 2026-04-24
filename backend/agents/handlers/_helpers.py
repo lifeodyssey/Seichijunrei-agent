@@ -78,7 +78,7 @@ def _build_nearby_groups(rows: list[dict[str, object]]) -> list[dict[str, object
                 if isinstance(row.get("cover_url"), str)
                 else None,
                 "points_count": 1,
-                "closest_distance_m": normalized_distance or 0.0,
+                "closest_distance_m": normalized_distance,
             }
             continue
 
@@ -91,13 +91,13 @@ def _build_nearby_groups(rows: list[dict[str, object]]) -> list[dict[str, object
         if group.get("cover_url") is None and isinstance(row.get("cover_url"), str):
             group["cover_url"] = row["cover_url"]
         current_distance = group.get("closest_distance_m")
-        if (
-            isinstance(current_distance, int | float)
-            and normalized_distance is not None
-        ):
-            group["closest_distance_m"] = min(
-                float(current_distance), normalized_distance
-            )
+        if normalized_distance is not None:
+            if isinstance(current_distance, int | float):
+                group["closest_distance_m"] = min(
+                    float(current_distance), normalized_distance
+                )
+            else:
+                group["closest_distance_m"] = normalized_distance
 
     return list(groups.values())
 

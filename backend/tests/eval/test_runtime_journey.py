@@ -53,14 +53,13 @@ def make_model(model_id: str | None = None) -> object:
     return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
-_EVAL_MODEL: object | None = None
+_STATE: dict[str, object] = {"model": None, "db": None}
 
 
 def _get_eval_model() -> object:
-    global _EVAL_MODEL  # noqa: PLW0603
-    if _EVAL_MODEL is None:
-        _EVAL_MODEL = make_model()
-    return _EVAL_MODEL
+    if _STATE["model"] is None:
+        _STATE["model"] = make_model()
+    return _STATE["model"]
 
 
 # ── Case types ───────────────────────────────────────────────────────
@@ -95,14 +94,12 @@ class JourneyExpected:
 
 # ── Task under test (testcontainer only, no mock DB) ─────────────────
 
-_DB_OVERRIDE: object | None = None
-
 
 async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
     """Run the pilgrimage agent against real DB and capture stage contract."""
     from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
-    if _DB_OVERRIDE is None:
+    if _STATE["db"] is None:
         raise RuntimeError(
             "Eval requires real DB (testcontainer). "
             "Ensure the real_db fixture is available."
@@ -117,7 +114,7 @@ async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
 
     result = await run_pilgrimage_agent(
         text=inp.query,
-        db=_DB_OVERRIDE,
+        db=_STATE["db"],
         model=_get_eval_model(),
         locale=inp.locale,
         model_settings=eval_model_settings,
@@ -268,15 +265,13 @@ _LAYER = "runtime_journey"
 @pytest.mark.integration
 def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
     """Run runtime journey eval against real testcontainer DB."""
-    global _DB_OVERRIDE  # noqa: PLW0603
-
     try:
         real_db = request.getfixturevalue("real_db")
     except pytest.FixtureLookupError:
         pytest.skip("real_db fixture not available — Docker required for eval.")
         return
 
-    _DB_OVERRIDE = real_db
+    _STATE["db"] = real_db
     try:
         report = journey_dataset.evaluate_sync(
             evaluate_journey,
@@ -284,7 +279,7 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
             max_concurrency=50,
         )
     finally:
-        _DB_OVERRIDE = None
+        _STATE["db"] = None
 
     report.print(include_input=True, include_output=True)
 
@@ -343,9 +338,8 @@ if __name__ == "__main__":
             break
 
     async def main() -> None:
-        global _EVAL_MODEL  # noqa: PLW0603
         mid = model_arg or _EVAL_MODEL_ID
-        _EVAL_MODEL = make_model(model_arg) if model_arg else _get_eval_model()
+        _STATE["model"] = make_model(model_arg) if model_arg else _get_eval_model()
 
         report = await journey_dataset.evaluate(
             evaluate_journey,

@@ -26,13 +26,13 @@ const CONTAINER_RUNTIME_ENV_KEYS = [
   "RATE_LIMIT_PERIOD_SECONDS",
   "TIMEOUT_SECONDS",
   "USE_CACHE",
+  "ZETA_API_KEY",
 ];
 
 const CONTAINER_OPTIONAL_ENV_KEYS = [
   "GOOGLE_MAPS_API_KEY",
   "LOGFIRE_TOKEN",
   "OPENAI_COMPAT_API_KEY",
-  "ZETA_API_KEY",
 ];
 
 // Worker-only auth secrets stay at the edge and are intentionally not forwarded

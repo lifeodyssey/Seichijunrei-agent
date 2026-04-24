@@ -171,7 +171,14 @@ async def translate_title(
     locale_names = {"ja": "Japanese", "zh": "Chinese", "en": "English"}
     target_name = locale_names.get(target_locale, target_locale)
 
-    prompt = f'What is the official {target_name} title for the anime "{title}"? Search for the community-accepted translation.'
+    # Fence the title to prevent prompt injection from user-influenced input
+    safe_title = title.replace("```", "")
+    prompt = (
+        f"What is the official {target_name} title for the anime "
+        f"enclosed below?\n```\n{safe_title}\n```\n"
+        f"Search for the community-accepted translation. "
+        f"Return ONLY the translated title, nothing else."
+    )
 
     try:
         deps = TranslationDeps(

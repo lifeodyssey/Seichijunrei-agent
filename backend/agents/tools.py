@@ -98,7 +98,6 @@ async def enrich_clarify_candidates(
                         resolved_id,
                         title=title,
                         cover_url=fallback_cover_url,
-                        points_count=0,
                     )
                 except Exception:
                     pass

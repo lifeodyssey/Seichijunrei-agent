@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import TypeVar, overload
+from urllib.parse import urlparse
 
 import httpx
 from pydantic import BaseModel
@@ -92,19 +93,18 @@ def _resolve_api_key_for_base_url(base_url: str) -> str | None:
         key = os.environ.get("MIMO_API_KEY")
         if key:
             return key
-    # Also match by domain for inline @url specs
-    if "xiaomimimo.com" in base_url:
-        key = os.environ.get("MIMO_API_KEY")
-        if key:
-            return key
-    if "deepseek.com" in base_url:
-        key = os.environ.get("DEEPSEEK_API_KEY")
-        if key:
-            return key
-    if "zetatechs.com" in base_url:
-        key = os.environ.get("ZETA_API_KEY")
-        if key:
-            return key
+    # Match by domain for inline @url specs — use proper URL parsing
+    host = urlparse(base_url).hostname or ""
+    domain_keys: list[tuple[str, str]] = [
+        ("xiaomimimo.com", "MIMO_API_KEY"),
+        ("deepseek.com", "DEEPSEEK_API_KEY"),
+        ("zetatechs.com", "ZETA_API_KEY"),
+    ]
+    for domain, env_var in domain_keys:
+        if host == domain or host.endswith(f".{domain}"):
+            key = os.environ.get(env_var)
+            if key:
+                return key
     return None
 
 

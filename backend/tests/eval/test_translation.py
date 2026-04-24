@@ -49,7 +49,7 @@ class TranslationExpected:
 
 # ── Task under test ──────────────────────────────────────────────────
 
-_DB_OVERRIDE: object | None = None
+_STATE: dict[str, object] = {"db": None}
 
 
 async def evaluate_translation(inp: TranslationInput) -> TranslationOutput:
@@ -59,7 +59,7 @@ async def evaluate_translation(inp: TranslationInput) -> TranslationOutput:
     result = await translate_title(
         inp.title,
         target_locale=inp.target_locale,
-        db=_DB_OVERRIDE,
+        db=_STATE["db"],
     )
     return TranslationOutput(
         translated=result.translated,
@@ -153,11 +153,9 @@ _LAYER = "translation"
 @pytest.mark.integration
 def test_translation_quality(request: pytest.FixtureRequest) -> None:
     """Run translation eval against real testcontainer DB."""
-    global _DB_OVERRIDE  # noqa: PLW0603
-
     try:
         real_db = request.getfixturevalue("real_db")
-        _DB_OVERRIDE = real_db
+        _STATE["db"] = real_db
     except pytest.FixtureLookupError:
         pytest.skip("real_db fixture not available — Docker required.")
         return
@@ -169,7 +167,7 @@ def test_translation_quality(request: pytest.FixtureRequest) -> None:
             max_concurrency=20,
         )
     finally:
-        _DB_OVERRIDE = None
+        _STATE["db"] = None
 
     report.print(include_input=True, include_output=True)
 

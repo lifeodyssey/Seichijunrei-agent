@@ -145,12 +145,12 @@ class BangumiRepository:
             SELECT
               requested.title AS title,
               b.id AS bangumi_id,
-              COALESCE(b.cover_url_local, b.cover_url, b.cover_url_upstream) AS cover_url,
+              COALESCE(b.cover_url, '') AS cover_url,
               COALESCE(b.city, '') AS city,
               COALESCE(b.points_count, 0) AS points_count
             FROM unnest($1::text[]) WITH ORDINALITY AS requested(title, ord)
             LEFT JOIN LATERAL (
-              SELECT id, cover_url, cover_url_local, cover_url_upstream, city, points_count
+              SELECT id, cover_url, city, points_count
               FROM bangumi
               WHERE title ILIKE requested.title OR title_cn ILIKE requested.title
               ORDER BY points_count DESC NULLS LAST

@@ -355,8 +355,11 @@ async def _apply_translation_gate(
         return
     if on_step is not None:
         await on_step("translate", "running", {}, "", "")
-    translated = await translate_text(message, target_locale=locale)
-    final["message"] = translated
+    try:
+        translated = await translate_text(message, target_locale=locale)
+        final["message"] = translated
+    except Exception:
+        logger.warning("translation_gate_failed", locale=locale)
     if on_step is not None:
         await on_step("translate", "done", {}, "", "")
 

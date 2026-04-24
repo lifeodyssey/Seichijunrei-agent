@@ -57,15 +57,14 @@ def make_model(model_id: str | None = None) -> object:
 
 # Lazy-init: avoid running LLM provider setup during pytest collection.
 # EVAL_MODEL is initialized on first use via _get_eval_model().
-_EVAL_MODEL: object | None = None
+_STATE: dict[str, object] = {"model": None, "db": None}
 
 
 def _get_eval_model() -> object:
     """Get or lazily initialize the eval model."""
-    global _EVAL_MODEL  # noqa: PLW0603
-    if _EVAL_MODEL is None:
-        _EVAL_MODEL = make_model()
-    return _EVAL_MODEL
+    if _STATE["model"] is None:
+        _STATE["model"] = make_model()
+    return _STATE["model"]
 
 
 # ── Case types ───────────────────────────────────────────────────────
@@ -113,19 +112,15 @@ def _make_mock_db() -> object:
     return db
 
 
-# Module-level DB override: set by fixtures for testcontainer path.
-_DB_OVERRIDE: object | None = None
-
-
 async def evaluate_plan(inp: PlanInput) -> PlanOutput:
     """Run run_pipeline and capture the plan steps + intent.
 
-    Uses real DB from testcontainer when ``_DB_OVERRIDE`` is set,
+    Uses real DB from testcontainer when ``_STATE["db"]`` is set,
     otherwise falls back to MagicMock (standalone / no-Docker).
     """
     from backend.agents.pipeline import run_pipeline
 
-    db = _DB_OVERRIDE if _DB_OVERRIDE is not None else _make_mock_db()
+    db = _STATE["db"] if _STATE["db"] is not None else _make_mock_db()
 
     result = await run_pipeline(
         inp.query,
@@ -278,12 +273,10 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
     OutcomeEvaluator scores become meaningful (row_count > 0 for known anime).
     Falls back to mock DB when USE_MOCK_DB=1 or real_db fixture unavailable.
     """
-    global _DB_OVERRIDE  # noqa: PLW0603
-
     if not _use_mock_db():
         try:
             real_db = request.getfixturevalue("real_db")
-            _DB_OVERRIDE = real_db
+            _STATE["db"] = real_db
         except pytest.FixtureLookupError:
             pass  # testcontainer fixtures not available — use mock
 
@@ -294,7 +287,7 @@ def test_plan_quality_with_db(request: pytest.FixtureRequest) -> None:
             max_concurrency=1,
         )
     finally:
-        _DB_OVERRIDE = None
+        _STATE["db"] = None
 
     report.print(include_input=True, include_output=True)
 
@@ -347,9 +340,8 @@ if __name__ == "__main__":
             break
 
     async def main() -> None:
-        global _EVAL_MODEL  # noqa: PLW0603
         mid = model_arg or _EVAL_MODEL_ID
-        _EVAL_MODEL = make_model(model_arg) if model_arg else _get_eval_model()
+        _STATE["model"] = make_model(model_arg) if model_arg else _get_eval_model()
 
         async def _task(inp: PlanInput) -> PlanOutput:
             return await evaluate_plan(inp)
