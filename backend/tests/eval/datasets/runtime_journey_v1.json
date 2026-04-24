@@ -1,6 +1,6 @@
 [
   {
-    "id": "clarify-ambiguous-anime",
+    "id": "clarify-ambiguous-anime-zh",
     "query": "凉宫",
     "locale": "zh",
     "expected_stage": "clarify",
@@ -8,7 +8,7 @@
     "expected_data_keys": ["question", "options", "status", "candidates"]
   },
   {
-    "id": "clarify-japanese-ambiguous",
+    "id": "clarify-ambiguous-anime-ja",
     "query": "響け",
     "locale": "ja",
     "expected_stage": "clarify",
@@ -16,7 +16,15 @@
     "expected_data_keys": ["question", "options", "status", "candidates"]
   },
   {
-    "id": "search-bangumi-clear",
+    "id": "clarify-ambiguous-anime-en",
+    "query": "haruhi",
+    "locale": "en",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["question", "options", "status", "candidates"]
+  },
+  {
+    "id": "search-bangumi-ja",
     "query": "君の名は の聖地を教えて",
     "locale": "ja",
     "expected_stage": "search_bangumi",
@@ -26,7 +34,7 @@
   },
   {
     "id": "search-bangumi-zh",
-    "query": "取景地 涼宮ハルヒの憂鬱",
+    "query": "涼宮ハルヒの憂鬱 取景地",
     "locale": "zh",
     "expected_stage": "search_bangumi",
     "expected_message_min_len": 2,
@@ -34,7 +42,24 @@
     "expected_results_keys": ["rows", "row_count"]
   },
   {
-    "id": "greet-chinese",
+    "id": "search-bangumi-en",
+    "query": "Show me pilgrimage spots for Your Name",
+    "locale": "en",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"]
+  },
+  {
+    "id": "search-bangumi-unknown-anime",
+    "query": "一个不存在的动漫12345的圣地",
+    "locale": "zh",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"]
+  },
+  {
+    "id": "greet-zh",
     "query": "你好",
     "locale": "zh",
     "expected_stage": "greet_user",
@@ -42,11 +67,51 @@
     "expected_data_keys": []
   },
   {
-    "id": "greet-identity",
+    "id": "greet-identity-zh",
     "query": "你是谁",
     "locale": "zh",
     "expected_stage": "greet_user",
     "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "greet-ja",
+    "query": "こんにちは",
+    "locale": "ja",
+    "expected_stage": "greet_user",
+    "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "greet-en",
+    "query": "hello",
+    "locale": "en",
+    "expected_stage": "greet_user",
+    "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "greet-identity-en",
+    "query": "what can you do?",
+    "locale": "en",
+    "expected_stage": "greet_user",
+    "expected_message_min_len": 5,
+    "expected_data_keys": []
+  },
+  {
+    "id": "qa-etiquette",
+    "query": "圣地巡礼有什么注意事项？",
+    "locale": "zh",
+    "expected_stage": "answer_question",
+    "expected_message_min_len": 10,
+    "expected_data_keys": []
+  },
+  {
+    "id": "qa-tips-ja",
+    "query": "聖地巡礼のマナーを教えて",
+    "locale": "ja",
+    "expected_stage": "answer_question",
+    "expected_message_min_len": 10,
     "expected_data_keys": []
   },
   {
@@ -58,7 +123,7 @@
     "expected_data_keys": ["question", "status"]
   },
   {
-    "id": "nearby-with-location",
+    "id": "nearby-with-location-ja",
     "query": "宇治站附近有什么圣地？",
     "locale": "ja",
     "expected_stage": "search_nearby",
@@ -68,12 +133,73 @@
     "expected_nearby_fields": ["distance_m"]
   },
   {
-    "id": "route-query",
+    "id": "nearby-with-location-zh",
+    "query": "秋叶原附近有哪些动漫圣地？",
+    "locale": "zh",
+    "expected_stage": "search_nearby",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"]
+  },
+  {
+    "id": "nearby-en",
+    "query": "Find anime spots near Kyoto Station",
+    "locale": "en",
+    "expected_stage": "search_nearby",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"],
+    "expected_results_keys": ["rows", "row_count"]
+  },
+  {
+    "id": "route-ja",
     "query": "響け！ユーフォニアム の聖地を巡るルートを作って",
     "locale": "ja",
     "expected_stage": "plan_route",
     "expected_message_min_len": 2,
     "expected_data_keys": ["route"],
     "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
+  },
+  {
+    "id": "route-zh",
+    "query": "帮我规划你的名字的巡礼路线",
+    "locale": "zh",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["route"],
+    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
+  },
+  {
+    "id": "route-with-origin",
+    "query": "从东京站出发，规划吹响上低音号的圣地巡礼路线",
+    "locale": "zh",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["route"],
+    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
+  },
+  {
+    "id": "route-en",
+    "query": "Plan a pilgrimage route for Sound! Euphonium",
+    "locale": "en",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["route"],
+    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
+  },
+  {
+    "id": "greeting-mixed-with-query",
+    "query": "你好，宇治站附近有哪些取景地？",
+    "locale": "zh",
+    "expected_stage": "search_nearby",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["results"]
+  },
+  {
+    "id": "greeting-mixed-en",
+    "query": "hello, plan a route for Your Name in Tokyo",
+    "locale": "en",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": ["route"]
   }
 ]
