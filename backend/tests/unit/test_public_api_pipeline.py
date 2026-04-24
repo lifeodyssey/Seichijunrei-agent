@@ -13,6 +13,7 @@ from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
     PublicAPIRequest,
     RuntimeAPI,
+    detect_language,
 )
 
 
@@ -311,3 +312,127 @@ class TestSelectedPointIdsBypass:
         assert plan.steps[0].params == {"point_ids": ["p1", "p2"], "origin": "宇治駅"}
         assert response.intent == "plan_selected"
         assert response.ui == {"component": "RoutePlannerWizard"}
+
+
+class TestDetectLanguage:
+    def test_detect_chinese(self) -> None:
+        assert detect_language("找到了3处圣地。") == "zh"
+
+    def test_detect_japanese(self) -> None:
+        assert detect_language("3件の聖地が見つかりました。") == "ja"
+
+    def test_detect_english(self) -> None:
+        assert detect_language("Found 3 pilgrimage spots.") == "en"
+
+    def test_mixed_cjk_with_kana_is_japanese(self) -> None:
+        assert detect_language("東京の聖地を探しています") == "ja"
+
+    def test_empty_string_is_english(self) -> None:
+        assert detect_language("") == "en"
+
+
+class TestTranslationGate:
+    async def test_translation_gate_emits_sse_on_locale_mismatch(self, mock_db) -> None:
+        """When response message language != locale, SSE translate events fire."""
+        result = _make_result(
+            intent="search_bangumi",
+            locale="zh",
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "3件の聖地が見つかりました。",
+                "results": {"rows": [{"id": "1"}], "row_count": 1},
+            },
+        )
+
+        async def _fake(
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            return result
+
+        emitted: list[tuple[str, str]] = []
+
+        async def _capture_step(
+            tool: str,
+            status: str,
+            data: dict[str, object],
+            thought: str,
+            observation: str,
+        ) -> None:
+            if tool == "translate":
+                emitted.append((tool, status))
+
+        with (
+            patch(
+                "backend.interfaces.public_api.run_pilgrimage_agent",
+                side_effect=_fake,
+            ),
+            patch(
+                "backend.interfaces.public_api.translate_text",
+                new_callable=AsyncMock,
+                return_value="找到了3处圣地。",
+            ),
+        ):
+            api = RuntimeAPI(mock_db)
+            response = await api.handle(
+                PublicAPIRequest(text="查找圣地", locale="zh"),
+                on_step=_capture_step,
+            )
+
+        assert ("translate", "running") in emitted
+        assert ("translate", "done") in emitted
+        assert response.message == "找到了3处圣地。"
+
+    async def test_translation_gate_skips_when_locale_matches(self, mock_db) -> None:
+        """No SSE translate events when response language matches locale."""
+        result = _make_result(
+            intent="search_bangumi",
+            locale="ja",
+            final_output={
+                "success": True,
+                "status": "ok",
+                "message": "3件の聖地が見つかりました。",
+                "results": {"rows": [{"id": "1"}], "row_count": 1},
+            },
+        )
+
+        async def _fake(
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            return result
+
+        emitted: list[tuple[str, str]] = []
+
+        async def _capture_step(
+            tool: str,
+            status: str,
+            data: dict[str, object],
+            thought: str,
+            observation: str,
+        ) -> None:
+            if tool == "translate":
+                emitted.append((tool, status))
+
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent",
+            side_effect=_fake,
+        ):
+            api = RuntimeAPI(mock_db)
+            await api.handle(
+                PublicAPIRequest(text="聖地を検索", locale="ja"),
+                on_step=_capture_step,
+            )
+
+        assert emitted == []

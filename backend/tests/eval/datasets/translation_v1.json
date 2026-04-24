@@ -43,5 +43,27 @@
   {"id":"T057","title":"須賀神社","target":"zh","expected":"须贺神社","source_hint":"llm","metadata":{"category":"place_name","difficulty":"easy"}},
   {"id":"T058","title":"須賀神社","target":"en","expected":"Suga Shrine","source_hint":"llm","metadata":{"category":"place_name","difficulty":"medium"}},
   {"id":"T059","title":"京都駅","target":"en","expected":"Kyoto Station","source_hint":"llm","metadata":{"category":"place_name","difficulty":"easy"}},
-  {"id":"T060","title":"新宿御苑","target":"en","expected":"Shinjuku Gyoen","source_hint":"llm","metadata":{"category":"place_name","difficulty":"medium"}}
+  {"id":"T060","title":"新宿御苑","target":"en","expected":"Shinjuku Gyoen","source_hint":"llm","metadata":{"category":"place_name","difficulty":"medium"}},
+
+  {"id":"T070","title":"進撃の巨人","target":"zh","expected":"进击的巨人","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"community translation, NOT '前进的巨人'"}},
+  {"id":"T071","title":"鬼滅の刃","target":"zh","expected":"鬼灭之刃","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"direct kanji mapping with 之"}},
+  {"id":"T072","title":"化物語","target":"en","expected":"Bakemonogatari","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"romanized title, NOT 'Monster Story'"}},
+  {"id":"T073","title":"化物語","target":"zh","expected":"化物语","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"medium","note":"simplified kanji mapping"}},
+  {"id":"T074","title":"やはり俺の青春ラブコメはまちがっている。","target":"en","expected":"My Teen Romantic Comedy SNAFU","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"official English localization title"}},
+  {"id":"T075","title":"やはり俺の青春ラブコメはまちがっている。","target":"zh","expected":"我的青春恋爱物语果然有问题","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"community-accepted Chinese title"}},
+  {"id":"T076","title":"あの日見た花の名前を僕達はまだ知らない。","target":"zh","expected":"未闻花名","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"abbreviated community title, NOT literal translation"}},
+  {"id":"T077","title":"あの日見た花の名前を僕達はまだ知らない。","target":"en","expected":"Anohana","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"commonly known abbreviated English title"}},
+  {"id":"T078","title":"涼宮ハルヒの消失","target":"zh","expected":"凉宫春日的消失","source_hint":"db","metadata":{"category":"anime_title","difficulty":"easy","note":"sequel title, uses established character name translation"}},
+  {"id":"T079","title":"涼宮ハルヒの消失","target":"en","expected":"The Disappearance of Haruhi Suzumiya","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"official English title"}},
+  {"id":"T080","title":"銀魂","target":"en","expected":"Gintama","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"romanized, NOT 'Silver Soul'"}},
+  {"id":"T081","title":"銀魂","target":"zh","expected":"银魂","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"easy","note":"direct simplified kanji"}},
+  {"id":"T082","title":"僕のヒーローアカデミア","target":"en","expected":"My Hero Academia","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"official English title"}},
+  {"id":"T083","title":"僕のヒーローアカデミア","target":"zh","expected":"我的英雄学院","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"community-accepted Chinese title"}},
+  {"id":"T084","title":"ソードアート・オンライン","target":"en","expected":"Sword Art Online","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"medium","note":"katakana → English direct mapping"}},
+  {"id":"T085","title":"ソードアート・オンライン","target":"zh","expected":"刀剑神域","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"creative Chinese localization, NOT '剑艺在线'"}},
+  {"id":"T086","title":"魔法少女まどか☆マギカ","target":"zh","expected":"魔法少女小圆","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"community Chinese title, NOT literal"}},
+  {"id":"T087","title":"四月は君の嘘","target":"en","expected":"Your Lie in April","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"official English localization"}},
+  {"id":"T088","title":"四月は君の嘘","target":"zh","expected":"四月是你的谎言","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"medium","note":"direct Chinese translation"}},
+  {"id":"T089","title":"蟲師","target":"en","expected":"Mushishi","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"romanized title, NOT 'Bug Master'"}},
+  {"id":"T090","title":"らき☆すた","target":"zh","expected":"幸运星","source_hint":"web_search","metadata":{"category":"anime_title","difficulty":"hard","note":"community Chinese title, NOT literal"}}
 ]

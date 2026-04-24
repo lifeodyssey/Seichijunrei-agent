@@ -19,6 +19,7 @@ def _test_settings() -> Settings:
         openai_compat_base_url="https://api.univibe.cc/openai",
         default_agent_model="google-gla:gemini-3.1-pro-preview",
         fallback_agent_model="openai:gpt-5.4",
+        fallback_agent_model_2=None,
     )
 
 

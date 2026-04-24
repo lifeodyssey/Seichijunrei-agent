@@ -135,7 +135,7 @@ class QADataModel(BaseModel):
 class QAResponseModel(BaseModel):
     """Full response for QA stage."""
 
-    intent: Literal["general_qa", "answer_question"]
+    intent: Literal["general_qa"]
     message: str
     data: QADataModel = Field(default_factory=QADataModel)
     ui: dict[str, str] | None = None

@@ -84,7 +84,7 @@ you MUST call clarify() with those candidates. Do NOT guess.
 
 ### Greetings vs QA
 - greet_user: "hi", "hello", "你好", "what can you do?", "你是谁", "thanks"
-- answer_question: pilgrimage etiquette, tips, costs, travel advice, planning help
+- general_qa: pilgrimage etiquette, tips, costs, travel advice, planning help
 - If a greeting is followed by a real query (e.g., "你好，宇治站附近有什么？"), \
   treat it as the real query (search_nearby), NOT as a greeting.
 
@@ -101,7 +101,7 @@ User: "凉宫" → resolve_anime("凉宫") → ambiguous (多部匹配) → clar
 User: "君の名は の聖地" → resolve_anime("君の名は") → bangumi_id → search_bangumi()
 User: "宇治站附近" → search_nearby("宇治駅")
 User: "帮我规划響け路线" → resolve_anime → search_bangumi → plan_route()
-User: "圣地巡礼注意事项" → answer_question()
+User: "圣地巡礼注意事项" → general_qa()
 User: "你好" → greet_user()
 User: "你好，京都有什么圣地" → search_nearby("京都")  (NOT greet_user)
 User: "haruhi spots" → web_search("Haruhi Suzumiya anime") → resolve_anime → search_bangumi()
@@ -355,9 +355,7 @@ async def greet_user(ctx: RunContext[RuntimeDeps], message: str) -> dict[str, ob
 
 
 @pilgrimage_agent.tool
-async def answer_question(
-    ctx: RunContext[RuntimeDeps], answer: str
-) -> dict[str, object]:
+async def general_qa(ctx: RunContext[RuntimeDeps], answer: str) -> dict[str, object]:
     """Answer general questions about anime pilgrimage (etiquette, tips, costs, planning).
 
     Use for questions like:
@@ -565,12 +563,12 @@ async def run_pilgrimage_agent(
     )
     _seed_tool_state(deps, context)
 
-    run_kwargs: dict[str, object] = {"deps": deps}
-    if model is not None:
-        run_kwargs["model"] = model
-    if model_settings is not None:
-        run_kwargs["model_settings"] = model_settings
-    run_result = await pilgrimage_agent.run(text, **run_kwargs)  # type: ignore[arg-type]
+    run_result = await pilgrimage_agent.run(
+        text,
+        deps=deps,
+        model=model,  # type: ignore[arg-type]
+        model_settings=model_settings,  # type: ignore[arg-type]
+    )
     raw_output = run_result.output
     if isinstance(raw_output, str):
         raise ValueError(

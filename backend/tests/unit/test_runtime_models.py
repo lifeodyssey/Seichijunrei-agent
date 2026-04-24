@@ -141,3 +141,13 @@ def test_qa_and_greet_models_include_data_message() -> None:
     )
     assert qa.data.message
     assert greet.data.message
+
+
+def test_qa_response_model_rejects_answer_question_intent() -> None:
+    """QAResponseModel only accepts intent='general_qa', not 'answer_question'."""
+    with pytest.raises(ValidationError):
+        QAResponseModel(
+            intent="answer_question",
+            message="Some answer",
+            data={"status": "info", "message": "Some answer"},
+        )

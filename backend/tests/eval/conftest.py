@@ -25,6 +25,7 @@ def setup_test_environment():
     """Override parent conftest's mock settings — eval needs real API keys."""
     yield
 
+
 if TYPE_CHECKING:
     import asyncpg
 

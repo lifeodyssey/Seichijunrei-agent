@@ -2597,6 +2597,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pydantic-ai-guardrails"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "pydantic-ai" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/c5/56bc5fc97dff117bf398f479a6c4907853095a28c2d6ce66bf1311b66c61/pydantic_ai_guardrails-0.2.2.tar.gz", hash = "sha256:6697b39ffb8274fead64650ac754fe41132d53758e4f1e2ced674115f831c880", size = 378432, upload-time = "2026-01-12T22:04:33.924Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/dd/1bc7faa9584d951f1a8f4f2d2cce164e0bdc4223f2ec39505d4c4b468074/pydantic_ai_guardrails-0.2.2-py3-none-any.whl", hash = "sha256:89403d66a1c595f601f68fbf94ac2c6fd76e63fcb0df2b7cff6f027eca720555", size = 88573, upload-time = "2026-01-12T22:04:32.902Z" },
+]
+
+[[package]]
 name = "pydantic-ai-slim"
 version = "1.69.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3355,6 +3369,7 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "pydantic" },
     { name = "pydantic-ai" },
+    { name = "pydantic-ai-guardrails" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "rich" },
@@ -3401,6 +3416,7 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
     { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pydantic-ai", specifier = ">=1.69.0" },
+    { name = "pydantic-ai-guardrails", specifier = ">=0.2.2" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },

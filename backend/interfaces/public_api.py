@@ -10,6 +10,7 @@ delegated to ``response_builder`` and ``session_facade`` respectively.
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from time import perf_counter
@@ -20,6 +21,7 @@ from pydantic_ai.models import Model
 
 from backend.agents.executor_agent import ExecutorAgent, PipelineResult
 from backend.agents.pilgrimage_agent import run_pilgrimage_agent
+from backend.agents.translation import translate_text
 from backend.application.errors import ApplicationError, ErrorCode
 from backend.infrastructure.observability import (
     get_runtime_tracer,
@@ -56,6 +58,7 @@ __all__ = [
     "PublicAPIRequest",
     "PublicAPIResponse",
     "RuntimeAPI",
+    "detect_language",
     "handle_public_request",
 ]
 
@@ -67,6 +70,26 @@ _extract_context_delta = extract_context_delta
 _compact_session_interactions = compact_session_interactions
 
 _OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
+
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+_KANA_RE = re.compile(r"[\u3040-\u30ff]")
+
+
+def detect_language(text: str) -> str:
+    """Detect whether *text* is Chinese, Japanese, or English.
+
+    Heuristic:
+    - Contains kana (hiragana/katakana) -> Japanese
+    - Contains CJK ideographs but no kana -> Chinese
+    - Otherwise -> English
+    """
+    has_kana = bool(_KANA_RE.search(text))
+    if has_kana:
+        return "ja"
+    has_cjk = bool(_CJK_RE.search(text))
+    if has_cjk:
+        return "zh"
+    return "en"
 
 
 class RuntimeAPI:
@@ -246,12 +269,36 @@ class RuntimeAPI:
                 ),
                 context_delta,
             )
+        await self._apply_translation_gate(result, request.locale, on_step)
         response = pipeline_result_to_public_response(
             result,
             include_debug=request.include_debug,
         )
         context_delta = extract_context_delta(result)
         return result, response, context_delta
+
+    @staticmethod
+    async def _apply_translation_gate(
+        result: PipelineResult,
+        locale: str,
+        on_step: _OnStep | None,
+    ) -> None:
+        """Translate the pipeline message when its language mismatches *locale*."""
+        final = result.final_output
+        if not final:
+            return
+        message = final.get("message")
+        if not isinstance(message, str) or not message:
+            return
+        detected = detect_language(message)
+        if detected == locale:
+            return
+        if on_step is not None:
+            await on_step("translate", "running", {}, "", "")
+        translated = await translate_text(message, target_locale=locale)
+        final["message"] = translated
+        if on_step is not None:
+            await on_step("translate", "done", {}, "", "")
 
     async def _persist_result(
         self,
