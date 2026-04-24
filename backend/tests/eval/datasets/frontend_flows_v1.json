@@ -1,0 +1,72 @@
+[
+  {
+    "id": "clarify-zh-01",
+    "locale": "zh",
+    "query": "涼宮",
+    "expected_steps": ["clarify"],
+    "expected_intent": "clarify"
+  },
+  {
+    "id": "clarify-ja-01",
+    "locale": "ja",
+    "query": "ガンダム",
+    "expected_steps": ["clarify"],
+    "expected_intent": "clarify"
+  },
+  {
+    "id": "clarify-en-01",
+    "locale": "en",
+    "query": "Suzumiya",
+    "expected_steps": ["clarify"],
+    "expected_intent": "clarify"
+  },
+  {
+    "id": "nearby-zh-01",
+    "locale": "zh",
+    "query": "附近有什么动漫圣地",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-ja-01",
+    "locale": "ja",
+    "query": "宇治駅の近くに聖地ある？",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "nearby-en-01",
+    "locale": "en",
+    "query": "What anime spots are near Uji station?",
+    "expected_steps": ["search_nearby"],
+    "expected_intent": "search_nearby"
+  },
+  {
+    "id": "greet-zh-01",
+    "locale": "zh",
+    "query": "你好",
+    "expected_steps": ["greet_user"],
+    "expected_intent": "greet_user"
+  },
+  {
+    "id": "greet-ja-01",
+    "locale": "ja",
+    "query": "こんにちは",
+    "expected_steps": ["greet_user"],
+    "expected_intent": "greet_user"
+  },
+  {
+    "id": "qa-ja-01",
+    "locale": "ja",
+    "query": "聖地巡礼って何？",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "general_qa"
+  },
+  {
+    "id": "qa-zh-01",
+    "locale": "zh",
+    "query": "圣地巡礼是什么意思？",
+    "expected_steps": ["answer_question"],
+    "expected_intent": "general_qa"
+  }
+]
