@@ -30,7 +30,7 @@ class BangumiClient(BaseHTTPClient):
 
     # API Constants
     BANGUMI_API_BASE = "https://api.bgm.tv"
-    USER_AGENT = "Seichijunrei/1.0 (https://github.com/yourusername/seichijunrei)"
+    USER_AGENT = "Seichijunrei/1.0 (https://github.com/lifeodyssey/Seichijunrei-agent)"
 
     # Subject Types
     TYPE_BOOK = 1

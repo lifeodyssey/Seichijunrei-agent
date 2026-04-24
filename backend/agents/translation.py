@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 class TranslationDeps:
     """Dependencies for the translation agent."""
 
-    db: object
+    db: object | None = None
     source_locale: str = ""
     target_locale: str = ""
 
@@ -175,7 +175,7 @@ async def translate_title(
 
     try:
         deps = TranslationDeps(
-            db=db or object(),
+            db=db,
             target_locale=target_locale,
         )
         result = await translation_agent.run(prompt, deps=deps)
@@ -219,7 +219,7 @@ async def translate_text(
     target_name = locale_names.get(target_locale, target_locale)
 
     try:
-        deps = TranslationDeps(db=object(), target_locale=target_locale)
+        deps = TranslationDeps(db=None, target_locale=target_locale)
         result = await translation_agent.run(
             f"Translate the following text to {target_name}. "
             f"Return ONLY the translation:\n\n{text}",

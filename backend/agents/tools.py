@@ -73,7 +73,10 @@ async def enrich_clarify_candidates(
 
         if resolved_id is not None:
             try:
-                raw = await deps.gateway.get_subject(int(resolved_id))
+                subject_id = int(resolved_id) if resolved_id.isdigit() else None
+                if subject_id is None:
+                    raise ValueError(f"Non-integer bangumi ID: {resolved_id}")
+                raw = await deps.gateway.get_subject(subject_id)
                 images = raw.get("images")
                 if isinstance(images, dict):
                     url = images.get("large") or images.get("common")

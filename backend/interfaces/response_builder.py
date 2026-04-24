@@ -61,7 +61,10 @@ def pipeline_result_to_public_response(
             "plan": {
                 "intent": result.intent,
                 "reasoning": result.plan.reasoning,
-                "steps": [step.tool.value for step in result.plan.steps],
+                "steps": [
+                    getattr(step.tool, "value", str(step.tool))
+                    for step in result.plan.steps
+                ],
             },
             "step_results": [
                 serialize_step_result(step) for step in result.step_results

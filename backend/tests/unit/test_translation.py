@@ -82,12 +82,18 @@ class TestTranslateTitle:
         assert result.source == "db"
         assert result.confidence == 1.0
 
-    async def test_no_db_falls_through_to_api(self) -> None:
-        # This test verifies the chain works when DB returns no match
-        # We won't actually call the real API, just verify the structure
-        result = await translate_title(
-            "nonexistent_anime_xyz", target_locale="zh", db=None
-        )
+    async def test_no_db_falls_through_returns_fallback(self) -> None:
+        """When DB is None and title is gibberish, should return llm_fallback."""
+        from unittest.mock import patch
+
+        # Mock Bangumi API to avoid real network call in unit test
+        with patch(
+            "backend.agents.translation._lookup_bangumi_api",
+            return_value=None,
+        ):
+            result = await translate_title(
+                "nonexistent_anime_xyz", target_locale="zh", db=None
+            )
         assert isinstance(result, TranslationResult)
-        # Should fall through to some source (api, web, or fallback)
+        # With mocked API returning None, should be fallback
         assert result.source in ("bangumi_api", "web_search", "llm_fallback")
