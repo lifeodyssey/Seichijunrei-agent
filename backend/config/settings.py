@@ -123,16 +123,16 @@ class Settings(BaseSettings):
 
     # Agent model
     default_agent_model: str = Field(
-        default="google-gla:gemini-3.1-pro-preview",
-        description="Default primary LLM model (100% eval score, $2/$12 per 1M)",
+        default="openai:gemini-3-pro-preview@https://api.zetatechs.com/v1",
+        description="Default primary LLM model via Zeta (100% eval, Gemini 3 Pro)",
     )
     fallback_agent_model: str | None = Field(
         default="openai:gpt-5.4",
-        description="First fallback LLM model when the default provider fails",
+        description="Fallback LLM model when the default provider fails",
     )
     fallback_agent_model_2: str | None = Field(
-        default="openai:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1",
-        description="Second fallback LLM model",
+        default=None,
+        description="Second fallback LLM model (disabled by default)",
     )
     openai_compat_base_url: str = Field(
         default="https://api.univibe.cc/openai",

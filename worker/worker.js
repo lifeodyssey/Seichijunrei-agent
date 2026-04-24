@@ -32,6 +32,7 @@ const CONTAINER_OPTIONAL_ENV_KEYS = [
   "GOOGLE_MAPS_API_KEY",
   "LOGFIRE_TOKEN",
   "OPENAI_COMPAT_API_KEY",
+  "ZETA_API_KEY",
 ];
 
 // Worker-only auth secrets stay at the edge and are intentionally not forwarded

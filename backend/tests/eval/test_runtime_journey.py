@@ -41,7 +41,7 @@ load_dotenv(Path(__file__).parents[3] / ".env")
 
 # ── Pluggable model ──────────────────────────────────────────────────
 
-_DEFAULT_MODEL_ID = "openai:gpt-5.4"
+_DEFAULT_MODEL_ID = "openai:gemini-3-pro-preview@https://api.zetatechs.com/v1"
 _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL_ID)
 
 
