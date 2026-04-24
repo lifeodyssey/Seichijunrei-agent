@@ -1,205 +1,130 @@
 [
-  {
-    "id": "clarify-ambiguous-anime-zh",
-    "query": "凉宫",
-    "locale": "zh",
-    "expected_stage": "clarify",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["question", "options", "status", "candidates"]
-  },
-  {
-    "id": "clarify-ambiguous-anime-ja",
-    "query": "響け",
-    "locale": "ja",
-    "expected_stage": "clarify",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["question", "options", "status", "candidates"]
-  },
-  {
-    "id": "clarify-ambiguous-anime-en",
-    "query": "haruhi",
-    "locale": "en",
-    "expected_stage": "clarify",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["question", "options", "status", "candidates"]
-  },
-  {
-    "id": "search-bangumi-ja",
-    "query": "君の名は の聖地を教えて",
-    "locale": "ja",
-    "expected_stage": "search_bangumi",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"]
-  },
-  {
-    "id": "search-bangumi-zh",
-    "query": "涼宮ハルヒの憂鬱 取景地",
-    "locale": "zh",
-    "expected_stage": "search_bangumi",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"]
-  },
-  {
-    "id": "search-bangumi-en",
-    "query": "Show me pilgrimage spots for Your Name",
-    "locale": "en",
-    "expected_stage": "search_bangumi",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"]
-  },
-  {
-    "id": "search-bangumi-unknown-anime",
-    "query": "一个不存在的动漫12345的圣地",
-    "locale": "zh",
-    "expected_stage": "search_bangumi",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"]
-  },
-  {
-    "id": "greet-zh",
-    "query": "你好",
-    "locale": "zh",
-    "expected_stage": "greet_user",
-    "expected_message_min_len": 5,
-    "expected_data_keys": []
-  },
-  {
-    "id": "greet-identity-zh",
-    "query": "你是谁",
-    "locale": "zh",
-    "expected_stage": "greet_user",
-    "expected_message_min_len": 5,
-    "expected_data_keys": []
-  },
-  {
-    "id": "greet-ja",
-    "query": "こんにちは",
-    "locale": "ja",
-    "expected_stage": "greet_user",
-    "expected_message_min_len": 5,
-    "expected_data_keys": []
-  },
-  {
-    "id": "greet-en",
-    "query": "hello",
-    "locale": "en",
-    "expected_stage": "greet_user",
-    "expected_message_min_len": 5,
-    "expected_data_keys": []
-  },
-  {
-    "id": "greet-identity-en",
-    "query": "what can you do?",
-    "locale": "en",
-    "expected_stage": "greet_user",
-    "expected_message_min_len": 5,
-    "expected_data_keys": []
-  },
-  {
-    "id": "qa-etiquette",
-    "query": "圣地巡礼有什么注意事项？",
-    "locale": "zh",
-    "expected_stage": "answer_question",
-    "expected_message_min_len": 10,
-    "expected_data_keys": []
-  },
-  {
-    "id": "qa-tips-ja",
-    "query": "聖地巡礼のマナーを教えて",
-    "locale": "ja",
-    "expected_stage": "answer_question",
-    "expected_message_min_len": 10,
-    "expected_data_keys": []
-  },
-  {
-    "id": "nearby-without-location",
-    "query": "附近有什么圣地？",
-    "locale": "zh",
-    "expected_stage": "clarify",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["question", "status"]
-  },
-  {
-    "id": "nearby-with-location-ja",
-    "query": "宇治站附近有什么圣地？",
-    "locale": "ja",
-    "expected_stage": "search_nearby",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"],
-    "expected_nearby_fields": ["distance_m"]
-  },
-  {
-    "id": "nearby-with-location-zh",
-    "query": "秋叶原附近有哪些动漫圣地？",
-    "locale": "zh",
-    "expected_stage": "search_nearby",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"]
-  },
-  {
-    "id": "nearby-en",
-    "query": "Find anime spots near Kyoto Station",
-    "locale": "en",
-    "expected_stage": "search_nearby",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"],
-    "expected_results_keys": ["rows", "row_count"]
-  },
-  {
-    "id": "route-ja",
-    "query": "響け！ユーフォニアム の聖地を巡るルートを作って",
-    "locale": "ja",
-    "expected_stage": "plan_route",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["route"],
-    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
-  },
-  {
-    "id": "route-zh",
-    "query": "帮我规划你的名字的巡礼路线",
-    "locale": "zh",
-    "expected_stage": "plan_route",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["route"],
-    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
-  },
-  {
-    "id": "route-with-origin",
-    "query": "从东京站出发，规划吹响上低音号的圣地巡礼路线",
-    "locale": "zh",
-    "expected_stage": "plan_route",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["route"],
-    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
-  },
-  {
-    "id": "route-en",
-    "query": "Plan a pilgrimage route for Sound! Euphonium",
-    "locale": "en",
-    "expected_stage": "plan_route",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["route"],
-    "expected_route_keys": ["ordered_points", "point_count", "timed_itinerary"]
-  },
-  {
-    "id": "greeting-mixed-with-query",
-    "query": "你好，宇治站附近有哪些取景地？",
-    "locale": "zh",
-    "expected_stage": "search_nearby",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["results"]
-  },
-  {
-    "id": "greeting-mixed-en",
-    "query": "hello, plan a route for Your Name in Tokyo",
-    "locale": "en",
-    "expected_stage": "plan_route",
-    "expected_message_min_len": 2,
-    "expected_data_keys": ["route"]
-  }
+  {"id":"C01","query":"凉宫","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C02","query":"響け","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C03","query":"haruhi","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C04","query":"ガンダム","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C05","query":"fate","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C06","query":"鬼灭","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+  {"id":"C07","query":"clannad","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"medium"}},
+  {"id":"C08","query":"エヴァ","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","options","status","candidates"],"metadata":{"category":"clarify","type":"positive","difficulty":"easy"}},
+
+  {"id":"CN01","query":"涼宮ハルヒの憂鬱 の聖地","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"clarify","type":"negative","difficulty":"medium","note":"full title should NOT clarify"}},
+  {"id":"CN02","query":"君の名は の取景地在哪","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"clarify","type":"negative","difficulty":"medium","note":"unambiguous title should search directly"}},
+  {"id":"CN03","query":"Sound! Euphonium pilgrimage spots","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"clarify","type":"negative","difficulty":"medium","note":"clear English title should search"}},
+  {"id":"CN04","query":"けいおん！の聖地巡礼スポット","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"clarify","type":"negative","difficulty":"easy","note":"explicit title should not clarify"}},
+
+  {"id":"S01","query":"君の名は の聖地を教えて","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S02","query":"涼宮ハルヒの憂鬱 取景地","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S03","query":"Show me pilgrimage spots for Your Name","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S04","query":"天気の子の聖地を教えて","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S05","query":"すずめの戸締まり の取景地","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S06","query":"Weathering with You filming locations","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S07","query":"けいおん！の聖地","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"easy"}},
+  {"id":"S08","query":"吹响吧上低音号的取景地在哪里","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"medium"}},
+  {"id":"S09","query":"ラブライブ！サンシャイン!! pilgrimage","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"medium"}},
+
+  {"id":"SE01","query":"一个不存在的动漫12345的圣地","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"unknown anime should still attempt search"}},
+  {"id":"SE02","query":"xxxxxxnotanime の聖地","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"gibberish title"}},
+  {"id":"SE03","query":"聖地","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"too vague — just 'holy land'"}},
+
+  {"id":"G01","query":"你好","locale":"zh","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G02","query":"你是谁","locale":"zh","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G03","query":"こんにちは","locale":"ja","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G04","query":"hello","locale":"en","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G05","query":"what can you do?","locale":"en","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G06","query":"何ができますか？","locale":"ja","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G07","query":"你能做什么","locale":"zh","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G08","query":"hi there!","locale":"en","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+  {"id":"G09","query":"おはよう","locale":"ja","expected_stage":"greet_user","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy"}},
+
+  {"id":"GN01","query":"你好，宇治站附近有哪些取景地？","locale":"zh","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"greet","type":"negative","difficulty":"medium","note":"greeting + real query should NOT be greet"}},
+  {"id":"GN02","query":"hello, plan a route for Your Name in Tokyo","locale":"en","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"greet","type":"negative","difficulty":"medium","note":"greeting + route should be route"}},
+  {"id":"GN03","query":"こんにちは、君の名はの聖地を教えて","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"greet","type":"negative","difficulty":"medium","note":"greeting + search should search"}},
+  {"id":"GN04","query":"hey, what anime spots are near Akihabara?","locale":"en","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"greet","type":"negative","difficulty":"medium","note":"greeting + nearby should search"}},
+
+  {"id":"Q01","query":"圣地巡礼有什么注意事项？","locale":"zh","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"easy"}},
+  {"id":"Q02","query":"聖地巡礼のマナーを教えて","locale":"ja","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"easy"}},
+  {"id":"Q03","query":"What etiquette should I follow for anime pilgrimages?","locale":"en","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"easy"}},
+  {"id":"Q04","query":"巡礼する時の服装は？","locale":"ja","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium"}},
+  {"id":"Q05","query":"圣地巡礼需要提前预约吗","locale":"zh","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium"}},
+  {"id":"Q06","query":"How do I plan an anime pilgrimage trip to Japan?","locale":"en","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium"}},
+  {"id":"Q07","query":"聖地巡礼で写真を撮る時のコツ","locale":"ja","expected_stage":"answer_question","expected_message_min_len":10,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium"}},
+
+  {"id":"N01","query":"附近有什么圣地？","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"nearby","type":"positive_clarify","difficulty":"easy","note":"no location context → must clarify"}},
+  {"id":"N02","query":"近くに聖地はありますか？","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"nearby","type":"positive_clarify","difficulty":"easy","note":"no location → clarify"}},
+  {"id":"N03","query":"any pilgrimage spots nearby?","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"nearby","type":"positive_clarify","difficulty":"easy","note":"no location → clarify"}},
+
+  {"id":"N04","query":"宇治站附近有什么圣地？","locale":"ja","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"expected_nearby_fields":["distance_m"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N05","query":"秋叶原附近有哪些动漫圣地？","locale":"zh","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N06","query":"Find anime spots near Kyoto Station","locale":"en","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N07","query":"東京タワー周辺の聖地を探して","locale":"ja","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N08","query":"上野公园附近有动漫取景地吗","locale":"zh","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N09","query":"spots near Shinjuku","locale":"en","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"easy"}},
+  {"id":"N10","query":"大阪駅の近くでアニメの聖地巡礼","locale":"ja","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"medium"}},
+  {"id":"N11","query":"镰仓有什么圣地","locale":"zh","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"medium"}},
+
+  {"id":"R01","query":"響け！ユーフォニアム の聖地を巡るルートを作って","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R02","query":"帮我规划你的名字的巡礼路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R03","query":"Plan a pilgrimage route for Sound! Euphonium","locale":"en","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R04","query":"从东京站出发，规划吹响上低音号的圣地巡礼路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"medium","note":"has origin station"}},
+  {"id":"R05","query":"けいおん！の聖地を回るルートを計画して","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R06","query":"Create a walking route for Your Name spots in Tokyo","locale":"en","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"medium","note":"specifies walking + city"}},
+  {"id":"R07","query":"天気の子 ルート作成","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R08","query":"帮我规划一下天气之子的路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"easy"}},
+  {"id":"R09","query":"京都駅から出発して響け！ユーフォニアムの聖地を回りたい","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"expected_route_keys":["ordered_points","point_count","timed_itinerary"],"metadata":{"category":"route","type":"positive","difficulty":"medium","note":"origin = Kyoto Station"}},
+
+  {"id":"RN01","query":"君の名はの聖地を教えて","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"route","type":"negative","difficulty":"medium","note":"asking for spots, NOT route"}},
+  {"id":"RN02","query":"show me spots for K-ON","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"route","type":"negative","difficulty":"medium","note":"asking to show, not plan route"}},
+  {"id":"RN03","query":"吹响上低音号有哪些取景地","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"route","type":"negative","difficulty":"medium","note":"asking what spots exist, not route"}},
+
+  {"id":"B01","query":"   ","locale":"zh","expected_stage":"greet_user","expected_message_min_len":1,"expected_data_keys":[],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"whitespace only — should handle gracefully"}},
+  {"id":"B02","query":"a","locale":"en","expected_stage":"clarify","expected_message_min_len":1,"expected_data_keys":["question","status"],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"single character input"}},
+  {"id":"B03","query":"🎌⛩️🗾","locale":"ja","expected_stage":"clarify","expected_message_min_len":1,"expected_data_keys":["question","status"],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"emoji only input"}},
+  {"id":"B04","query":"123456","locale":"zh","expected_stage":"clarify","expected_message_min_len":1,"expected_data_keys":["question","status"],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"numbers only"}},
+  {"id":"B05","query":"这是一个非常长的查询字符串，我想知道关于动漫圣地巡礼的一切信息，包括但不限于你的名字、天气之子、吹响上低音号、凉宫春日的忧郁等作品在日本各地的取景地位置和推荐的路线规划","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"very long multi-anime query"}},
+  {"id":"B06","query":"SELECT * FROM bangumi","locale":"en","expected_stage":"greet_user","expected_message_min_len":1,"expected_data_keys":[],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"SQL injection attempt should not crash"}},
+  {"id":"B07","query":"<script>alert('xss')</script>","locale":"en","expected_stage":"greet_user","expected_message_min_len":1,"expected_data_keys":[],"metadata":{"category":"boundary","type":"edge","difficulty":"hard","note":"XSS attempt should not crash"}},
+
+  {"id":"M01","query":"けいおん！の聖地を探してからルートも作って","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"multi_step","type":"positive","difficulty":"hard","note":"search then route in one query"}},
+  {"id":"M02","query":"先帮我查一下你的名字有哪些圣地，然后规划路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"multi_step","type":"positive","difficulty":"hard","note":"explicit two-step request"}},
+  {"id":"M03","query":"Find Your Name spots and create a route","locale":"en","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"multi_step","type":"positive","difficulty":"hard","note":"search + route combined"}},
+
+  {"id":"L01","query":"アニメ","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"vague","type":"edge","difficulty":"medium","note":"just 'anime' — too vague"}},
+  {"id":"L02","query":"取景地","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"vague","type":"edge","difficulty":"medium","note":"just 'filming location' — too vague"}},
+  {"id":"L03","query":"spots","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"vague","type":"edge","difficulty":"medium","note":"just 'spots' — too vague"}},
+  {"id":"L04","query":"日本","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"vague","type":"edge","difficulty":"medium","note":"just 'Japan' — too vague for nearby or search"}},
+  {"id":"L05","query":"route","locale":"en","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"vague","type":"edge","difficulty":"medium","note":"just 'route' — no anime specified"}},
+
+  {"id":"T01","query":"你的名字 第3话的取景地","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"hard","note":"episode-specific search"}},
+  {"id":"T02","query":"けいおん！第1話のロケ地","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"search","type":"positive","difficulty":"hard","note":"episode-specific"}},
+
+  {"id":"A01","query":"京都有什么动漫取景地","locale":"zh","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"medium","note":"city-level area search"}},
+  {"id":"A02","query":"沼津のアニメの聖地","locale":"ja","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"medium","note":"city associated with Love Live"}},
+  {"id":"A03","query":"anime locations in Kamakura","locale":"en","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"expected_results_keys":["rows","row_count"],"metadata":{"category":"nearby","type":"positive","difficulty":"medium","note":"famous anime city"}},
+
+  {"id":"X01","query":"新海誠の作品の聖地を全部教えて","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"director search — should clarify which work"}},
+  {"id":"X02","query":"京アニの作品の取景地","locale":"zh","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"studio search — should clarify which work"}},
+  {"id":"X03","query":"2024年の新作アニメの聖地","locale":"ja","expected_stage":"clarify","expected_message_min_len":2,"expected_data_keys":["question","status"],"metadata":{"category":"search","type":"edge","difficulty":"hard","note":"year-based search — too broad"}},
+
+  {"id":"P01","query":"帮我在秋叶原附近找动漫圣地，然后规划一条步行路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"multi_step","type":"positive","difficulty":"hard","note":"nearby + route combined"}},
+  {"id":"P02","query":"Find pilgrimage spots around Shibuya and make a walking plan","locale":"en","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"multi_step","type":"positive","difficulty":"hard","note":"nearby + route in English"}},
+
+  {"id":"D01","query":"天気の子のロケ地は何話に出てくる？","locale":"ja","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"positive","difficulty":"medium","note":"asking about episodes"}},
+  {"id":"D02","query":"你的名字里面那个神社在哪","locale":"zh","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"positive","difficulty":"medium","note":"specific location within anime"}},
+  {"id":"D03","query":"Where is the shrine from Your Name?","locale":"en","expected_stage":"search_bangumi","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"positive","difficulty":"medium","note":"specific landmark question"}},
+
+  {"id":"F01","query":"响けユーフォニアムの聖地を歩いて回る","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"route","type":"positive","difficulty":"medium","note":"walking tour request"}},
+  {"id":"F02","query":"我想走一遍你的名字里面那些取景地","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"route","type":"positive","difficulty":"medium","note":"walk through spots request"}},
+
+  {"id":"W01","query":"明天想去巡礼，天气怎么样","locale":"zh","expected_stage":"answer_question","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"qa","type":"edge","difficulty":"hard","note":"weather question — out of scope, should answer or redirect"}},
+  {"id":"W02","query":"聖地巡礼にかかる費用は？","locale":"ja","expected_stage":"answer_question","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium","note":"cost question"}},
+  {"id":"W03","query":"How much does an anime pilgrimage cost?","locale":"en","expected_stage":"answer_question","expected_message_min_len":5,"expected_data_keys":[],"metadata":{"category":"qa","type":"positive","difficulty":"medium"}},
+
+  {"id":"H01","query":"ありがとう","locale":"ja","expected_stage":"greet_user","expected_message_min_len":2,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy","note":"thank you"}},
+  {"id":"H02","query":"谢谢","locale":"zh","expected_stage":"greet_user","expected_message_min_len":2,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy","note":"thank you"}},
+  {"id":"H03","query":"thanks!","locale":"en","expected_stage":"greet_user","expected_message_min_len":2,"expected_data_keys":[],"metadata":{"category":"greet","type":"positive","difficulty":"easy","note":"thank you"}},
+
+  {"id":"I01","query":"秋叶原のガンダムの聖地を見たい","locale":"ja","expected_stage":"search_nearby","expected_message_min_len":2,"expected_data_keys":["results"],"metadata":{"category":"search","type":"positive","difficulty":"hard","note":"combines location + anime name — could be nearby or bangumi"}},
+  {"id":"I02","query":"宇治で響けユーフォの巡礼ルートを作って","locale":"ja","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"route","type":"positive","difficulty":"hard","note":"location + anime + route"}},
+  {"id":"I03","query":"在镰仓规划灌篮高手的巡礼路线","locale":"zh","expected_stage":"plan_route","expected_message_min_len":2,"expected_data_keys":["route"],"metadata":{"category":"route","type":"positive","difficulty":"hard","note":"location + anime + route in Chinese"}}
 ]
