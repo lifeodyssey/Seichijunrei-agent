@@ -1,0 +1,12 @@
+{
+  "case_count": 392,
+  "model": "openai:gemini-3-pro-preview@https://api.zetatechs.com/v1",
+  "scores": {
+    "DataKeysEvaluator": 1.0,
+    "MessageMinLenEvaluator": 1.0,
+    "NearbyFieldsEvaluator": 1.0,
+    "ResultsKeysEvaluator": 1.0,
+    "RouteKeysEvaluator": 1.0,
+    "StageEvaluator": 1.0
+  }
+}
