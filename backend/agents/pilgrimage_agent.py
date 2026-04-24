@@ -40,6 +40,7 @@ from backend.agents.runtime_models import (
     SearchResponseModel,
 )
 from backend.agents.tools import enrich_clarify_candidates
+from backend.agents.translation import translate_title
 
 logger = structlog.get_logger(__name__)
 
@@ -87,6 +88,13 @@ you MUST call clarify() with those candidates. Do NOT guess.
 - If a greeting is followed by a real query (e.g., "你好，宇治站附近有什么？"), \
   treat it as the real query (search_nearby), NOT as a greeting.
 
+## Translation & Web Search
+- Use translate_anime_title when you need an anime title in a different language
+- Use web_search to look up information you're unsure about
+- ALWAYS respond in the user's locale (ja/zh/en) — use translation tools if needed
+- When showing anime titles in clarify candidates, include both original and
+  the user's language if they differ
+
 ## Examples
 
 User: "凉宫" → resolve_anime("凉宫") → ambiguous (多部匹配) → clarify()
@@ -96,6 +104,7 @@ User: "帮我规划響け路线" → resolve_anime → search_bangumi → plan_r
 User: "圣地巡礼注意事项" → answer_question()
 User: "你好" → greet_user()
 User: "你好，京都有什么圣地" → search_nearby("京都")  (NOT greet_user)
+User: "haruhi spots" → web_search("Haruhi Suzumiya anime") → resolve_anime → search_bangumi()
 """
 
 
@@ -429,6 +438,79 @@ async def enrich_candidates(
 ) -> list[dict[str, object]]:
     """Enrich anime title candidates for clarify cards (DB-first, gateway fallback)."""
     return await enrich_clarify_candidates(ctx.deps, titles)
+
+
+@pilgrimage_agent.tool
+async def web_search(
+    ctx: RunContext[RuntimeDeps],
+    *,
+    query: str,
+) -> str:
+    """Search the web for information using DuckDuckGo.
+
+    Use this when you need to:
+    - Find the correct translation of an anime title (e.g., search "響け！ユーフォニアム English name")
+    - Look up information about a pilgrimage location
+    - Verify facts about an anime or location
+    - Find community-accepted translations from 萌娘百科 or Wikipedia
+
+    Args:
+        query: The search query. Be specific. Include the language you want results in.
+               Examples:
+               - "響け！ユーフォニアム Chinese name 中文名"
+               - "Your Name anime Japanese title"
+               - "宇治駅 anime pilgrimage spots"
+
+    Returns a text summary of the top search results.
+    """
+    from ddgs import DDGS
+
+    with DDGS() as ddgs:
+        results = list(ddgs.text(query, max_results=5))
+    if not results:
+        return f"No results found for: {query}"
+    lines = []
+    for r in results[:5]:
+        title = r.get("title", "")
+        body = r.get("body", "")
+        href = r.get("href", "")
+        lines.append(f"- {title}: {body} ({href})")
+    return "\n".join(lines)
+
+
+@pilgrimage_agent.tool
+async def translate_anime_title(
+    ctx: RunContext[RuntimeDeps],
+    *,
+    title: str,
+    target_language: str,
+) -> dict[str, object]:
+    """Translate an anime title to a target language using authoritative sources.
+
+    This tool searches Bangumi, 萌娘百科, and Wikipedia for the community-accepted
+    translation. It does NOT hard-translate — it finds the official localized title.
+
+    IMPORTANT: Always use this tool when you need to show an anime title in a
+    different language from the original. Do not guess translations.
+
+    Args:
+        title: The anime title to translate. Can be in any language.
+               Examples: "君の名は。", "Your Name", "你的名字"
+        target_language: Target language code: "ja", "zh", or "en"
+
+    Returns: {"original": "...", "translated": "...", "source": "db|bangumi_api|web_search", "confidence": 0.0-1.0}
+    """
+    result = await translate_title(
+        title,
+        target_locale=target_language,
+        db=ctx.deps.db,
+    )
+    return {
+        "original": result.original,
+        "translated": result.translated,
+        "source": result.source,
+        "confidence": result.confidence,
+    }
 
 
 def _seed_tool_state(deps: RuntimeDeps, context: dict[str, object] | None) -> None:
