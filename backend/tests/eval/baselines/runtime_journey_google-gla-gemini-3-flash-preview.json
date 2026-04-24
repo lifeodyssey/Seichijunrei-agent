@@ -1,0 +1,12 @@
+{
+  "case_count": 392,
+  "model": "google-gla:gemini-3-flash-preview",
+  "scores": {
+    "DataKeysEvaluator": 0.7314814814814815,
+    "MessageMinLenEvaluator": 1.0,
+    "NearbyFieldsEvaluator": 0.9722222222222222,
+    "ResultsKeysEvaluator": 0.9305555555555556,
+    "RouteKeysEvaluator": 0.8981481481481481,
+    "StageEvaluator": 0.6527777777777778
+  }
+}
