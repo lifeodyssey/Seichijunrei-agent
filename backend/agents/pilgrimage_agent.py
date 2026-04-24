@@ -48,20 +48,54 @@ _OnStep = Callable[[str, str, dict[str, object], str, str], Awaitable[None]]
 
 
 _INSTRUCTIONS = """\
-You are the main runtime agent for an anime pilgrimage (聖地巡礼) app.
+You are the runtime agent for Seichijunrei (聖地巡礼), an anime pilgrimage search \
+and route planning app. Users ask about real-world locations from anime.
 
-You must return exactly one stage response:
-- clarify (needs user input)
-- search_bangumi / search_nearby (panel handoff)
-- plan_route / plan_selected (route completion)
-- general_qa / greet_user (simple answer)
+## Your job
+Call tools to fetch real data, then return exactly ONE typed response. \
+Never fabricate locations, coordinates, or routes — always use tool outputs.
 
-Rules:
-1) Anime title queries: call resolve_anime first, then search_bangumi.
-2) Nearby/location queries: call search_nearby with a location + radius when possible.
-3) Route requests: call plan_route after search results are available.
-4) If ambiguous, call clarify(question, options). The clarify tool will enrich candidates.
-5) Prefer using tool outputs in your final response; do not fabricate rows or routes.
+## Response types (pick exactly one)
+- clarify_response — when you need more info from the user
+- search_response — when returning pilgrimage point results
+- route_response — when returning a planned walking route
+- qa_response — when answering general questions about pilgrimage etiquette/tips
+- greeting_response — when responding to greetings or "what can you do?"
+
+## Workflow rules
+
+### Anime search (most common)
+1. Call resolve_anime(title) FIRST to get a bangumi_id
+2. If resolve_anime returns "ambiguous": true with multiple candidates → \
+you MUST call clarify() with those candidates. Do NOT guess.
+3. If resolve_anime returns a single bangumi_id → call search_bangumi(bangumi_id)
+
+### Location/nearby search
+- Call search_nearby(location, radius) when the user mentions a place name
+- Do NOT call resolve_anime for location queries
+
+### Route planning
+- When the user asks for a route/itinerary/walking plan:
+  1. Call resolve_anime first
+  2. Call search_bangumi to get points
+  3. Call plan_route to create the optimized route
+  ALL THREE steps are required. Do not stop after search.
+
+### Greetings vs QA
+- greet_user: "hi", "hello", "你好", "what can you do?", "你是谁", "thanks"
+- answer_question: pilgrimage etiquette, tips, costs, travel advice, planning help
+- If a greeting is followed by a real query (e.g., "你好，宇治站附近有什么？"), \
+  treat it as the real query (search_nearby), NOT as a greeting.
+
+## Examples
+
+User: "凉宫" → resolve_anime("凉宫") → ambiguous (多部匹配) → clarify()
+User: "君の名は の聖地" → resolve_anime("君の名は") → bangumi_id → search_bangumi()
+User: "宇治站附近" → search_nearby("宇治駅")
+User: "帮我规划響け路线" → resolve_anime → search_bangumi → plan_route()
+User: "圣地巡礼注意事项" → answer_question()
+User: "你好" → greet_user()
+User: "你好，京都有什么圣地" → search_nearby("京都")  (NOT greet_user)
 """
 
 
@@ -159,7 +193,21 @@ async def _run_handler(
 
 @pilgrimage_agent.tool
 async def resolve_anime(ctx: RunContext[RuntimeDeps], title: str) -> dict[str, object]:
-    """Resolve an anime title to bangumi_id (DB-first, gateway fallback)."""
+    """Look up an anime by title and return its unique database identifier.
+
+    Call this FIRST whenever the user mentions an anime by name.
+
+    Returns on success: {"bangumi_id": "262243", "title": "君の名は。"}
+    Returns on ambiguity: {"ambiguous": true, "candidates": [{"title": ..., "bangumi_id": ...}, ...]}
+    Returns on failure: {"error": "Could not resolve anime: 'xyz'"}
+
+    If the result contains "ambiguous": true, you MUST call clarify() with the
+    candidate titles. Do NOT guess which anime the user means.
+
+    Args:
+        title: The anime title in any language. Examples: "君の名は", "你的名字",
+               "Your Name", "響け", "凉宫"
+    """
     return await _run_handler(
         ctx,
         tool=ToolName.RESOLVE_ANIME,
@@ -176,7 +224,23 @@ async def search_bangumi(
     episode: int | None = None,
     force_refresh: bool = False,
 ) -> dict[str, object]:
-    """Search pilgrimage points for a specific bangumi_id."""
+    """Find real-world pilgrimage filming locations for a specific anime.
+
+    Call this AFTER resolve_anime returns a bangumi_id.
+    If bangumi_id is None, it will be read from the previous resolve_anime result.
+
+    Returns: {"rows": [...points...], "row_count": 5, "status": "ok"}
+    Each row contains: id, name, name_cn, latitude, longitude, episode, screenshot_url
+
+    If no points are found in the database, the system will automatically try to
+    fetch them from the Anitabi API and write them to the database.
+
+    Args:
+        bangumi_id: The anime's unique ID from resolve_anime. Leave None if
+                    resolve_anime was called in a previous step.
+        episode: Optional episode number to filter results.
+        force_refresh: Set True only if the user explicitly asks to refresh data.
+    """
     params: dict[str, object] = {"episode": episode, "force_refresh": force_refresh}
     if bangumi_id is not None:
         params["bangumi_id"] = bangumi_id
@@ -196,7 +260,20 @@ async def search_nearby(
     location: str,
     radius: int | None = None,
 ) -> dict[str, object]:
-    """Search pilgrimage points near a named location within a radius."""
+    """Find anime pilgrimage spots near a real-world location using geo search.
+
+    Use this for location-based queries like "宇治站附近", "spots near Kyoto".
+    Do NOT call resolve_anime first — this tool searches by geography, not by anime.
+
+    Returns: {"rows": [...points with distance_m...], "row_count": 3, "status": "ok"}
+    Each row includes distance_m (meters from the search center).
+
+    Args:
+        location: A place name like "宇治駅", "Kyoto Station", "秋葉原", "Kamakura".
+                  Use the most specific name the user provided.
+        radius: Search radius in meters. Default is 5000 (5km). Use smaller radius
+                for specific stations, larger for cities.
+    """
     params: dict[str, object] = {"location": location}
     if radius is not None:
         params["radius"] = radius
@@ -216,7 +293,21 @@ async def plan_route(
     pacing: str | None = None,
     start_time: str | None = None,
 ) -> dict[str, object]:
-    """Plan an optimized route from the current search results."""
+    """Create an optimized walking route from the pilgrimage points found by search_bangumi.
+
+    IMPORTANT: You must call search_bangumi BEFORE this tool. plan_route uses
+    the search results to create a walking route with a timed itinerary.
+
+    Returns: {"ordered_points": [...], "point_count": 5, "timed_itinerary": {...},
+              "status": "ok"}
+    The timed_itinerary includes stops, legs, total_minutes, total_distance_m.
+
+    Args:
+        origin: Optional departure station/location. Examples: "東京駅", "京都駅".
+                If the user mentions a starting point, include it here.
+        pacing: Walking pace — "chill" (slow), "normal", or "packed" (fast).
+        start_time: Departure time as "HH:MM". Default is "09:00".
+    """
     params: dict[str, object] = {}
     if origin is not None:
         params["origin"] = origin
@@ -234,7 +325,18 @@ async def plan_route(
 
 @pilgrimage_agent.tool
 async def greet_user(ctx: RunContext[RuntimeDeps], message: str) -> dict[str, object]:
-    """Return an introduction / identity response (no retrieval)."""
+    """Respond to greetings and "what can you do?" questions.
+
+    Use ONLY for: "hi", "hello", "你好", "こんにちは", "你是谁", "what can you do?",
+    "thanks", "ありがとう", "谢谢", "goodbye".
+
+    Do NOT use this if the greeting is followed by a real query.
+    Example: "你好，宇治站附近有什么？" → use search_nearby, NOT greet_user.
+
+    Args:
+        message: A friendly introduction in the user's language (2-4 sentences).
+                 Include 2-3 example queries the user can try.
+    """
     return await _run_handler(
         ctx,
         tool=ToolName.GREET_USER,
@@ -247,7 +349,20 @@ async def greet_user(ctx: RunContext[RuntimeDeps], message: str) -> dict[str, ob
 async def answer_question(
     ctx: RunContext[RuntimeDeps], answer: str
 ) -> dict[str, object]:
-    """Return a plain QA answer (no retrieval)."""
+    """Answer general questions about anime pilgrimage (etiquette, tips, costs, planning).
+
+    Use for questions like:
+    - "圣地巡礼有什么注意事项？" (pilgrimage etiquette)
+    - "聖地巡礼のマナーを教えて" (pilgrimage manners)
+    - "How much does an anime pilgrimage cost?"
+    - "What should I bring for a pilgrimage trip?"
+
+    Do NOT use this for anime-specific queries (use resolve_anime + search instead).
+    Do NOT use this for greetings (use greet_user instead).
+
+    Args:
+        answer: Your helpful answer about pilgrimage in the user's language.
+    """
     return await _run_handler(
         ctx,
         tool=ToolName.ANSWER_QUESTION,
@@ -263,7 +378,22 @@ async def clarify(
     question: str,
     options: list[str] | None = None,
 ) -> dict[str, object]:
-    """Ask a clarification question with enriched candidate cards."""
+    """Ask the user a clarification question when you cannot proceed confidently.
+
+    Use when:
+    - resolve_anime returns "ambiguous": true (multiple anime match the query)
+    - The user's query is too vague to determine intent
+    - A nearby search needs a location but none was provided
+
+    The tool will automatically enrich the candidate titles with cover art,
+    spot count, and city information from the database.
+
+    Args:
+        question: The clarification question in the user's language.
+                  Example: "你是指哪部凉宫？" or "Which anime do you mean?"
+        options: List of candidate anime titles to show the user.
+                 Example: ["涼宮ハルヒの憂鬱", "涼宮ハルヒの消失"]
+    """
     deps = ctx.deps
     normalized_options = options or []
     _record_plan_step(

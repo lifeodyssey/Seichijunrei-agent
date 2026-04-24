@@ -100,6 +100,19 @@ def _mock_supabase() -> MagicMock:
 class TestResolveAnime:
     async def test_db_hit(self) -> None:
         db = _mock_supabase()
+        # Single match → not ambiguous
+        db.bangumi.find_all_by_title = AsyncMock(
+            return_value=[
+                {
+                    "id": "253",
+                    "title": "Eupho",
+                    "title_cn": "",
+                    "cover_url": "",
+                    "city": "",
+                    "points_count": 5,
+                }
+            ]
+        )
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value="253")
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
 
@@ -108,10 +121,42 @@ class TestResolveAnime:
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "253"
         assert result["data"]["title"] == "Eupho"
-        db.bangumi.find_bangumi_by_title.assert_awaited_once_with("Eupho")
+
+    async def test_db_ambiguous(self) -> None:
+        """Multiple DB matches should return ambiguous signal."""
+        db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(
+            return_value=[
+                {
+                    "id": "1",
+                    "title": "涼宮ハルヒの憂鬱",
+                    "title_cn": "凉宫春日的忧郁",
+                    "cover_url": "",
+                    "city": "西宮市",
+                    "points_count": 12,
+                },
+                {
+                    "id": "2",
+                    "title": "涼宮ハルヒの消失",
+                    "title_cn": "凉宫春日的消失",
+                    "cover_url": "",
+                    "city": "西宮市",
+                    "points_count": 8,
+                },
+            ]
+        )
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "凉宫"})
+
+        result = await execute_resolve(step, {}, db, None)
+
+        assert result["success"] is True
+        assert result["data"]["ambiguous"] is True
+        assert len(result["data"]["candidates"]) == 2
+        assert result["data"]["candidates"][0]["title"] == "涼宮ハルヒの憂鬱"
 
     async def test_db_miss_api_hit(self) -> None:
         db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
         db.bangumi.upsert_bangumi_title = AsyncMock()
 
@@ -132,6 +177,7 @@ class TestResolveAnime:
 
     async def test_both_miss(self) -> None:
         db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()

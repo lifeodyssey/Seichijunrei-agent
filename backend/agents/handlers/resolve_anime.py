@@ -29,11 +29,38 @@ async def execute(
 
     repo = getattr(db, "bangumi", None)
     find_bangumi_by_title = getattr(repo, "find_bangumi_by_title", None)
+    find_all_by_title = getattr(repo, "find_all_by_title", None)
     upsert_bangumi_title = getattr(repo, "upsert_bangumi_title", None)
     if not callable(find_bangumi_by_title) or not callable(upsert_bangumi_title):
         return {"tool": "resolve_anime", "success": False, "error": "DB not available"}
 
-    # 1. DB lookup
+    # 1. DB lookup — check for ambiguity first
+    if callable(find_all_by_title):
+        all_matches = await find_all_by_title(title)
+        if len(all_matches) > 1:
+            logger.info(
+                "resolve_anime_ambiguous",
+                title=title,
+                match_count=len(all_matches),
+            )
+            return {
+                "tool": "resolve_anime",
+                "success": True,
+                "data": {
+                    "ambiguous": True,
+                    "candidates": [
+                        {
+                            "title": str(m.get("title", "")),
+                            "bangumi_id": str(m.get("id", "")),
+                            "cover_url": m.get("cover_url"),
+                            "city": str(m.get("city", "")),
+                            "points_count": int(m.get("points_count", 0) or 0),
+                        }
+                        for m in all_matches
+                    ],
+                },
+            }
+
     bangumi_id = await find_bangumi_by_title(title)
     if bangumi_id:
         logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)

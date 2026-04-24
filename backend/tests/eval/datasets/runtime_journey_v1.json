@@ -4336,7 +4336,7 @@
     "id": "Q232",
     "query": "圣地巡礼有什么注意事项？",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4349,7 +4349,7 @@
     "id": "Q233",
     "query": "聖地巡礼のマナーを教えて",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4362,7 +4362,7 @@
     "id": "Q234",
     "query": "What etiquette should I follow for anime pilgrimages?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4375,7 +4375,7 @@
     "id": "Q235",
     "query": "巡礼する時の服装は？",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4388,7 +4388,7 @@
     "id": "Q236",
     "query": "圣地巡礼需要提前预约吗",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4401,7 +4401,7 @@
     "id": "Q237",
     "query": "How do I plan an anime pilgrimage trip to Japan?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4414,7 +4414,7 @@
     "id": "Q238",
     "query": "聖地巡礼で写真を撮る時のコツ",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4427,7 +4427,7 @@
     "id": "Q239",
     "query": "圣地巡礼拍照有什么技巧",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4440,7 +4440,7 @@
     "id": "Q240",
     "query": "Tips for photographing anime locations",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4453,7 +4453,7 @@
     "id": "Q241",
     "query": "聖地巡礼にかかる費用は？",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4466,7 +4466,7 @@
     "id": "Q242",
     "query": "圣地巡礼大概要花多少钱",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4479,7 +4479,7 @@
     "id": "Q243",
     "query": "How much does an anime pilgrimage cost?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4492,7 +4492,7 @@
     "id": "Q244",
     "query": "聖地巡礼の持ち物リスト",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4505,7 +4505,7 @@
     "id": "Q245",
     "query": "去圣地巡礼需要带什么",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4518,7 +4518,7 @@
     "id": "Q246",
     "query": "What to bring for anime pilgrimage?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4531,7 +4531,7 @@
     "id": "Q247",
     "query": "聖地巡礼は一人でも大丈夫？",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4544,7 +4544,7 @@
     "id": "Q248",
     "query": "一个人去圣地巡礼安全吗",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4557,7 +4557,7 @@
     "id": "Q249",
     "query": "Is it safe to do anime pilgrimage solo?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4570,7 +4570,7 @@
     "id": "Q250",
     "query": "聖地巡礼のベストシーズンは？",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4583,7 +4583,7 @@
     "id": "Q251",
     "query": "什么季节去圣地巡礼最好",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4596,7 +4596,7 @@
     "id": "Q252",
     "query": "Best season for anime pilgrimage?",
     "locale": "en",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4609,7 +4609,7 @@
     "id": "Q253",
     "query": "聖地巡礼でJRパスは使える？",
     "locale": "ja",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4622,7 +4622,7 @@
     "id": "Q254",
     "query": "JR Pass可以用来圣地巡礼吗",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -4998,7 +4998,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "SQL injection"
+      "note": "SQL injection",
+      "security_test": true
     }
   },
   {
@@ -5012,7 +5013,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "XSS attempt"
+      "note": "XSS attempt",
+      "security_test": true
     }
   },
   {
@@ -5040,7 +5042,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "SQL injection 2"
+      "note": "SQL injection 2",
+      "security_test": true
     }
   },
   {
@@ -5054,7 +5057,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "JS injection"
+      "note": "JS injection",
+      "security_test": true
     }
   },
   {
@@ -5208,7 +5212,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "img XSS"
+      "note": "img XSS",
+      "security_test": true
     }
   },
   {
@@ -6497,7 +6502,7 @@
     "id": "N354",
     "query": "只回答礼仪问题，不要查圣地",
     "locale": "zh",
-    "expected_stage": "answer_question",
+    "expected_stage": "general_qa",
     "expected_message_min_len": 10,
     "expected_data_keys": [],
     "metadata": {
@@ -6518,7 +6523,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "SQL injection combo"
+      "note": "SQL injection combo",
+      "security_test": true
     }
   },
   {
@@ -6532,7 +6538,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "template injection"
+      "note": "template injection",
+      "security_test": true
     }
   },
   {
@@ -6546,7 +6553,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "path traversal"
+      "note": "path traversal",
+      "security_test": true
     }
   },
   {
@@ -6560,7 +6568,8 @@
       "category": "boundary",
       "type": "edge",
       "difficulty": "hard",
-      "note": "HTML injection"
+      "note": "HTML injection",
+      "security_test": true
     }
   },
   {
@@ -6891,5 +6900,356 @@
     "expected_nearby_fields": [
       "distance_m"
     ]
+  },
+  {
+    "id": "A375",
+    "query": "涼宮",
+    "locale": "ja",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "easy",
+      "note": "DB has 涼宮ハルヒの憂鬱 — ambiguity from resolve_anime"
+    }
+  },
+  {
+    "id": "A376",
+    "query": "ユーフォ",
+    "locale": "ja",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "easy",
+      "note": "short name — may match multiple euphonium seasons"
+    }
+  },
+  {
+    "id": "A377",
+    "query": "新海",
+    "locale": "ja",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "medium",
+      "note": "director partial name — multiple works"
+    }
+  },
+  {
+    "id": "A378",
+    "query": "京アニ",
+    "locale": "ja",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "medium",
+      "note": "studio name — multiple works"
+    }
+  },
+  {
+    "id": "A379",
+    "query": "violet",
+    "locale": "en",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "medium",
+      "note": "partial English title"
+    }
+  },
+  {
+    "id": "A380",
+    "query": "铃芽",
+    "locale": "zh",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "easy",
+      "note": "short Chinese title"
+    }
+  },
+  {
+    "id": "A381",
+    "query": "天气",
+    "locale": "zh",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "easy",
+      "note": "partial Chinese title — could match 天気の子"
+    }
+  },
+  {
+    "id": "A382",
+    "query": "name",
+    "locale": "en",
+    "expected_stage": "clarify",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "question",
+      "options",
+      "status",
+      "candidates"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "positive",
+      "difficulty": "hard",
+      "note": "very vague English — could match Your Name or anything"
+    }
+  },
+  {
+    "id": "A383",
+    "query": "涼宮ハルヒの憂鬱の聖地を全部見せて",
+    "locale": "ja",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "negative",
+      "difficulty": "medium",
+      "note": "full title should NOT clarify"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A384",
+    "query": "天気の子の聖地を教えてください",
+    "locale": "ja",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "negative",
+      "difficulty": "easy",
+      "note": "full title should search"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A385",
+    "query": "Weathering with You pilgrimage locations",
+    "locale": "en",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "negative",
+      "difficulty": "easy",
+      "note": "full English title should search"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A386",
+    "query": "铃芽之旅的全部取景地",
+    "locale": "zh",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "clarify",
+      "type": "negative",
+      "difficulty": "easy",
+      "note": "full Chinese title should search"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A387",
+    "query": "帮我把你的名字的所有圣地做成一个步行路线",
+    "locale": "zh",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "route"
+    ],
+    "metadata": {
+      "category": "multi_step",
+      "type": "positive",
+      "difficulty": "hard",
+      "note": "explicit route request — must complete resolve+search+route"
+    },
+    "expected_route_keys": [
+      "ordered_points",
+      "point_count",
+      "timed_itinerary"
+    ]
+  },
+  {
+    "id": "A388",
+    "query": "響け！ユーフォニアムの全聖地を歩くルートを計画して",
+    "locale": "ja",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "route"
+    ],
+    "metadata": {
+      "category": "multi_step",
+      "type": "positive",
+      "difficulty": "hard",
+      "note": "explicit walking route"
+    },
+    "expected_route_keys": [
+      "ordered_points",
+      "point_count",
+      "timed_itinerary"
+    ]
+  },
+  {
+    "id": "A389",
+    "query": "Create a full walking itinerary for all Your Name spots",
+    "locale": "en",
+    "expected_stage": "plan_route",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "route"
+    ],
+    "metadata": {
+      "category": "multi_step",
+      "type": "positive",
+      "difficulty": "hard",
+      "note": "explicit itinerary request"
+    },
+    "expected_route_keys": [
+      "ordered_points",
+      "point_count",
+      "timed_itinerary"
+    ]
+  },
+  {
+    "id": "A390",
+    "query": "嗨，帮我找一下天气之子的圣地",
+    "locale": "zh",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "greet",
+      "type": "negative",
+      "difficulty": "medium",
+      "note": "hi + search should search"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A391",
+    "query": "やあ、けいおん！の聖地を教えて",
+    "locale": "ja",
+    "expected_stage": "search_bangumi",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "greet",
+      "type": "negative",
+      "difficulty": "medium",
+      "note": "ya + search should search"
+    },
+    "expected_results_keys": [
+      "rows",
+      "row_count"
+    ]
+  },
+  {
+    "id": "A392",
+    "query": "hey, find me spots near Uji station",
+    "locale": "en",
+    "expected_stage": "search_nearby",
+    "expected_message_min_len": 2,
+    "expected_data_keys": [
+      "results"
+    ],
+    "metadata": {
+      "category": "greet",
+      "type": "negative",
+      "difficulty": "medium",
+      "note": "hey + nearby should search"
+    }
   }
 ]

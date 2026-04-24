@@ -90,6 +90,26 @@ class BangumiRepository:
         )
         return str(row["id"]) if row else None
 
+    async def find_all_by_title(self, title: str) -> list[dict[str, object]]:
+        """Find all bangumi matching a title pattern.
+
+        Used for ambiguity detection: if len(results) > 1, the query is ambiguous.
+        """
+        rows = await self._pool.fetch(
+            """
+            SELECT id, title, title_cn,
+                   COALESCE(cover_url, '') AS cover_url,
+                   COALESCE(city, '') AS city,
+                   COALESCE(points_count, 0) AS points_count
+            FROM bangumi
+            WHERE title ILIKE $1 OR title_cn ILIKE $1
+            ORDER BY points_count DESC NULLS LAST
+            LIMIT 10
+            """,
+            f"%{title}%",
+        )
+        return [dict(r) for r in rows]
+
     async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
         """Insert a bangumi title if the bangumi row does not already exist."""
         await self._pool.execute(
