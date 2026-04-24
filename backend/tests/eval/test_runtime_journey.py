@@ -108,11 +108,19 @@ async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
             "Ensure the real_db fixture is available."
         )
 
+    # Some models (e.g., kimi-k2.6) require max_tokens ≤ 4096
+    eval_model_settings = None
+    if "kimi" in _EVAL_MODEL_ID.lower():
+        from pydantic_ai.settings import ModelSettings
+
+        eval_model_settings = ModelSettings(max_tokens=4096)
+
     result = await run_pilgrimage_agent(
         text=inp.query,
         db=_DB_OVERRIDE,
         model=_get_eval_model(),
         locale=inp.locale,
+        model_settings=eval_model_settings,
     )
 
     intent = str(getattr(result, "intent", "unknown"))

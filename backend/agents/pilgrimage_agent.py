@@ -552,6 +552,7 @@ async def run_pilgrimage_agent(
     model: Model | str | None = None,
     context: dict[str, object] | None = None,
     on_step: _OnStep | None = None,
+    model_settings: object | None = None,
 ) -> PipelineResult:
     """Run the main agent and adapt output into a PipelineResult for persistence/debug."""
     retriever = Retriever(db)
@@ -564,7 +565,12 @@ async def run_pilgrimage_agent(
     )
     _seed_tool_state(deps, context)
 
-    run_result = await pilgrimage_agent.run(text, deps=deps, model=model)
+    run_kwargs: dict[str, object] = {"deps": deps}
+    if model is not None:
+        run_kwargs["model"] = model
+    if model_settings is not None:
+        run_kwargs["model_settings"] = model_settings
+    run_result = await pilgrimage_agent.run(text, **run_kwargs)  # type: ignore[arg-type]
     raw_output = run_result.output
     if isinstance(raw_output, str):
         raise ValueError(
