@@ -55,7 +55,7 @@ async def fetch_bangumi_metadata(client: BangumiClient, subject_id: int) -> dict
     """Fetch a single bangumi subject and return DB-ready dict."""
     try:
         raw = await client.get_subject(subject_id)
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.error("bangumi_fetch_failed", subject_id=subject_id, error=str(exc))
         return None
 
@@ -79,7 +79,7 @@ async def fetch_points(client: AnitabiClient, bangumi_id: int) -> list[dict]:
     """Fetch pilgrimage points and return DB-ready dicts."""
     try:
         points = await client.get_bangumi_points(str(bangumi_id))
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.error("anitabi_fetch_failed", bangumi_id=bangumi_id, error=str(exc))
         return []
 

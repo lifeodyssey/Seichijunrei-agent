@@ -46,7 +46,7 @@ def _docker_available() -> bool:
             timeout=5,
         )
         return result.returncode == 0
-    except Exception:
+    except (OSError, FileNotFoundError):
         return False
 
 

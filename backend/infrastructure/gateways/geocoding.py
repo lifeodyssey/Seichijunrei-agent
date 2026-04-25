@@ -119,7 +119,7 @@ class GoogleGeocodingGateway:
 
             return candidates
 
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             logger.warning(
                 "google_geocoding_error",
                 address=address,

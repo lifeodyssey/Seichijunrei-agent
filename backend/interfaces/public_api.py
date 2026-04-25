@@ -392,6 +392,6 @@ def _runtime_model_label(model: object) -> str | None:
     if isinstance(model, str):
         try:
             return describe_model(parse_model_spec(model, use_settings_fallbacks=False))
-        except Exception:
+        except (OSError, ValueError, TypeError):
             return model
     return describe_model(model)

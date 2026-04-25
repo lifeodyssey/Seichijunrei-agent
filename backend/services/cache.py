@@ -109,7 +109,7 @@ class ResponseCache:
                 await self.cleanup_expired()
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except (OSError, RuntimeError) as e:
                 logger.error("Error in cache cleanup", error=str(e), exc_info=True)
 
     async def get(self, key: str) -> object:

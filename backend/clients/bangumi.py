@@ -140,7 +140,7 @@ class BangumiClient(BaseHTTPClient):
             # Re-raise API errors
             raise
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Bangumi search failed", keyword=keyword, error=str(e), exc_info=True
             )
@@ -188,7 +188,7 @@ class BangumiClient(BaseHTTPClient):
         except APIError:
             raise
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Failed to fetch bangumi subject",
                 subject_id=subject_id,

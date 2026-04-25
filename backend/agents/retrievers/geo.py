@@ -62,6 +62,6 @@ async def get_area_suggestions(
     try:
         results: list[dict[str, object]] = await get_bangumi_by_area(lat, lon)
         return results
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("area_suggestions_failed", error=str(exc))
         return []
