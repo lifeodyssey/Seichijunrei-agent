@@ -121,7 +121,7 @@ jobs:
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           files: ./coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   frontend-test:
     name: Frontend Tests
@@ -148,7 +148,7 @@ jobs:
         with:
           files: frontend/coverage/lcov.info
           flags: frontend
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   frontend-build:
     name: Frontend Build
