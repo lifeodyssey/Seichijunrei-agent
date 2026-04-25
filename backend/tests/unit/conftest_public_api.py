@@ -75,6 +75,7 @@ def install_mock_pipeline(monkeypatch: object) -> None:
         "backend.interfaces.persistence.generate_and_save_title",
         _fake_generate_title,
     )
+
     # Prevent background tasks from running real LLM in unit tests
     def _noop_spawn(coro: object) -> None:
         close = getattr(coro, "close", None)
