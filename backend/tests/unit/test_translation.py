@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from backend.agents.translation import (
     TranslationResult,
     _lookup_db,
@@ -81,7 +83,7 @@ class TestTranslateTitle:
         assert isinstance(result, TranslationResult)
         assert result.translated == "吹响！悠风号"
         assert result.source == "db"
-        assert result.confidence == 1.0
+        assert result.confidence == pytest.approx(1.0)
 
     async def test_no_db_falls_through_returns_fallback(self) -> None:
         """When DB is None and all lookups fail, should return llm_fallback."""

@@ -28,8 +28,10 @@ def test_seed_tool_state_with_context() -> None:
     }
     _seed_tool_state(deps, context)
     assert deps.tool_state["last_location"] == "宇治"
-    assert deps.tool_state["origin_lat"] == 34.886
-    assert deps.tool_state["origin_lng"] == 135.805
+    import pytest
+
+    assert deps.tool_state["origin_lat"] == pytest.approx(34.886)
+    assert deps.tool_state["origin_lng"] == pytest.approx(135.805)
     assert "search_bangumi" in deps.tool_state
 
 

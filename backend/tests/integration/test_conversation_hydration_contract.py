@@ -117,7 +117,9 @@ async def test_conversation_messages_api_returns_stored_response(real_db) -> Non
     app = create_fastapi_app(runtime_api=runtime_api, db=real_db)
 
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test"
+    ) as client:
         # Send a message to create a session
         resp = await client.post(
             "/v1/runtime",
@@ -154,7 +156,9 @@ async def test_conversations_list_api(real_db) -> None:
     app = create_fastapi_app(runtime_api=runtime_api, db=real_db)
 
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test"
+    ) as client:
         resp = await client.get(
             "/v1/conversations",
             headers={"X-User-Id": "test-hydration-user", "X-User-Type": "human"},

@@ -82,7 +82,7 @@ def test_search_response_model_accepts_rows_and_nearby_groups() -> None:
         ui={"component": "NearbyMap"},
     )
     assert model.data.results.row_count == 1
-    assert model.data.results.rows[0].distance_m == 280.0
+    assert model.data.results.rows[0].distance_m == pytest.approx(280.0)
 
 
 def test_route_response_model_requires_timed_itinerary() -> None:

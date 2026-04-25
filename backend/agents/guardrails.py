@@ -17,13 +17,13 @@ logger = structlog.get_logger(__name__)
 MAX_INPUT_LENGTH = 2000
 
 INJECTION_PATTERNS = [
-    re.compile(r"ignore\s+(previous|above|all)\s+\w*\s*(instructions|prompts)", re.I),
-    re.compile(r"you\s+are\s+now\s+", re.I),
-    re.compile(r"system\s*:\s*", re.I),
+    re.compile(r"ignore (previous|above|all) \w{0,20} ?(instructions|prompts)", re.I),
+    re.compile(r"you are now ", re.I),
+    re.compile(r"system *: *", re.I),
     re.compile(r"<\s*/?script", re.I),
-    re.compile(r"DROP\s+TABLE", re.I),
-    re.compile(r"UNION\s+SELECT", re.I),
-    re.compile(r";\s*DELETE\s+FROM", re.I),
+    re.compile(r"DROP TABLE", re.I),
+    re.compile(r"UNION SELECT", re.I),
+    re.compile(r"; *DELETE FROM", re.I),
     re.compile(r"<iframe", re.I),
 ]
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from backend.agents.handlers._base_search import execute_retrieval, resolve_bangumi_id
 from backend.agents.handlers._helpers import build_query_payload, optimize_route
 from backend.agents.handlers.answer_question import execute, execute_clarify
@@ -540,7 +542,7 @@ class TestQueryPayload:
         assert payload["metadata"]["radius_m"] == 5000
         assert payload["nearby_groups"][0]["bangumi_id"] == "120632"
         assert payload["nearby_groups"][0]["points_count"] == 2
-        assert payload["nearby_groups"][0]["closest_distance_m"] == 100.0
+        assert payload["nearby_groups"][0]["closest_distance_m"] == pytest.approx(100.0)
 
 
 class TestOptimizeRoute:

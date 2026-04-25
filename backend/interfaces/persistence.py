@@ -31,6 +31,17 @@ from backend.interfaces.session_facade import (
 
 logger = structlog.get_logger(__name__)
 
+# Background tasks must be saved to prevent premature GC (python:S7502).
+_background_tasks: set[asyncio.Task[object]] = set()
+
+
+def _spawn_background(coro: object) -> None:
+    """Create a background task and prevent premature garbage collection."""
+    task: asyncio.Task[object] = asyncio.create_task(coro)  # type: ignore[arg-type]
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 # Common exception base for best-effort DB/IO persistence calls.
 # asyncpg raises asyncpg.PostgresError (subclass of Exception) for SQL errors
 # and OSError for connection issues. We also catch RuntimeError (pool closed)
@@ -102,7 +113,7 @@ async def persist_result(
     raw_ints = session_state.get("interactions")
     interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
     if interaction_count >= COMPACT_THRESHOLD:
-        asyncio.create_task(
+        _spawn_background(
             compact_session_interactions(
                 session_id,
                 session_state,
@@ -209,7 +220,7 @@ async def persist_user_state(
                 len(raw_prev_ints) == 0 if isinstance(raw_prev_ints, list) else True
             )
             if is_first_interaction:
-                asyncio.create_task(
+                _spawn_background(
                     generate_and_save_title(
                         session_id=session_id,
                         first_query=request.text,
