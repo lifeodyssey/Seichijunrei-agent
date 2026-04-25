@@ -169,7 +169,7 @@ def parse_model_spec(
     if fb1 and fb1 != model:
         fallback_specs.append(fb1)
     fb2 = getattr(settings, "fallback_agent_model_2", None)
-    if isinstance(fb2, str) and fb2 and fb2 != model:
+    if isinstance(fb2, str) and fb2 and fb2 != model and fb2 not in fallback_specs:
         fallback_specs.append(fb2)
 
     if not fallback_specs:

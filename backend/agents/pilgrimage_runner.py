@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import structlog
 from pydantic_ai.models import Model
+from pydantic_ai.settings import ModelSettings
 
 import backend.agents.pilgrimage_tools as _tools  # noqa: F401
 from backend.agents.executor_agent import PipelineResult
@@ -66,7 +67,7 @@ async def run_pilgrimage_agent(
     model: Model | str | None = None,
     context: dict[str, object] | None = None,
     on_step: OnStep | None = None,
-    model_settings: object | None = None,
+    model_settings: ModelSettings | None = None,
 ) -> PipelineResult:
     """Run the main agent and adapt output into a PipelineResult."""
     retriever = Retriever(db)
@@ -83,7 +84,7 @@ async def run_pilgrimage_agent(
         text,
         deps=deps,
         model=model,
-        model_settings=model_settings,  # type: ignore[arg-type]
+        model_settings=model_settings,
     )
     raw_output = run_result.output
     if isinstance(raw_output, str):

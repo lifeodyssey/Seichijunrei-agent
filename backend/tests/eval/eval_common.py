@@ -169,9 +169,12 @@ class JourneyCase:
     expected_route_keys: list[str] = field(default_factory=list)
 
 
-def _str_list(row: dict[str, object], key: str) -> list[str]:
+def _str_list(row: dict[str, object], key: str, *, required: bool = False) -> list[str]:
     """Extract a list of strings from a JSON row, defaulting to empty."""
     raw = row.get(key)
+    if required and not isinstance(raw, list):
+        query = row.get("query", "<unknown>")
+        raise ValueError(f"Dataset row '{query}' missing required key: {key}")
     return [str(k) for k in raw] if isinstance(raw, list) else []
 
 
@@ -186,7 +189,7 @@ def load_journey_dataset(path: Path) -> list[JourneyCase]:
             locale=str(row["locale"]),
             expected_stage=str(row["expected_stage"]),
             expected_message_min_len=int(row["expected_message_min_len"]),
-            expected_data_keys=_str_list(row, "expected_data_keys"),
+            expected_data_keys=_str_list(row, "expected_data_keys", required=True),
             expected_results_keys=_str_list(row, "expected_results_keys"),
             expected_nearby_fields=_str_list(row, "expected_nearby_fields"),
             expected_route_keys=_str_list(row, "expected_route_keys"),
