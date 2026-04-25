@@ -383,8 +383,8 @@ async def generate_and_save_title(
     response_message: str,
     db: object,
     user_id: str | None = None,
-) -> None:
-    """Generate a short conversation title and persist it."""
+) -> str:
+    """Generate a short conversation title, persist it, and return it."""
     title = first_query.strip()[:20] or first_query[:20]
 
     try:
@@ -406,7 +406,7 @@ async def generate_and_save_title(
         logger.warning("conversation_title_generation_failed", session_id=session_id)
 
     if not isinstance(db, SupabaseClient):
-        return
+        return title
 
     try:
         await db.session.update_conversation_title(session_id, title, user_id=user_id)
@@ -414,6 +414,8 @@ async def generate_and_save_title(
         await db.session.update_conversation_title(session_id, title)
     except (OSError, RuntimeError):
         logger.warning("update_conversation_title_failed", session_id=session_id)
+
+    return title
 
 
 def build_selected_points_plan(request: PublicAPIRequest) -> ExecutionPlan:

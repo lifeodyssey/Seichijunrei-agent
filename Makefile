@@ -70,7 +70,7 @@ format:
 typecheck:
 	uv run mypy backend/agents/ backend/interfaces/ backend/domain/ backend/infrastructure/ backend/clients/
 
-check: lint typecheck test
+check: lint typecheck test test-integration
 
 # ── Frontend ──────────────────────────────────────────────────
 

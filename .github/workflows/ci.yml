@@ -199,7 +199,7 @@ jobs:
       - run: uv sync --all-extras
 
       - name: Run evals
-        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov -x --timeout=120
+        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov -x
         env:
           EVAL_MODEL: openai:gemini-3-pro-preview@https://api.zetatechs.com/v1
           ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}

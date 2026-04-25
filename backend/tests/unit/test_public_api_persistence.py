@@ -125,24 +125,16 @@ class TestRuntimeAPISession:
 
 
 class TestConversationPersistence:
-    async def test_first_interaction_schedules_title_generation(self, mock_db):
-        scheduled: list[object] = []
-
-        def _capture_task(coro: object) -> MagicMock:
-            scheduled.append(coro)
-            close = getattr(coro, "close", None)
-            if callable(close):
-                close()
-            return MagicMock()
-
+    async def test_first_interaction_generates_title_in_response(self, mock_db):
         with patch(
-            "backend.interfaces.persistence.asyncio.create_task",
-            side_effect=_capture_task,
+            "backend.interfaces.persistence.generate_and_save_title",
+            return_value="京吹の聖地",
         ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
-            await api.handle(PublicAPIRequest(text="京吹"), user_id="u1")
+            response = await api.handle(PublicAPIRequest(text="京吹"), user_id="u1")
 
-        assert len(scheduled) == 1
+        assert response is not None
+        assert response.generated_title == "京吹の聖地"
 
     async def test_does_not_schedule_title_generation_for_existing_session(
         self,

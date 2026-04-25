@@ -138,7 +138,11 @@ class RuntimeAPI:
 
                 response.session_id = session_id
 
-                session_state, user_message_persisted = await persist_result(
+                (
+                    session_state,
+                    user_message_persisted,
+                    generated_title,
+                ) = await persist_result(
                     db=self._db,
                     session_store=self._session_store,
                     session_id=session_id,
@@ -155,6 +159,7 @@ class RuntimeAPI:
                 response.route_history = [
                     r for r in route_history if isinstance(r, dict)
                 ]
+                response.generated_title = generated_title
                 return response
             except Exception as exc:
                 span.record_exception(exc)

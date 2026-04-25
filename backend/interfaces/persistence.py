@@ -60,8 +60,11 @@ async def persist_result(
     context_delta: dict[str, object],
     previous_state: dict[str, object],
     user_id: str | None,
-) -> tuple[dict[str, object], bool]:
-    """Persist session state, route, user state, and messages."""
+) -> tuple[dict[str, object], bool, str | None]:
+    """Persist session state, route, user state, and messages.
+
+    Returns (session_state, user_message_persisted, generated_title).
+    """
     session_state = build_updated_session_state(
         previous_state,
         SessionUpdate(
@@ -91,7 +94,7 @@ async def persist_result(
         session_state["route_history"] = route_history[-MAX_ROUTE_HISTORY:]
 
     await persist_session(db, session_store, session_id, session_state, response)
-    await persist_user_state(
+    generated_title = await persist_user_state(
         db=db,
         session_id=session_id,
         user_id=user_id,
@@ -121,7 +124,7 @@ async def persist_result(
             )
         )
 
-    return session_state, True
+    return session_state, True, generated_title
 
 
 async def _safe_insert_message(
@@ -205,10 +208,12 @@ async def persist_user_state(
     result: PipelineResult | None,
     context_delta: dict[str, object],
     previous_state: dict[str, object],
-) -> None:
+) -> str | None:
+    """Persist user state and return generated title (if first interaction)."""
     if not user_id or result is None or not response.success:
-        return
+        return None
 
+    generated_title: str | None = None
     if isinstance(db, SupabaseClient):
         try:
             await db.session.upsert_conversation(session_id, user_id, request.text)
@@ -220,19 +225,17 @@ async def persist_user_state(
                 len(raw_prev_ints) == 0 if isinstance(raw_prev_ints, list) else True
             )
             if is_first_interaction:
-                _spawn_background(
-                    generate_and_save_title(
-                        session_id=session_id,
-                        first_query=request.text,
-                        response_message=response.message,
-                        db=db,
-                        user_id=user_id,
-                    )
+                generated_title = await generate_and_save_title(
+                    session_id=session_id,
+                    first_query=request.text,
+                    response_message=response.message,
+                    db=db,
+                    user_id=user_id,
                 )
 
     bangumi_id = context_delta.get("bangumi_id")
     if not isinstance(bangumi_id, str) or not isinstance(db, SupabaseClient):
-        return
+        return generated_title
 
     anime_title_raw = context_delta.get("anime_title")
     anime_title = anime_title_raw if isinstance(anime_title_raw, str) else None
@@ -244,6 +247,8 @@ async def persist_user_state(
         )
     except _PERSIST_ERRORS:
         logger.warning("upsert_user_memory_failed", user_id=user_id)
+
+    return generated_title
 
 
 async def load_user_memory(db: object, user_id: str | None) -> dict[str, object] | None:

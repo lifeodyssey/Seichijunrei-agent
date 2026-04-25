@@ -58,10 +58,20 @@ def make_fake_agent(
     return _fake
 
 
+async def _fake_generate_title(**kwargs: object) -> str:
+    """Fake title generator for unit tests."""
+    first_query = kwargs.get("first_query", "")
+    return str(first_query)[:15] if isinstance(first_query, str) else "test"
+
+
 def install_mock_pipeline(monkeypatch: object) -> None:
-    """Monkeypatch run_pilgrimage_agent with a default fake."""
+    """Monkeypatch run_pilgrimage_agent and generate_and_save_title."""
     setattr_fn = monkeypatch.setattr
     setattr_fn(
         "backend.interfaces.public_api.run_pilgrimage_agent",
         make_fake_agent(),
+    )
+    setattr_fn(
+        "backend.interfaces.persistence.generate_and_save_title",
+        _fake_generate_title,
     )

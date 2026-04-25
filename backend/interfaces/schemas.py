@@ -104,4 +104,8 @@ class PublicAPIResponse(BaseModel):
         default=None,
         description="Optional Generative UI descriptor: {component}",
     )
+    generated_title: str | None = Field(
+        default=None,
+        description="LLM-generated conversation title (first interaction only)",
+    )
     debug: dict[str, object] | None = None

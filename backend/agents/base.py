@@ -26,9 +26,11 @@ import httpx
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -142,6 +144,23 @@ def _parse_openai_compat_model(
     return OpenAIChatModel(model_name, provider=provider)
 
 
+def _parse_anthropic_model(spec: str) -> AnthropicModel:
+    """Build an Anthropic model, supporting optional @base_url override."""
+    name = spec.removeprefix("anthropic:")
+    base_url: str | None = None
+    if "@" in name:
+        name, base_url = name.split("@", 1)
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if base_url is None:
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    provider = AnthropicProvider(
+        base_url=base_url,
+        api_key=api_key,
+        http_client=_build_http_client(),
+    )
+    return AnthropicModel(name, provider=provider)
+
+
 def parse_model_spec(
     model: Model | str, *, use_settings_fallbacks: bool = False
 ) -> Model:
@@ -161,6 +180,8 @@ def parse_model_spec(
             base_url_override=settings.openai_compat_base_url,
             api_key=settings.openai_compat_api_key,
         )
+    elif model.startswith("anthropic:"):
+        primary = _parse_anthropic_model(model)
     else:
         raise ValueError(f"Unsupported model spec: {model}")
 
