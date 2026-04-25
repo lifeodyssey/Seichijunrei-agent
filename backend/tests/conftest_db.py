@@ -17,6 +17,8 @@ import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
 
+from backend.infrastructure.supabase.client import SupabaseClient
+
 
 def _docker_available() -> bool:
     """Check if Docker daemon is running."""
@@ -160,8 +162,6 @@ def _to_psycopg2_dsn(url: str) -> str:
 @pytest.fixture(scope="session")
 def pg_container() -> Iterator[PostgresContainer]:
     """Spin up a PostgreSQL 16 container for the test session."""
-    if not _docker_available():
-        pytest.skip("Docker not available — skipping testcontainer tests")
     with PostgresContainer("postgis/postgis:16-3.4") as pg:
         dsn = _to_psycopg2_dsn(pg.get_connection_url())
         _apply_migrations_sync(dsn)
@@ -179,3 +179,22 @@ async def db_pool(pg_container: PostgresContainer) -> AsyncIterator[asyncpg.Pool
     assert pool is not None
     yield pool
     await pool.close()
+
+
+@pytest.fixture
+async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:
+    """Build a SupabaseClient wired to the testcontainer pool."""
+    client = SupabaseClient.__new__(SupabaseClient)
+    client._dsn = ""
+    client._min_pool_size = 1
+    client._max_pool_size = 2
+    client._pool = db_pool  # type: ignore[assignment]
+    client._bangumi = None
+    client._points = None
+    client._session = None
+    client._feedback = None
+    client._user_memory = None
+    client._routes = None
+    client._messages = None
+    client._init_repos(db_pool)
+    yield client
