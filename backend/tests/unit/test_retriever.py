@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -222,7 +222,10 @@ class TestRetrievalExecution:
         mock_db.points.upsert_points_batch.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_hybrid_falls_back_to_sql_on_unknown_anchor(self, mock_db):
+    @patch("backend.agents.retrievers.geo.resolve_location", return_value=None)
+    async def test_hybrid_falls_back_to_sql_on_unknown_anchor(
+        self, _mock_resolve, mock_db
+    ):
         mock_db.pool.fetch.return_value = [{"id": "p1", "bangumi_id": "115908"}]
         retriever = Retriever(mock_db)
 

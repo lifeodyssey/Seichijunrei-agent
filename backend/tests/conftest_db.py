@@ -7,6 +7,8 @@ The pg_container fixture is session-scoped (one container per test run).
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -14,6 +16,18 @@ import asyncpg
 import psycopg2
 import pytest
 from testcontainers.postgres import PostgresContainer
+
+
+def _docker_available() -> bool:
+    """Check if Docker daemon is running."""
+    if shutil.which("docker") is None:
+        return False
+    try:
+        result = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (OSError, FileNotFoundError):
+        return False
+
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 SEED_FILE = Path(__file__).parent / "fixtures" / "seed.sql"
@@ -146,6 +160,8 @@ def _to_psycopg2_dsn(url: str) -> str:
 @pytest.fixture(scope="session")
 def pg_container() -> Iterator[PostgresContainer]:
     """Spin up a PostgreSQL 16 container for the test session."""
+    if not _docker_available():
+        pytest.skip("Docker not available — skipping testcontainer tests")
     with PostgresContainer("postgis/postgis:16-3.4") as pg:
         dsn = _to_psycopg2_dsn(pg.get_connection_url())
         _apply_migrations_sync(dsn)
