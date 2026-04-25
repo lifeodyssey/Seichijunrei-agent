@@ -44,7 +44,10 @@ def _build_http_client() -> httpx.AsyncClient:
     Uses trust_env=False to scope proxy bypass to provider clients only,
     without mutating process-wide os.environ.
     """
-    return httpx.AsyncClient(trust_env=False, timeout=30.0)
+    from backend.config import get_settings
+
+    timeout = float(get_settings().timeout_seconds)
+    return httpx.AsyncClient(trust_env=False, timeout=timeout)
 
 
 _GOOGLE_MODEL_LOCK = threading.Lock()

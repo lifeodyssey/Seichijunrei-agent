@@ -20,8 +20,14 @@ def _mask_secret(value: str | None, visible_chars: int = 4) -> str:
 
 
 def _is_gemini_model(model_name: str | None) -> bool:
-    """Return True when a model spec points at Gemini."""
-    return isinstance(model_name, str) and "gemini" in model_name.lower()
+    """Return True when a model spec uses Google Gemini directly (not via proxy)."""
+    if not isinstance(model_name, str):
+        return False
+    lower = model_name.lower()
+    # OpenAI-compat models routed through a proxy (e.g., Zeta) don't need GEMINI_API_KEY
+    if lower.startswith("openai:"):
+        return False
+    return "gemini" in lower
 
 
 def _is_openai_compat_model(model_name: str | None) -> bool:

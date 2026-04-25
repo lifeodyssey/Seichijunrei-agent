@@ -44,7 +44,8 @@ def pipeline_result_to_public_response(
     data = {
         key: value
         for key, value in final_output.items()
-        if key not in {"success", "intent", "errors"} and value is not None
+        if key not in {"success", "intent", "errors", "status", "message"}
+        and value is not None
     }
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),

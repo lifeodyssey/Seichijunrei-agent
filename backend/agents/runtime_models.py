@@ -70,6 +70,28 @@ class NearbyGroupModel(BaseModel):
     closest_distance_m: float = 0
 
 
+class ResultsMetadataModel(BaseModel):
+    """Typed metadata returned alongside search results."""
+
+    anime_title: str | None = None
+    anime_title_cn: str | None = None
+    cover_url: str | None = None
+    radius_m: int | None = None
+    data_origin: str | None = None
+    source: str | None = None
+    cache: str | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class ResultsSummaryModel(BaseModel):
+    """Typed summary for search/route results."""
+
+    count: int = 0
+    source: str = "db"
+    cache: str = "miss"
+
+
 class ResultsMetaModel(BaseModel):
     """Search results meta container (rows + summary fields)."""
 
@@ -77,8 +99,8 @@ class ResultsMetaModel(BaseModel):
     row_count: int = 0
     strategy: str | None = None
     status: Literal["ok", "empty"] | None = None
-    metadata: dict[str, object] | None = None
-    summary: dict[str, object] | None = None
+    metadata: ResultsMetadataModel | None = None
+    summary: ResultsSummaryModel | None = None
     nearby_groups: list[NearbyGroupModel] = Field(default_factory=list)
 
 
@@ -106,7 +128,7 @@ class RouteModel(BaseModel):
     anime_title: str | None = None
     anime_title_cn: str | None = None
     status: Literal["ok", "empty"] | None = None
-    summary: dict[str, object] | None = None
+    summary: ResultsSummaryModel | None = None
     timed_itinerary: TimedItinerary = Field(default_factory=TimedItinerary)
 
 

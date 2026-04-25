@@ -5,6 +5,10 @@ from the database. The concrete ``SupabaseClient`` satisfies these protocols
 structurally (PEP 544) — no inheritance needed.
 
 Only methods actually *used* by the agent layer are declared here.
+
+Note: Return types use ``dict[str, object]`` to match the asyncpg Record-to-dict
+conversion in the concrete repositories. Protocol signatures must mirror
+the implementation types for structural subtyping to work.
 """
 
 from __future__ import annotations
