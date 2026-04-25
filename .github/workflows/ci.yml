@@ -104,7 +104,9 @@ jobs:
 
       - name: Integration tests (testcontainer)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: uv run pytest backend/tests/integration/ -v --no-cov -k "not test_frontend_contracts"
+        run: >-
+          uv run pytest backend/tests/integration/ -v --no-cov
+          -k "not test_frontend_contracts and not test_e2e_smoke"
         env:
           ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
 
@@ -206,7 +208,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-  # ── Stage 3: Deploy (auto on main, all tests green) ───────
+  # ── Stage 3: Deploy (tag-triggered, all tests green) ───────
 
   deploy:
     name: Deploy to Production
@@ -265,3 +267,32 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
           CORS_ALLOWED_ORIGIN: ${{ secrets.CORS_ALLOWED_ORIGIN }}
+
+  # ── Stage 4: Post-deploy smoke test (after successful deploy) ──
+
+  smoke-test:
+    name: E2E Smoke Test
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - run: uv sync --all-extras
+
+      - name: Run E2E smoke tests
+        run: >-
+          uv run pytest
+          backend/tests/integration/test_e2e_smoke.py
+          backend/tests/integration/test_frontend_contracts.py
+          -v --no-cov
+        env:
+          SEICHI_API_URL: ${{ secrets.SEICHI_API_URL }}
+          SEICHI_API_KEY: ${{ secrets.SEICHI_API_KEY }}
