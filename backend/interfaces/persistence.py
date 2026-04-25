@@ -19,12 +19,10 @@ from backend.interfaces.schemas import (
     PublicAPIResponse,
 )
 from backend.interfaces.session_facade import (
-    COMPACT_THRESHOLD,
     MAX_ROUTE_HISTORY,
     SessionUpdate,
     build_session_summary,
     build_updated_session_state,
-    compact_session_interactions,
     normalize_session_state,
 )
 
@@ -112,16 +110,17 @@ async def persist_result(
         persist_user_only=not response.success,
     )
 
-    raw_ints = session_state.get("interactions")
-    interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
-    if interaction_count >= COMPACT_THRESHOLD:
-        _spawn_background(
-            compact_session_interactions(
-                session_id,
-                session_state,
-                session_store,
-            )
-        )
+    # TODO: re-enable session compaction with proper async task management
+    # raw_ints = session_state.get("interactions")
+    # interaction_count = len(raw_ints) if isinstance(raw_ints, list) else 0
+    # if interaction_count >= COMPACT_THRESHOLD:
+    #     _spawn_background(
+    #         compact_session_interactions(
+    #             session_id,
+    #             session_state,
+    #             session_store,
+    #         )
+    #     )
 
     return session_state, True, generated_title
 
