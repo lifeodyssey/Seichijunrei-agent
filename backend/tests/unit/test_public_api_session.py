@@ -12,29 +12,7 @@ from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.interfaces.session_facade import (
     build_context_block as _build_context_block,
 )
-
-
-def _make_result(
-    intent: str = "search_bangumi",
-    locale: str = "ja",
-    steps: list[PlanStep] | None = None,
-    final_output: dict | None = None,
-) -> PipelineResult:
-    """Build a fake PipelineResult for tests that mock the runtime agent."""
-    plan = ExecutionPlan(
-        reasoning="test",
-        locale=locale,
-        steps=steps
-        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
-    )
-    result = PipelineResult(intent=intent, plan=plan)
-    result.final_output = final_output or {
-        "success": True,
-        "status": "empty",
-        "message": "該当する巡礼地が見つかりませんでした。",
-        "results": {"rows": [], "row_count": 0},
-    }
-    return result
+from backend.tests.unit.conftest_public_api import make_result as _make_result
 
 
 @pytest.fixture(autouse=True)

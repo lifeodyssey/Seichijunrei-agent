@@ -84,7 +84,7 @@ def _build_nearby_groups(rows: list[dict[str, object]]) -> list[dict[str, object
 
         raw_count = group["points_count"]
         group["points_count"] = (
-            int(raw_count) if isinstance(raw_count, (int, float, str)) else 0
+            int(raw_count) if isinstance(raw_count, (int, float)) else 0
         ) + 1
         if not group.get("title"):
             group["title"] = _row_title(row)

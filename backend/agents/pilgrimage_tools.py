@@ -387,7 +387,13 @@ async def web_search(
             return list(ddgs.text(q, max_results=5))
 
     loop = asyncio.get_running_loop()
-    results = await loop.run_in_executor(None, partial(_search_sync, query))
+    try:
+        results = await asyncio.wait_for(
+            loop.run_in_executor(None, partial(_search_sync, query)),
+            timeout=10.0,
+        )
+    except (TimeoutError, OSError, RuntimeError) as exc:
+        return f"Search failed for '{query}': {exc}"
     if not results:
         return f"No results found for: {query}"
     lines = []
