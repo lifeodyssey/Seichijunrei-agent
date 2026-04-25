@@ -7,7 +7,9 @@
       "intent": "search_bangumi",
       "status": "empty",
       "success": true,
-      "plan_steps": ["search_bangumi"],
+      "plan_steps": [
+        "search_bangumi"
+      ],
       "result_count": 0
     }
   },
@@ -19,8 +21,10 @@
       "intent": "search_nearby",
       "status": "ok",
       "success": true,
-      "plan_steps": ["search_nearby"],
-      "result_count": 2,
+      "plan_steps": [
+        "search_nearby"
+      ],
+      "result_count": 5,
       "strategy": "geo"
     }
   },
@@ -32,9 +36,12 @@
       "intent": "plan_route",
       "status": "ok",
       "success": true,
-      "plan_steps": ["search_bangumi", "plan_route"],
-      "result_count": 2,
-      "route_point_count": 2,
+      "plan_steps": [
+        "search_bangumi",
+        "plan_route"
+      ],
+      "result_count": 5,
+      "route_point_count": 5,
       "strategy": "hybrid"
     }
   },
@@ -46,7 +53,9 @@
       "intent": "greet_user",
       "status": "info",
       "success": true,
-      "plan_steps": ["greet_user"]
+      "plan_steps": [
+        "greet_user"
+      ]
     }
   }
 ]

@@ -125,16 +125,12 @@ class TestRuntimeAPISession:
 
 
 class TestConversationPersistence:
-    async def test_first_interaction_generates_title_in_response(self, mock_db):
-        with patch(
-            "backend.interfaces.persistence.generate_and_save_title",
-            return_value="京吹の聖地",
-        ):
-            api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
-            response = await api.handle(PublicAPIRequest(text="京吹"), user_id="u1")
+    async def test_first_interaction_returns_fallback_title(self, mock_db):
+        api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
+        response = await api.handle(PublicAPIRequest(text="京吹"), user_id="u1")
 
         assert response is not None
-        assert response.generated_title == "京吹の聖地"
+        assert response.generated_title == "京吹"
 
     async def test_does_not_schedule_title_generation_for_existing_session(
         self,

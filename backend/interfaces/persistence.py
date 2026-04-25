@@ -225,12 +225,15 @@ async def persist_user_state(
                 len(raw_prev_ints) == 0 if isinstance(raw_prev_ints, list) else True
             )
             if is_first_interaction:
-                generated_title = await generate_and_save_title(
-                    session_id=session_id,
-                    first_query=request.text,
-                    response_message=response.message,
-                    db=db,
-                    user_id=user_id,
+                generated_title = request.text.strip()[:20] or request.text[:20]
+                _spawn_background(
+                    generate_and_save_title(
+                        session_id=session_id,
+                        first_query=request.text,
+                        response_message=response.message,
+                        db=db,
+                        user_id=user_id,
+                    )
                 )
 
     bangumi_id = context_delta.get("bangumi_id")

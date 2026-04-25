@@ -187,8 +187,8 @@ jobs:
     name: Eval (Gemini)
     runs-on: ubuntu-latest
     needs: backend-quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    continue-on-error: true
+    # Disabled: eval costs ~$10/run. Re-enable when model endpoint is stable.
+    if: false
     steps:
       - uses: actions/checkout@v6
 

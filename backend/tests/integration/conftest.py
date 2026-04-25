@@ -270,10 +270,20 @@ def client(tc_db: SupabaseClient) -> AsyncIterator[_AuthedClient]:
         _ = (db, model, context, on_step)
         return _make_pipeline_result(text, locale)
 
+    async def _fake_generate_title(**kwargs: object) -> str:
+        first_query = kwargs.get("first_query", "")
+        return str(first_query)[:15] if isinstance(first_query, str) else "test"
+
     app = _build_test_app(tc_db)
-    with patch(
-        "backend.interfaces.public_api.run_pilgrimage_agent",
-        side_effect=_fake_run_pilgrimage_agent,
+    with (
+        patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent",
+            side_effect=_fake_run_pilgrimage_agent,
+        ),
+        patch(
+            "backend.interfaces.persistence.generate_and_save_title",
+            side_effect=_fake_generate_title,
+        ),
     ):
         with TestClient(app) as raw_client:
             yield _AuthedClient(raw_client)
@@ -320,10 +330,20 @@ def sse_client(tc_db: SupabaseClient) -> AsyncIterator[_SSEClient]:
         _ = (db, model, context)
         return _make_pipeline_result(text, locale)
 
+    async def _fake_generate_title(**kwargs: object) -> str:
+        first_query = kwargs.get("first_query", "")
+        return str(first_query)[:15] if isinstance(first_query, str) else "test"
+
     app = _build_test_app(tc_db)
-    with patch(
-        "backend.interfaces.public_api.run_pilgrimage_agent",
-        side_effect=_fake_run_pilgrimage_agent,
+    with (
+        patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent",
+            side_effect=_fake_run_pilgrimage_agent,
+        ),
+        patch(
+            "backend.interfaces.persistence.generate_and_save_title",
+            side_effect=_fake_generate_title,
+        ),
     ):
         with TestClient(app) as raw_client:
             yield _SSEClient(raw_client)

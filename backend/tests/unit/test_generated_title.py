@@ -7,7 +7,7 @@ the sidebar immediately without a page refresh.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -65,23 +65,17 @@ class TestGeneratedTitleInResponse:
         )
         assert resp.generated_title is None
 
-    async def test_first_interaction_includes_generated_title(self, mock_db) -> None:
-        """First interaction should generate title and include in response."""
+    async def test_first_interaction_includes_fallback_title(self, mock_db) -> None:
+        """First interaction should include fallback title (query[:20])."""
         api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
 
-        with patch(
-            "backend.interfaces.persistence.generate_and_save_title"
-        ) as mock_gen:
-            # Make generate_and_save_title return the title synchronously
-            mock_gen.return_value = "響けの聖地"
-
-            response = await api.handle(
-                PublicAPIRequest(text="響けの聖地を探して", locale="ja"),
-                user_id="user-1",
-            )
+        response = await api.handle(
+            PublicAPIRequest(text="響けの聖地を探して", locale="ja"),
+            user_id="user-1",
+        )
 
         assert response is not None
-        assert response.generated_title is not None
+        assert response.generated_title == "響けの聖地を探して"
 
     async def test_greet_does_not_include_generated_title(
         self, mock_db, monkeypatch
