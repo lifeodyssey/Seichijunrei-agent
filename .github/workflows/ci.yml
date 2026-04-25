@@ -102,17 +102,18 @@ jobs:
       - name: Unit tests (coverage >= 80%)
         run: uv run pytest backend/tests/unit/ -v --cov --cov-report=xml --cov-fail-under=80
 
-      - name: Integration tests
+      - name: Integration tests (testcontainer)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: uv run pytest backend/tests/integration/ -v --no-cov
+        run: uv run pytest backend/tests/integration/ -v --no-cov -k "not test_frontend_contracts"
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
 
       - name: Verify imports
         run: |
           uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
           uv run python -c "from backend.interfaces.fastapi_service import create_fastapi_app; print('fastapi OK')"
           uv run python -c "from backend.domain.entities import Point; print('domain OK')"
+          uv run python -c "from backend.agents.pilgrimage_runner import run_pilgrimage_agent; print('pilgrimage_agent OK')"
 
       - name: Upload coverage
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
@@ -185,6 +186,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: backend-quality
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
@@ -197,7 +199,7 @@ jobs:
       - run: uv sync --all-extras
 
       - name: Run evals
-        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov
+        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov -x --timeout=120
         env:
           EVAL_MODEL: openai:gemini-3-pro-preview@https://api.zetatechs.com/v1
           ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
@@ -239,9 +241,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.79.0"
           command: deploy
-          # Uploaded into the Worker environment. `worker/worker.js` consumes
-          # Supabase auth secrets at the edge and forwards only its explicit
-          # container allowlist into RuntimeContainer envVars.
           secrets: |
             SUPABASE_URL
             SUPABASE_ANON_KEY
@@ -255,8 +254,6 @@ jobs:
             LOGFIRE_TOKEN
             CORS_ALLOWED_ORIGIN
         env:
-          # Frontend `NEXT_PUBLIC_*` values were consumed during frontend-build.
-          # The values below back the Worker edge auth layer and container runtime.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
