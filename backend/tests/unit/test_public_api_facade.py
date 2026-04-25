@@ -15,26 +15,17 @@ from backend.interfaces.public_api import (
     RuntimeAPI,
     handle_public_request,
 )
-from backend.tests.unit.conftest_public_api import make_result as _make_result
+from backend.tests.unit.conftest_public_api import (
+    install_mock_pipeline,
+)
+from backend.tests.unit.conftest_public_api import (
+    make_result as _make_result,
+)
 
 
 @pytest.fixture(autouse=True)
 def _mock_pipeline(monkeypatch):
-    """Mock run_pilgrimage_agent — avoids LLM calls in unit tests."""
-
-    async def _fake(
-        *,
-        text: str,
-        db: object,
-        model: object | None = None,
-        locale: str = "ja",
-        context: dict[str, object] | None = None,
-        on_step: object | None = None,
-    ) -> PipelineResult:
-        _ = (text, db, model, context, on_step)
-        return _make_result(locale=locale)
-
-    monkeypatch.setattr("backend.interfaces.public_api.run_pilgrimage_agent", _fake)
+    install_mock_pipeline(monkeypatch)
 
 
 @pytest.fixture
