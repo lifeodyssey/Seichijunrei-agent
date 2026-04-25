@@ -6,8 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.agents.executor_agent import PipelineResult, StepResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    GreetingResponseModel,
+    QADataModel,
+)
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import PublicAPIRequest, RuntimeAPI
@@ -42,13 +45,12 @@ def mock_db():
 
 class TestGreetUserEphemeral:
     async def test_greet_user_is_ephemeral_and_skips_persistence(self):
-        plan = ExecutionPlan(
-            steps=[PlanStep(tool=ToolName.GREET_USER, params={"message": "Hello!"})],
-            reasoning="greeting",
-            locale="en",
+        output = GreetingResponseModel(
+            intent="greet_user",
+            message="Hello!",
+            data=QADataModel(message="Hello!"),
         )
-        result = PipelineResult(intent="greet_user", plan=plan)
-        result.final_output = {"success": True, "status": "info", "message": "Hello!"}
+        result = AgentResult(output=output, steps=[], tool_state={})
 
         async def _fake(
             *,
@@ -172,21 +174,19 @@ class TestConversationPersistence:
 class TestUserMemoryUpsert:
     async def test_upserts_user_memory_when_bangumi_id_in_delta(self, mock_db):
         result = _make_result(
-            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "響け"})],
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "ok",
+            data={
                 "results": {"rows": [], "row_count": 0},
             },
+            message="ok",
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "響け"},
+                    data={"bangumi_id": "253", "title": "響け！ユーフォニアム"},
+                )
+            ],
         )
-        result.step_results = [
-            StepResult(
-                tool="resolve_anime",
-                success=True,
-                data={"bangumi_id": "253", "title": "響け！ユーフォニアム"},
-            )
-        ]
 
         async def _fake(
             *,

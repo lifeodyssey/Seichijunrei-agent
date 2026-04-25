@@ -6,8 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.agents.executor_agent import PipelineResult, StepResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    ResultsMetaModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.interfaces.session_facade import (
     build_context_block as _build_context_block,
@@ -29,19 +33,14 @@ class TestContextExtraction:
     def test_extract_context_delta_from_resolve_anime(self) -> None:
         result = _make_result(
             steps=[
-                PlanStep(
-                    tool=ToolName.RESOLVE_ANIME,
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
                     params={"title": "響け！ユーフォニアム"},
+                    data={"bangumi_id": "253", "title": "響け！ユーフォニアム"},
                 )
             ]
         )
-        result.step_results = [
-            StepResult(
-                tool="resolve_anime",
-                success=True,
-                data={"bangumi_id": "253", "title": "響け！ユーフォニアム"},
-            )
-        ]
 
         from backend.interfaces.session_facade import (
             extract_context_delta as _extract_context_delta,
@@ -53,19 +52,23 @@ class TestContextExtraction:
         assert delta.get("location") is None
 
     def test_extract_context_delta_from_search_nearby(self) -> None:
-        plan = ExecutionPlan(
-            steps=[PlanStep(tool=ToolName.SEARCH_NEARBY, params={"location": "宇治"})],
-            reasoning="test",
-            locale="ja",
+        output = SearchResponseModel(
+            intent="search_nearby",
+            message="test",
+            data=SearchDataModel(results=ResultsMetaModel()),
         )
-        result = PipelineResult(intent="search_nearby", plan=plan)
-        result.step_results = [
-            StepResult(
-                tool="search_nearby",
-                success=True,
-                data={"rows": []},
-            )
-        ]
+        result = AgentResult(
+            output=output,
+            steps=[
+                StepRecord(
+                    tool="search_nearby",
+                    success=True,
+                    params={"location": "宇治"},
+                    data={"rows": []},
+                )
+            ],
+            tool_state={},
+        )
 
         from backend.interfaces.session_facade import (
             extract_context_delta as _extract_context_delta,
@@ -76,14 +79,15 @@ class TestContextExtraction:
         assert delta.get("bangumi_id") is None
 
     def test_extract_context_delta_empty_on_failure(self) -> None:
-        result = _make_result()
-        result.step_results = [
-            StepResult(
-                tool="resolve_anime",
-                success=False,
-                error="not found",
-            )
-        ]
+        result = _make_result(
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=False,
+                    error="not found",
+                )
+            ]
+        )
 
         from backend.interfaces.session_facade import (
             extract_context_delta as _extract_context_delta,

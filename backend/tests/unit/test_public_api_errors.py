@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from backend.agents.executor_agent import PipelineResult
+from backend.agents.agent_result import AgentResult
 from backend.application.errors import InvalidInputError
 from backend.interfaces.public_api import (
     PublicAPIRequest,
@@ -143,14 +143,15 @@ class TestPublicAPIResponseUIField:
 
 class TestRuntimeAPIErrors:
     async def test_handle_maps_pipeline_failure(self, mock_db):
+        from backend.agents.agent_result import StepRecord
+
         result = _make_result(
-            final_output={
-                "success": False,
-                "status": "error",
-                "message": "",
-                "data": {},
-                "errors": ["db down"],
+            data={
+                "results": {"rows": [], "row_count": 0},
             },
+            steps=[
+                StepRecord(tool="search_bangumi", success=False, error="db down"),
+            ],
         )
 
         async def _fake(
@@ -161,7 +162,7 @@ class TestRuntimeAPIErrors:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, context, on_step)
             return result
 
@@ -172,7 +173,6 @@ class TestRuntimeAPIErrors:
             response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
 
         assert response.success is False
-        assert response.status == "error"
         assert response.errors[0].code == "pipeline_error"
         assert response.errors[0].message == "A processing step failed."
 
@@ -219,7 +219,7 @@ class TestRuntimeAPIErrors:
 
         assert response.intent == "search_bangumi"
         assert span.attributes["runtime.intent"] == "search_bangumi"
-        assert span.attributes["runtime.status"] == "empty"
+        assert span.attributes["runtime.status"] == "ok"
         assert span.attributes["runtime.success"] is True
         record_metric.assert_called_once()
         assert record_metric.call_args.kwargs["transport"] == "public_api"

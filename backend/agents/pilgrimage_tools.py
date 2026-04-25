@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 import structlog
 from pydantic_ai import ModelRetry, RunContext
 
-from backend.agents.executor_agent import StepResult
+from backend.agents.agent_result import StepRecord
 from backend.agents.handlers import (
     execute_answer_question,
     execute_greet_user,
@@ -50,22 +50,17 @@ async def _emit_step(
     await deps.on_step(tool, status, data, thought, observation)
 
 
-def _record_plan_step(
-    deps: RuntimeDeps, tool: ToolName, params: dict[str, object]
-) -> None:
-    deps.plan_steps.append(PlanStep(tool=tool, params=params))
-
-
-def _record_step_result(
+def _record_step(
     deps: RuntimeDeps,
     *,
     tool: str,
     success: bool,
-    data: object,
+    params: dict[str, object],
+    data: dict[str, object] | None,
     error: str | None,
 ) -> None:
-    deps.step_results.append(
-        StepResult(tool=tool, success=success, data=data, error=error)
+    deps.steps.append(
+        StepRecord(tool=tool, success=success, params=params, data=data, error=error)
     )
 
 
@@ -79,7 +74,6 @@ async def _run_handler(
     ],
 ) -> dict[str, object]:
     deps = ctx.deps
-    _record_plan_step(deps, tool, params)
     await _emit_step(deps, tool.value, "running", {})
 
     retriever = deps.retriever or Retriever(deps.db)
@@ -91,19 +85,20 @@ async def _run_handler(
         retriever,
     )
 
-    tool_name = raw.get("tool")
     success = bool(raw.get("success", False))
     data = raw.get("data")
     error = raw.get("error")
-    _record_step_result(
+    payload = data if isinstance(data, dict) else {}
+
+    _record_step(
         deps,
-        tool=str(tool_name) if isinstance(tool_name, str) else tool.value,
+        tool=tool.value,
         success=success,
-        data=data,
+        params=params,
+        data=payload if payload else None,
         error=str(error) if isinstance(error, str) else None,
     )
 
-    payload = data if isinstance(data, dict) else {}
     if success and isinstance(data, dict):
         deps.tool_state[tool.value] = data
         await _emit_step(deps, tool.value, "done", payload)
@@ -341,9 +336,6 @@ async def clarify(
     """
     deps = ctx.deps
     normalized_options = list(options)
-    _record_plan_step(
-        deps, ToolName.CLARIFY, {"question": question, "options": normalized_options}
-    )
     await _emit_step(deps, ToolName.CLARIFY.value, "running", {})
 
     candidates = await enrich_clarify_candidates(deps, normalized_options)
@@ -355,10 +347,11 @@ async def clarify(
     }
 
     deps.tool_state[ToolName.CLARIFY.value] = payload
-    _record_step_result(
+    _record_step(
         deps,
         tool=ToolName.CLARIFY.value,
         success=True,
+        params={"question": question, "options": normalized_options},
         data=payload,
         error=None,
     )

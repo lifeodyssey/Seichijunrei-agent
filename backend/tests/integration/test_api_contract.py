@@ -16,8 +16,12 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from backend.agents.executor_agent import PipelineResult, StepResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    ResultsMetaModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.config.settings import Settings
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
@@ -27,29 +31,23 @@ from backend.interfaces.public_api import PublicAPIResponse, RuntimeAPI
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _canned_pipeline_result() -> PipelineResult:
-    """A minimal successful PipelineResult for mocking RuntimeAPI.handle."""
-    plan = ExecutionPlan(
-        steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "12345"})],
-        reasoning="contract test",
-        locale="ja",
-    )
-    return PipelineResult(
+def _canned_agent_result() -> AgentResult:
+    """A minimal successful AgentResult for mocking RuntimeAPI.handle."""
+    output = SearchResponseModel(
         intent="search_bangumi",
-        plan=plan,
-        step_results=[
-            StepResult(
+        message="Found 0 pilgrimage spots.",
+        data=SearchDataModel(results=ResultsMetaModel(rows=[], row_count=0)),
+    )
+    return AgentResult(
+        output=output,
+        steps=[
+            StepRecord(
                 tool="search_bangumi",
                 success=True,
                 data={"rows": [], "row_count": 0},
             )
         ],
-        final_output={
-            "success": True,
-            "status": "ok",
-            "message": "Found 0 pilgrimage spots.",
-            "results": {"rows": [], "row_count": 0},
-        },
+        tool_state={},
     )
 
 

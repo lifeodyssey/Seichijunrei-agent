@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 import structlog
 
-from backend.agents.executor_agent import PipelineResult
+from backend.agents.agent_result import AgentResult
 from backend.infrastructure.session import SessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.schemas import (
@@ -52,7 +52,7 @@ async def persist_result(
     session_store: SessionStore,
     session_id: str,
     request: PublicAPIRequest,
-    result: PipelineResult | None,
+    result: AgentResult | None,
     response: PublicAPIResponse,
     context_delta: dict[str, object],
     previous_state: dict[str, object],
@@ -145,7 +145,7 @@ async def persist_messages(
     db: object,
     session_id: str,
     user_text: str,
-    result: PipelineResult | None,
+    result: AgentResult | None,
     response: PublicAPIResponse,
     persist_user_only: bool = False,
 ) -> None:
@@ -166,7 +166,6 @@ async def persist_messages(
         response_data = {
             "intent": result.intent,
             "success": result.success,
-            "final_output": result.final_output,
         }
     await _safe_insert_message(
         insert_message,
@@ -203,7 +202,7 @@ async def persist_user_state(
     user_id: str | None,
     request: PublicAPIRequest,
     response: PublicAPIResponse,
-    result: PipelineResult | None,
+    result: AgentResult | None,
     context_delta: dict[str, object],
     previous_state: dict[str, object],
 ) -> str | None:
@@ -278,7 +277,7 @@ async def maybe_persist_route(
     db: object,
     session_id: str,
     request: PublicAPIRequest,
-    result: PipelineResult,
+    result: AgentResult,
     response: PublicAPIResponse,
 ) -> dict[str, object] | None:
     if not response.success or result.intent != "plan_route":
@@ -356,8 +355,8 @@ def build_response_session(
     return session, route_history
 
 
-def get_plan_params(result: PipelineResult) -> dict[str, object]:
-    for step in result.plan.steps:
+def get_plan_params(result: AgentResult) -> dict[str, object]:
+    for step in result.steps:
         if step.params:
             return dict(step.params)
     return {}
@@ -376,22 +375,7 @@ def infer_bangumi_id(results: object) -> str | None:
     return str(bangumi_id) if bangumi_id is not None else None
 
 
-def extract_plan_steps(result: PipelineResult | None) -> list[str] | None:
+def extract_plan_steps(result: AgentResult | None) -> list[str] | None:
     if result is None:
         return None
-
-    steps: list[str] = []
-    for step in getattr(result.plan, "steps", []) or []:
-        tool = getattr(step, "tool", None)
-        if tool is not None:
-            steps.append(getattr(tool, "value", str(tool)))
-            continue
-
-        step_type = getattr(step, "step_type", None)
-        if step_type is not None:
-            steps.append(getattr(step_type, "value", str(step_type)))
-            continue
-
-        steps.append(str(step))
-
-    return steps
+    return [step.tool for step in result.steps]

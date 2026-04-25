@@ -13,12 +13,23 @@ from typing import cast
 
 import pytest
 
+from backend.agents.agent_result import AgentResult, StepRecord
 from backend.agents.executor_agent import ExecutorAgent, PipelineResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.agents.retriever import Retriever
+from backend.agents.runtime_models import (
+    GreetingResponseModel,
+    QADataModel,
+    ResultsMetaModel,
+    RouteDataModel,
+    RouteModel,
+    RouteResponseModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.domain.entities import Point
 from backend.infrastructure.supabase.client import SupabaseClient
-from backend.interfaces.response_builder import pipeline_result_to_public_response
+from backend.interfaces.response_builder import agent_result_to_response
 
 _BASELINE_PATH = Path(__file__).parent / "cases" / "runtime_acceptance_baseline.json"
 
@@ -127,6 +138,55 @@ def _build_executor(db: SupabaseClient) -> ExecutorAgent:
     return executor
 
 
+def _wrap_pipeline_result(pr: PipelineResult) -> AgentResult:
+    """Convert legacy PipelineResult to AgentResult for response builder."""
+    fo = pr.final_output
+    intent = pr.intent
+
+    if intent in ("search_bangumi", "search_nearby"):
+        results_raw = fo.get("results", {})
+        results = (
+            ResultsMetaModel.model_validate(results_raw)
+            if isinstance(results_raw, dict)
+            else ResultsMetaModel()
+        )
+        output = SearchResponseModel(
+            intent=intent,  # type: ignore[arg-type]
+            message=str(fo.get("message", "")),
+            data=SearchDataModel(results=results),
+        )
+    elif intent in ("plan_route", "plan_selected"):
+        route_raw = fo.get("route", {})
+        route = (
+            RouteModel.model_validate(route_raw)
+            if isinstance(route_raw, dict)
+            else RouteModel()
+        )
+        output = RouteResponseModel(
+            intent=intent,  # type: ignore[arg-type]
+            message=str(fo.get("message", "")),
+            data=RouteDataModel(route=route),
+        )
+    else:
+        output = GreetingResponseModel(
+            intent="greet_user",
+            message=str(fo.get("message", "")),
+            data=QADataModel(message=str(fo.get("message", ""))),
+        )
+
+    steps = [
+        StepRecord(
+            tool=sr.tool,
+            success=sr.success,
+            data=sr.data if isinstance(sr.data, dict) else None,
+            error=sr.error,
+        )
+        for sr in pr.step_results
+    ]
+    tool_state = {k: v for k, v in fo.items() if isinstance(v, dict)}
+    return AgentResult(output=output, steps=steps, tool_state=tool_state)
+
+
 def _get_result_count(payload: object) -> int:
     """Extract result count from a results payload (dict or list)."""
     if isinstance(payload, dict):
@@ -211,10 +271,9 @@ async def test_public_response_shape(
     plan = _build_plan(scenario)
     executor = _build_executor(tc_db)
     pipeline_result = await executor.execute(plan)
+    agent_result = _wrap_pipeline_result(pipeline_result)
 
-    public_response = pipeline_result_to_public_response(
-        pipeline_result, include_debug=False
-    )
+    public_response = agent_result_to_response(agent_result, include_debug=False)
 
     assert public_response.intent == expected["intent"]
     assert public_response.status == expected["status"]

@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
@@ -52,26 +51,14 @@ class TestRuntimeAPIExecution:
 
         assert response.success is True
         assert response.intent == "search_bangumi"
-        assert response.status == "empty"
+        assert response.status == "ok"
         assert "results" in response.data
         assert response.errors == []
 
     async def test_handle_can_include_debug(self, mock_db):
         result = _make_result(
             intent="plan_route",
-            steps=[
-                PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "吹响"}),
-                PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "115908"}),
-                PlanStep(tool=ToolName.PLAN_ROUTE, params={"origin": "京都駅"}),
-            ],
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "ルートを作成しました。",
-                "results": {
-                    "rows": [{"id": "1", "bangumi_id": "115908"}],
-                    "row_count": 1,
-                },
+            data={
                 "route": {
                     "ordered_points": [
                         {
@@ -90,6 +77,24 @@ class TestRuntimeAPIExecution:
                     "point_count": 2,
                 },
             },
+            message="ルートを作成しました。",
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"bangumi": "115908", "title": "吹响"},
+                ),
+                StepRecord(
+                    tool="search_bangumi",
+                    success=True,
+                    params={"bangumi": "115908"},
+                ),
+                StepRecord(
+                    tool="plan_route",
+                    success=True,
+                    params={"origin": "京都駅"},
+                ),
+            ],
         )
 
         async def _fake(
@@ -113,27 +118,14 @@ class TestRuntimeAPIExecution:
             )
 
         assert response.debug is not None
-        assert response.debug["plan"]["steps"] == [
-            "resolve_anime",
-            "search_bangumi",
-            "plan_route",
-        ]
-        assert len(response.debug["step_results"]) == 0
+        assert len(response.debug["steps"]) == 3
         assert response.route_history[0]["route_id"] == "route-1"
         mock_db.routes.save_route.assert_awaited_once()
 
     async def test_handle_preserves_coordinate_origin_in_route_history(self, mock_db):
         result = _make_result(
             intent="plan_route",
-            steps=[PlanStep(tool=ToolName.PLAN_ROUTE, params={})],
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "ルートを作成しました。",
-                "results": {
-                    "rows": [{"id": "1", "bangumi_id": "115908"}],
-                    "row_count": 1,
-                },
+            data={
                 "route": {
                     "ordered_points": [
                         {
@@ -152,6 +144,14 @@ class TestRuntimeAPIExecution:
                     "point_count": 2,
                 },
             },
+            message="ルートを作成しました。",
+            steps=[
+                StepRecord(
+                    tool="plan_route",
+                    success=True,
+                    params={"bangumi": "115908"},
+                ),
+            ],
         )
 
         async def _fake(
@@ -187,12 +187,10 @@ class TestRuntimeAPIExecution:
     async def test_request_log_called_after_response(self, monkeypatch):
         """insert_request_log is called once after a successful pipeline run."""
         result = _make_result(
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "Found 3 spots.",
-                "data": {},
+            data={
+                "results": {"rows": [], "row_count": 0},
             },
+            message="Found 3 spots.",
         )
 
         async def fake_run_agent(
@@ -203,7 +201,7 @@ class TestRuntimeAPIExecution:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, context, on_step)
             return result
 
@@ -229,32 +227,39 @@ class TestRuntimeAPIExecution:
 
 class TestSelectedPointIdsBypass:
     async def test_selected_point_ids_bypass_planner(self, mock_db) -> None:
+        from backend.agents.executor_agent import PipelineResult
+        from backend.agents.models import ExecutionPlan, ToolName
+
         captured: dict[str, object] = {}
         executor = MagicMock()
 
         async def _fake_execute(plan, *, context_block=None, on_step=None):
             captured["plan"] = plan
-            return _make_result(
-                intent="plan_selected",
-                steps=[
-                    PlanStep(
-                        tool=ToolName.PLAN_SELECTED,
-                        params={"point_ids": ["p1", "p2"], "origin": "宇治駅"},
-                    )
-                ],
-                final_output={
-                    "success": True,
-                    "status": "ok",
-                    "message": "已为2处选定取景地规划路线。",
-                    "route": {
-                        "ordered_points": [
-                            {"id": "p1", "latitude": 34.88, "longitude": 135.80},
-                            {"id": "p2", "latitude": 34.89, "longitude": 135.81},
-                        ],
-                        "point_count": 2,
-                    },
+            # ExecutorAgent still returns PipelineResult; public_api wraps it.
+            result = PipelineResult(intent="plan_selected", plan=plan)
+            result.final_output = {
+                "success": True,
+                "status": "ok",
+                "message": "已为2处选定取景地规划路线。",
+                "route": {
+                    "ordered_points": [
+                        {
+                            "id": "p1",
+                            "name": "A",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        },
+                        {
+                            "id": "p2",
+                            "name": "B",
+                            "latitude": 34.89,
+                            "longitude": 135.81,
+                        },
+                    ],
+                    "point_count": 2,
                 },
-            )
+            }
+            return result
 
         executor.execute = AsyncMock(side_effect=_fake_execute)
 
@@ -263,7 +268,7 @@ class TestSelectedPointIdsBypass:
                 "backend.interfaces.public_api.run_pilgrimage_agent",
                 new=AsyncMock(side_effect=AssertionError("planner should be bypassed")),
             ),
-            patch("backend.interfaces.public_api.ExecutorAgent", return_value=executor),
+            patch("backend.agents.executor_agent.ExecutorAgent", return_value=executor),
         ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(
@@ -306,12 +311,20 @@ class TestTranslationGate:
         result = _make_result(
             intent="search_bangumi",
             locale="zh",
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "3件の聖地が見つかりました。",
-                "results": {"rows": [{"id": "1"}], "row_count": 1},
+            data={
+                "results": {
+                    "rows": [
+                        {
+                            "id": "1",
+                            "name": "spot",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        }
+                    ],
+                    "row_count": 1,
+                },
             },
+            message="3件の聖地が見つかりました。",
         )
 
         async def _fake(
@@ -322,7 +335,7 @@ class TestTranslationGate:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             return result
 
         emitted: list[tuple[str, str]] = []
@@ -363,12 +376,20 @@ class TestTranslationGate:
         result = _make_result(
             intent="search_bangumi",
             locale="ja",
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "3件の聖地が見つかりました。",
-                "results": {"rows": [{"id": "1"}], "row_count": 1},
+            data={
+                "results": {
+                    "rows": [
+                        {
+                            "id": "1",
+                            "name": "spot",
+                            "latitude": 34.88,
+                            "longitude": 135.80,
+                        }
+                    ],
+                    "row_count": 1,
+                },
             },
+            message="3件の聖地が見つかりました。",
         )
 
         async def _fake(
@@ -379,7 +400,7 @@ class TestTranslationGate:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             return result
 
         emitted: list[tuple[str, str]] = []

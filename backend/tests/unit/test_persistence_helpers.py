@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    ResultsMetaModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.interfaces.persistence import (
     _safe_insert_message,
     build_response_session,
@@ -54,8 +58,16 @@ def test_build_response_session_with_no_route_history() -> None:
 def test_get_plan_params_returns_first_step_params() -> None:
     result = _make_result(
         steps=[
-            PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "test"}),
-            PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "123"}),
+            StepRecord(
+                tool="resolve_anime",
+                success=True,
+                params={"title": "test"},
+            ),
+            StepRecord(
+                tool="search_bangumi",
+                success=True,
+                params={"bangumi_id": "123"},
+            ),
         ]
     )
     params = get_plan_params(result)
@@ -63,7 +75,9 @@ def test_get_plan_params_returns_first_step_params() -> None:
 
 
 def test_get_plan_params_returns_empty_when_no_params() -> None:
-    result = _make_result(steps=[PlanStep(tool=ToolName.GREET_USER, params={})])
+    result = _make_result(
+        steps=[StepRecord(tool="greet_user", success=True, params={})]
+    )
     assert get_plan_params(result) == {}
 
 
@@ -82,8 +96,8 @@ def test_infer_bangumi_id_returns_none_for_empty() -> None:
 def test_extract_plan_steps_with_tools() -> None:
     result = _make_result(
         steps=[
-            PlanStep(tool=ToolName.RESOLVE_ANIME),
-            PlanStep(tool=ToolName.SEARCH_BANGUMI),
+            StepRecord(tool="resolve_anime", success=True),
+            StepRecord(tool="search_bangumi", success=True),
         ]
     )
     steps = extract_plan_steps(result)
@@ -96,11 +110,11 @@ def test_extract_plan_steps_returns_none_for_none() -> None:
 
 def _make_result(
     intent: str = "search_bangumi",
-    steps: list[PlanStep] | None = None,
-) -> PipelineResult:
-    plan = ExecutionPlan(
-        steps=steps or [],
-        reasoning="test",
-        locale="ja",
+    steps: list[StepRecord] | None = None,
+) -> AgentResult:
+    output = SearchResponseModel(
+        intent=intent,
+        message="test",
+        data=SearchDataModel(results=ResultsMetaModel()),
     )
-    return PipelineResult(intent=intent, plan=plan)
+    return AgentResult(output=output, steps=steps or [], tool_state={})

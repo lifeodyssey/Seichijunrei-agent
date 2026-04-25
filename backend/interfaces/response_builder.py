@@ -1,12 +1,12 @@
 """Response building utilities for the public API surface.
 
-Converts internal ``PipelineResult`` / ``ApplicationError`` instances into
+Converts ``AgentResult`` / ``ApplicationError`` instances into
 the stable ``PublicAPIResponse`` contract that HTTP adapters return.
 """
 
 from __future__ import annotations
 
-from backend.agents.executor_agent import PipelineResult, StepResult
+from backend.agents.agent_result import AgentResult, StepRecord
 from backend.application.errors import ApplicationError
 from backend.interfaces.schemas import PublicAPIError, PublicAPIResponse
 
@@ -23,35 +23,80 @@ _UI_MAP: dict[str, str] = {
 }
 
 
-def pipeline_result_to_public_response(
-    result: PipelineResult,
+def _status_from_payload(payload: object, *, fallback: str) -> str:
+    if isinstance(payload, dict):
+        value = payload.get("status")
+        if isinstance(value, str) and value:
+            return value
+    return fallback
+
+
+def agent_result_to_response(
+    result: AgentResult,
     *,
     include_debug: bool,
 ) -> PublicAPIResponse:
-    """Map a ``PipelineResult`` to the stable ``PublicAPIResponse``."""
-    final_output = result.final_output or {}
-    raw_errors = final_output.get("errors", [])
-    error_list = raw_errors if isinstance(raw_errors, list) else []
-    errors = [
-        PublicAPIError(
-            code="pipeline_error",
-            message="A processing step failed." if not include_debug else str(error),
-        )
-        for error in error_list
-    ]
+    """Map an ``AgentResult`` to the stable ``PublicAPIResponse``."""
+    from backend.agents.runtime_models import (
+        ClarifyResponseModel,
+        RouteResponseModel,
+        SearchResponseModel,
+    )
+
+    output = result.output
     component = _UI_MAP.get(result.intent)
     ui = {"component": component} if component else None
-    data = {
-        key: value
-        for key, value in final_output.items()
-        if key not in {"success", "intent", "errors", "status", "message"}
-        and value is not None
-    }
+
+    # Build data dict from typed output + tool_state
+    data: dict[str, object] = {}
+    status = "ok"
+
+    if isinstance(output, ClarifyResponseModel):
+        status = "needs_clarification"
+        data = output.data.model_dump(mode="json")
+    elif isinstance(output, SearchResponseModel):
+        tool_key = str(output.intent)
+        tool_payload = result.tool_state.get(tool_key)
+        payload = (
+            tool_payload
+            if isinstance(tool_payload, dict)
+            else output.data.results.model_dump(mode="json")
+        )
+        status = _status_from_payload(payload, fallback="ok")
+        data["results"] = payload
+    elif isinstance(output, RouteResponseModel):
+        tool_key = str(output.intent)
+        tool_payload = result.tool_state.get(tool_key)
+        payload = (
+            tool_payload
+            if isinstance(tool_payload, dict)
+            else output.data.route.model_dump(mode="json")
+        )
+        status = _status_from_payload(payload, fallback="ok")
+        data["route"] = payload
+    else:
+        payload = output.data.model_dump(mode="json")
+        status = _status_from_payload(payload, fallback="info")
+        data.update(payload)
+
+    errors: list[PublicAPIError] = []
+    failed_steps = [s for s in result.steps if not s.success and s.error]
+    if failed_steps:
+        errors = [
+            PublicAPIError(
+                code="pipeline_error",
+                message=(
+                    "A processing step failed." if not include_debug else str(s.error)
+                ),
+            )
+            for s in failed_steps
+        ]
+
     response = PublicAPIResponse(
-        success=bool(final_output.get("success", result.success)),
-        status=str(final_output.get("status", "ok" if result.success else "error")),
+        success=result.success,
+        status=status,
         intent=result.intent,
-        message=str(final_output.get("message") or ""),
+        message=result.message,
         data=data,
         errors=errors,
         ui=ui,
@@ -59,17 +104,7 @@ def pipeline_result_to_public_response(
 
     if include_debug:
         response.debug = {
-            "plan": {
-                "intent": result.intent,
-                "reasoning": result.plan.reasoning,
-                "steps": [
-                    getattr(step.tool, "value", str(step.tool))
-                    for step in result.plan.steps
-                ],
-            },
-            "step_results": [
-                serialize_step_result(step) for step in result.step_results
-            ],
+            "steps": [serialize_step_record(s) for s in result.steps],
         }
 
     return response
@@ -92,8 +127,8 @@ def application_error_response(exc: ApplicationError) -> PublicAPIResponse:
     )
 
 
-def serialize_step_result(step: StepResult) -> dict[str, object]:
-    """Serialize a single ``StepResult`` for debug output."""
+def serialize_step_record(step: StepRecord) -> dict[str, object]:
+    """Serialize a single ``StepRecord`` for debug output."""
     return {
         "tool": step.tool,
         "success": step.success,

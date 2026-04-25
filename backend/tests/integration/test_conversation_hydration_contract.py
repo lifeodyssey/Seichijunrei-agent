@@ -4,7 +4,7 @@ Validates that assistant responses persisted to conversation_messages
 can be correctly hydrated back into RuntimeResponse shape by the frontend.
 
 Uses TestModel (no real LLM) + real testcontainer DB to test the
-data pipeline: agent → PipelineResult → persistence → hydration.
+data pipeline: agent → AgentResult → persistence → hydration.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ _GREET_MODEL = TestModel(
 
 @pytest.mark.integration
 async def test_persisted_search_response_hydrates_correctly(real_db) -> None:
-    """Search response → PipelineResult → final_output has results."""
+    """Search response → AgentResult → output has message."""
     from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     result = await run_pilgrimage_agent(
@@ -52,14 +52,14 @@ async def test_persisted_search_response_hydrates_correctly(real_db) -> None:
         model=_SEARCH_MODEL,
     )
 
-    final_output = result.final_output or {}
-    assert "message" in final_output
-    assert isinstance(final_output.get("success"), bool)
+    assert result.output is not None
+    assert result.message
+    assert isinstance(result.success, bool)
 
 
 @pytest.mark.integration
 async def test_persisted_greet_response_hydrates_correctly(real_db) -> None:
-    """Greet response → PipelineResult → final_output has message."""
+    """Greet response → AgentResult → output has message."""
     from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
     result = await run_pilgrimage_agent(
@@ -69,9 +69,7 @@ async def test_persisted_greet_response_hydrates_correctly(real_db) -> None:
         model=_GREET_MODEL,
     )
 
-    final_output = result.final_output or {}
-    message = final_output.get("message", "")
-    assert len(message) > 0, "greet response must have non-empty message"
+    assert len(result.message) > 0, "greet response must have non-empty message"
 
 
 @pytest.mark.integration

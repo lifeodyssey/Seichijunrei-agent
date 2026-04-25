@@ -7,9 +7,15 @@ from unittest.mock import MagicMock
 from pydantic_ai.models.test import TestModel
 
 from backend.agents.pilgrimage_runner import run_pilgrimage_agent
+from backend.agents.runtime_models import (
+    ClarifyResponseModel,
+    QAResponseModel,
+    RouteResponseModel,
+    SearchResponseModel,
+)
 
 
-async def test_run_pilgrimage_agent_adapts_clarify_output_to_pipeline_result() -> None:
+async def test_run_pilgrimage_agent_returns_clarify_agent_result() -> None:
     db = MagicMock()
     model = TestModel(
         call_tools=[],
@@ -42,12 +48,12 @@ async def test_run_pilgrimage_agent_adapts_clarify_output_to_pipeline_result() -
     )
 
     assert result.intent == "clarify"
-    assert result.final_output["status"] == "needs_clarification"
-    assert "question" in result.final_output
-    assert "candidates" in result.final_output
+    assert isinstance(result.output, ClarifyResponseModel)
+    assert result.output.data.status == "needs_clarification"
+    assert result.output.data.question
 
 
-async def test_run_pilgrimage_agent_adapts_search_output_to_pipeline_result() -> None:
+async def test_run_pilgrimage_agent_returns_search_agent_result() -> None:
     db = MagicMock()
     model = TestModel(
         call_tools=[],
@@ -77,11 +83,10 @@ async def test_run_pilgrimage_agent_adapts_search_output_to_pipeline_result() ->
     )
 
     assert result.intent == "search_nearby"
-    assert result.final_output["status"] == "empty"
-    assert "results" in result.final_output
+    assert isinstance(result.output, SearchResponseModel)
 
 
-async def test_run_pilgrimage_agent_adapts_route_output_to_pipeline_result() -> None:
+async def test_run_pilgrimage_agent_returns_route_agent_result() -> None:
     db = MagicMock()
     model = TestModel(
         call_tools=[],
@@ -109,11 +114,10 @@ async def test_run_pilgrimage_agent_adapts_route_output_to_pipeline_result() -> 
     )
 
     assert result.intent == "plan_route"
-    assert "route" in result.final_output
-    assert "timed_itinerary" in result.final_output["route"]
+    assert isinstance(result.output, RouteResponseModel)
 
 
-async def test_run_pilgrimage_agent_adapts_qa_output_to_pipeline_result() -> None:
+async def test_run_pilgrimage_agent_returns_qa_agent_result() -> None:
     db = MagicMock()
     model = TestModel(
         call_tools=[],
@@ -134,5 +138,5 @@ async def test_run_pilgrimage_agent_adapts_qa_output_to_pipeline_result() -> Non
     )
 
     assert result.intent == "general_qa"
-    assert result.final_output["status"] == "info"
-    assert result.final_output["message"]
+    assert isinstance(result.output, QAResponseModel)
+    assert result.message

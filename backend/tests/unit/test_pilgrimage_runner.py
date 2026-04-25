@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from backend.agents.pilgrimage_runner import _seed_tool_state, _status_from_payload
+from backend.agents.pilgrimage_runner import _seed_tool_state
 from backend.agents.runtime_deps import RuntimeDeps
+from backend.interfaces.response_builder import _status_from_payload
 
 
 def test_seed_tool_state_sets_locale() -> None:

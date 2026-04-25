@@ -5,8 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from backend.agents.executor_agent import StepResult
-from backend.agents.models import PlanStep
+from backend.agents.agent_result import StepRecord
 from backend.agents.retriever import Retriever
 from backend.domain.ports import DatabasePort
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
@@ -26,8 +25,6 @@ class RuntimeDeps:
     retriever: Retriever | None = None
     on_step: OnStep | None = None
 
-    # Mutable per-run state to preserve the existing session contract:
-    # plan_steps/step_results feed context delta extraction and persistence.
+    # Mutable per-run state accumulated during the agent run.
     tool_state: dict[str, object] = field(default_factory=dict)
-    plan_steps: list[PlanStep] = field(default_factory=list)
-    step_results: list[StepResult] = field(default_factory=list)
+    steps: list[StepRecord] = field(default_factory=list)

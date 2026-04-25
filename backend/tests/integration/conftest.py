@@ -12,8 +12,22 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
 
-from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    ClarifyCandidateModel,
+    ClarifyDataModel,
+    ClarifyResponseModel,
+    GreetingResponseModel,
+    NearbyGroupModel,
+    PilgrimagePointModel,
+    QADataModel,
+    ResultsMetaModel,
+    RouteDataModel,
+    RouteModel,
+    RouteResponseModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.config.settings import Settings
 from backend.infrastructure.session import create_session_store
 from backend.infrastructure.supabase.client import SupabaseClient
@@ -35,147 +49,165 @@ async def tc_db(pg_container: PostgresContainer) -> AsyncIterator[SupabaseClient
     await client.close()
 
 
-def _make_plan(tool: ToolName, *, locale: str) -> ExecutionPlan:
-    return ExecutionPlan(
-        steps=[PlanStep(tool=tool, params={})],
-        reasoning="integration contract fixture",
-        locale=locale,
+_CLARIFY_CANDIDATES = [
+    ClarifyCandidateModel(title="凉宫春日的忧郁", spot_count=2, city="西宫"),
+    ClarifyCandidateModel(title="凉宫春日的消失", spot_count=1, city="西宫"),
+]
+
+_NEARBY_POINTS = [
+    PilgrimagePointModel(
+        id="pt-uji-1",
+        name="宇治桥",
+        title="響け！ユーフォニアム",
+        bangumi_id="120632",
+        distance_m=280.0,
+        latitude=34.889,
+        longitude=135.807,
+        cover_url="https://example.com/eupho.jpg",
+    ),
+    PilgrimagePointModel(
+        id="pt-uji-2",
+        name="京阪宇治站",
+        title="響け！ユーフォニアム",
+        bangumi_id="120632",
+        distance_m=460.0,
+        latitude=34.891,
+        longitude=135.81,
+        cover_url="https://example.com/eupho.jpg",
+    ),
+]
+
+_NEARBY_GROUPS = [
+    NearbyGroupModel(
+        bangumi_id="120632",
+        title="響け！ユーフォニアム",
+        cover_url="https://example.com/eupho.jpg",
+        points_count=2,
+        closest_distance_m=280.0,
+    ),
+]
+
+_ROUTE_POINTS = [
+    PilgrimagePointModel(
+        id="pt-uji-1",
+        name="宇治桥",
+        latitude=34.889,
+        longitude=135.807,
+        cover_url="https://example.com/eupho.jpg",
+    ),
+    PilgrimagePointModel(
+        id="pt-uji-2",
+        name="京阪宇治站",
+        latitude=34.891,
+        longitude=135.81,
+        cover_url="https://example.com/eupho.jpg",
+    ),
+]
+
+
+def _clarify_data() -> ClarifyDataModel:
+    return ClarifyDataModel(
+        status="needs_clarification",
+        question="你是指哪部凉宫？",
+        options=["凉宫春日的忧郁", "凉宫春日的消失"],
+        candidates=_CLARIFY_CANDIDATES,
     )
 
 
-def _clarify_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "status": "needs_clarification",
-        "message": "你是指哪部凉宫？",
-        "question": "你是指哪部凉宫？",
-        "options": ["凉宫春日的忧郁", "凉宫春日的消失"],
-        "candidates": [
-            {
-                "title": "凉宫春日的忧郁",
-                "cover_url": None,
-                "spot_count": 2,
-                "city": "西宫",
-            },
-            {
-                "title": "凉宫春日的消失",
-                "cover_url": None,
-                "spot_count": 1,
-                "city": "西宫",
-            },
-        ],
-    }
-
-
-def _nearby_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "status": "ok",
-        "message": "宇治站附近有 2 处相关圣地。",
-        "results": {
-            "rows": [
-                {
-                    "id": "pt-uji-1",
-                    "name": "宇治桥",
-                    "title": "響け！ユーフォニアム",
-                    "bangumi_id": "120632",
-                    "distance_m": 280.0,
-                    "latitude": 34.889,
-                    "longitude": 135.807,
-                    "cover_url": "https://example.com/eupho.jpg",
-                },
-                {
-                    "id": "pt-uji-2",
-                    "name": "京阪宇治站",
-                    "title": "響け！ユーフォニアム",
-                    "bangumi_id": "120632",
-                    "distance_m": 460.0,
-                    "latitude": 34.891,
-                    "longitude": 135.81,
-                    "cover_url": "https://example.com/eupho.jpg",
-                },
-            ],
-            "row_count": 2,
-            "metadata": {
-                "source": "geo",
-                "anchor": "宇治站",
-                "radius_m": 5000,
-            },
-            "nearby_groups": [
-                {
-                    "bangumi_id": "120632",
-                    "title": "響け！ユーフォニアム",
-                    "cover_url": "https://example.com/eupho.jpg",
-                    "points_count": 2,
-                    "closest_distance_m": 280.0,
-                }
-            ],
-        },
-    }
-
-
-def _route_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "status": "ok",
-        "message": "已为你规划好 2 个巡礼点的路线。",
-        "route": {
-            "ordered_points": [
-                {
-                    "id": "pt-uji-1",
-                    "name": "宇治桥",
-                    "cover_url": "https://example.com/eupho.jpg",
-                },
-                {
-                    "id": "pt-uji-2",
-                    "name": "京阪宇治站",
-                    "cover_url": "https://example.com/eupho.jpg",
-                },
-            ],
-            "point_count": 2,
-            "cover_url": "https://example.com/eupho.jpg",
-            "timed_itinerary": {
-                "stops": [],
-                "legs": [],
-                "total_minutes": 75,
-                "total_distance_m": 2200.0,
-            },
-        },
-    }
-
-
-def _greet_payload() -> dict[str, object]:
-    return {
-        "success": True,
-        "status": "info",
-        "message": "我是 Seichijunrei，可以帮你查找动漫圣地并规划巡礼路线。",
-        "answer": "我是 Seichijunrei，可以帮你查找动漫圣地并规划巡礼路线。",
-    }
-
-
-def _make_pipeline_result(text: str, locale: str) -> PipelineResult:
+def _make_agent_result(text: str, _locale: str) -> AgentResult:
     if "宇治" in text and "附近" in text:
-        return PipelineResult(
+        output = SearchResponseModel(
             intent="search_nearby",
-            plan=_make_plan(ToolName.SEARCH_NEARBY, locale=locale),
-            final_output=_nearby_payload(),
+            message="宇治站附近有 2 处相关圣地。",
+            data=SearchDataModel(
+                results=ResultsMetaModel(
+                    rows=_NEARBY_POINTS,
+                    row_count=2,
+                    nearby_groups=_NEARBY_GROUPS,
+                ),
+            ),
         )
+        return AgentResult(
+            output=output,
+            steps=[StepRecord(tool="search_nearby", success=True)],
+            tool_state={
+                "search_nearby": {
+                    "rows": [p.model_dump(mode="json") for p in _NEARBY_POINTS],
+                    "row_count": 2,
+                    "metadata": {
+                        "source": "geo",
+                        "anchor": "宇治站",
+                        "radius_m": 5000,
+                    },
+                    "nearby_groups": [
+                        g.model_dump(mode="json") for g in _NEARBY_GROUPS
+                    ],
+                },
+            },
+        )
+
     if "路线" in text or "ルート" in text:
-        return PipelineResult(
+        from backend.agents.models import TimedItinerary
+
+        output = RouteResponseModel(
             intent="plan_route",
-            plan=_make_plan(ToolName.PLAN_ROUTE, locale=locale),
-            final_output=_route_payload(),
+            message="已为你规划好 2 个巡礼点的路线。",
+            data=RouteDataModel(
+                route=RouteModel(
+                    ordered_points=_ROUTE_POINTS,
+                    point_count=2,
+                    cover_url="https://example.com/eupho.jpg",
+                    timed_itinerary=TimedItinerary(
+                        total_minutes=75,
+                        total_distance_m=2200.0,
+                    ),
+                ),
+            ),
         )
+        return AgentResult(
+            output=output,
+            steps=[StepRecord(tool="plan_route", success=True)],
+            tool_state={
+                "plan_route": {
+                    "ordered_points": [
+                        p.model_dump(mode="json") for p in _ROUTE_POINTS
+                    ],
+                    "point_count": 2,
+                    "cover_url": "https://example.com/eupho.jpg",
+                    "timed_itinerary": {
+                        "stops": [],
+                        "legs": [],
+                        "total_minutes": 75,
+                        "total_distance_m": 2200.0,
+                    },
+                },
+            },
+        )
+
     if text.strip() in {"你好", "你是谁"}:
-        return PipelineResult(
+        output = GreetingResponseModel(
             intent="greet_user",
-            plan=_make_plan(ToolName.GREET_USER, locale=locale),
-            final_output=_greet_payload(),
+            message="我是 Seichijunrei，可以帮你查找动漫圣地并规划巡礼路线。",
+            data=QADataModel(
+                message="我是 Seichijunrei，可以帮你查找动漫圣地并规划巡礼路线。",
+            ),
         )
-    return PipelineResult(
+        return AgentResult(
+            output=output,
+            steps=[StepRecord(tool="greet_user", success=True)],
+            tool_state={},
+        )
+
+    clarify = _clarify_data()
+    output = ClarifyResponseModel(
         intent="clarify",
-        plan=_make_plan(ToolName.CLARIFY, locale=locale),
-        final_output=_clarify_payload(),
+        message="你是指哪部凉宫？",
+        data=clarify,
+    )
+    return AgentResult(
+        output=output,
+        steps=[StepRecord(tool="clarify", success=True)],
+        tool_state={},
     )
 
 
@@ -266,9 +298,9 @@ def client(tc_db: SupabaseClient) -> AsyncIterator[_AuthedClient]:
         locale: str = "ja",
         context: dict[str, object] | None = None,
         on_step: object | None = None,
-    ) -> PipelineResult:
+    ) -> AgentResult:
         _ = (db, model, context, on_step)
-        return _make_pipeline_result(text, locale)
+        return _make_agent_result(text, locale)
 
     app = _build_test_app(tc_db)
     with patch(
@@ -289,36 +321,44 @@ def sse_client(tc_db: SupabaseClient) -> AsyncIterator[_SSEClient]:
         locale: str = "ja",
         context: dict[str, object] | None = None,
         on_step: object | None = None,
-    ) -> PipelineResult:
+    ) -> AgentResult:
         if callable(on_step):
-            result = _make_pipeline_result(text, locale)
+            result = _make_agent_result(text, locale)
             if result.intent == "clarify":
-                clarify_data = dict(_clarify_payload())
+                cd = _clarify_data()
                 await on_step(
                     "clarify",
                     "needs_clarification",
                     {
-                        "question": clarify_data["question"],
-                        "options": clarify_data["options"],
-                        "candidates": clarify_data["candidates"],
-                        "status": clarify_data["status"],
+                        "question": cd.question,
+                        "options": cd.options,
+                        "candidates": [
+                            c.model_dump(mode="json") for c in cd.candidates
+                        ],
+                        "status": cd.status,
                     },
                     "",
-                    str(clarify_data["message"]),
+                    cd.question,
                 )
             elif result.intent == "search_nearby":
                 await on_step(
                     "search_nearby",
                     "done",
-                    _nearby_payload()["results"],
+                    result.tool_state.get("search_nearby", {}),
                     "",
                     "",
                 )
             elif result.intent == "plan_route":
-                await on_step("plan_route", "done", _route_payload()["route"], "", "")
+                await on_step(
+                    "plan_route",
+                    "done",
+                    result.tool_state.get("plan_route", {}),
+                    "",
+                    "",
+                )
             return result
         _ = (db, model, context)
-        return _make_pipeline_result(text, locale)
+        return _make_agent_result(text, locale)
 
     app = _build_test_app(tc_db)
     with patch(

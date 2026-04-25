@@ -6,8 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import PlanStep, ToolName
+from backend.agents.agent_result import AgentResult
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
@@ -54,7 +53,7 @@ class TestHandlePublicRequest:
         )
 
         assert response.intent == "search_bangumi"
-        assert response.status == "empty"
+        assert response.status == "ok"
         assert response.session["interaction_count"] == 1
 
     async def test_helper_forwards_explicit_model_override(self, mock_db, monkeypatch):
@@ -68,7 +67,7 @@ class TestHandlePublicRequest:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, locale, context, on_step)
             captured["model"] = model
             return _make_result(locale=locale)
@@ -123,13 +122,8 @@ class TestLocalePassthrough:
         result = _make_result(
             intent="answer_question",
             locale="zh",
-            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION)],
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "你好！有什么可以帮助你的？",
-                "data": {},
-            },
+            data={},
+            message="你好！有什么可以帮助你的？",
         )
 
         async def _fake(
@@ -140,7 +134,7 @@ class TestLocalePassthrough:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, context, on_step)
             return result
 
@@ -150,20 +144,15 @@ class TestLocalePassthrough:
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(PublicAPIRequest(text="你好", locale="zh"))
 
-        assert response.intent == "answer_question"
+        assert response.intent == "general_qa"
         assert response.message  # non-empty
 
     async def test_handle_ja_locale_produces_japanese_message(self, mock_db):
         result = _make_result(
             intent="answer_question",
             locale="ja",
-            steps=[PlanStep(tool=ToolName.ANSWER_QUESTION)],
-            final_output={
-                "success": True,
-                "status": "ok",
-                "message": "こんにちは！何かお手伝いしましょうか？",
-                "data": {},
-            },
+            data={},
+            message="こんにちは！何かお手伝いしましょうか？",
         )
 
         async def _fake(
@@ -174,7 +163,7 @@ class TestLocalePassthrough:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, context, on_step)
             return result
 
@@ -184,7 +173,7 @@ class TestLocalePassthrough:
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(PublicAPIRequest(text="你好", locale="ja"))
 
-        assert response.intent == "answer_question"
+        assert response.intent == "general_qa"
         assert response.message  # non-empty
 
 
@@ -205,7 +194,7 @@ class TestBuildContextBlockWithUserMemory:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
@@ -239,7 +228,7 @@ class TestOriginCoordinatesWiredToContext:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
@@ -269,7 +258,7 @@ class TestOriginCoordinatesWiredToContext:
             locale: str = "ja",
             context: dict[str, object] | None = None,
             on_step: object | None = None,
-        ) -> PipelineResult:
+        ) -> AgentResult:
             _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)

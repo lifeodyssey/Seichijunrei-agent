@@ -18,65 +18,63 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    ClarifyCandidateModel,
+    ClarifyDataModel,
+    ClarifyResponseModel,
+    GreetingResponseModel,
+    QADataModel,
+)
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.interfaces.public_api import RuntimeAPI
 
 _HEADERS = {"X-User-Id": "test-contract", "X-User-Type": "human"}
 
 
-def _make_clarify_result() -> PipelineResult:
-    plan = ExecutionPlan(
-        steps=[PlanStep(tool=ToolName.CLARIFY, params={"question": "哪部凉宫？"})],
-        reasoning="test",
-        locale="zh",
+def _make_clarify_result() -> AgentResult:
+    output = ClarifyResponseModel(
+        intent="clarify",
+        message="你是指哪部凉宫？",
+        data=ClarifyDataModel(
+            status="needs_clarification",
+            question="你是指哪部凉宫？",
+            options=["凉宫春日的忧郁", "凉宫春日的消失"],
+            candidates=[
+                ClarifyCandidateModel(
+                    title="凉宫春日的忧郁", spot_count=2, city="西宫"
+                ),
+                ClarifyCandidateModel(
+                    title="凉宫春日的消失", spot_count=1, city="西宫"
+                ),
+            ],
+        ),
     )
-    r = PipelineResult(intent="clarify", plan=plan)
-    r.final_output = {
-        "success": True,
-        "status": "needs_clarification",
-        "message": "你是指哪部凉宫？",
-        "question": "你是指哪部凉宫？",
-        "options": ["凉宫春日的忧郁", "凉宫春日的消失"],
-        "candidates": [
-            {
-                "title": "凉宫春日的忧郁",
-                "cover_url": None,
-                "spot_count": 2,
-                "city": "西宫",
-            },
-            {
-                "title": "凉宫春日的消失",
-                "cover_url": None,
-                "spot_count": 1,
-                "city": "西宫",
-            },
-        ],
-    }
-    return r
+    return AgentResult(
+        output=output,
+        steps=[StepRecord(tool="clarify", success=True)],
+        tool_state={},
+    )
 
 
-def _make_greet_result() -> PipelineResult:
-    plan = ExecutionPlan(
-        steps=[PlanStep(tool=ToolName.GREET_USER, params={"message": "你好！"})],
-        reasoning="test",
-        locale="zh",
+def _make_greet_result() -> AgentResult:
+    output = GreetingResponseModel(
+        intent="greet_user",
+        message="你好！我可以帮你找动漫圣地。",
+        data=QADataModel(message="你好！我可以帮你找动漫圣地。"),
     )
-    r = PipelineResult(intent="greet_user", plan=plan)
-    r.final_output = {
-        "success": True,
-        "status": "info",
-        "message": "你好！我可以帮你找动漫圣地。",
-    }
-    return r
+    return AgentResult(
+        output=output,
+        steps=[StepRecord(tool="greet_user", success=True)],
+        tool_state={},
+    )
 
 
 def _build_app(tc_db: object) -> httpx.AsyncClient:
     """Build an async test client with mocked pipeline."""
     from backend.interfaces.fastapi_service import create_fastapi_app
 
-    async def _fake_agent(**kwargs: object) -> PipelineResult:
+    async def _fake_agent(**kwargs: object) -> AgentResult:
         text = str(kwargs.get("text", ""))
         if "凉宫" in text or "涼宮" in text:
             return _make_clarify_result()

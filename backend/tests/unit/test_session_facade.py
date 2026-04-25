@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from backend.agents.executor_agent import PipelineResult, StepResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.agent_result import AgentResult, StepRecord
+from backend.agents.runtime_models import (
+    QADataModel,
+    QAResponseModel,
+    ResultsMetaModel,
+    SearchDataModel,
+    SearchResponseModel,
+)
 from backend.interfaces.schemas import PublicAPIRequest
 from backend.interfaces.session_facade import (
     SessionUpdate,
@@ -16,12 +22,25 @@ from backend.interfaces.session_facade import (
 )
 
 
-def _make_plan(steps: list[PlanStep] | None = None) -> ExecutionPlan:
-    return ExecutionPlan(
-        reasoning="test",
-        locale="ja",
-        steps=steps or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={})],
-    )
+def _make_agent_result(
+    intent: str = "search_bangumi",
+    steps: list[StepRecord] | None = None,
+    message: str = "",
+) -> AgentResult:
+    """Build a minimal AgentResult for session_facade tests."""
+    if intent in ("search_bangumi", "search_nearby"):
+        output = SearchResponseModel(
+            intent=intent,
+            message=message,
+            data=SearchDataModel(results=ResultsMetaModel()),
+        )
+    else:
+        output = QAResponseModel(
+            intent="general_qa",
+            message=message,
+            data=QADataModel(message=message),
+        )
+    return AgentResult(output=output, steps=steps or [], tool_state={})
 
 
 class TestNormalizeSessionState:
@@ -268,61 +287,69 @@ class TestBuildContextBlock:
 
 class TestExtractContextDelta:
     def test_from_resolve_anime(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "Eupho"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "Eupho"},
+                    data={"bangumi_id": "253", "title": "Eupho"},
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(
-                tool="resolve_anime",
-                success=True,
-                data={"bangumi_id": "253", "title": "Eupho"},
-            )
-        ]
 
         delta = extract_context_delta(result)
         assert delta["bangumi_id"] == "253"
         assert delta["anime_title"] == "Eupho"
 
     def test_from_search_nearby(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.SEARCH_NEARBY, params={"location": "Uji"})]
+        result = _make_agent_result(
+            intent="search_nearby",
+            steps=[
+                StepRecord(
+                    tool="search_nearby",
+                    success=True,
+                    params={"location": "Uji"},
+                    data={"rows": []},
+                )
+            ],
         )
-        result = PipelineResult(intent="search_nearby", plan=plan)
-        result.step_results = [
-            StepResult(tool="search_nearby", success=True, data={"rows": []})
-        ]
 
         delta = extract_context_delta(result)
         assert delta["location"] == "Uji"
 
     def test_empty_on_failure(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "x"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=False,
+                    params={"title": "x"},
+                    error="not found",
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(tool="resolve_anime", success=False, error="not found")
-        ]
 
         delta = extract_context_delta(result)
         assert delta == {}
 
     def test_fallback_to_search_bangumi_rows(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "99"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="search_bangumi",
+                    success=True,
+                    params={"bangumi_id": "99"},
+                    data={
+                        "rows": [{"bangumi_id": "99", "title": "From Rows"}],
+                        "row_count": 1,
+                    },
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(
-                tool="search_bangumi",
-                success=True,
-                data={
-                    "rows": [{"bangumi_id": "99", "title": "From Rows"}],
-                    "row_count": 1,
-                },
-            )
-        ]
 
         delta = extract_context_delta(result)
         assert delta["bangumi_id"] == "99"
@@ -333,20 +360,20 @@ class TestExtractContextDeltaSearchData:
     """AC: extract_context_delta persists last_search_data after search_bangumi."""
 
     def test_search_bangumi_success_includes_last_search_data(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "99"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="search_bangumi",
+                    success=True,
+                    params={"bangumi_id": "99"},
+                    data={
+                        "rows": [{"bangumi_id": "99", "title": "Eupho"}],
+                        "row_count": 1,
+                    },
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(
-                tool="search_bangumi",
-                success=True,
-                data={
-                    "rows": [{"bangumi_id": "99", "title": "Eupho"}],
-                    "row_count": 1,
-                },
-            )
-        ]
 
         delta = extract_context_delta(result)
         assert "last_search_data" in delta
@@ -356,29 +383,33 @@ class TestExtractContextDeltaSearchData:
         assert search_data["row_count"] == 1
 
     def test_no_search_bangumi_step_has_no_last_search_data(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "Eupho"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "Eupho"},
+                    data={"bangumi_id": "99", "title": "Eupho"},
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(
-                tool="resolve_anime",
-                success=True,
-                data={"bangumi_id": "99", "title": "Eupho"},
-            )
-        ]
 
         delta = extract_context_delta(result)
         assert "last_search_data" not in delta
 
     def test_search_bangumi_failure_has_no_last_search_data(self) -> None:
-        plan = _make_plan(
-            steps=[PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "99"})]
+        result = _make_agent_result(
+            intent="search_bangumi",
+            steps=[
+                StepRecord(
+                    tool="search_bangumi",
+                    success=False,
+                    params={"bangumi_id": "99"},
+                    error="DB error",
+                )
+            ],
         )
-        result = PipelineResult(intent="search_bangumi", plan=plan)
-        result.step_results = [
-            StepResult(tool="search_bangumi", success=False, error="DB error")
-        ]
 
         delta = extract_context_delta(result)
         assert "last_search_data" not in delta
