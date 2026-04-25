@@ -38,18 +38,34 @@ export interface PilgrimagePoint {
 
 // ── Response-level types (intent-specific data shapes) ─────────────────────
 
+/** A pre-grouped anime cluster returned by the backend for nearby searches. */
+export interface NearbyGroup {
+  bangumi_id: string;
+  title: string;
+  cover_url: string | null;
+  points_count: number;
+  closest_distance_m: number;
+}
+
 export interface ResultsMeta {
   rows: PilgrimagePoint[];
   row_count: number;
   strategy: "sql" | "geo" | "hybrid";
   status: "ok" | "empty";
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    anime_title?: string;
+    anime_title_cn?: string;
+    cover_url?: string | null;
+    radius_m?: number;
+    [key: string]: unknown;
+  };
   summary?: {
     count: number;
     strategy: string;
     source: string;
     cache: string;
   };
+  nearby_groups?: NearbyGroup[];
 }
 
 /** data shape when intent = search_by_bangumi | search_by_location */
@@ -65,6 +81,9 @@ export interface RouteData {
   route: {
     ordered_points: PilgrimagePoint[];
     point_count: number;
+    cover_url?: string | null;
+    anime_title?: string;
+    anime_title_cn?: string;
     status: "ok" | "empty";
     summary?: {
       point_count: number;

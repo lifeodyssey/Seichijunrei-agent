@@ -169,7 +169,7 @@ class TestBangumiClient:
     async def test_search_subject_unexpected_error(self, client):
         """Test search handles unexpected errors."""
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = Exception("Unexpected error")
+            mock_get.side_effect = RuntimeError("Unexpected error")
 
             with pytest.raises(APIError, match="Bangumi search failed"):
                 await client.search_subject("Your Name")
@@ -229,7 +229,7 @@ class TestBangumiClient:
     async def test_get_subject_unexpected_error(self, client):
         """Test get_subject handles unexpected errors."""
         with patch.object(client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = Exception("Network error")
+            mock_get.side_effect = RuntimeError("Network error")
 
             with pytest.raises(APIError, match="Failed to fetch subject 12345"):
                 await client.get_subject(12345)

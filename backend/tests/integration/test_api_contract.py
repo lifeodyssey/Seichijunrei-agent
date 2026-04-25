@@ -111,7 +111,7 @@ def _build_app(
         )
     app = _build_test_app(db=db, runtime_api=runtime_api)
     transport = httpx.ASGITransport(app=app)
-    return httpx.AsyncClient(transport=transport, base_url="http://test")
+    return httpx.AsyncClient(transport=transport, base_url="https://test")
 
 
 def _mock_runtime_api(
@@ -524,9 +524,11 @@ class TestDBConnectionFailure:
             max_pool_size=2,
         )
         app = _build_test_app(db=bad_client)
-        transport = httpx.ASGITransport(app=app)
+        # raise_app_exceptions=False lets FastAPI's exception handler
+        # return the 500 response instead of re-raising in the test.
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
         async with httpx.AsyncClient(
-            transport=transport, base_url="http://test"
+            transport=transport, base_url="https://test"
         ) as client:
             resp = await client.get(
                 "/v1/conversations", headers={"X-User-Id": "user-1"}

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.agents.executor_agent import PipelineResult
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
+from backend.agents.models import PlanStep, ToolName
 from backend.infrastructure.session.memory import InMemorySessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.public_api import (
@@ -15,39 +15,17 @@ from backend.interfaces.public_api import (
     RuntimeAPI,
     handle_public_request,
 )
-
-
-def _make_result(
-    intent: str = "search_bangumi",
-    locale: str = "ja",
-    steps: list[PlanStep] | None = None,
-    final_output: dict | None = None,
-) -> PipelineResult:
-    """Build a fake PipelineResult for tests that mock run_pipeline."""
-    plan = ExecutionPlan(
-        reasoning="test",
-        locale=locale,
-        steps=steps
-        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
-    )
-    result = PipelineResult(intent=intent, plan=plan)
-    result.final_output = final_output or {
-        "success": True,
-        "status": "empty",
-        "message": "該当する巡礼地が見つかりませんでした。",
-        "results": {"rows": [], "row_count": 0},
-    }
-    return result
+from backend.tests.unit.conftest_public_api import (
+    install_mock_pipeline,
+)
+from backend.tests.unit.conftest_public_api import (
+    make_result as _make_result,
+)
 
 
 @pytest.fixture(autouse=True)
 def _mock_pipeline(monkeypatch):
-    """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
-
-    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
-        return _make_result(locale=locale)
-
-    monkeypatch.setattr("backend.interfaces.public_api.run_pipeline", _fake)
+    install_mock_pipeline(monkeypatch)
 
 
 @pytest.fixture
@@ -82,15 +60,22 @@ class TestHandlePublicRequest:
     async def test_helper_forwards_explicit_model_override(self, mock_db, monkeypatch):
         captured: dict[str, object] = {}
 
-        async def fake_run_pipeline(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+        async def fake_run_agent(
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, locale, context, on_step)
             captured["model"] = model
             return _make_result(locale=locale)
 
         explicit_model = object()
         monkeypatch.setattr(
-            "backend.interfaces.public_api.run_pipeline", fake_run_pipeline
+            "backend.interfaces.public_api.run_pilgrimage_agent", fake_run_agent
         )
 
         await handle_public_request(
@@ -148,11 +133,20 @@ class TestLocalePassthrough:
         )
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, context, on_step)
             return result
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(PublicAPIRequest(text="你好", locale="zh"))
 
@@ -173,11 +167,20 @@ class TestLocalePassthrough:
         )
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, context, on_step)
             return result
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(PublicAPIRequest(text="你好", locale="ja"))
 
@@ -195,12 +198,21 @@ class TestBuildContextBlockWithUserMemory:
         captured: dict[str, object] = {}
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             await api.handle(PublicAPIRequest(text="次は何がある？"), user_id="u1")
 
@@ -220,14 +232,23 @@ class TestOriginCoordinatesWiredToContext:
         captured: dict[str, object] = {}
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 
         request = PublicAPIRequest(text="聖地巡礼", origin_lat=34.9, origin_lng=135.8)
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             await api.handle(request)
 
@@ -241,14 +262,23 @@ class TestOriginCoordinatesWiredToContext:
         captured: dict[str, object] = {}
 
         async def _fake(
-            text, db, *, model=None, locale="ja", context=None, on_step=None
-        ):
+            *,
+            text: str,
+            db: object,
+            model: object | None = None,
+            locale: str = "ja",
+            context: dict[str, object] | None = None,
+            on_step: object | None = None,
+        ) -> PipelineResult:
+            _ = (text, db, model, locale, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 
         request = PublicAPIRequest(text="聖地巡礼")
 
-        with patch("backend.interfaces.public_api.run_pipeline", side_effect=_fake):
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent", side_effect=_fake
+        ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             await api.handle(request)
 

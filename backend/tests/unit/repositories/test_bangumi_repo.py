@@ -221,3 +221,22 @@ async def test_list_popular_uses_postgis_gist_hint_in_nearby(
     await repo.get_bangumi_by_area(34.88, 135.80)
     sql = pool.fetch.await_args.args[0]
     assert "ST_DWithin" in sql
+
+
+async def test_find_candidate_details_by_titles_returns_cover_city_points(
+    repo: BangumiRepository, pool: AsyncMock
+) -> None:
+    pool.fetch.return_value = [
+        {
+            "title": "凉宫春日的忧郁",
+            "bangumi_id": "253",
+            "cover_url": "https://example.com/cover.jpg",
+            "city": "西宫",
+            "points_count": 3,
+        }
+    ]
+    rows = await repo.find_candidate_details_by_titles(["凉宫春日的忧郁"])
+    assert rows[0]["title"] == "凉宫春日的忧郁"
+    assert "cover_url" in rows[0]
+    assert "city" in rows[0]
+    assert "points_count" in rows[0]

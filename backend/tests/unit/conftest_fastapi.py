@@ -82,4 +82,4 @@ def async_client(app: FastAPI) -> httpx.AsyncClient:
         app=app,
         raise_app_exceptions=False,
     )
-    return httpx.AsyncClient(transport=transport, base_url="http://test")
+    return httpx.AsyncClient(transport=transport, base_url="https://test")

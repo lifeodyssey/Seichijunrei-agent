@@ -86,8 +86,11 @@ class TestAPIKeyValidation:
     """Test API key validation."""
 
     def test_validate_api_keys_missing_gemini(self):
-        """Test that missing Gemini API key is reported."""
-        settings = Settings(gemini_api_key="")
+        """Test that missing Gemini API key is reported when Gemini is active."""
+        settings = Settings(
+            gemini_api_key="",
+            default_agent_model="google-gla:gemini-3.1-pro-preview",
+        )
         missing = settings.validate_api_keys()
         assert "GEMINI_API_KEY" in missing
 

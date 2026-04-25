@@ -62,10 +62,15 @@ export default function RoutePlannerWizard({
   ], [rt]);
   const itinerary = data.route.timed_itinerary ?? EMPTY_ITINERARY;
   const points = data.route.ordered_points;
-  const animeTitle = points[0]?.title_cn || points[0]?.title || "";
-  const coverUrl = points[0]?.bangumi_id
-    ? `https://image.anitabi.cn/bangumi/${points[0].bangumi_id}.jpg?plan=h160`
-    : null;
+  const animeTitle = data.route.anime_title_cn
+    ?? data.route.anime_title
+    ?? points[0]?.title_cn
+    ?? points[0]?.title
+    ?? "";
+  const coverUrl = data.route.cover_url
+    ?? (points[0]?.bangumi_id
+      ? `https://image.anitabi.cn/bangumi/${points[0].bangumi_id}.jpg?plan=h160`
+      : null);
 
   const [pacing, setPacing] = useState<"chill" | "normal" | "packed">(
     itinerary.pacing,

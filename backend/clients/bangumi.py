@@ -30,7 +30,7 @@ class BangumiClient(BaseHTTPClient):
 
     # API Constants
     BANGUMI_API_BASE = "https://api.bgm.tv"
-    USER_AGENT = "Seichijunrei/1.0 (https://github.com/yourusername/seichijunrei)"
+    USER_AGENT = "Seichijunrei/1.0 (https://github.com/lifeodyssey/Seichijunrei-agent)"
 
     # Subject Types
     TYPE_BOOK = 1
@@ -140,7 +140,7 @@ class BangumiClient(BaseHTTPClient):
             # Re-raise API errors
             raise
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Bangumi search failed", keyword=keyword, error=str(e), exc_info=True
             )
@@ -188,7 +188,7 @@ class BangumiClient(BaseHTTPClient):
         except APIError:
             raise
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Failed to fetch bangumi subject",
                 subject_id=subject_id,

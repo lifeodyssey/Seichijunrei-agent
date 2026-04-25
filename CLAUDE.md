@@ -86,7 +86,7 @@ No IntentAgent. See `docs/ARCHITECTURE.md` for full details.
 - Run `make check` before and after any change
 - **No suppression without user approval.** Never add `eslint-disable`, `@ts-ignore`, `type: ignore`, `noqa`, `pragma: no cover`, `continue-on-error`, `skip`, or any other linting/type-checking suppression without explicit user confirmation. If a rule fires, fix the code instead.
 - **Coverage thresholds may only be ratcheted UP, never lowered.** Current floors:
-  - Frontend (vitest.config.ts): lines≥71%, statements≥68%, functions≥61%, branches≥58%
+  - Frontend (vitest.config.ts): lines≥72%, statements≥68%, functions≥62%, branches≥59%
   - Backend (pytest.ini): ≥80%
   - When adding code that increases coverage, update the thresholds to the new floor
 

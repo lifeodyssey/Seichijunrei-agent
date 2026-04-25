@@ -21,29 +21,25 @@ dependencies = [
     "pydantic>=2.12.0",
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
-
     # Async/HTTP
     "aiohttp>=3.13.5",
     "httpx>=0.28.0",
-
     # Observability
     "structlog>=25.0.0",
     "rich>=14.0.0",
     "opentelemetry-api>=1.39.0",
     "opentelemetry-sdk>=1.39.0",
-
     # Google Generative AI (model-agnostic, used by pydantic-ai)
     "google-genai>=1.16.0",
-
     # v2: Agent Framework
     "pydantic-ai>=1.69.0",
-
     # v2: Database (Postgres + PostGIS)
     "asyncpg>=0.31.0",
-
     # HTTP runtime adapter
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
+    "ddgs>=9.14.1",
+    "pydantic-ai-guardrails>=0.2.2",
 ]
 
 [project.scripts]

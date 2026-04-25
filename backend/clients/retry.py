@@ -85,7 +85,7 @@ async def request_with_retry(
             )
             await asyncio.sleep(delay)
 
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
             logger.error(
                 "Unexpected error (no retry)",
                 url=url,

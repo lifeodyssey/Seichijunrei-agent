@@ -41,16 +41,18 @@ def pipeline_result_to_public_response(
     ]
     component = _UI_MAP.get(result.intent)
     ui = {"component": component} if component else None
+    data = {
+        key: value
+        for key, value in final_output.items()
+        if key not in {"success", "intent", "errors", "status", "message"}
+        and value is not None
+    }
     response = PublicAPIResponse(
         success=bool(final_output.get("success", result.success)),
         status=str(final_output.get("status", "ok" if result.success else "error")),
         intent=result.intent,
         message=str(final_output.get("message") or ""),
-        data={
-            k: final_output[k]
-            for k in ("results", "route")
-            if final_output.get(k) is not None
-        },
+        data=data,
         errors=errors,
         ui=ui,
     )
@@ -60,7 +62,10 @@ def pipeline_result_to_public_response(
             "plan": {
                 "intent": result.intent,
                 "reasoning": result.plan.reasoning,
-                "steps": [step.tool.value for step in result.plan.steps],
+                "steps": [
+                    getattr(step.tool, "value", str(step.tool))
+                    for step in result.plan.steps
+                ],
             },
             "step_results": [
                 serialize_step_result(step) for step in result.step_results

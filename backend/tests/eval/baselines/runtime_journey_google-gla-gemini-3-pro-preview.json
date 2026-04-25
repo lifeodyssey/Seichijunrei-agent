@@ -1,0 +1,12 @@
+{
+  "case_count": 392,
+  "model": "google-gla:gemini-3-pro-preview",
+  "scores": {
+    "DataKeysEvaluator": 1.0,
+    "MessageMinLenEvaluator": 1.0,
+    "NearbyFieldsEvaluator": 1.0,
+    "ResultsKeysEvaluator": 1.0,
+    "RouteKeysEvaluator": 1.0,
+    "StageEvaluator": 1.0
+  }
+}

@@ -9,42 +9,20 @@ import pytest
 from backend.agents.executor_agent import PipelineResult, StepResult
 from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session.memory import InMemorySessionStore
-from backend.interfaces.public_api import (
-    _build_context_block,
+from backend.interfaces.session_facade import (
+    build_context_block as _build_context_block,
 )
-
-
-def _make_result(
-    intent: str = "search_bangumi",
-    locale: str = "ja",
-    steps: list[PlanStep] | None = None,
-    final_output: dict | None = None,
-) -> PipelineResult:
-    """Build a fake PipelineResult for tests that mock run_pipeline."""
-    plan = ExecutionPlan(
-        reasoning="test",
-        locale=locale,
-        steps=steps
-        or [PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi": "123"})],
-    )
-    result = PipelineResult(intent=intent, plan=plan)
-    result.final_output = final_output or {
-        "success": True,
-        "status": "empty",
-        "message": "該当する巡礼地が見つかりませんでした。",
-        "results": {"rows": [], "row_count": 0},
-    }
-    return result
+from backend.tests.unit.conftest_public_api import (
+    install_mock_pipeline,
+)
+from backend.tests.unit.conftest_public_api import (
+    make_result as _make_result,
+)
 
 
 @pytest.fixture(autouse=True)
 def _mock_pipeline(monkeypatch):
-    """Mock run_pipeline — the ReActPlannerAgent requires an LLM."""
-
-    async def _fake(text, db, *, model=None, locale="ja", context=None, on_step=None):
-        return _make_result(locale=locale)
-
-    monkeypatch.setattr("backend.interfaces.public_api.run_pipeline", _fake)
+    install_mock_pipeline(monkeypatch)
 
 
 class TestContextExtraction:
@@ -65,7 +43,9 @@ class TestContextExtraction:
             )
         ]
 
-        from backend.interfaces.public_api import _extract_context_delta
+        from backend.interfaces.session_facade import (
+            extract_context_delta as _extract_context_delta,
+        )
 
         delta = _extract_context_delta(result)
         assert delta["bangumi_id"] == "253"
@@ -87,7 +67,9 @@ class TestContextExtraction:
             )
         ]
 
-        from backend.interfaces.public_api import _extract_context_delta
+        from backend.interfaces.session_facade import (
+            extract_context_delta as _extract_context_delta,
+        )
 
         delta = _extract_context_delta(result)
         assert delta["location"] == "宇治"
@@ -103,7 +85,9 @@ class TestContextExtraction:
             )
         ]
 
-        from backend.interfaces.public_api import _extract_context_delta
+        from backend.interfaces.session_facade import (
+            extract_context_delta as _extract_context_delta,
+        )
 
         delta = _extract_context_delta(result)
         assert delta == {}
@@ -139,8 +123,6 @@ class TestContextExtraction:
             "last_intent": "search_nearby",
         }
 
-        from backend.interfaces.public_api import _build_context_block
-
         block = _build_context_block(state)
         assert block["current_bangumi_id"] == "253"
         assert block["current_anime_title"] == "響け！ユーフォニアム"
@@ -149,14 +131,14 @@ class TestContextExtraction:
         assert "253" in block["visited_bangumi_ids"]
 
     def test_build_context_block_returns_none_when_empty(self) -> None:
-        from backend.interfaces.public_api import _build_context_block
-
         assert _build_context_block({"interactions": [], "last_intent": None}) is None
 
 
 class TestCompact:
     async def test_compact_replaces_old_interactions_with_summary(self) -> None:
-        from backend.interfaces.public_api import _compact_session_interactions
+        from backend.interfaces.session_facade import (
+            compact_session_interactions as _compact_session_interactions,
+        )
 
         store = InMemorySessionStore()
         session_id = "sess-compact"
@@ -197,7 +179,9 @@ class TestCompact:
         assert saved["summary"] == "ユーザーは複数のアニメ聖地を検索しました。"
 
     async def test_compact_skips_when_fewer_than_8(self) -> None:
-        from backend.interfaces.public_api import _compact_session_interactions
+        from backend.interfaces.session_facade import (
+            compact_session_interactions as _compact_session_interactions,
+        )
 
         store = InMemorySessionStore()
         state = {

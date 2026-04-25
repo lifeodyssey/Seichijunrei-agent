@@ -1,13 +1,30 @@
-"""Eval-specific fixtures — imports testcontainer DB from conftest_db."""
+"""Eval-specific fixtures — imports testcontainer DB from conftest_db.
+
+Eval tests need real API keys (not mock settings) to call LLM providers.
+The setup_test_environment fixture from the parent conftest is overridden
+here to load real settings from .env instead of mock settings.
+"""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from dotenv import load_dotenv
 
 pytest_plugins = ("backend.tests.conftest_db",)
+
+# Load real .env so eval tests have real API keys
+load_dotenv(Path(__file__).parents[3] / ".env")
+
+
+@pytest.fixture(autouse=True)
+def setup_test_environment():
+    """Override parent conftest's mock settings — eval needs real API keys."""
+    yield
+
 
 if TYPE_CHECKING:
     import asyncpg
@@ -29,7 +46,7 @@ def _docker_available() -> bool:
             timeout=5,
         )
         return result.returncode == 0
-    except Exception:
+    except (OSError, FileNotFoundError):
         return False
 
 
@@ -51,6 +68,8 @@ async def real_db(db_pool: asyncpg.Pool) -> AsyncIterator[SupabaseClient]:
     client._user_memory = None
     client._routes = None
     client._messages = None
-    # _ensure_repos will lazy-init from _pool on first method call.
+    # Initialize repositories against the injected pool so the testcontainer-backed
+    # client behaves like a connected SupabaseClient.
+    client._init_repos(db_pool)
     yield client
     # Pool lifecycle managed by db_pool fixture — nothing to close here.
