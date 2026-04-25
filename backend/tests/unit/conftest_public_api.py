@@ -71,15 +71,12 @@ def install_mock_pipeline(monkeypatch: object) -> None:
         "backend.interfaces.public_api.run_pilgrimage_agent",
         make_fake_agent(),
     )
-    setattr_fn(
-        "backend.interfaces.persistence.generate_and_save_title",
-        _fake_generate_title,
-    )
-
-    # Prevent background tasks from running real LLM in unit tests
-    def _noop_spawn(coro: object) -> None:
-        close = getattr(coro, "close", None)
-        if callable(close):
-            close()
-
-    setattr_fn("backend.interfaces.persistence._spawn_background", _noop_spawn)
+    # TODO: re-enable when conversation history title generation is wired back
+    # setattr_fn(
+    #     "backend.interfaces.persistence.generate_and_save_title",
+    #     _fake_generate_title,
+    # )
+    # setattr_fn(
+    #     "backend.interfaces.persistence._spawn_background",
+    #     lambda coro: ...,
+    # )

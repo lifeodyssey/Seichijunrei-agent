@@ -104,10 +104,11 @@ export function useChat(
           onSessionId(response.session_id);
         }
 
-        const effectiveSessionId = response.session_id ?? sessionId;
-        if (response.generated_title && effectiveSessionId) {
-          onTitleUpdate?.(effectiveSessionId, response.generated_title);
-        }
+        // TODO: re-enable when conversation history title generation is wired back
+        // const effectiveSessionId = response.session_id ?? sessionId;
+        // if (response.generated_title && effectiveSessionId) {
+        //   onTitleUpdate?.(effectiveSessionId, response.generated_title);
+        // }
 
         setMessages((prev) =>
           prev.map((m) =>

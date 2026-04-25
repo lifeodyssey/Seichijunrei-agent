@@ -19,7 +19,8 @@ import IconSidebar from "./IconSidebar";
 import ChatPanel from "../chat/ChatPanel";
 import ResultSheet from "./ResultSheet";
 import ConversationDrawer from "./ConversationDrawer";
-import DesktopConversationSidebar from "./DesktopConversationSidebar";
+// TODO: re-enable when conversation history feature is ready
+// import DesktopConversationSidebar from "./DesktopConversationSidebar";
 import ResultPanel from "./ResultPanel";
 import ChatPopup from "../chat/ChatPopup";
 
@@ -208,13 +209,13 @@ export default function AppShell() {
             />
           )}
 
-          {/* ── Desktop conversation sidebar: always visible on lg+ ───── */}
-          <DesktopConversationSidebar
+          {/* TODO: re-enable when conversation history feature is ready */}
+          {/* <DesktopConversationSidebar
             conversations={conversations}
             activeSessionId={sessionId}
             onSelectConversation={handleSelectConversation}
             onNewChat={handleNewChat}
-          />
+          /> */}
 
           {/* ── Tablet/mobile sidebar: overlay ─────���───────────────────── */}
           {showOverlaySidebar && sidebarOpen && (

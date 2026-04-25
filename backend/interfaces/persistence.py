@@ -25,7 +25,6 @@ from backend.interfaces.session_facade import (
     build_session_summary,
     build_updated_session_state,
     compact_session_interactions,
-    generate_and_save_title,
     normalize_session_state,
 )
 
@@ -219,22 +218,24 @@ async def persist_user_state(
             await db.session.upsert_conversation(session_id, user_id, request.text)
         except _PERSIST_ERRORS:
             logger.warning("upsert_conversation_failed", session_id=session_id)
-        else:
-            raw_prev_ints = previous_state.get("interactions")
-            is_first_interaction = (
-                len(raw_prev_ints) == 0 if isinstance(raw_prev_ints, list) else True
-            )
-            if is_first_interaction:
-                generated_title = request.text.strip()[:20] or request.text[:20]
-                _spawn_background(
-                    generate_and_save_title(
-                        session_id=session_id,
-                        first_query=request.text,
-                        response_message=response.message,
-                        db=db,
-                        user_id=user_id,
-                    )
-                )
+        # TODO: re-enable when conversation history feature is fully wired
+        # else:
+        #     raw_prev_ints = previous_state.get("interactions")
+        #     is_first_interaction = (
+        #         len(raw_prev_ints) == 0
+        #         if isinstance(raw_prev_ints, list) else True
+        #     )
+        #     if is_first_interaction:
+        #         generated_title = request.text.strip()[:20] or request.text[:20]
+        #         _spawn_background(
+        #             generate_and_save_title(
+        #                 session_id=session_id,
+        #                 first_query=request.text,
+        #                 response_message=response.message,
+        #                 db=db,
+        #                 user_id=user_id,
+        #             )
+        #         )
 
     bangumi_id = context_delta.get("bangumi_id")
     if not isinstance(bangumi_id, str) or not isinstance(db, SupabaseClient):
