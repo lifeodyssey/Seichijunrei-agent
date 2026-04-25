@@ -76,11 +76,7 @@ async def test_persisted_greet_response_hydrates_correctly(real_db) -> None:
 
 @pytest.mark.integration
 async def test_conversations_list_api(real_db) -> None:
-    """GET /v1/conversations should return conversation list.
-
-    Note: may fail in testcontainer if conversations table migration
-    depends on auth schema (which testcontainer doesn't have).
-    """
+    """GET /v1/conversations should return conversation list."""
     import httpx
 
     from backend.infrastructure.session import InMemorySessionStore
@@ -89,6 +85,9 @@ async def test_conversations_list_api(real_db) -> None:
 
     runtime_api = RuntimeAPI(real_db, session_store=InMemorySessionStore())
     app = create_fastapi_app(runtime_api=runtime_api, db=real_db)
+    # Bypass lifespan — set app state directly (same pattern as test_api_contract)
+    app.state.runtime_api = runtime_api
+    app.state.db_client = real_db
 
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(
