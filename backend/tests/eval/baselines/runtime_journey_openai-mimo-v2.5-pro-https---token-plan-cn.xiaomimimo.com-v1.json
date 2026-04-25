@@ -1,0 +1,12 @@
+{
+  "case_count": 392,
+  "model": "openai:mimo-v2.5-pro@https://token-plan-cn.xiaomimimo.com/v1",
+  "scores": {
+    "DataKeysEvaluator": 0.6708860759493671,
+    "MessageMinLenEvaluator": 1.0,
+    "NearbyFieldsEvaluator": 0.9620253164556962,
+    "ResultsKeysEvaluator": 0.8481012658227848,
+    "RouteKeysEvaluator": 0.8987341772151899,
+    "StageEvaluator": 0.3291139240506329
+  }
+}

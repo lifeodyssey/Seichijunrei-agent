@@ -148,7 +148,7 @@ async def resolve_location(
         if matched and matched in KNOWN_LOCATIONS:
             logger.info("location_resolved_by_llm", input=name, matched=matched)
             return KNOWN_LOCATIONS[matched]
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("location_resolve_llm_failed", input=name, error=str(exc))
 
     # Google Geocoding API fallback — may return multiple candidates
@@ -166,7 +166,7 @@ async def resolve_location(
                 labels=[c.label for c in candidates],
             )
             return list(candidates)
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.warning("location_geocoding_failed", input=name, error=str(exc))
 
     return None
@@ -205,7 +205,7 @@ class SQLAgent:
 
         try:
             return await handler(request)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             logger.error("sql_agent_error", tool=request.tool, error=str(exc))
             return SQLResult(query="", params=[], error=str(exc))
 

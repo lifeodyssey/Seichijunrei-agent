@@ -7,6 +7,19 @@ from backend.agents.models import PlanStep, ToolName
 from backend.agents.sql_agent import resolve_location
 
 
+def _build_clarify_candidates(labels: list[str]) -> list[dict[str, object]]:
+    """Build minimal clarify candidates for ambiguous route origins."""
+    return [
+        {
+            "title": label,
+            "cover_url": None,
+            "spot_count": 0,
+            "city": "",
+        }
+        for label in labels
+    ]
+
+
 async def execute(
     step: PlanStep,
     context: dict[str, object],
@@ -42,12 +55,14 @@ async def execute(
     if origin:
         resolved = await resolve_location(origin)
         if isinstance(resolved, list):
+            options = [c.label for c in resolved]
             return {
                 "tool": "clarify",
                 "success": True,
                 "data": {
                     "question": f"「{origin}」に複数の候補があります。どちらですか？",
-                    "options": [c.label for c in resolved],
+                    "options": options,
+                    "candidates": _build_clarify_candidates(options),
                     "status": "needs_clarification",
                 },
             }

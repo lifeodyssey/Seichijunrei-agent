@@ -120,6 +120,12 @@ function parseDonePayload(payload: StreamEventPayload): RuntimeResponse {
   return rest as unknown as RuntimeResponse;
 }
 
+/**
+ * Defensive fallback: merge clarify data from SSE step events into the done
+ * response. The PydanticAI-native backend now includes complete clarify data
+ * in the `done` event itself, so this override should rarely activate. It
+ * remains as a safety net for edge cases where the done payload is incomplete.
+ */
 function applyClarifyOverride(
   response: RuntimeResponse,
   clarify: { question: string; options: string[] },
@@ -249,7 +255,17 @@ export async function sendMessageStream(
       }
       if (event === "done") {
         const response = parseDonePayload(payload);
-        return clarifyData ? applyClarifyOverride(response, clarifyData) : response;
+        // The new backend includes complete clarify data in the done event.
+        // Only apply the step-based override when done payload lacks clarify fields.
+        const doneHasClarify =
+          response.status === "needs_clarification"
+          && typeof response.data === "object"
+          && response.data !== null
+          && "question" in response.data;
+        if (clarifyData && !doneHasClarify) {
+          return applyClarifyOverride(response, clarifyData);
+        }
+        return response;
       }
       if (event === "error") {
         throw new Error(typeof payload.message === "string" ? payload.message : "Stream error");

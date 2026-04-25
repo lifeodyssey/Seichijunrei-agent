@@ -28,6 +28,7 @@ from backend.agents.sql_agent import SQLAgent, SQLResult  # noqa: F401
 from backend.application.use_cases.fetch_bangumi_points import FetchBangumiPoints
 from backend.application.use_cases.get_bangumi_subject import GetBangumiSubject
 from backend.domain.entities import Point
+from backend.domain.ports import DatabasePort
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
 from backend.infrastructure.supabase.client import SupabaseClient
@@ -70,7 +71,7 @@ class Retriever:
 
     def __init__(
         self,
-        db: object,
+        db: DatabasePort,
         *,
         sql_agent: SQLAgent | None = None,
         cache: ResponseCache | None = None,
@@ -91,6 +92,13 @@ class Retriever:
             self._get_bangumi_subject = self._get_bangumi_subject or GetBangumiSubject(
                 bangumi=BangumiClientGateway()
             )
+
+    @property
+    def bangumi_gateway(self) -> BangumiClientGateway:
+        """Expose the Bangumi gateway for reuse by handlers (e.g., resolve_anime)."""
+        if not hasattr(self, "_bangumi_gateway"):
+            self._bangumi_gateway = BangumiClientGateway()
+        return self._bangumi_gateway
 
     def choose_strategy(self, request: RetrievalRequest) -> RetrievalStrategy:
         """Choose a retrieval strategy without an LLM."""
@@ -156,10 +164,13 @@ class Retriever:
 
     async def _execute_geo(self, request: RetrievalRequest) -> RetrievalResult:
         anchor = request.location or request.origin or ""
-        rows, error = await fetch_geo_rows(
-            self._db, anchor, radius_m=request.radius or 5000
-        )
-        metadata: dict[str, object] = {"source": "geo", "anchor": anchor}
+        radius_m = request.radius or 5000
+        rows, error = await fetch_geo_rows(self._db, anchor, radius_m=radius_m)
+        metadata: dict[str, object] = {
+            "source": "geo",
+            "anchor": anchor,
+            "radius_m": radius_m,
+        }
         if not error and len(rows) < 5:
             suggestions = await get_area_suggestions(self._db, anchor)
             if suggestions:

@@ -199,7 +199,8 @@ jobs:
       - name: Run evals
         run: uv run pytest backend/tests/eval/ -v -m integration --no-cov
         env:
-          EVAL_MODEL: gemini-2.5-flash-lite
+          EVAL_MODEL: openai:gemini-3-pro-preview@https://api.zetatechs.com/v1
+          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
@@ -247,6 +248,7 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY
             SUPABASE_DB_URL
             GEMINI_API_KEY
+            ZETA_API_KEY
             OPENAI_COMPAT_BASE_URL
             OPENAI_COMPAT_API_KEY
             GOOGLE_MAPS_API_KEY
@@ -260,6 +262,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
           OPENAI_COMPAT_BASE_URL: ${{ vars.OPENAI_COMPAT_BASE_URL || 'https://api.univibe.cc/openai' }}
           OPENAI_COMPAT_API_KEY: ${{ secrets.OPENAI_COMPAT_API_KEY }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}

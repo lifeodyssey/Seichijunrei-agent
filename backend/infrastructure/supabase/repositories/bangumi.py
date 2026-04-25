@@ -9,6 +9,11 @@ from backend.infrastructure.supabase.helpers import (
 )
 
 
+def _escape_ilike(value: str) -> str:
+    """Escape ILIKE metacharacters (%, _) so they match literally."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class BangumiRepository:
     """Bangumi table data access."""
 
@@ -80,15 +85,37 @@ class BangumiRepository:
 
     async def find_bangumi_by_title(self, title: str) -> str | None:
         """Find a bangumi ID by matching title or title_cn."""
+        pattern = f"%{_escape_ilike(title)}%"
         row = await self._pool.fetchrow(
             """
             SELECT id FROM bangumi
             WHERE title ILIKE $1 OR title_cn ILIKE $1
             LIMIT 1
             """,
-            f"%{title}%",
+            pattern,
         )
         return str(row["id"]) if row else None
+
+    async def find_all_by_title(self, title: str) -> list[dict[str, object]]:
+        """Find all bangumi matching a title pattern.
+
+        Used for ambiguity detection: if len(results) > 1, the query is ambiguous.
+        """
+        pattern = f"%{_escape_ilike(title)}%"
+        rows = await self._pool.fetch(
+            """
+            SELECT id, title, title_cn,
+                   COALESCE(cover_url, '') AS cover_url,
+                   COALESCE(city, '') AS city,
+                   COALESCE(points_count, 0) AS points_count
+            FROM bangumi
+            WHERE title ILIKE $1 OR title_cn ILIKE $1
+            ORDER BY points_count DESC NULLS LAST
+            LIMIT 10
+            """,
+            pattern,
+        )
+        return [dict(r) for r in rows]
 
     async def upsert_bangumi_title(self, title: str, bangumi_id: str) -> None:
         """Insert a bangumi title if the bangumi row does not already exist."""
@@ -101,3 +128,36 @@ class BangumiRepository:
             bangumi_id,
             title,
         )
+
+    async def find_candidate_details_by_titles(
+        self, titles: list[str]
+    ) -> list[dict[str, object]]:
+        """Lookup candidate details for a list of titles, preserving input order.
+
+        This is used to enrich clarification candidates with cover/city/spot_count
+        without requiring the frontend to guess or synthesize fields.
+        """
+        if not titles:
+            return []
+
+        rows = await self._pool.fetch(
+            """
+            SELECT
+              requested.title AS title,
+              b.id AS bangumi_id,
+              COALESCE(b.cover_url, '') AS cover_url,
+              COALESCE(b.city, '') AS city,
+              COALESCE(b.points_count, 0) AS points_count
+            FROM unnest($1::text[]) WITH ORDINALITY AS requested(title, ord)
+            LEFT JOIN LATERAL (
+              SELECT id, cover_url, city, points_count
+              FROM bangumi
+              WHERE title ILIKE requested.title OR title_cn ILIKE requested.title
+              ORDER BY points_count DESC NULLS LAST
+              LIMIT 1
+            ) b ON TRUE
+            ORDER BY requested.ord
+            """,
+            titles,
+        )
+        return [dict(r) for r in rows]

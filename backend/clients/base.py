@@ -237,7 +237,7 @@ class BaseHTTPClient(CacheMixin):
             )
         except (APIError, TimeoutError, ClientResponseError, ClientError) as e:
             raise _wrap_transport_error(e, self.timeout) from e
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             raise APIError(f"Unexpected error: {str(e)}") from e
 
     async def _send_and_parse(
@@ -265,7 +265,7 @@ class BaseHTTPClient(CacheMixin):
                 )
             try:
                 return _normalize_json(await response.json())
-            except Exception:
+            except (ValueError, TypeError):
                 return {"raw_response": await response.text()}
 
     # -- Public request (retry + cache + rate-limit) --------------------------

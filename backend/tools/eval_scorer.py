@@ -99,7 +99,7 @@ async def run(limit: int = 200, model_id: str | None = None) -> None:
             print(
                 f"  [{scored}/{len(rows)}] {row['query_text'][:50]:50s} → {score:.2f}"
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             print(f"  SKIP {row['id']}: {exc}", file=sys.stderr)
 
     await pool.close()

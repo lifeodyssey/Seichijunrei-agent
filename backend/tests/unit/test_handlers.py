@@ -5,12 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from backend.agents.handlers._base_search import execute_retrieval, resolve_bangumi_id
+from backend.agents.handlers._helpers import build_query_payload, optimize_route
 from backend.agents.handlers.answer_question import execute, execute_clarify
 from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
 from backend.agents.handlers.search_bangumi import execute as execute_search
 from backend.agents.models import PlanStep, RetrievalRequest, ToolName
+from backend.agents.retriever import RetrievalStrategy
 from backend.infrastructure.supabase.client import SupabaseClient
 
 
@@ -98,6 +102,19 @@ def _mock_supabase() -> MagicMock:
 class TestResolveAnime:
     async def test_db_hit(self) -> None:
         db = _mock_supabase()
+        # Single match → not ambiguous
+        db.bangumi.find_all_by_title = AsyncMock(
+            return_value=[
+                {
+                    "id": "253",
+                    "title": "Eupho",
+                    "title_cn": "",
+                    "cover_url": "",
+                    "city": "",
+                    "points_count": 5,
+                }
+            ]
+        )
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value="253")
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
 
@@ -106,10 +123,42 @@ class TestResolveAnime:
         assert result["success"] is True
         assert result["data"]["bangumi_id"] == "253"
         assert result["data"]["title"] == "Eupho"
-        db.bangumi.find_bangumi_by_title.assert_awaited_once_with("Eupho")
+
+    async def test_db_ambiguous(self) -> None:
+        """Multiple DB matches should return ambiguous signal."""
+        db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(
+            return_value=[
+                {
+                    "id": "1",
+                    "title": "涼宮ハルヒの憂鬱",
+                    "title_cn": "凉宫春日的忧郁",
+                    "cover_url": "",
+                    "city": "西宮市",
+                    "points_count": 12,
+                },
+                {
+                    "id": "2",
+                    "title": "涼宮ハルヒの消失",
+                    "title_cn": "凉宫春日的消失",
+                    "cover_url": "",
+                    "city": "西宮市",
+                    "points_count": 8,
+                },
+            ]
+        )
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "凉宫"})
+
+        result = await execute_resolve(step, {}, db, None)
+
+        assert result["success"] is True
+        assert result["data"]["ambiguous"] is True
+        assert len(result["data"]["candidates"]) == 2
+        assert result["data"]["candidates"][0]["title"] == "涼宮ハルヒの憂鬱"
 
     async def test_db_miss_api_hit(self) -> None:
         db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
         db.bangumi.upsert_bangumi_title = AsyncMock()
 
@@ -130,6 +179,7 @@ class TestResolveAnime:
 
     async def test_both_miss(self) -> None:
         db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()
@@ -308,6 +358,7 @@ class TestPlanRouteCoordinateOrigin:
 
         mock_resolve.assert_not_called()
         assert result["success"] is True
+        assert result["data"]["cover_url"] is None
 
     async def test_coordinate_origin_takes_precedence_over_text_origin(self) -> None:
         """Coordinate origin takes precedence when both are present."""
@@ -391,6 +442,28 @@ class TestPlanRouteCoordinateOrigin:
         _, _, origin, _ = captured[0]
         assert origin == "34.9,135.8"
 
+    async def test_ambiguous_origin_returns_structured_candidates(self) -> None:
+        step = _step(ToolName.PLAN_ROUTE, {"origin": "宇治駅"})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _SAMPLE_ROWS},
+        }
+        candidates = [
+            MagicMock(label="宇治駅（京阪）"),
+            MagicMock(label="宇治駅（JR）"),
+        ]
+
+        with patch(
+            "backend.agents.handlers.plan_route.resolve_location",
+            new=AsyncMock(return_value=candidates),
+        ):
+            result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        assert result["tool"] == "clarify"
+        assert result["data"]["status"] == "needs_clarification"
+        assert result["data"]["options"] == ["宇治駅（京阪）", "宇治駅（JR）"]
+        assert result["data"]["candidates"][0]["title"] == "宇治駅（京阪）"
+        assert "cover_url" in result["data"]["candidates"][0]
+
 
 class TestClarify:
     async def test_returns_clarification(self) -> None:
@@ -405,6 +478,8 @@ class TestClarify:
         assert result["data"]["question"] == "Which one?"
         assert result["data"]["options"] == ["A", "B"]
         assert result["data"]["status"] == "needs_clarification"
+        assert result["data"]["candidates"][0]["title"] == "A"
+        assert result["data"]["candidates"][1]["title"] == "B"
 
     async def test_empty_clarify(self) -> None:
         step = _step(ToolName.CLARIFY, {})
@@ -413,3 +488,84 @@ class TestClarify:
         assert result["success"] is True
         assert result["data"]["question"] == ""
         assert result["data"]["options"] == []
+        assert result["data"]["candidates"] == []
+
+    async def test_explicit_candidates_are_preserved(self) -> None:
+        step = _step(
+            ToolName.CLARIFY,
+            {
+                "question": "Which one?",
+                "options": ["A"],
+                "candidates": [
+                    {
+                        "title": "Custom A",
+                        "cover_url": "https://example.com/a.jpg",
+                        "spot_count": 3,
+                        "city": "Uji",
+                    }
+                ],
+            },
+        )
+        result = await execute_clarify(step, {}, MagicMock(), MagicMock())
+
+        assert result["data"]["candidates"][0]["title"] == "Custom A"
+        assert result["data"]["candidates"][0]["spot_count"] == 3
+
+
+class TestQueryPayload:
+    def test_build_query_payload_includes_nearby_groups(self) -> None:
+        payload = build_query_payload(
+            _FakeResult(
+                success=True,
+                row_count=2,
+                rows=[
+                    {
+                        "id": "p1",
+                        "bangumi_id": "120632",
+                        "title": "響け！ユーフォニアム",
+                        "cover_url": "https://example.com/eupho.jpg",
+                        "distance_m": 100.0,
+                    },
+                    {
+                        "id": "p2",
+                        "bangumi_id": "120632",
+                        "title": "響け！ユーフォニアム",
+                        "cover_url": "https://example.com/eupho.jpg",
+                        "distance_m": 250.0,
+                    },
+                ],
+                metadata={"radius_m": 5000},
+                strategy=RetrievalStrategy.GEO,
+            )
+        )
+
+        assert payload["metadata"]["radius_m"] == 5000
+        assert payload["nearby_groups"][0]["bangumi_id"] == "120632"
+        assert payload["nearby_groups"][0]["points_count"] == 2
+        assert payload["nearby_groups"][0]["closest_distance_m"] == pytest.approx(100.0)
+
+
+class TestOptimizeRoute:
+    def test_optimize_route_includes_cover_url(self) -> None:
+        result = optimize_route(
+            [
+                {
+                    "id": "p1",
+                    "name": "Spot A",
+                    "latitude": 34.88,
+                    "longitude": 135.80,
+                    "cover_url": "https://example.com/cover.jpg",
+                },
+                {
+                    "id": "p2",
+                    "name": "Spot B",
+                    "latitude": 34.89,
+                    "longitude": 135.81,
+                },
+            ],
+            {},
+            None,
+        )
+
+        assert result["success"] is True
+        assert result["data"]["cover_url"] == "https://example.com/cover.jpg"

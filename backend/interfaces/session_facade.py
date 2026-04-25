@@ -349,7 +349,7 @@ async def compact_session_interactions(
     )
     try:
         result = await agent.run("\n".join(prompt_lines))
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
         logger.warning("compact_llm_failed", session_id=session_id)
         return
 
@@ -365,7 +365,7 @@ async def compact_session_interactions(
     }
     try:
         await session_store.set(session_id, updated_state)
-    except Exception:
+    except (OSError, RuntimeError):
         logger.warning("compact_write_failed", session_id=session_id)
         return
 
@@ -402,7 +402,7 @@ async def generate_and_save_title(
         candidate = str(result.output).strip()[:20]
         if candidate:
             title = candidate
-    except Exception:
+    except (OSError, RuntimeError, ValueError):
         logger.warning("conversation_title_generation_failed", session_id=session_id)
 
     if not isinstance(db, SupabaseClient):
@@ -412,7 +412,7 @@ async def generate_and_save_title(
         await db.session.update_conversation_title(session_id, title, user_id=user_id)
     except TypeError:
         await db.session.update_conversation_title(session_id, title)
-    except Exception:
+    except (OSError, RuntimeError):
         logger.warning("update_conversation_title_failed", session_id=session_id)
 
 

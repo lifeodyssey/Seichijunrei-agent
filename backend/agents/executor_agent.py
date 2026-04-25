@@ -78,7 +78,9 @@ class ExecutorAgent:
     """Executes ExecutionPlan steps deterministically."""
 
     def __init__(self, db: object) -> None:
-        self._retriever = Retriever(db)
+        from backend.domain.ports import DatabasePort
+
+        self._retriever = Retriever(cast(DatabasePort, db))
         self._db = db
 
     async def execute(
@@ -175,7 +177,7 @@ class ExecutorAgent:
                 data=raw.get("data"),
                 error=cast(str | None, raw.get("error")),
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
             logger.error("step_execution_error", tool=tool_name, error=str(exc))
             return StepResult(tool=tool_name, success=False, error=str(exc))
 

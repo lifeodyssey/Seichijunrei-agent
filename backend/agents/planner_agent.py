@@ -62,7 +62,7 @@ Your job: understand the user's request and output a structured execution plan.
   For greetings and identity questions about Seichijunrei itself.
   Fill the message field with a short, localized introduction and 2-3 example asks.
 
-- answer_question(answer: str)
+- general_qa(answer: str)
   For general QA about anime pilgrimage (etiquette, tips, etc.).
   Fill the answer field with a short, helpful response.
 

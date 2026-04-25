@@ -154,6 +154,50 @@ def enforce_gate(
     return failures
 
 
+@dataclass
+class JourneyCase:
+    """A single journey-eval case loaded from runtime_journey_v1.json."""
+
+    id: str
+    query: str
+    locale: str
+    expected_stage: str
+    expected_message_min_len: int
+    expected_data_keys: list[str]
+    expected_results_keys: list[str] = field(default_factory=list)
+    expected_nearby_fields: list[str] = field(default_factory=list)
+    expected_route_keys: list[str] = field(default_factory=list)
+
+
+def _str_list(row: dict[str, object], key: str, *, required: bool = False) -> list[str]:
+    """Extract a list of strings from a JSON row, defaulting to empty."""
+    raw = row.get(key)
+    if required and not isinstance(raw, list):
+        query = row.get("query", "<unknown>")
+        raise ValueError(f"Dataset row '{query}' missing required key: {key}")
+    return [str(k) for k in raw] if isinstance(raw, list) else []
+
+
+def load_journey_dataset(path: Path) -> list[JourneyCase]:
+    """Load a journey-eval dataset JSON and return typed JourneyCase objects."""
+    text = path.read_text()
+    rows: list[dict[str, object]] = json.loads(text)
+    return [
+        JourneyCase(
+            id=str(row["id"]),
+            query=str(row["query"]),
+            locale=str(row["locale"]),
+            expected_stage=str(row["expected_stage"]),
+            expected_message_min_len=int(row["expected_message_min_len"]),
+            expected_data_keys=_str_list(row, "expected_data_keys", required=True),
+            expected_results_keys=_str_list(row, "expected_results_keys"),
+            expected_nearby_fields=_str_list(row, "expected_nearby_fields"),
+            expected_route_keys=_str_list(row, "expected_route_keys"),
+        )
+        for row in rows
+    ]
+
+
 async def precheck_model(model_id: str) -> None:
     """Verify that the model endpoint is reachable.
 

@@ -172,7 +172,7 @@ class AnitabiClient(BaseHTTPClient):
             return expect_json_object(raw, context="get_bangumi_lite")
         except APIError:
             raise
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Failed to get bangumi lite info",
                 bangumi_id=bangumi_id,
@@ -209,7 +209,7 @@ class AnitabiClient(BaseHTTPClient):
             return points
         except APIError:
             raise
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Failed to get bangumi points",
                 bangumi_id=bangumi_id,
@@ -285,7 +285,7 @@ class AnitabiClient(BaseHTTPClient):
             raise
         except APIError:
             raise
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError) as e:
             logger.error(
                 "Failed to get station info",
                 station_name=station_name,

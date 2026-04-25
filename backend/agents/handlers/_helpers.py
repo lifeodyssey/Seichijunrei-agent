@@ -48,6 +48,60 @@ def rewrite_image_urls(rows: list[dict[str, object]]) -> list[dict[str, object]]
     return rows
 
 
+def _row_title(row: dict[str, object]) -> str:
+    title = row.get("title")
+    if isinstance(title, str) and title:
+        return title
+    title_cn = row.get("title_cn")
+    if isinstance(title_cn, str):
+        return title_cn
+    return ""
+
+
+def _build_nearby_groups(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    groups: dict[str, dict[str, object]] = {}
+    for row in rows:
+        bangumi_id = row.get("bangumi_id")
+        if not isinstance(bangumi_id, str) or not bangumi_id:
+            continue
+
+        group = groups.get(bangumi_id)
+        distance_m = row.get("distance_m")
+        normalized_distance = (
+            float(distance_m) if isinstance(distance_m, int | float) else None
+        )
+        if group is None:
+            groups[bangumi_id] = {
+                "bangumi_id": bangumi_id,
+                "title": _row_title(row),
+                "cover_url": row.get("cover_url")
+                if isinstance(row.get("cover_url"), str)
+                else None,
+                "points_count": 1,
+                "closest_distance_m": normalized_distance,
+            }
+            continue
+
+        raw_count = group["points_count"]
+        group["points_count"] = (
+            int(raw_count) if isinstance(raw_count, (int, float)) else 0
+        ) + 1
+        if not group.get("title"):
+            group["title"] = _row_title(row)
+        if group.get("cover_url") is None and isinstance(row.get("cover_url"), str):
+            group["cover_url"] = row["cover_url"]
+        current_distance = group.get("closest_distance_m")
+        if normalized_distance is not None:
+            if isinstance(current_distance, int | float):
+                group["closest_distance_m"] = min(
+                    float(current_distance), normalized_distance
+                )
+            else:
+                group["closest_distance_m"] = normalized_distance
+
+    return list(groups.values())
+
+
 def build_query_payload(retrieval: RetrievalResult) -> dict[str, object]:
     """Build a query result payload from a RetrievalResult."""
     metadata = dict(retrieval.metadata)
@@ -59,6 +113,7 @@ def build_query_payload(retrieval: RetrievalResult) -> dict[str, object]:
         "row_count": retrieval.row_count,
         "strategy": retrieval.strategy.value,
         "metadata": metadata,
+        "nearby_groups": _build_nearby_groups(rows),
         "status": "empty" if empty else "ok",
         "empty": empty,
         "summary": {
@@ -136,6 +191,15 @@ def optimize_route(
     rewrite_image_urls(ordered_points)
 
     with_coords = [r for r in rows if r.get("latitude") and r.get("longitude")]
+    cover_url = next(
+        (
+            value
+            for row in ordered_points
+            for value in [row.get("cover_url")]
+            if isinstance(value, str) and value
+        ),
+        None,
+    )
 
     return {
         "tool": tool_name,
@@ -144,6 +208,7 @@ def optimize_route(
             "ordered_points": ordered_points,
             "timed_itinerary": itinerary.model_dump(mode="json"),
             "point_count": len(ordered_points),
+            "cover_url": cover_url,
             "status": "ok",
             "summary": {
                 "point_count": len(ordered_points),
