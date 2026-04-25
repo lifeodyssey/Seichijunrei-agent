@@ -1,9 +1,6 @@
 from backend.agents.models import (
-    DoneSignal,
     ExecutionPlan,
-    Observation,
     PlanStep,
-    ReactStep,
     RetrievalRequest,
     ToolName,
 )
@@ -53,37 +50,6 @@ class TestExecutionPlan:
             locale="en",
         )
         assert plan.locale == "en"
-
-
-class TestReactStep:
-    def test_react_step_plan_step(self):
-        """ReactStep can hold a PlanStep."""
-        step = ReactStep(
-            thought="User wants Hibike spots, need to resolve anime first",
-            action=PlanStep(tool=ToolName.RESOLVE_ANIME, params={"title": "響け"}),
-        )
-        assert step.thought.startswith("User wants")
-        assert step.action.tool == ToolName.RESOLVE_ANIME
-        assert step.done is None
-
-    def test_react_step_done(self):
-        """ReactStep can signal done."""
-        step = ReactStep(
-            thought="Found 12 spots and planned route",
-            done=DoneSignal(message="Created a route with 12 stops."),
-        )
-        assert step.done is not None
-        assert step.action is None
-
-    def test_observation_from_step_result(self):
-        """Observation formats a step result summary."""
-        obs = Observation(
-            tool="resolve_anime",
-            success=True,
-            summary="Resolved to bangumi_id=115908 (響け！ユーフォニアム)",
-        )
-        assert obs.tool == "resolve_anime"
-        assert "115908" in obs.summary
 
 
 class TestRetrievalRequest:

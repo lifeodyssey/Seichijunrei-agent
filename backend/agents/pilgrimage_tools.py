@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 import structlog
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 
 from backend.agents.executor_agent import StepResult
 from backend.agents.handlers import (
@@ -144,15 +144,15 @@ async def resolve_anime(ctx: RunContext[RuntimeDeps], title: str) -> dict[str, o
 @pilgrimage_agent.tool
 async def search_bangumi(
     ctx: RunContext[RuntimeDeps],
-    bangumi_id: str | None = None,
+    bangumi_id: str = "",
     *,
-    episode: int | None = None,
+    episode: int = -1,
     force_refresh: bool = False,
 ) -> dict[str, object]:
     """Find real-world pilgrimage filming locations for a specific anime.
 
     Call this AFTER resolve_anime returns a bangumi_id.
-    If bangumi_id is None, it will be read from the previous resolve_anime result.
+    If bangumi_id is empty, it will be read from the previous resolve_anime result.
 
     Returns: {"rows": [...points...], "row_count": 5, "status": "ok"}
     Each row contains: id, name, name_cn, latitude, longitude, episode, screenshot_url
@@ -161,15 +161,28 @@ async def search_bangumi(
     fetch them from the Anitabi API and write them to the database.
 
     Args:
-        bangumi_id: The anime's unique ID from resolve_anime. Leave None if
+        bangumi_id: The anime's unique ID from resolve_anime. Leave empty if
                     resolve_anime was called in a previous step.
-        episode: Optional episode number to filter results.
+        episode: Episode number to filter results. Use -1 for all episodes.
         force_refresh: Set True only if the user explicitly asks to refresh data.
     """
-    params: dict[str, object] = {"episode": episode, "force_refresh": force_refresh}
-    if bangumi_id is not None:
-        params["bangumi_id"] = bangumi_id
-        params["bangumi"] = bangumi_id
+    resolved_id = bangumi_id or None
+    if not resolved_id:
+        resolve_data = ctx.deps.tool_state.get("resolve_anime")
+        if isinstance(resolve_data, dict):
+            resolved_id = resolve_data.get("bangumi_id")
+    if not resolved_id:
+        raise ModelRetry(
+            "Call resolve_anime(title) first to get a bangumi_id, "
+            "then pass it to search_bangumi."
+        )
+    resolved_episode = episode if episode >= 0 else None
+    params: dict[str, object] = {
+        "episode": resolved_episode,
+        "force_refresh": force_refresh,
+        "bangumi_id": resolved_id,
+        "bangumi": resolved_id,
+    }
     return await _run_handler(
         ctx,
         tool=ToolName.SEARCH_BANGUMI,
@@ -183,7 +196,7 @@ async def search_nearby(
     ctx: RunContext[RuntimeDeps],
     *,
     location: str,
-    radius: int | None = None,
+    radius: int = 0,
 ) -> dict[str, object]:
     """Find anime pilgrimage spots near a real-world location using geo search.
 
@@ -196,11 +209,11 @@ async def search_nearby(
     Args:
         location: A place name like "宇治駅", "Kyoto Station", "秋葉原", "Kamakura".
                   Use the most specific name the user provided.
-        radius: Search radius in meters. Default is 5000 (5km). Use smaller radius
-                for specific stations, larger for cities.
+        radius: Search radius in meters. Default is 5000 (5km). Use 0 for default.
+                Use smaller radius for specific stations, larger for cities.
     """
     params: dict[str, object] = {"location": location}
-    if radius is not None:
+    if radius > 0:
         params["radius"] = radius
     return await _run_handler(
         ctx,
@@ -214,9 +227,9 @@ async def search_nearby(
 async def plan_route(
     ctx: RunContext[RuntimeDeps],
     *,
-    origin: str | None = None,
-    pacing: str | None = None,
-    start_time: str | None = None,
+    origin: str = "",
+    pacing: str = "",
+    start_time: str = "",
 ) -> dict[str, object]:
     """Create an optimized walking route from the pilgrimage points found by search_bangumi.
 
@@ -228,17 +241,26 @@ async def plan_route(
     The timed_itinerary includes stops, legs, total_minutes, total_distance_m.
 
     Args:
-        origin: Optional departure station/location. Examples: "東京駅", "京都駅".
-                If the user mentions a starting point, include it here.
+        origin: Departure station/location. Examples: "東京駅", "京都駅".
+                Leave empty if the user doesn't mention a starting point.
         pacing: Walking pace — "chill" (slow), "normal", or "packed" (fast).
-        start_time: Departure time as "HH:MM". Default is "09:00".
+                Leave empty for default "normal" pace.
+        start_time: Departure time as "HH:MM". Leave empty for default "09:00".
     """
+    search_data = ctx.deps.tool_state.get("search_bangumi") or ctx.deps.tool_state.get(
+        "search_nearby"
+    )
+    if not isinstance(search_data, dict) or not search_data.get("rows"):
+        raise ModelRetry(
+            "Call search_bangumi or search_nearby first to get pilgrimage points, "
+            "then call plan_route to create the walking route."
+        )
     params: dict[str, object] = {}
-    if origin is not None:
+    if origin:
         params["origin"] = origin
-    if pacing is not None:
+    if pacing:
         params["pacing"] = pacing
-    if start_time is not None:
+    if start_time:
         params["start_time"] = start_time
     return await _run_handler(
         ctx,
@@ -299,7 +321,7 @@ async def clarify(
     ctx: RunContext[RuntimeDeps],
     *,
     question: str,
-    options: list[str] | None = None,
+    options: list[str] = [],  # noqa: B006 — PydanticAI copies defaults per call
 ) -> dict[str, object]:
     """Ask the user a clarification question when you cannot proceed confidently.
 
@@ -318,7 +340,7 @@ async def clarify(
                  Example: ["涼宮ハルヒの憂鬱", "涼宮ハルヒの消失"]
     """
     deps = ctx.deps
-    normalized_options = options or []
+    normalized_options = list(options)
     _record_plan_step(
         deps, ToolName.CLARIFY, {"question": question, "options": normalized_options}
     )

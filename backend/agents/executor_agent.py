@@ -24,7 +24,7 @@ from backend.agents.handlers import (
 )
 from backend.agents.handlers.answer_question import execute_clarify
 from backend.agents.messages import build_message
-from backend.agents.models import ExecutionPlan, Observation, PlanStep, ToolName
+from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.agents.retriever import Retriever
 
 logger = structlog.get_logger(__name__)
@@ -118,42 +118,6 @@ class ExecutorAgent:
                 context[tool.value] = step_result.data
         result.final_output = _build_output(result, context, primary_tool)
         return result
-
-    @staticmethod
-    def format_observation(step_result: StepResult) -> Observation:
-        """Convert a StepResult into an Observation for the planner."""
-        tool, success = step_result.tool, step_result.success
-        data = step_result.data if isinstance(step_result.data, dict) else {}
-        data_keys = list(data.keys()) if isinstance(data, dict) else []
-        if not success:
-            return Observation(
-                tool=tool,
-                success=False,
-                summary=f"Failed: {step_result.error or 'unknown error'}",
-                data_keys=data_keys,
-            )
-        if tool == "resolve_anime":
-            summary = f"Resolved to bangumi_id={data.get('bangumi_id', 'unknown')}"
-            if data.get("title"):
-                summary += f" ({data['title']})"
-        elif tool in ("search_bangumi", "search_nearby"):
-            summary = f"Found {data.get('row_count', len(data.get('rows', [])))} spots (status: {data.get('status', 'ok')})"
-        elif tool in ("plan_route", "plan_selected"):
-            pc, it = data.get("point_count", 0), data.get("timed_itinerary")
-            summary = (
-                f"Route planned: {pc} stops, ~{it.get('total_minutes', 0)}min"
-                if isinstance(it, dict)
-                else f"Route planned: {pc} stops"
-            )
-        elif tool == "clarify":
-            summary = f"Asked user: {str(data.get('question', ''))[:80]}"
-        elif tool in ("greet_user", "answer_question"):
-            summary = "Response generated"
-        else:
-            summary = f"Completed with keys: {', '.join(data_keys[:5])}"
-        return Observation(
-            tool=tool, success=success, summary=summary, data_keys=data_keys
-        )
 
     async def _execute_step(
         self, step: PlanStep, context: dict[str, object]

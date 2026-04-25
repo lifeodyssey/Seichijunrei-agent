@@ -131,13 +131,14 @@ describe("AppShell interactions", () => {
     expect(screen.getByTestId("icon-sidebar")).toBeInTheDocument();
   });
 
-  it("clicking the History button opens the conversation drawer", () => {
-    render(<AppShell />);
-    expect(screen.queryByTestId("conversation-drawer")).toBeNull();
-    const historyBtn = screen.getByRole("button", { name: /历史/i });
-    fireEvent.click(historyBtn);
-    expect(screen.getByTestId("conversation-drawer")).toBeInTheDocument();
-  });
+  // Conversation history feature disabled — drawer removed from AppShell
+  // it("clicking the History button opens the conversation drawer", () => {
+  //   render(<AppShell />);
+  //   expect(screen.queryByTestId("conversation-drawer")).toBeNull();
+  //   const historyBtn = screen.getByRole("button", { name: /历史/i });
+  //   fireEvent.click(historyBtn);
+  //   expect(screen.getByTestId("conversation-drawer")).toBeInTheDocument();
+  // });
 });
 
 describe("AppShell mobile layout", () => {
