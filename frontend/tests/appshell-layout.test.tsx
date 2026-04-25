@@ -28,6 +28,9 @@ vi.mock("../components/layout/ConversationDrawer", () => ({
       </div>
     ) : null,
 }));
+vi.mock("../components/layout/DesktopConversationSidebar", () => ({
+  default: () => <div data-testid="desktop-conversation-sidebar" />,
+}));
 
 // Essential hook mocks: hooks that require browser APIs (localStorage, fetch, SSE).
 vi.mock("../hooks/useSession", () => ({

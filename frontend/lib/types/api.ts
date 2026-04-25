@@ -74,4 +74,5 @@ export interface RuntimeResponse {
   errors: PublicAPIError[];
   debug?: Record<string, unknown> | null;
   ui?: UIDescriptor;
+  generated_title?: string | null;
 }

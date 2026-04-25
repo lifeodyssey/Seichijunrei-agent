@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,25 +48,29 @@ class TranslationExpected:
     expected: str
 
 
-# ── Task under test ──────────────────────────────────────────────────
+# ── Task factory (closure replaces _STATE global) ────────────────────
 
-_STATE: dict[str, object] = {"db": None}
+TaskFn = Callable[[TranslationInput], Coroutine[object, object, TranslationOutput]]
 
 
-async def evaluate_translation(inp: TranslationInput) -> TranslationOutput:
-    """Run translate_title and capture the result."""
-    from backend.agents.translation import translate_title
+def make_translation_task(db: object) -> TaskFn:
+    """Create a translation eval task with db bound via closure."""
 
-    result = await translate_title(
-        inp.title,
-        target_locale=inp.target_locale,
-        db=_STATE["db"],
-    )
-    return TranslationOutput(
-        translated=result.translated,
-        source=result.source,
-        confidence=result.confidence,
-    )
+    async def task(inp: TranslationInput) -> TranslationOutput:
+        from backend.agents.translation import translate_title
+
+        result = await translate_title(
+            inp.title,
+            target_locale=inp.target_locale,
+            db=db,
+        )
+        return TranslationOutput(
+            translated=result.translated,
+            source=result.source,
+            confidence=result.confidence,
+        )
+
+    return task
 
 
 # ── Evaluators ───────────────────────────────────────────────────────
@@ -155,20 +160,16 @@ def test_translation_quality(request: pytest.FixtureRequest) -> None:
     """Run translation eval against real testcontainer DB."""
     try:
         real_db = request.getfixturevalue("real_db")
-        _STATE["db"] = real_db
     except pytest.FixtureLookupError:
         pytest.skip("real_db fixture not available — Docker required.")
         return
 
-    try:
-        report = translation_dataset.evaluate_sync(
-            evaluate_translation,
-            name="translation_eval",
-            max_concurrency=20,
-        )
-    finally:
-        _STATE["db"] = None
-
+    task = make_translation_task(db=real_db)
+    report = translation_dataset.evaluate_sync(
+        task,
+        name="translation_eval",
+        max_concurrency=20,
+    )
     report.print(include_input=True, include_output=True)
 
     avg = report.averages()

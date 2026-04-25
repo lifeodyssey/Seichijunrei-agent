@@ -19,6 +19,7 @@ import IconSidebar from "./IconSidebar";
 import ChatPanel from "../chat/ChatPanel";
 import ResultSheet from "./ResultSheet";
 import ConversationDrawer from "./ConversationDrawer";
+import DesktopConversationSidebar from "./DesktopConversationSidebar";
 import ResultPanel from "./ResultPanel";
 import ChatPopup from "../chat/ChatPopup";
 
@@ -59,6 +60,13 @@ export default function AppShell() {
   const locale = useLocale();
   const dict = useDict();
   const { sessionId, setSessionId, clearSession } = useSession();
+  const { conversations, upsert: upsertConversation, rename: renameConversation } = useConversationHistory();
+
+  const handleTitleUpdate = useCallback(
+    (sid: string, title: string) => { renameConversation(sid, title); },
+    [renameConversation],
+  );
+
   const {
     messages,
     send,
@@ -67,9 +75,8 @@ export default function AppShell() {
     appendMessages,
     replaceMessage,
     removeMessage,
-  } = useChat(sessionId, setSessionId, locale);
+  } = useChat(sessionId, setSessionId, locale, handleTitleUpdate);
   const { selectedIds, toggle, clear: clearSelectedPoints } = usePointSelection();
-  const { conversations, upsert: upsertConversation } = useConversationHistory();
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
@@ -165,6 +172,17 @@ export default function AppShell() {
     setSidebarOpen(false);
   }, [abortRoute, clearChat, clearSelectedPoints, clearSession]);
 
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      clearChat();
+      clearSelectedPoints();
+      setActiveMessageId(null);
+      setDrawerOpen(false);
+      setSessionId(id);
+    },
+    [clearChat, clearSelectedPoints, setSessionId],
+  );
+
   const handleSidebarSection = useCallback(
     (section: "history" | "favorites" | "settings") => {
       setSidebarOpen(false);
@@ -189,6 +207,14 @@ export default function AppShell() {
               onSectionClick={handleSidebarSection}
             />
           )}
+
+          {/* ── Desktop conversation sidebar: always visible on lg+ ───── */}
+          <DesktopConversationSidebar
+            conversations={conversations}
+            activeSessionId={sessionId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
+          />
 
           {/* ── Tablet/mobile sidebar: overlay ─────���───────────────────── */}
           {showOverlaySidebar && sidebarOpen && (
@@ -267,11 +293,7 @@ export default function AppShell() {
             activeSessionId={sessionId}
             onSelectConversation={(id) => {
               setConversationDrawerOpen(false);
-              clearChat();
-              clearSelectedPoints();
-              setActiveMessageId(null);
-              setDrawerOpen(false);
-              setSessionId(id);
+              handleSelectConversation(id);
             }}
             onNewChat={() => {
               setConversationDrawerOpen(false);

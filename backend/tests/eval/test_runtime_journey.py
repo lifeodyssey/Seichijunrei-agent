@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,6 +45,8 @@ load_dotenv(Path(__file__).parents[3] / ".env")
 _DEFAULT_MODEL_ID = "openai:gemini-3-pro-preview@https://api.zetatechs.com/v1"
 _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL_ID)
 
+_cached_model: object | None = None
+
 
 def make_model(model_id: str | None = None) -> object:
     """Build a Pydantic AI model from a model string."""
@@ -53,13 +56,11 @@ def make_model(model_id: str | None = None) -> object:
     return parse_model_spec(mid, use_settings_fallbacks=False)
 
 
-_STATE: dict[str, object] = {"model": None, "db": None}
-
-
 def _get_eval_model() -> object:
-    if _STATE["model"] is None:
-        _STATE["model"] = make_model()
-    return _STATE["model"]
+    global _cached_model  # noqa: PLW0603
+    if _cached_model is None:
+        _cached_model = make_model()
+    return _cached_model
 
 
 # ── Case types ───────────────────────────────────────────────────────
@@ -92,34 +93,22 @@ class JourneyExpected:
     expected_route_keys: list[str]
 
 
-# ── Task under test (testcontainer only, no mock DB) ─────────────────
+# ── Task factory (closure replaces _STATE global) ────────────────────
+
+TaskFn = Callable[[JourneyInput], Coroutine[object, object, JourneyOutput]]
 
 
-async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
-    """Run the pilgrimage agent against real DB and capture stage contract."""
-    from backend.agents.pilgrimage_runner import run_pilgrimage_agent
+def _build_model_settings() -> object | None:
+    """Build model settings for models with special requirements."""
+    if "kimi" not in _EVAL_MODEL_ID.lower():
+        return None
+    from pydantic_ai.settings import ModelSettings
 
-    if _STATE["db"] is None:
-        raise RuntimeError(
-            "Eval requires real DB (testcontainer). "
-            "Ensure the real_db fixture is available."
-        )
+    return ModelSettings(max_tokens=4096)
 
-    # Some models (e.g., kimi-k2.6) require max_tokens ≤ 4096
-    eval_model_settings = None
-    if "kimi" in _EVAL_MODEL_ID.lower():
-        from pydantic_ai.settings import ModelSettings
 
-        eval_model_settings = ModelSettings(max_tokens=4096)
-
-    result = await run_pilgrimage_agent(
-        text=inp.query,
-        db=_STATE["db"],
-        model=_get_eval_model(),
-        locale=inp.locale,
-        model_settings=eval_model_settings,
-    )
-
+def _extract_output(result: object) -> JourneyOutput:
+    """Extract JourneyOutput from a pilgrimage agent result."""
     intent = str(getattr(result, "intent", "unknown"))
     final_output = getattr(result, "final_output", None) or {}
     if isinstance(final_output, dict):
@@ -130,20 +119,7 @@ async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
         data = {}
 
     data_keys = list(data.keys()) if isinstance(data, dict) else []
-
-    results_keys: list[str] = []
-    route_keys: list[str] = []
-    nearby_fields: list[str] = []
-    if isinstance(data, dict):
-        results = data.get("results")
-        if isinstance(results, dict):
-            results_keys = list(results.keys())
-        route = data.get("route")
-        if isinstance(route, dict):
-            route_keys = list(route.keys())
-        rows = results.get("rows", []) if isinstance(results, dict) else []
-        if rows and isinstance(rows[0], dict):
-            nearby_fields = list(rows[0].keys())
+    results_keys, route_keys, nearby_fields = _extract_sub_keys(data)
 
     return JourneyOutput(
         intent=intent,
@@ -154,6 +130,41 @@ async def evaluate_journey(inp: JourneyInput) -> JourneyOutput:
         route_keys=route_keys,
         nearby_fields=nearby_fields,
     )
+
+
+def _extract_sub_keys(
+    data: dict[str, object],
+) -> tuple[list[str], list[str], list[str]]:
+    """Extract results, route, and nearby field keys from response data."""
+    results = data.get("results")
+    results_keys = list(results.keys()) if isinstance(results, dict) else []
+    route = data.get("route")
+    route_keys = list(route.keys()) if isinstance(route, dict) else []
+    rows = results.get("rows", []) if isinstance(results, dict) else []
+    nearby_fields: list[str] = []
+    if rows and isinstance(rows[0], dict):
+        nearby_fields = list(rows[0].keys())
+    return results_keys, route_keys, nearby_fields
+
+
+def make_journey_task(db: object, model: object | None = None) -> TaskFn:
+    """Create a journey eval task with db and model bound via closure."""
+    resolved_model = model or _get_eval_model()
+    settings = _build_model_settings()
+
+    async def task(inp: JourneyInput) -> JourneyOutput:
+        from backend.agents.pilgrimage_runner import run_pilgrimage_agent
+
+        result = await run_pilgrimage_agent(
+            text=inp.query,
+            db=db,
+            model=resolved_model,
+            locale=inp.locale,
+            model_settings=settings,
+        )
+        return _extract_output(result)
+
+    return task
 
 
 # ── Evaluators ───────────────────────────────────────────────────────
@@ -262,6 +273,31 @@ journey_dataset = Dataset(
 _LAYER = "runtime_journey"
 
 
+def _print_journey_scores(scores: dict[str, float]) -> None:
+    print(f"\n{'=' * 60}")
+    print(f"  Model:        {_EVAL_MODEL_ID}")
+    print("  DB mode:      testcontainer")
+    for name, value in scores.items():
+        label = name.replace("Evaluator", "")
+        print(f"  {label:<14}{value:.1%}")
+    print(f"  Cases:        {len(CASES)}")
+    print(f"{'=' * 60}")
+
+
+def _collect_scores(avg: object) -> dict[str, float]:
+    """Extract evaluator scores from a report averages object."""
+    scores_attr = getattr(avg, "scores", {})
+    names = [
+        "StageEvaluator",
+        "MessageMinLenEvaluator",
+        "DataKeysEvaluator",
+        "ResultsKeysEvaluator",
+        "RouteKeysEvaluator",
+        "NearbyFieldsEvaluator",
+    ]
+    return {n: scores_attr.get(n, 0) for n in names}
+
+
 @pytest.mark.integration
 def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
     """Run runtime journey eval against real testcontainer DB."""
@@ -271,51 +307,24 @@ def test_runtime_journey_with_db(request: pytest.FixtureRequest) -> None:
         pytest.skip("real_db fixture not available — Docker required for eval.")
         return
 
-    _STATE["db"] = real_db
-    try:
-        report = journey_dataset.evaluate_sync(
-            evaluate_journey,
-            name=f"journey_eval_db_{_EVAL_MODEL_ID}",
-            max_concurrency=50,
-        )
-    finally:
-        _STATE["db"] = None
-
+    task = make_journey_task(db=real_db)
+    report = journey_dataset.evaluate_sync(
+        task,
+        name=f"journey_eval_db_{_EVAL_MODEL_ID}",
+        max_concurrency=50,
+    )
     report.print(include_input=True, include_output=True)
 
     avg = report.averages()
     if avg is None:
         pytest.skip("All eval cases errored — check model endpoint and DB.")
-    stage_score = avg.scores.get("StageEvaluator", 0)
-    message_score = avg.scores.get("MessageMinLenEvaluator", 0)
-    keys_score = avg.scores.get("DataKeysEvaluator", 0)
-    results_score = avg.scores.get("ResultsKeysEvaluator", 0)
-    route_score = avg.scores.get("RouteKeysEvaluator", 0)
-    nearby_score = avg.scores.get("NearbyFieldsEvaluator", 0)
 
-    current_scores = {
-        "StageEvaluator": stage_score,
-        "MessageMinLenEvaluator": message_score,
-        "DataKeysEvaluator": keys_score,
-        "ResultsKeysEvaluator": results_score,
-        "RouteKeysEvaluator": route_score,
-        "NearbyFieldsEvaluator": nearby_score,
-    }
+    current_scores = _collect_scores(avg)
+    _print_journey_scores(current_scores)
+
     baseline_scores = read_baseline(
         _LAYER, _EVAL_MODEL_ID, expected_case_count=len(CASES)
     )
-    print(f"\n{'=' * 60}")
-    print(f"  Model:        {_EVAL_MODEL_ID}")
-    print("  DB mode:      testcontainer")
-    print(f"  Stage:        {stage_score:.1%}")
-    print(f"  Message:      {message_score:.1%}")
-    print(f"  Data keys:    {keys_score:.1%}")
-    print(f"  Results keys: {results_score:.1%}")
-    print(f"  Route keys:   {route_score:.1%}")
-    print(f"  Nearby:       {nearby_score:.1%}")
-    print(f"  Cases:        {len(CASES)}")
-    print(f"{'=' * 60}")
-
     if not baseline_scores:
         write_baseline(_LAYER, _EVAL_MODEL_ID, current_scores, case_count=len(CASES))
         pytest.skip(f"Baseline created for {_EVAL_MODEL_ID}; re-run to enforce gate.")
@@ -339,10 +348,11 @@ if __name__ == "__main__":
 
     async def main() -> None:
         mid = model_arg or _EVAL_MODEL_ID
-        _STATE["model"] = make_model(model_arg) if model_arg else _get_eval_model()
+        model = make_model(model_arg) if model_arg else _get_eval_model()
+        task = make_journey_task(db=None, model=model)
 
         report = await journey_dataset.evaluate(
-            evaluate_journey,
+            task,
             name=f"journey_eval_{mid}",
             max_concurrency=50,
         )
@@ -350,24 +360,11 @@ if __name__ == "__main__":
         avg = report.averages()
         if avg is None:
             raise SystemExit("All eval cases errored.")
-        current_scores = {
-            "StageEvaluator": avg.scores.get("StageEvaluator", 0),
-            "MessageMinLenEvaluator": avg.scores.get("MessageMinLenEvaluator", 0),
-            "DataKeysEvaluator": avg.scores.get("DataKeysEvaluator", 0),
-            "ResultsKeysEvaluator": avg.scores.get("ResultsKeysEvaluator", 0),
-            "RouteKeysEvaluator": avg.scores.get("RouteKeysEvaluator", 0),
-            "NearbyFieldsEvaluator": avg.scores.get("NearbyFieldsEvaluator", 0),
-        }
+        current_scores = _collect_scores(avg)
         print(f"\n  Model: {mid}")
-        print(
-            f"  Stage: {current_scores['StageEvaluator']:.1%}  "
-            f"Message: {current_scores['MessageMinLenEvaluator']:.1%}  "
-            f"Keys: {current_scores['DataKeysEvaluator']:.1%}  "
-            f"Results: {current_scores['ResultsKeysEvaluator']:.1%}  "
-            f"Route: {current_scores['RouteKeysEvaluator']:.1%}  "
-            f"Nearby: {current_scores['NearbyFieldsEvaluator']:.1%}  "
-            f"Cases: {len(CASES)}"
-        )
+        for name, score in current_scores.items():
+            print(f"  {name}: {score:.1%}", end="  ")
+        print(f"Cases: {len(CASES)}")
         baseline_scores = read_baseline(_LAYER, mid)
         if not baseline_scores:
             write_baseline(_LAYER, mid, current_scores, case_count=len(CASES))
