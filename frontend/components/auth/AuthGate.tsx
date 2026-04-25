@@ -39,7 +39,6 @@ export default function AuthGate() {
     setSubmitting(true);
     setStatus(null);
     const normalizedEmail = email.trim().toLowerCase();
-    authClient.from("waitlist").upsert({ email: normalizedEmail }, { onConflict: "email" }).then(() => {});
     const { error } = await authClient.auth.signInWithOtp({
       email: normalizedEmail,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback/` },
