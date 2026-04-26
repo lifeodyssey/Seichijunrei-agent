@@ -25,23 +25,22 @@
 ## 仕組み
 
 ```
-ユーザー入力 → ReActPlannerAgent（LLM → 構造化された ExecutionPlan）
-                        ↓
-               ExecutorAgent（決定的なツール実行）
+ユーザー入力 → PydanticAI Agent（pilgrimage_agent）
                  ├── resolve_anime  → DB優先のタイトル検索; ミス時は Bangumi.tv API
                  ├── search_bangumi → パラメータ化 SQL → Supabase ポイント
                  ├── search_nearby  → PostGIS 地理検索
                  ├── plan_route     → 最近傍法によるルート最適化
-                 └── answer_question → 静的 FAQ
+                 └── answer_question → QA パススルー
+              → AgentResult（型付き出力 + ツール呼び出し記録）
 ```
 
-LLM を呼ぶのはプランナーだけです。エグゼキューターは完全に決定的で、実行中に LLM を使いません。
+単一の PydanticAI エージェントがプランニングとツール実行を担当します。ツールは `ModelRetry` ガードで無効なパラメータを拒否し、`output_validator` が捏造された応答を検出します。選択済みポイントのルートはエージェントを経由しません。
 
 `resolve_anime` は自己進化型です。未知のタイトルを初めてクエリすると、Bangumi.tv からメタデータを取得してDBに保存し、以降のクエリはローカルDBから応答します。
 
 ## 主な機能
 
-- **会話型検索** — 日本語・英語・中国語で質問可能、プランナーが意図を判定
+- **会話型検索** — 日本語・英語・中国語で質問可能、エージェントが意図を判定
 - **自己進化するアニメカタログ** — DB優先、Bangumi.tv API によるライトスルー
 - **地理検索** — 座標や駅名から近隣の聖地を検索
 - **ルート計画** — 最近傍法による巡回順序の最適化
@@ -99,13 +98,13 @@ make db-diff NAME=x    # ローカル変更から diff を生成
 
 **Python（直接呼び出し）：**
 ```python
-from backend.agents.pipeline import run_pipeline
+from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
-        result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.final_output["message"])
+        result = await run_pilgrimage_agent("吹響ユーフォニアムの聖地", db, locale="ja")
+        print(result.output)
 ```
 
 **HTTP（API キー）：**

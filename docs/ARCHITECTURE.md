@@ -3,39 +3,21 @@
 ## Overview
 
 ```
-User text  →  ReActPlannerAgent (LLM)  →  ExecutionPlan
-                                              ↓
-                                        ExecutorAgent (deterministic)
-                                              ↓
-                                        PipelineResult
+User text → RuntimeAPI.handle() → run_pilgrimage_agent() → pilgrimage_agent.run()
+  → tools call handlers → AgentResult (typed output + steps + tool_state)
+  → agent_result_to_response() → PublicAPIResponse
+
+For selected_point_ids:
+  User selection → execute_selected_route() → AgentResult → PublicAPIResponse
 ```
 
-Entry path: `HTTP service → RuntimeAPI → run_pipeline → ReActPlannerAgent → ExecutorAgent`
+Entry path: `HTTP service → RuntimeAPI → run_pilgrimage_agent() → pilgrimage_agent.run()`
 
-No IntentAgent. No hardcoded anime list. DB is source of truth.
+No hardcoded anime list. DB is source of truth.
 
 ## Shared Types — `agents/models.py`
 
 ```python
-class ToolName(str, Enum):
-    RESOLVE_ANIME = "resolve_anime"
-    SEARCH_BANGUMI = "search_bangumi"
-    SEARCH_NEARBY = "search_nearby"
-    PLAN_ROUTE = "plan_route"
-    PLAN_SELECTED = "plan_selected"
-    ANSWER_QUESTION = "answer_question"
-    GREET_USER = "greet_user"
-
-class PlanStep(BaseModel):
-    tool: ToolName
-    params: dict[str, Any] = Field(default_factory=dict)
-    parallel: bool = False
-
-class ExecutionPlan(BaseModel):
-    steps: list[PlanStep]
-    reasoning: str   # for eval / debugging
-    locale: str = "ja"
-
 class RetrievalRequest(BaseModel):
     tool: Literal["search_bangumi", "search_nearby"]
     bangumi_id: str | None = None
@@ -46,32 +28,57 @@ class RetrievalRequest(BaseModel):
     force_refresh: bool = False
 ```
 
-## ReActPlannerAgent — `agents/planner_agent.py`
+## AgentResult — `agents/agent_result.py`
 
-- Pydantic AI `Agent`, `output_type=ExecutionPlan`, `retries=2`
-- Single method: `create_plan(text: str, locale: str) → ExecutionPlan`
-- System prompt describes tools without hardcoded anime IDs
-- For any anime query: always emits `resolve_anime` as first step
+```python
+class StepRecord(BaseModel):
+    tool: str
+    params: dict[str, object]
+    result: object
+    error: str | None = None
 
-## ExecutorAgent — `agents/executor_agent.py`
+class AgentResult(BaseModel):
+    output: object          # typed output from agent (SearchResponseModel, RouteResponseModel, etc.)
+    steps: list[StepRecord]
+    tool_state: dict[str, object]
+```
 
-- Receives `ExecutionPlan`; no LLM calls
-- Dispatches each step to a handler; deposits result in `context[tool_name]`
-- Response message comes from `_MESSAGES[(tool, locale)]` static templates
-- Adds `ui: {component, props}` to the response based on intent
+Replaces the old `PipelineResult`. Carries the agent's typed output, a record of every tool call, and accumulated tool state.
 
-### Tool handlers
+## Pilgrimage Agent — `agents/pilgrimage_agent.py`
 
-| Tool | Handler | Notes |
-|---|---|---|
-| `resolve_anime` | `_execute_resolve_anime` | Fuzzy-match `bangumi` table; Bangumi.tv API on miss; write-through upsert |
-| `search_bangumi` | `_execute_search_bangumi` | Reads `context["resolve_anime"]["bangumi_id"]` when `params.bangumi_id` is None |
-| `search_nearby` | `_execute_search_nearby` | Geo query via Retriever |
-| `plan_route` | `_execute_plan_route` | Nearest-neighbor sort on bangumi points |
-| `plan_selected` | `_execute_plan_selected` | Deterministic route for selected point IDs (no planner pass) |
-| `answer_question` | `_execute_answer_question` | Static FAQ response |
-| `greet_user` | `_execute_greet_user` | Onboarding response (sessionless) |
-| `clarify` | `_execute_clarify` | Disambiguation when query is ambiguous |
+- PydanticAI `Agent` with typed `output_type` (union of `SearchResponseModel`, `RouteResponseModel`, etc.)
+- System prompt describes available tools; no hardcoded anime IDs
+- `output_validator` rejects fabricated responses (e.g., hallucinated point data)
+- For any anime query: the agent calls `resolve_anime` first, then downstream tools
+
+## Tools — `agents/pilgrimage_tools.py`
+
+- Registered via `@agent.tool` decorators on the pilgrimage agent
+- Each tool includes `ModelRetry` guards that reject invalid LLM-supplied parameters (e.g., missing `bangumi_id`)
+- Tools access dependencies (DB, gateways) via `RunContext`
+
+### Tool registrations
+
+| Tool | Notes |
+|---|---|
+| `resolve_anime` | Fuzzy-match `bangumi` table; Bangumi.tv API on miss; write-through upsert |
+| `search_bangumi` | Reads resolved `bangumi_id` from tool state |
+| `search_nearby` | Geo query via Retriever |
+| `plan_route` | Nearest-neighbor sort on bangumi points |
+| `greet_user` | Onboarding response (sessionless) |
+| `answer_question` | QA pass-through |
+| `clarify` | Disambiguation when query is ambiguous |
+
+## Runner — `agents/pilgrimage_runner.py`
+
+- `run_pilgrimage_agent(text, db, locale)` — runs the agent, collects tool calls into `AgentResult`
+- Single entry point for the runtime API
+
+## Selected Route — `agents/selected_route.py`
+
+- `execute_selected_route(point_ids, db)` — direct selected-point route execution without invoking the agent
+- Returns `AgentResult` for consistency with the main path
 
 ## Retriever — `agents/retriever.py`
 
@@ -83,7 +90,7 @@ Accepts `RetrievalRequest` (replaces old `IntentOutput`). Parameterized queries 
 
 ## Public API — `interfaces/public_api.py`
 
-- Stable request/response facade over `run_pipeline`
+- Stable request/response facade over `run_pilgrimage_agent()` / `execute_selected_route()`
 - Adds `ui: UIDescriptor` field to response
 - Writes to `request_log` after every response (best-effort, never raises)
 - Session persistence + route history
@@ -195,17 +202,17 @@ Design tokens: see `frontend/AGENTS.md`.
 |---|---|
 | `supabase/migrations/20260402124000_operational_tables.sql` | Logs every request: plan_steps, intent, latency_ms |
 | `tests/eval/datasets/plan_quality_v1.json` | 50+ cases × 3 locales |
-| `tests/eval/test_plan_quality.py` | pydantic_evals harness; Iter 3 gate: ≥ baseline + 10pp |
+| `tests/eval/test_plan_quality.py` | pydantic_evals harness; uses pilgrimage_agent; Iter 3 gate: ≥ baseline + 10pp |
 | `tools/eval_scorer.py` | Batch LLM judge; writes `plan_quality_score` back to DB |
 | `tools/eval_feedback_miner.py` | Mines `feedback(rating='bad')` → LLM prompt suggestions |
 | `clients/python/seichijunrei_client.py` | Sync/async Python client for agent/CLI use |
 
 ## Design Rules
 
-- One orchestration path: `ReActPlannerAgent → ExecutorAgent`
-- ExecutorAgent is deterministic — no LLM calls
+- One agent: `pilgrimage_agent` (PydanticAI) with typed output and `output_validator`
+- Tools registered via `@agent.tool` with `ModelRetry` guards for parameter validation
+- Selected-route path bypasses the agent entirely (`execute_selected_route`)
 - Retrieval is structured-first — no semantic/vector search
 - DB is source of truth for anime catalog — no hardcoded lists
 - Frontend component additions require only a registry entry
 - Auth is enforced at the CF Worker edge — container is not auth-aware
-

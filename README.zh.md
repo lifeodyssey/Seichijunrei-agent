@@ -25,23 +25,22 @@
 ## 工作原理
 
 ```
-用户输入 → ReActPlannerAgent（LLM → 结构化 ExecutionPlan）
-                     ↓
-            ExecutorAgent（确定性工具调度）
+用户输入 → PydanticAI Agent（pilgrimage_agent）
               ├── resolve_anime  → DB 优先的标题查找; 未命中时调用 Bangumi.tv API
               ├── search_bangumi → 参数化 SQL → Supabase 数据点
               ├── search_nearby  → PostGIS 地理检索
               ├── plan_route     → 最近邻路线排序
-              └── answer_question → 静态 FAQ
+              └── answer_question → QA 直通
+           → AgentResult（类型化输出 + 工具调用记录）
 ```
 
-只有规划器会调用 LLM。执行器完全确定性——执行过程中不使用 LLM。
+单一 PydanticAI Agent 负责规划和工具调度。工具使用 `ModelRetry` 守卫拒绝无效参数，`output_validator` 检测捏造的响应。选定点路线绕过 Agent 直接执行。
 
 `resolve_anime` 具有自进化能力：首次查询未知标题时，从 Bangumi.tv 获取元数据并写入数据库，后续查询直接命中本地 DB。
 
 ## 主要功能
 
-- **对话式搜索** — 支持日语、英语、中文提问，规划器自动判断意图
+- **对话式搜索** — 支持日语、英语、中文提问，Agent 自动判断意图
 - **自进化动漫目录** — DB 优先，Bangumi.tv API 写穿透补全
 - **地理检索** — 根据坐标或站名搜索附近圣地
 - **路线规划** — 最近邻算法排序，支持用户自选地点
@@ -99,13 +98,13 @@ make db-diff NAME=x    # 从本地变更生成 diff
 
 **Python（直接调用）：**
 ```python
-from backend.agents.pipeline import run_pipeline
+from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
-        result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.final_output["message"])
+        result = await run_pilgrimage_agent("吹響ユーフォニアムの聖地", db, locale="ja")
+        print(result.output)
 ```
 
 **HTTP（API Key）：**

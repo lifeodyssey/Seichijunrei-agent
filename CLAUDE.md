@@ -6,11 +6,11 @@ This file provides guidance to Claude Code and other agentic tools working in th
 
 Seichijunrei is an anime pilgrimage search and route planning service.
 
-Implementation status: Core runtime + Cloudflare deploy path in place. ReAct agent v2 deployed.
+Implementation status: Core runtime + Cloudflare deploy path in place. PydanticAI agent deployed.
 
 ## Source Of Truth
 
-- Runtime entry: `backend/interfaces/fastapi_service.py` → `public_api.py` → `agents/pipeline.py`
+- Runtime entry: `backend/interfaces/fastapi_service.py` → `public_api.py` → `agents/pilgrimage_runner.py`
 - Shared types: `backend/agents/models.py`
 - Frontend tokens: `frontend/app/globals.css`
 - Deploy wiring: `wrangler.toml` + `worker/worker.js`
@@ -23,7 +23,7 @@ Implementation status: Core runtime + Cloudflare deploy path in place. ReAct age
 
 ```
 backend/              # Python runtime
-  agents/             # AI agents (planner, executor, retriever)
+  agents/             # AI agent (pilgrimage_agent, tools, runner, retriever)
   domain/             # Entities, value objects, LLM schemas
   infrastructure/     # External adapters (DB, observability, gateways)
   interfaces/         # API surface (fastapi_service, public_api)
@@ -57,12 +57,17 @@ Notes:
 ## Architecture
 
 ```
-User text → ReActPlannerAgent (LLM → ExecutionPlan) → ExecutorAgent (deterministic → PipelineResult)
+User text → RuntimeAPI.handle() → run_pilgrimage_agent() → pilgrimage_agent.run()
+  → tools call handlers → AgentResult (typed output + steps + tool_state)
+  → agent_result_to_response() → PublicAPIResponse
+
+For selected_point_ids:
+  User selection → execute_selected_route() → AgentResult → PublicAPIResponse
 ```
 
-No IntentAgent. See `docs/ARCHITECTURE.md` for full details.
+See `docs/ARCHITECTURE.md` for full details.
 
-### Tools (ExecutorAgent dispatches)
+### Tools (@agent.tool registrations with ModelRetry guards)
 
 | Tool | Description |
 |---|---|
@@ -70,15 +75,14 @@ No IntentAgent. See `docs/ARCHITECTURE.md` for full details.
 | `search_bangumi` | Retriever → points by bangumi_id |
 | `search_nearby` | Geo retrieval by location + radius |
 | `plan_route` | Nearest-neighbor route ordering |
-| `plan_selected` | Route user-selected point IDs |
 | `greet_user` | Ephemeral greeting/identity response |
 | `answer_question` | QA pass-through |
 | `clarify` | Disambiguation when query is ambiguous |
 
 ## Guardrails
 
-- Orchestration: `ReActPlannerAgent → ExecutorAgent` only; no IntentAgent split
-- ExecutorAgent: deterministic, no LLM calls — use static `_MESSAGES` templates
+- Orchestration: single PydanticAI agent (`pilgrimage_agent`) with typed output; selected-route path bypasses agent
+- Tools use `ModelRetry` guards to reject invalid LLM parameters; `output_validator` rejects fabricated responses
 - Auth: enforced at Cloudflare Worker edge; container trusts forwarded headers
 - Frontend: Next.js static export (`output: "export"`); no server-only features
 - No `Any` in Python — use `object` + `isinstance()` at trust boundaries

@@ -31,14 +31,14 @@ Stack: FastAPI + asyncpg + Pydantic AI (backend), Next.js + React (frontend), Cl
                     │  🌐 E2E     │ ← Evaluator (no code access, real app testing)
                     │  Browser    │   browse daemon / Chrome DevTools MCP
                     ├─────────────┤
-                    │  📊 Eval    │ ← Full ReAct loop, CI-only monitor
-                    │  Layer 3    │   Pipeline end-to-end
+                    │  📊 Eval    │ ← Full agent run, CI-only monitor
+                    │  Layer 3    │   Agent end-to-end
                     ├─────────────┤
                     │  📊 Eval    │ ← Single LLM call
-                    │  Layer 2    │   Planner plan quality
+                    │  Layer 2    │   Agent tool selection / output
                     ├─────────────┤
                     │  📊 Eval    │ ← Deterministic, no LLM, seconds
-                    │  Layer 1    │   Intent classifier / Validator
+                    │  Layer 1    │   ModelRetry guards / output_validator
                     ├─────────────┤
                     │  🔌 API     │ ← Full HTTP + real DB
                     │  Tests      │   FastAPI TestClient + testcontainers
@@ -62,18 +62,19 @@ Stack: FastAPI + asyncpg + Pydantic AI (backend), Next.js + React (frontend), Cl
 **What to test:** Single function/class input→output mapping, boundary values, null, error paths.
 
 **Scope:**
-- Executor handlers (resolve_anime, search_bangumi, plan_route, etc.)
+- Tool handlers in `pilgrimage_tools.py` (resolve_anime, search_bangumi, plan_route, etc.)
+- ModelRetry guards on tool parameters
 - Type guards (isSearchData, isRouteData, etc.)
-- Result validator rules
+- AgentResult / StepRecord construction
 - Route optimizer algorithm
-- Response builder
+- Response builder (`agent_result_to_response`)
 - Models / schema serialization
 - Session facade
 
 **Mock strategy:**
 - DB → `AsyncMock` (mock `SupabaseClient` methods)
 - External API gateway → `MagicMock`
-- LLM → not involved (executor has no LLM calls)
+- LLM → `TestModel` / `FunctionModel` via `Agent.override`
 - Settings → `mock_settings` fixture
 
 **Pydantic AI Agent testing (key update):**
@@ -87,12 +88,11 @@ from pydantic_ai import models
 # Global safety net: prevent accidental real LLM calls
 models.ALLOW_MODEL_REQUESTS = False
 
-async def test_planner_produces_valid_plan():
+async def test_agent_produces_valid_output():
     """TestModel auto-generates valid data matching the output_type JSON schema."""
-    with planner_agent.override(model=TestModel()):
-        result = await planner_agent.run("響け！ユーフォニアムの聖地")
-        assert isinstance(result.output, ExecutionPlan)
-        assert len(result.output.steps) > 0
+    with pilgrimage_agent.override(model=TestModel()):
+        result = await pilgrimage_agent.run("響け！ユーフォニアムの聖地")
+        assert result.output is not None
 ```
 
 For precise control over tool call logic, use `FunctionModel`:
@@ -100,18 +100,18 @@ For precise control over tool call logic, use `FunctionModel`:
 ```python
 from pydantic_ai.models.function import FunctionModel, AgentInfo
 
-def mock_planner(messages: list, info: AgentInfo) -> ModelResponse:
-    """Custom planner: first call resolve_anime, second call done."""
+def mock_agent(messages: list, info: AgentInfo) -> ModelResponse:
+    """Custom agent: first call resolve_anime, second call done."""
     if len(messages) == 1:
         return ModelResponse(parts=[
             ToolCallPart("resolve_anime", {"title": "響け！ユーフォニアム"})
         ])
-    return ModelResponse(parts=[TextPart("Plan complete")])
+    return ModelResponse(parts=[TextPart("Search complete")])
 
-async def test_planner_calls_resolve_first():
-    with planner_agent.override(model=FunctionModel(mock_planner)):
+async def test_agent_calls_resolve_first():
+    with pilgrimage_agent.override(model=FunctionModel(mock_agent)):
         with capture_run_messages() as messages:
-            result = await planner_agent.run("ユーフォの聖地")
+            result = await pilgrimage_agent.run("ユーフォの聖地")
         assert messages[1].parts[0].tool_name == "resolve_anime"
 ```
 
@@ -120,27 +120,21 @@ async def test_planner_calls_resolve_first():
 ```python
 # backend/tests/factories.py
 import factory
-from backend.agents.models import PlanStep, ExecutionPlan, ToolName
-from backend.agents.executor_agent import PipelineResult, StepResult
+from backend.agents.agent_result import AgentResult, StepRecord
 
-class PlanStepFactory(factory.Factory):
+class StepRecordFactory(factory.Factory):
     class Meta:
-        model = PlanStep
-    tool = ToolName.SEARCH_BANGUMI
+        model = StepRecord
+    tool = "search_bangumi"
     params = factory.LazyAttribute(lambda o: {"bangumi_id": "12345"})
+    result = factory.LazyAttribute(lambda o: {"rows": [], "row_count": 0})
 
-class ExecutionPlanFactory(factory.Factory):
+class AgentResultFactory(factory.Factory):
     class Meta:
-        model = ExecutionPlan
-    reasoning = "test"
-    locale = "ja"
-    steps = factory.LazyFunction(lambda: [PlanStepFactory()])
-
-class PipelineResultFactory(factory.Factory):
-    class Meta:
-        model = PipelineResult
-    intent = "search_bangumi"
-    plan = factory.SubFactory(ExecutionPlanFactory)
+        model = AgentResult
+    output = factory.LazyAttribute(lambda o: {"message": "test"})
+    steps = factory.LazyFunction(lambda: [StepRecordFactory()])
+    tool_state = factory.LazyFunction(dict)
 ```
 
 ### Integration Tests
@@ -155,7 +149,7 @@ class PipelineResultFactory(factory.Factory):
 
 **Mock strategy:**
 - DB → **testcontainers real PostgreSQL** (not mocked)
-- LLM → `TestModel` or `AsyncMock` returning fixed `ExecutionPlan`
+- LLM → `TestModel` or `FunctionModel` via `Agent.override`
 - External API → `respx` HTTP-level mock
 - RuntimeAPI → partially mocked (contract tests verify shape only)
 
@@ -301,29 +295,22 @@ Reference: [Anthropic — Demystifying Evals for AI Agents](https://www.anthropi
 
 ```
          ┌──────────────────────────────────────────────┐
-         │ Layer 3: Pipeline Eval (full ReAct loop)      │
-         │ • 163 cases × full pipeline                   │
+         │ Layer 3: Agent Eval (full agent run)            │
+         │ • 163 cases × full pilgrimage_agent run       │
          │ • Runtime: 1-2 hours, CI-only monitor         │
-         │ • Tests: end-to-end convergence, output quality│
+         │ • Tests: end-to-end convergence, output quality │
          │ • Grader: model-based (LLM scoring)           │
          │ • Metrics: pass@1, pass^3                     │
          ├──────────────────────────────────────────────┤
-         │ Layer 2: Planner Eval (single LLM call)       │
-         │ • 163 cases × single planner.step()           │
+         │ Layer 2: Agent Tool Eval (single LLM call)     │
+         │ • 163 cases × single agent.run()              │
          │ • Runtime: 3-10 minutes                       │
-         │ • Tests: plan structure, tool selection, params│
+         │ • Tests: tool selection, params, output type   │
          │ • Grader: code-based (schema) + model-based   │
-         │ • Metrics: accuracy, valid_plan_rate           │
+         │ • Metrics: accuracy, valid_output_rate         │
          ├──────────────────────────────────────────────┤
-         │ Layer 1b: Intent Classifier Eval              │
-         │ • 163 cases × classify_intent()               │
-         │ • Runtime: 3-5 min (single LLM call/case)     │
-         │ • Tests: intent classification accuracy        │
-         │ • Grader: code-based (exact match)            │
-         │ • Metrics: accuracy, confusion matrix          │
-         ├──────────────────────────────────────────────┤
-    ┌────┤ Layer 1a: Component Eval (deterministic)      │
-    │    │ • result_validator rules, step dependency graph│
+    ┌────┤ Layer 1: Component Eval (deterministic)       │
+    │    │ • output_validator rules, ModelRetry guards    │
     │    │ • Runtime: 5 seconds                          │
     │    │ • Tests: deterministic logic correctness       │
     │    │ • Grader: code-based (assert)                 │
@@ -335,7 +322,7 @@ Reference: [Anthropic — Demystifying Evals for AI Agents](https://www.anthropi
 
 | Type | Used in | Pros | Cons |
 |------|---------|------|------|
-| **Code-based** | L1a, L1b, L2 schema | Fast, cheap, objective, reproducible | Brittle against valid variations |
+| **Code-based** | L1, L2 schema | Fast, cheap, objective, reproducible | Brittle against valid variations |
 | **Model-based** | L2 semantic quality, L3 | Flexible, captures nuance | Non-deterministic, needs calibration |
 | **Human** | Calibrating model-based | Gold standard | Expensive, slow |
 
@@ -531,9 +518,8 @@ Beyond AC-defined scenarios, Evaluator proactively generates:
 | Backend integration | ~20% | **50%** | CI must-pass (remove `continue-on-error`) |
 | Frontend unit+component | **0%** | **60%** | New vitest job with `--coverage` |
 | E2E journeys | **0** | **8 journeys** | Evaluator runs pre-merge |
-| Eval Layer 1a | existing | **100% pass** | Deterministic, must pass |
-| Eval Layer 1b | existing | **baseline + 10pp** | Block merge on regression |
-| Eval Layer 2 | to build | **baseline + 10pp** | Block merge on regression |
+| Eval Layer 1 | existing | **100% pass** | Deterministic, must pass |
+| Eval Layer 2 | existing | **baseline + 10pp** | Block merge on regression |
 | Eval Layer 3 | existing | **monitor only** | Does not block |
 
 ### Coverage Rules
@@ -558,12 +544,11 @@ jobs:
     - make test-api
 
   gate-eval:               # Must pass for merge
-    - make test-eval-component    # Layer 1a, seconds
-    - make test-eval-intent       # Layer 1b, minutes
-    - make test-eval-planner      # Layer 2, minutes
+    - make test-eval-component    # Layer 1, seconds
+    - make test-eval-agent        # Layer 2, minutes
 
   monitor-only:            # Does not block
-    - make test-eval-pipeline     # Layer 3, hours
+    - make test-eval-full         # Layer 3, hours
 
   deploy:
     needs: [gate-fast, gate-integration, gate-eval]
@@ -590,10 +575,9 @@ All providers unavailable → `pytest.skip("No LLM provider")` → CI shows ⚠�
 
 | Eval Layer | On Failure | Reason |
 |------------|-----------|--------|
-| Layer 1a (deterministic) | **Block deploy** | Deterministic failure = actually broken |
-| Layer 1b (intent) | **Block PR merge** | Classification accuracy regressed |
-| Layer 2 (planner) | **Block PR merge** | Plan quality regressed |
-| Layer 3 (pipeline) | **Warning only** | Too slow, non-deterministic, report only |
+| Layer 1 (deterministic) | **Block deploy** | Deterministic failure = actually broken |
+| Layer 2 (agent tool) | **Block PR merge** | Agent tool selection / output quality regressed |
+| Layer 3 (full agent) | **Warning only** | Too slow, non-deterministic, report only |
 | E2E (browser) | **Block PR merge** | User-visible issues must be fixed |
 
 ---
@@ -665,7 +649,7 @@ The following is embedded directly in Executor and Reviewer prompts. No runtime 
 ### SOLID
 
 - **S** — Single Responsibility: one module, one reason to change
-- **O** — Open/Closed: new tool = new handler file + register, don't modify executor core
+- **O** — Open/Closed: new tool = new `@agent.tool` registration, don't modify agent core
 - **L** — Liskov Substitution: subclasses don't break parent constraints
 - **I** — Interface Segregation: don't expose unused methods
 - **D** — Dependency Inversion: handlers depend on DB interface (async methods), not concrete implementation
@@ -773,10 +757,9 @@ test-eval:               # all evals (hours, needs LLM API)
 test-api:                # API contract tests with real DB (minutes)
 test-frontend:           # vitest (seconds)
 test-coverage:           # pytest-cov + vitest --coverage
-test-eval-component:     # Layer 1a, deterministic, seconds
-test-eval-intent:        # Layer 1b, single LLM, minutes
-test-eval-planner:       # Layer 2, single LLM, minutes
-test-eval-pipeline:      # Layer 3, full ReAct, hours (CI-only)
+test-eval-component:     # Layer 1, deterministic, seconds
+test-eval-agent:         # Layer 2, single agent run, minutes
+test-eval-full:          # Layer 3, full agent, hours (CI-only)
 test-all:                # unit + integration + api + frontend + eval-component
 ```
 

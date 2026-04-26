@@ -25,23 +25,22 @@ Tell the agent an anime title or a location in natural language. It finds real-w
 ## How It Works
 
 ```
-User text  →  ReActPlannerAgent (LLM → structured ExecutionPlan)
-                        ↓
-               ExecutorAgent (deterministic tool dispatch)
+User text  →  PydanticAI Agent (pilgrimage_agent)
                  ├── resolve_anime  → DB-first title lookup; Bangumi.tv API on miss
                  ├── search_bangumi → parameterized SQL → Supabase points
                  ├── search_nearby  → PostGIS geo retrieval
                  ├── plan_route     → nearest-neighbor route ordering
-                 └── answer_question → static FAQ
+                 └── answer_question → QA pass-through
+              → AgentResult (typed output + tool call records)
 ```
 
-The planner is the only LLM call. The executor is fully deterministic — no LLM during execution.
+A single PydanticAI agent handles planning and tool dispatch. Tools use `ModelRetry` guards to reject invalid parameters, and an `output_validator` rejects fabricated responses. Selected-point routes bypass the agent entirely.
 
 `resolve_anime` is self-evolving: on first query for an unknown title it fetches metadata from Bangumi.tv, upserts it into the database, and all future queries hit the local DB.
 
 ## Features
 
-- **Conversational search** — ask in Japanese, English, or Chinese; the planner handles intent
+- **Conversational search** — ask in Japanese, English, or Chinese; the agent handles intent
 - **Self-evolving anime catalog** — DB-first with Bangumi.tv API write-through on miss
 - **Geo retrieval** — find pilgrimage spots near any coordinate or station name
 - **Route planning** — nearest-neighbor ordering with optional user-selected points
@@ -99,13 +98,13 @@ See [`backend/config/settings.py`](backend/config/settings.py) for full referenc
 
 **Python (direct):**
 ```python
-from backend.agents.pipeline import run_pipeline
+from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 from backend.infrastructure.supabase.client import SupabaseClient
 
 async def main() -> None:
     async with SupabaseClient(db_url) as db:
-        result = await run_pipeline("吹響ユーフォニアムの聖地", db, locale="ja")
-        print(result.final_output["message"])
+        result = await run_pilgrimage_agent("吹響ユーフォニアムの聖地", db, locale="ja")
+        print(result.output)
 ```
 
 **HTTP (API key):**

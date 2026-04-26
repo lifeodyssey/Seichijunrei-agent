@@ -34,10 +34,11 @@ stable boundaries, current entry points, and active plans only.
 
 | Topic | Source |
 |-------|--------|
-| Runtime entry path | `backend/agents/pipeline.py` |
-| Shared types (Plan, Step, RetrievalRequest) | `backend/agents/models.py` |
-| Planner behavior | `backend/agents/planner_agent.py` |
-| Execution behavior | `backend/agents/executor_agent.py` |
+| Runtime entry path | `backend/agents/pilgrimage_runner.py` |
+| Shared types (RetrievalRequest, AgentResult) | `backend/agents/models.py`, `backend/agents/agent_result.py` |
+| Agent behavior | `backend/agents/pilgrimage_agent.py` |
+| Tool registrations | `backend/agents/pilgrimage_tools.py` |
+| Selected-route path | `backend/agents/selected_route.py` |
 | SQL retrieval | `backend/agents/sql_agent.py` |
 | Configuration | `backend/config/settings.py` |
 | Auth middleware | `worker/worker.js` |
