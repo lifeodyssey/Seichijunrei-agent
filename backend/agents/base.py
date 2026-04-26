@@ -141,7 +141,15 @@ def _parse_openai_compat_model(
         api_key=resolved_key or None,
         http_client=_build_http_client(),
     )
-    return OpenAIChatModel(model_name, provider=provider)
+    # DeepSeek V4 models route through their reasoner backend which
+    # rejects tool_choice='required'. Use 'auto' instead.
+    # See: https://github.com/pydantic/pydantic-ai/issues/5193
+    profile = None
+    if model_name.startswith("deepseek-v4"):
+        from pydantic_ai.profiles.openai import OpenAIModelProfile
+
+        profile = OpenAIModelProfile(openai_supports_tool_choice_required=False)
+    return OpenAIChatModel(model_name, provider=provider, profile=profile)
 
 
 def _parse_anthropic_model(spec: str) -> AnthropicModel:
