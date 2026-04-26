@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import structlog
 
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.models import PlanStep
 from backend.infrastructure.gateways.bangumi import BangumiClientGateway
 
 logger = structlog.get_logger(__name__)
+
+_TOOL = "resolve_anime"
 
 
 async def execute(
@@ -15,24 +18,21 @@ async def execute(
     context: dict[str, object],
     db: object,
     retriever: object,
-) -> dict[str, object]:
-    """Resolve anime title to bangumi_id. DB first, API on miss (write-through).
-
-    Returns a dict with keys: tool, success, data?, error?
-    """
+) -> HandlerResult:
+    """Resolve anime title to bangumi_id. DB first, API on miss (write-through)."""
     params = step.params or {}
     title = params.get("title")
     if not isinstance(title, str):
         title = ""
     if not title:
-        return {"tool": "resolve_anime", "success": False, "error": "No title provided"}
+        return HandlerResult.fail(_TOOL, "No title provided")
 
     repo = getattr(db, "bangumi", None)
     find_bangumi_by_title = getattr(repo, "find_bangumi_by_title", None)
     find_all_by_title = getattr(repo, "find_all_by_title", None)
     upsert_bangumi_title = getattr(repo, "upsert_bangumi_title", None)
     if not callable(find_bangumi_by_title) or not callable(upsert_bangumi_title):
-        return {"tool": "resolve_anime", "success": False, "error": "DB not available"}
+        return HandlerResult.fail(_TOOL, "DB not available")
 
     # 1. DB lookup — check for ambiguity first
     if callable(find_all_by_title):
@@ -43,10 +43,9 @@ async def execute(
                 title=title,
                 match_count=len(all_matches),
             )
-            return {
-                "tool": "resolve_anime",
-                "success": True,
-                "data": {
+            return HandlerResult.ok(
+                _TOOL,
+                {
                     "ambiguous": True,
                     "candidates": [
                         {
@@ -59,16 +58,12 @@ async def execute(
                         for m in all_matches
                     ],
                 },
-            }
+            )
 
     bangumi_id = await find_bangumi_by_title(title)
     if bangumi_id:
         logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
-        return {
-            "tool": "resolve_anime",
-            "success": True,
-            "data": {"bangumi_id": bangumi_id, "title": title},
-        }
+        return HandlerResult.ok(_TOOL, {"bangumi_id": bangumi_id, "title": title})
 
     # 2. Bangumi.tv API fallback — reuse shared gateway if available
     from backend.agents.retriever import Retriever
@@ -82,14 +77,6 @@ async def execute(
     if bangumi_id:
         await upsert_bangumi_title(title, bangumi_id)
         logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
-        return {
-            "tool": "resolve_anime",
-            "success": True,
-            "data": {"bangumi_id": bangumi_id, "title": title},
-        }
+        return HandlerResult.ok(_TOOL, {"bangumi_id": bangumi_id, "title": title})
 
-    return {
-        "tool": "resolve_anime",
-        "success": False,
-        "error": f"Could not resolve anime: '{title}'",
-    }
+    return HandlerResult.fail(_TOOL, f"Could not resolve anime: '{title}'")

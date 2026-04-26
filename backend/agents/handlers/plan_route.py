@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.agents.handlers._helpers import optimize_route
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.models import PlanStep, ToolName
 from backend.agents.sql_agent import resolve_location
 
@@ -25,18 +26,15 @@ async def execute(
     context: dict[str, object],
     db: object,
     retriever: object,
-) -> dict[str, object]:
-    """Sort search results into an optimised walking route.
-
-    Returns a dict with keys: tool, success, data?, error?
-    """
+) -> HandlerResult:
+    """Sort search results into an optimised walking route."""
     query_data = context.get(ToolName.SEARCH_BANGUMI.value) or context.get(
         ToolName.SEARCH_NEARBY.value
     )
     query_payload = query_data if isinstance(query_data, dict) else {}
     rows = query_payload.get("rows", [])
     if not rows:
-        return {"tool": "plan_route", "success": False, "error": "No points to route"}
+        return HandlerResult.fail("plan_route", "No points to route")
 
     params = step.params or {}
 
@@ -56,15 +54,14 @@ async def execute(
         resolved = await resolve_location(origin)
         if isinstance(resolved, list):
             options = [c.label for c in resolved]
-            return {
-                "tool": "clarify",
-                "success": True,
-                "data": {
+            return HandlerResult.ok(
+                "clarify",
+                {
                     "question": f"「{origin}」に複数の候補があります。どちらですか？",
                     "options": options,
                     "candidates": _build_clarify_candidates(options),
                     "status": "needs_clarification",
                 },
-            }
+            )
 
     return optimize_route(rows, params, origin, tool_name="plan_route")

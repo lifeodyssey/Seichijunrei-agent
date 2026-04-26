@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from backend.agents.handlers._helpers import build_query_payload
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.models import RetrievalRequest, ToolName
 from backend.agents.retriever import Retriever
 
@@ -44,13 +45,10 @@ def build_bangumi_request(
 async def execute_retrieval(
     req: RetrievalRequest,
     retriever: object,
-) -> dict[str, object]:
-    """Execute a retrieval request and return a standard result dict."""
+) -> HandlerResult:
+    """Execute a retrieval request and return a HandlerResult."""
     typed = cast(Retriever, retriever)
     result = await typed.execute(req)
-    return {
-        "tool": req.tool,
-        "success": result.success,
-        "data": build_query_payload(result),
-        "error": result.error,
-    }
+    if result.success:
+        return HandlerResult.ok(req.tool, build_query_payload(result))
+    return HandlerResult.fail(req.tool, result.error or "retrieval failed")

@@ -37,24 +37,24 @@ async def execute_selected_route(
     if origin:
         params["origin"] = origin
 
-    raw = optimize_route(rows, params, origin, tool_name="plan_selected")
-    success = bool(raw.get("success", False))
-    data = raw.get("data")
-    route_data = data if isinstance(data, dict) else {}
+    result = optimize_route(rows, params, origin, tool_name="plan_selected")
 
     step = StepRecord(
         tool="plan_selected",
-        success=success,
+        success=result.success,
         params=params,
-        data=route_data or None,
-        error=str(raw["error"]) if not success and raw.get("error") else None,
+        data=result.data or None,
+        error=result.error,
     )
 
     if on_step is not None:
-        await on_step("plan_selected", "done", route_data, "", "")
+        await on_step("plan_selected", "done", result.data, "", "")
 
-    route_model = RouteModel.model_validate(route_data) if route_data else RouteModel()
-    count = int(route_data.get("point_count", 0) or 0)
+    route_model = (
+        RouteModel.model_validate(result.data) if result.data else RouteModel()
+    )
+    raw_count = result.data.get("point_count", 0) if result.data else 0
+    count = int(raw_count) if isinstance(raw_count, (int, float)) else 0
     message = build_message("plan_selected", count, locale)
 
     output = RouteResponseModel(
@@ -65,7 +65,7 @@ async def execute_selected_route(
     return AgentResult(
         output=output,
         steps=[step],
-        tool_state={"plan_selected": route_data} if route_data else {},
+        tool_state={"plan_selected": result.data} if result.data else {},
     )
 
 

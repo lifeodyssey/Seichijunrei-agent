@@ -177,7 +177,7 @@ class TestUserMemoryUpsert:
             data={
                 "results": {"rows": [], "row_count": 0},
             },
-            message="ok",
+            message="該当する巡礼地を検索しました。",
             steps=[
                 StepRecord(
                     tool="resolve_anime",

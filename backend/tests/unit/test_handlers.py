@@ -12,6 +12,7 @@ from backend.agents.handlers._helpers import build_query_payload, optimize_route
 from backend.agents.handlers.answer_question import execute, execute_clarify
 from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.handlers.search_bangumi import execute as execute_search
 from backend.agents.models import PlanStep, RetrievalRequest, ToolName
 from backend.agents.retriever import RetrievalStrategy
@@ -54,9 +55,9 @@ class TestBaseSearch:
 
         result = await execute_retrieval(req, retriever)
 
-        assert result["tool"] == "search_bangumi"
-        assert result["success"] is True
-        assert result["data"]["row_count"] == 1
+        assert result.tool == "search_bangumi"
+        assert result.success is True
+        assert result.data["row_count"] == 1
 
     async def test_returns_failure_dict(self) -> None:
         fake = _FakeResult(success=False, rows=[], row_count=0, error="not found")
@@ -66,9 +67,9 @@ class TestBaseSearch:
 
         result = await execute_retrieval(req, retriever)
 
-        assert result["tool"] == "search_nearby"
-        assert result["success"] is False
-        assert result["error"] == "not found"
+        assert result.tool == "search_nearby"
+        assert result.success is False
+        assert result.error == "not found"
 
     def test_resolve_bangumi_id_from_params(self) -> None:
         result = resolve_bangumi_id({"bangumi_id": "253"}, {})
@@ -120,9 +121,9 @@ class TestResolveAnime:
 
         result = await execute_resolve(step, {}, db, None)
 
-        assert result["success"] is True
-        assert result["data"]["bangumi_id"] == "253"
-        assert result["data"]["title"] == "Eupho"
+        assert result.success is True
+        assert result.data["bangumi_id"] == "253"
+        assert result.data["title"] == "Eupho"
 
     async def test_db_ambiguous(self) -> None:
         """Multiple DB matches should return ambiguous signal."""
@@ -151,10 +152,10 @@ class TestResolveAnime:
 
         result = await execute_resolve(step, {}, db, None)
 
-        assert result["success"] is True
-        assert result["data"]["ambiguous"] is True
-        assert len(result["data"]["candidates"]) == 2
-        assert result["data"]["candidates"][0]["title"] == "涼宮ハルヒの憂鬱"
+        assert result.success is True
+        assert result.data["ambiguous"] is True
+        assert len(result.data["candidates"]) == 2
+        assert result.data["candidates"][0]["title"] == "涼宮ハルヒの憂鬱"
 
     async def test_db_miss_api_hit(self) -> None:
         db = _mock_supabase()
@@ -173,8 +174,8 @@ class TestResolveAnime:
         ):
             result = await execute_resolve(step, {}, db, None)
 
-        assert result["success"] is True
-        assert result["data"]["bangumi_id"] == "999"
+        assert result.success is True
+        assert result.data["bangumi_id"] == "999"
         db.bangumi.upsert_bangumi_title.assert_awaited_once_with("NewAnime", "999")
 
     async def test_both_miss(self) -> None:
@@ -193,35 +194,35 @@ class TestResolveAnime:
         ):
             result = await execute_resolve(step, {}, db, None)
 
-        assert result["success"] is False
-        assert "error" in result
-        assert "Unknown" in result["error"]
+        assert result.success is False
+        assert result.error is not None
+        assert "Unknown" in result.error
 
     async def test_no_title_provided(self) -> None:
         step = _step(ToolName.RESOLVE_ANIME, {})
         result = await execute_resolve(step, {}, MagicMock(), None)
 
-        assert result["success"] is False
-        assert result["error"] == "No title provided"
+        assert result.success is False
+        assert result.error == "No title provided"
 
     async def test_empty_title_string(self) -> None:
         step = _step(ToolName.RESOLVE_ANIME, {"title": ""})
         result = await execute_resolve(step, {}, MagicMock(), None)
 
-        assert result["success"] is False
+        assert result.success is False
 
     async def test_non_string_title(self) -> None:
         step = _step(ToolName.RESOLVE_ANIME, {"title": 123})
         result = await execute_resolve(step, {}, MagicMock(), None)
 
-        assert result["success"] is False
+        assert result.success is False
 
     async def test_non_supabase_db_returns_failure(self) -> None:
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
         result = await execute_resolve(step, {}, object(), None)
 
-        assert result["success"] is False
-        assert result["error"] == "DB not available"
+        assert result.success is False
+        assert result.error == "DB not available"
 
 
 # ---------------------------------------------------------------------------
@@ -260,8 +261,8 @@ class TestSearchBangumi:
         step = _step(ToolName.SEARCH_BANGUMI, {"bangumi_id": "253"})
         result = await execute_search(step, {}, MagicMock(), retriever)
 
-        assert result["success"] is True
-        assert result["data"]["row_count"] == 1
+        assert result.success is True
+        assert result.data["row_count"] == 1
 
     async def test_returns_empty(self) -> None:
         fake_result = FakeRetrievalResult(
@@ -275,16 +276,17 @@ class TestSearchBangumi:
         step = _step(ToolName.SEARCH_BANGUMI, {"bangumi_id": "999"})
         result = await execute_search(step, {}, MagicMock(), retriever)
 
-        assert result["success"] is True
-        assert result["data"]["row_count"] == 0
-        assert result["data"]["status"] == "empty"
+        assert result.success is True
+        assert result.data["row_count"] == 0
+        assert result.data["status"] == "empty"
 
     async def test_no_bangumi_id_fails(self) -> None:
         step = _step(ToolName.SEARCH_BANGUMI, {})
         result = await execute_search(step, {}, MagicMock(), MagicMock())
 
-        assert result["success"] is False
-        assert "No bangumi_id" in result["error"]
+        assert result.success is False
+        assert result.error is not None
+        assert "No bangumi_id" in result.error
 
     async def test_inherits_bangumi_id_from_context(self) -> None:
         fake_result = FakeRetrievalResult(
@@ -299,7 +301,7 @@ class TestSearchBangumi:
         step = _step(ToolName.SEARCH_BANGUMI, {})
         result = await execute_search(step, context, MagicMock(), retriever)
 
-        assert result["success"] is True
+        assert result.success is True
 
 
 # ---------------------------------------------------------------------------
@@ -312,23 +314,23 @@ class TestAnswerQuestion:
         step = _step(ToolName.ANSWER_QUESTION, {"answer": "42 is the answer"})
         result = await execute(step, {}, MagicMock(), MagicMock())
 
-        assert result["tool"] == "answer_question"
-        assert result["success"] is True
-        assert result["data"]["message"] == "42 is the answer"
-        assert result["data"]["status"] == "info"
+        assert result.tool == "answer_question"
+        assert result.success is True
+        assert result.data["message"] == "42 is the answer"
+        assert result.data["status"] == "info"
 
     async def test_empty_answer(self) -> None:
         step = _step(ToolName.ANSWER_QUESTION, {})
         result = await execute(step, {}, MagicMock(), MagicMock())
 
-        assert result["success"] is True
-        assert result["data"]["message"] == ""
+        assert result.success is True
+        assert result.data["message"] == ""
 
     async def test_no_params(self) -> None:
         step = PlanStep(tool=ToolName.ANSWER_QUESTION)
         result = await execute(step, {}, MagicMock(), MagicMock())
 
-        assert result["success"] is True
+        assert result.success is True
 
 
 # ---------------------------------------------------------------------------
@@ -357,8 +359,8 @@ class TestPlanRouteCoordinateOrigin:
             result = await execute_plan_route(step, context, MagicMock(), MagicMock())
 
         mock_resolve.assert_not_called()
-        assert result["success"] is True
-        assert result["data"]["cover_url"] is None
+        assert result.success is True
+        assert result.data["cover_url"] is None
 
     async def test_coordinate_origin_takes_precedence_over_text_origin(self) -> None:
         """Coordinate origin takes precedence when both are present."""
@@ -375,7 +377,7 @@ class TestPlanRouteCoordinateOrigin:
             result = await execute_plan_route(step, context, MagicMock(), MagicMock())
 
         mock_resolve.assert_not_called()
-        assert result["success"] is True
+        assert result.success is True
 
     async def test_text_origin_still_used_when_no_coords(self) -> None:
         """When no coordinate origin, text origin is still resolved (existing path)."""
@@ -391,7 +393,7 @@ class TestPlanRouteCoordinateOrigin:
             result = await execute_plan_route(step, context, MagicMock(), MagicMock())
 
         mock_resolve.assert_awaited_once()
-        assert result["success"] is True
+        assert result.success is True
 
     async def test_no_rows_returns_error_regardless_of_coords(self) -> None:
         """No rows → error even when coords are present."""
@@ -403,8 +405,9 @@ class TestPlanRouteCoordinateOrigin:
 
         result = await execute_plan_route(step, context, MagicMock(), MagicMock())
 
-        assert result["success"] is False
-        assert "No points to route" in result["error"]
+        assert result.success is False
+        assert result.error is not None
+        assert "No points to route" in result.error
 
     async def test_coordinate_origin_passed_as_string_to_optimize_route(self) -> None:
         """Finding 7: coordinate origin is forwarded as 'lat,lng' string, not discarded."""
@@ -424,13 +427,13 @@ class TestPlanRouteCoordinateOrigin:
             params: object,
             origin: object,
             tool_name: str = "plan_route",
-        ) -> dict[str, object]:
+        ) -> HandlerResult:
             captured.append((rows, params, origin, tool_name))
-            return {
-                "tool": "plan_route",
-                "success": True,
-                "data": {"ordered_points": []},
-            }
+            return HandlerResult(
+                tool="plan_route",
+                success=True,
+                data={"ordered_points": []},
+            )
 
         with _patch(
             "backend.agents.handlers.plan_route.optimize_route",
@@ -458,11 +461,11 @@ class TestPlanRouteCoordinateOrigin:
         ):
             result = await execute_plan_route(step, context, MagicMock(), MagicMock())
 
-        assert result["tool"] == "clarify"
-        assert result["data"]["status"] == "needs_clarification"
-        assert result["data"]["options"] == ["宇治駅（京阪）", "宇治駅（JR）"]
-        assert result["data"]["candidates"][0]["title"] == "宇治駅（京阪）"
-        assert "cover_url" in result["data"]["candidates"][0]
+        assert result.tool == "clarify"
+        assert result.data["status"] == "needs_clarification"
+        assert result.data["options"] == ["宇治駅（京阪）", "宇治駅（JR）"]
+        assert result.data["candidates"][0]["title"] == "宇治駅（京阪）"
+        assert "cover_url" in result.data["candidates"][0]
 
 
 class TestClarify:
@@ -473,22 +476,22 @@ class TestClarify:
         )
         result = await execute_clarify(step, {}, MagicMock(), MagicMock())
 
-        assert result["tool"] == "clarify"
-        assert result["success"] is True
-        assert result["data"]["question"] == "Which one?"
-        assert result["data"]["options"] == ["A", "B"]
-        assert result["data"]["status"] == "needs_clarification"
-        assert result["data"]["candidates"][0]["title"] == "A"
-        assert result["data"]["candidates"][1]["title"] == "B"
+        assert result.tool == "clarify"
+        assert result.success is True
+        assert result.data["question"] == "Which one?"
+        assert result.data["options"] == ["A", "B"]
+        assert result.data["status"] == "needs_clarification"
+        assert result.data["candidates"][0]["title"] == "A"
+        assert result.data["candidates"][1]["title"] == "B"
 
     async def test_empty_clarify(self) -> None:
         step = _step(ToolName.CLARIFY, {})
         result = await execute_clarify(step, {}, MagicMock(), MagicMock())
 
-        assert result["success"] is True
-        assert result["data"]["question"] == ""
-        assert result["data"]["options"] == []
-        assert result["data"]["candidates"] == []
+        assert result.success is True
+        assert result.data["question"] == ""
+        assert result.data["options"] == []
+        assert result.data["candidates"] == []
 
     async def test_explicit_candidates_are_preserved(self) -> None:
         step = _step(
@@ -508,8 +511,8 @@ class TestClarify:
         )
         result = await execute_clarify(step, {}, MagicMock(), MagicMock())
 
-        assert result["data"]["candidates"][0]["title"] == "Custom A"
-        assert result["data"]["candidates"][0]["spot_count"] == 3
+        assert result.data["candidates"][0]["title"] == "Custom A"
+        assert result.data["candidates"][0]["spot_count"] == 3
 
 
 class TestQueryPayload:
@@ -567,5 +570,5 @@ class TestOptimizeRoute:
             None,
         )
 
-        assert result["success"] is True
-        assert result["data"]["cover_url"] == "https://example.com/cover.jpg"
+        assert result.success is True
+        assert result.data["cover_url"] == "https://example.com/cover.jpg"

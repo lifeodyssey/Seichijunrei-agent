@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.retriever import RetrievalResult
 from backend.agents.route_export import build_google_maps_url, build_ics_calendar
 from backend.agents.route_optimizer import (
@@ -150,12 +151,12 @@ def optimize_route(
     params: dict[str, object],
     origin: str | None,
     tool_name: str = "plan_route",
-) -> dict[str, object]:
+) -> HandlerResult:
     """Shared route optimization logic for plan_route and plan_selected."""
     # 1. Validate coordinates
     valid_rows, _invalid = validate_coordinates(rows)
     if not valid_rows:
-        return {"tool": tool_name, "success": False, "error": "No valid coordinates"}
+        return HandlerResult.fail(tool_name, "No valid coordinates")
 
     # 2. Cluster by location
     clusters = cluster_by_location(valid_rows, threshold_m=50.0)
@@ -176,7 +177,7 @@ def optimize_route(
             origin=route_origin,
         )
     except ValueError as e:
-        return {"tool": tool_name, "success": False, "error": str(e)}
+        return HandlerResult.fail(tool_name, str(e))
 
     # 5. Build exports
     gmaps_url = build_google_maps_url(itinerary.stops)
@@ -201,10 +202,9 @@ def optimize_route(
         None,
     )
 
-    return {
-        "tool": tool_name,
-        "success": True,
-        "data": {
+    return HandlerResult.ok(
+        tool_name,
+        {
             "ordered_points": ordered_points,
             "timed_itinerary": itinerary.model_dump(mode="json"),
             "point_count": len(ordered_points),
@@ -219,4 +219,4 @@ def optimize_route(
                 "total_distance_m": itinerary.total_distance_m,
             },
         },
-    }
+    )

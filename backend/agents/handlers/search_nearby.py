@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from backend.agents.handlers._base_search import execute_retrieval
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.models import PlanStep, RetrievalRequest
 
 
@@ -11,7 +12,7 @@ async def execute(
     context: dict[str, object],
     db: object,
     retriever: object,
-) -> dict[str, object]:
+) -> HandlerResult:
     """Search pilgrimage points near a location."""
     params = step.params or {}
     location = params.get("location")

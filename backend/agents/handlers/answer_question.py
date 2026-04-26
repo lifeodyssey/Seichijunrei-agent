@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.agents.handlers.result import HandlerResult
 from backend.agents.models import PlanStep
 
 
@@ -23,20 +24,16 @@ async def execute(
     context: dict[str, object],
     db: object,
     retriever: object,
-) -> dict[str, object]:
-    """Return a plain QA answer (no retrieval).
-
-    Returns a dict with keys: tool, success, data?, error?
-    """
+) -> HandlerResult:
+    """Return a plain QA answer (no retrieval)."""
     params = step.params or {}
-    return {
-        "tool": "answer_question",
-        "success": True,
-        "data": {
+    return HandlerResult.ok(
+        "answer_question",
+        {
             "message": params.get("answer", ""),
             "status": "info",
         },
-    }
+    )
 
 
 async def execute_clarify(
@@ -44,11 +41,8 @@ async def execute_clarify(
     context: dict[str, object],
     db: object,
     retriever: object,
-) -> dict[str, object]:
-    """Return a clarification question to the user (no retrieval).
-
-    Returns a dict with keys: tool, success, data?, error?
-    """
+) -> HandlerResult:
+    """Return a clarification question to the user (no retrieval)."""
     params = step.params or {}
     question = params.get("question")
     if not isinstance(question, str):
@@ -65,13 +59,12 @@ async def execute_clarify(
         if isinstance(raw_candidates, list)
         else _build_candidates(options)
     )
-    return {
-        "tool": "clarify",
-        "success": True,
-        "data": {
+    return HandlerResult.ok(
+        "clarify",
+        {
             "question": question,
             "options": options,
             "candidates": candidates,
             "status": "needs_clarification",
         },
-    }
+    )

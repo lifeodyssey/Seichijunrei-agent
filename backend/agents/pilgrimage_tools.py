@@ -16,6 +16,7 @@ from pydantic_ai import ModelRetry, RunContext
 
 from backend.agents.agent_result import StepRecord
 from backend.agents.handlers import (
+    HandlerResult,
     execute_answer_question,
     execute_greet_user,
     execute_plan_route,
@@ -70,7 +71,7 @@ async def _run_handler(
     tool: ToolName,
     params: dict[str, object],
     handler: Callable[
-        [PlanStep, dict[str, object], object, object], Awaitable[dict[str, object]]
+        [PlanStep, dict[str, object], object, object], Awaitable[HandlerResult]
     ],
 ) -> dict[str, object]:
     deps = ctx.deps
@@ -78,34 +79,29 @@ async def _run_handler(
 
     retriever = deps.retriever or Retriever(deps.db)
     deps.retriever = retriever
-    raw = await handler(
+    result = await handler(
         PlanStep(tool=tool, params=params),
         deps.tool_state,
         deps.db,
         retriever,
     )
 
-    success = bool(raw.get("success", False))
-    data = raw.get("data")
-    error = raw.get("error")
-    payload = data if isinstance(data, dict) else {}
-
     _record_step(
         deps,
         tool=tool.value,
-        success=success,
+        success=result.success,
         params=params,
-        data=payload if payload else None,
-        error=str(error) if isinstance(error, str) else None,
+        data=result.data if result.data else None,
+        error=result.error,
     )
 
-    if success and isinstance(data, dict):
-        deps.tool_state[tool.value] = data
-        await _emit_step(deps, tool.value, "done", payload)
+    if result.success and result.data:
+        deps.tool_state[tool.value] = result.data
+        await _emit_step(deps, tool.value, "done", result.data)
     else:
-        await _emit_step(deps, tool.value, "failed", payload)
+        await _emit_step(deps, tool.value, "failed", result.data)
 
-    return payload
+    return result.data
 
 
 # ── Tool registrations ────────────────────────────────────────────────
