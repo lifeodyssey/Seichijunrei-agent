@@ -13,7 +13,6 @@ import structlog
 
 from backend.agents.agent_result import AgentResult, StepRecord
 from backend.agents.base import create_agent, get_default_model
-from backend.agents.models import ExecutionPlan, PlanStep, ToolName
 from backend.infrastructure.session import SessionStore
 from backend.infrastructure.supabase.client import SupabaseClient
 from backend.interfaces.schemas import PublicAPIRequest
@@ -397,24 +396,6 @@ async def generate_and_save_title(
         logger.warning("update_conversation_title_failed", session_id=session_id)
 
     return title
-
-
-def build_selected_points_plan(request: PublicAPIRequest) -> ExecutionPlan:
-    """Build a synthetic ``ExecutionPlan`` for user-selected point routing."""
-    point_ids = list(request.selected_point_ids or [])
-    return ExecutionPlan(
-        steps=[
-            PlanStep(
-                tool=ToolName.PLAN_SELECTED,
-                params={
-                    "point_ids": point_ids,
-                    "origin": request.origin,
-                },
-            )
-        ],
-        reasoning="User selected specific points for routing.",
-        locale=request.locale,
-    )
 
 
 def as_str_or_none(value: object) -> str | None:

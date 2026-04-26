@@ -1,5 +1,4 @@
 from backend.agents.models import (
-    ExecutionPlan,
     PlanStep,
     RetrievalRequest,
     ToolName,
@@ -30,26 +29,6 @@ class TestPlanStep:
         )
         assert step.params["bangumi_id"] == "115908"
         assert step.params["episode"] == 3
-
-
-class TestExecutionPlan:
-    def test_defaults(self):
-        plan = ExecutionPlan(
-            steps=[
-                PlanStep(tool=ToolName.SEARCH_BANGUMI, params={"bangumi_id": "115908"})
-            ],
-            reasoning="user asked about a specific anime",
-        )
-        assert plan.locale == "ja"
-        assert len(plan.steps) == 1
-
-    def test_locale_override(self):
-        plan = ExecutionPlan(
-            steps=[],
-            reasoning="empty",
-            locale="en",
-        )
-        assert plan.locale == "en"
 
 
 class TestRetrievalRequest:

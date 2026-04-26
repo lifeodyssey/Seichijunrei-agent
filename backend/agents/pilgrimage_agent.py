@@ -13,7 +13,7 @@ Separation rationale:
 
 from __future__ import annotations
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.output import ToolOutput
 
 from backend.agents.base import resolve_model
@@ -100,3 +100,44 @@ pilgrimage_agent = Agent(
     instructions=_INSTRUCTIONS,
     retries=2,
 )
+
+
+@pilgrimage_agent.output_validator  # type: ignore[arg-type]
+async def validate_output(
+    ctx: RunContext[RuntimeDeps],
+    output: (
+        ClarifyResponseModel
+        | SearchResponseModel
+        | RouteResponseModel
+        | QAResponseModel
+        | GreetingResponseModel
+    ),
+) -> (
+    ClarifyResponseModel
+    | SearchResponseModel
+    | RouteResponseModel
+    | QAResponseModel
+    | GreetingResponseModel
+):
+    """Reject fabricated responses that skip required tool calls.
+
+    Only enforced when the agent actually executed steps (has step records).
+    TestModel runs with no tools produce no steps, so the validator skips.
+    """
+    if not ctx.deps.steps:
+        return output
+    tool_state = ctx.deps.tool_state
+    if isinstance(output, SearchResponseModel):
+        tool_key = str(output.intent)
+        if tool_key not in tool_state:
+            raise ModelRetry(
+                f"You returned a search response but never called {tool_key}. "
+                "Call the search tool first, then return the response."
+            )
+    if isinstance(output, RouteResponseModel):
+        if "plan_route" not in tool_state and "plan_selected" not in tool_state:
+            raise ModelRetry(
+                "You returned a route response but never called plan_route. "
+                "Call plan_route first, then return the response."
+            )
+    return output

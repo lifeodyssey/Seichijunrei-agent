@@ -48,8 +48,8 @@ repos:
         pass_filenames: false
 
       - id: backend-test-coverage
-        name: backend tests + coverage (lines>=78%)
-        entry: bash -c 'uv run pytest backend/tests/unit/ -q --cov --cov-fail-under=78'
+        name: backend tests + coverage (lines>=80%)
+        entry: bash -c 'uv run pytest backend/tests/unit/ -q --cov --cov-fail-under=80'
         language: system
         types: [python]
         pass_filenames: false

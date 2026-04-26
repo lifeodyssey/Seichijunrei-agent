@@ -227,48 +227,47 @@ class TestRuntimeAPIExecution:
 
 class TestSelectedPointIdsBypass:
     async def test_selected_point_ids_bypass_planner(self, mock_db) -> None:
-        from backend.agents.executor_agent import PipelineResult
-        from backend.agents.models import ExecutionPlan, ToolName
+        from backend.agents.agent_result import AgentResult, StepRecord
+        from backend.agents.runtime_models import (
+            RouteDataModel,
+            RouteModel,
+            RouteResponseModel,
+        )
 
         captured: dict[str, object] = {}
-        executor = MagicMock()
 
-        async def _fake_execute(plan, *, context_block=None, on_step=None):
-            captured["plan"] = plan
-            # ExecutorAgent still returns PipelineResult; public_api wraps it.
-            result = PipelineResult(intent="plan_selected", plan=plan)
-            result.final_output = {
-                "success": True,
-                "status": "ok",
-                "message": "已为2处选定取景地规划路线。",
-                "route": {
-                    "ordered_points": [
-                        {
-                            "id": "p1",
-                            "name": "A",
-                            "latitude": 34.88,
-                            "longitude": 135.80,
-                        },
-                        {
-                            "id": "p2",
-                            "name": "B",
-                            "latitude": 34.89,
-                            "longitude": 135.81,
-                        },
-                    ],
-                    "point_count": 2,
-                },
+        async def _fake_selected_route(*, point_ids, origin, locale, db, on_step=None):
+            captured["point_ids"] = point_ids
+            captured["origin"] = origin
+            route_data = {
+                "ordered_points": [
+                    {"id": "p1", "name": "A", "latitude": 34.88, "longitude": 135.80},
+                    {"id": "p2", "name": "B", "latitude": 34.89, "longitude": 135.81},
+                ],
+                "point_count": 2,
             }
-            return result
-
-        executor.execute = AsyncMock(side_effect=_fake_execute)
+            output = RouteResponseModel(
+                intent="plan_selected",
+                message="已为2处选定取景地规划路线。",
+                data=RouteDataModel(
+                    route=RouteModel.model_validate(route_data),
+                ),
+            )
+            return AgentResult(
+                output=output,
+                steps=[StepRecord(tool="plan_selected", success=True, data=route_data)],
+                tool_state={"plan_selected": route_data},
+            )
 
         with (
             patch(
                 "backend.interfaces.public_api.run_pilgrimage_agent",
                 new=AsyncMock(side_effect=AssertionError("planner should be bypassed")),
             ),
-            patch("backend.agents.executor_agent.ExecutorAgent", return_value=executor),
+            patch(
+                "backend.interfaces.public_api.execute_selected_route",
+                new=AsyncMock(side_effect=_fake_selected_route),
+            ),
         ):
             api = RuntimeAPI(mock_db, session_store=InMemorySessionStore())
             response = await api.handle(
@@ -280,10 +279,8 @@ class TestSelectedPointIdsBypass:
                 )
             )
 
-        plan = captured["plan"]
-        assert isinstance(plan, ExecutionPlan)
-        assert plan.steps[0].tool == ToolName.PLAN_SELECTED
-        assert plan.steps[0].params == {"point_ids": ["p1", "p2"], "origin": "宇治駅"}
+        assert captured["point_ids"] == ["p1", "p2"]
+        assert captured["origin"] == "宇治駅"
         assert response.intent == "plan_selected"
         assert response.ui == {"component": "RoutePlannerWizard"}
 

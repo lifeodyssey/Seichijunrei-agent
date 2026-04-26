@@ -25,19 +25,11 @@ class ToolName(str, Enum):
 
 
 class PlanStep(BaseModel):
-    """One step in an execution plan produced by ReActPlannerAgent."""
+    """A tool invocation with parameters, used by handler functions."""
 
     tool: ToolName
     params: dict[str, object] = Field(default_factory=dict)
     parallel: bool = False
-
-
-class ExecutionPlan(BaseModel):
-    """Structured output of ReActPlannerAgent — consumed by ExecutorAgent."""
-
-    steps: list[PlanStep]
-    reasoning: str
-    locale: str = "ja"
 
 
 class RetrievalRequest(BaseModel):

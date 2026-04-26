@@ -17,6 +17,7 @@ from pydantic_ai.models import Model
 from backend.agents.agent_result import AgentResult
 from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 from backend.agents.runtime_deps import OnStep
+from backend.agents.selected_route import execute_selected_route
 from backend.agents.translation import translate_text
 from backend.application.errors import ApplicationError, ErrorCode
 from backend.domain.ports import DatabasePort
@@ -44,7 +45,6 @@ from backend.interfaces.schemas import (
 )
 from backend.interfaces.session_facade import (
     build_context_block,
-    build_selected_points_plan,
     extract_context_delta,
     normalize_session_state,
 )
@@ -225,54 +225,15 @@ class RuntimeAPI:
     ) -> tuple[AgentResult | None, PublicAPIResponse, dict[str, object]]:
         """Run the pipeline (or synthetic plan) and map result to response."""
         context_delta: dict[str, object] = {}
-        synthetic_plan = (
-            build_selected_points_plan(request) if request.selected_point_ids else None
-        )
+        has_selected = bool(request.selected_point_ids)
         try:
-            if synthetic_plan is not None:
-                from backend.agents.executor_agent import ExecutorAgent
-
-                pipeline_result = await ExecutorAgent(self._db).execute(
-                    synthetic_plan,
-                    context_block=context,
+            if has_selected:
+                result = await execute_selected_route(
+                    point_ids=list(request.selected_point_ids or []),
+                    origin=request.origin,
+                    locale=request.locale,
+                    db=self._db,
                     on_step=on_step,
-                )
-                # Wrap legacy PipelineResult into AgentResult for selected-point path.
-                # TODO: Phase 5 will replace this with a direct selected_route path.
-                from backend.agents.agent_result import StepRecord
-                from backend.agents.runtime_models import (
-                    RouteDataModel,
-                    RouteModel,
-                    RouteResponseModel,
-                )
-
-                route_data = pipeline_result.final_output.get("route", {})
-                route_model = (
-                    RouteModel.model_validate(route_data)
-                    if isinstance(route_data, dict)
-                    else RouteModel()
-                )
-                output = RouteResponseModel(
-                    intent="plan_selected",
-                    message=str(pipeline_result.final_output.get("message", "")),
-                    data=RouteDataModel(route=route_model),
-                )
-                result = AgentResult(
-                    output=output,
-                    steps=[
-                        StepRecord(
-                            tool=sr.tool,
-                            success=sr.success,
-                            data=sr.data if isinstance(sr.data, dict) else None,
-                            error=sr.error,
-                        )
-                        for sr in pipeline_result.step_results
-                    ],
-                    tool_state={
-                        k: v
-                        for k, v in pipeline_result.final_output.items()
-                        if isinstance(v, dict)
-                    },
                 )
             else:
                 result = await run_pilgrimage_agent(
