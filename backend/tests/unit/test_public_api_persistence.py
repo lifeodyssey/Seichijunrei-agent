@@ -47,8 +47,8 @@ class TestGreetUserEphemeral:
     async def test_greet_user_is_ephemeral_and_skips_persistence(self):
         output = GreetingResponseModel(
             intent="greet_user",
-            message="Hello!",
-            data=QADataModel(message="Hello!"),
+            message="こんにちは！聖地巡礼のお手伝いをします。",
+            data=QADataModel(message="こんにちは！聖地巡礼のお手伝いをします。"),
         )
         result = AgentResult(output=output, steps=[], tool_state={})
 

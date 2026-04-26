@@ -81,13 +81,10 @@ class TestGeneratedTitleInResponse:
         """Greet (ephemeral) should not have generated_title."""
 
         async def _fake_greet(**kwargs):
-            result = _make_result(intent="greet_user")
-            result.final_output = {
-                "success": True,
-                "status": "info",
-                "message": "こんにちは！",
-            }
-            return result
+            return _make_result(
+                intent="greet_user",
+                message="你好！我是圣地巡礼助手。",
+            )
 
         monkeypatch.setattr(
             "backend.interfaces.public_api.run_pilgrimage_agent", _fake_greet

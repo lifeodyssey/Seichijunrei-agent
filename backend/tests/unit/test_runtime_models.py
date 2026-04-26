@@ -29,7 +29,7 @@ def test_clarify_response_model_validates_candidates() -> None:
             "candidates": [
                 {
                     "title": "凉宫春日的忧郁",
-                    "cover_url": None,
+                    "cover_url": "",
                     "spot_count": 0,
                     "city": "",
                 }
@@ -51,10 +51,10 @@ def test_search_response_model_accepts_rows_and_nearby_groups() -> None:
                     {
                         "id": "pt-uji-1",
                         "name": "宇治桥",
-                        "name_cn": None,
+                        "name_cn": "",
                         "episode": 1,
-                        "time_seconds": None,
-                        "screenshot_url": None,
+                        "time_seconds": -1,
+                        "screenshot_url": "",
                         "bangumi_id": "120632",
                         "latitude": 34.889,
                         "longitude": 135.807,
@@ -72,7 +72,7 @@ def test_search_response_model_accepts_rows_and_nearby_groups() -> None:
                     {
                         "bangumi_id": "120632",
                         "title": "響け！ユーフォニアム",
-                        "cover_url": None,
+                        "cover_url": "",
                         "points_count": 1,
                         "closest_distance_m": 280.0,
                     }
@@ -109,10 +109,10 @@ def test_route_response_model_requires_timed_itinerary() -> None:
                     {
                         "id": "p1",
                         "name": "宇治桥",
-                        "name_cn": None,
-                        "episode": None,
-                        "time_seconds": None,
-                        "screenshot_url": None,
+                        "name_cn": "",
+                        "episode": -1,
+                        "time_seconds": -1,
+                        "screenshot_url": "",
                         "bangumi_id": "120632",
                         "latitude": 34.889,
                         "longitude": 135.807,

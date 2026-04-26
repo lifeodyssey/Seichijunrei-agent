@@ -23,7 +23,7 @@ async def test_enrich_clarify_candidates_keeps_order_and_defaults() -> None:
             {
                 "title": "凉宫春日的消失",
                 "bangumi_id": "254",
-                "cover_url": None,
+                "cover_url": "",
                 "points_count": 0,
                 "city": "",
             },
@@ -53,7 +53,7 @@ async def test_enrich_clarify_candidates_falls_back_to_gateway_and_writes_throug
             {
                 "title": "凉宫春日的忧郁",
                 "bangumi_id": None,
-                "cover_url": None,
+                "cover_url": "",
                 "points_count": 0,
                 "city": "",
             }

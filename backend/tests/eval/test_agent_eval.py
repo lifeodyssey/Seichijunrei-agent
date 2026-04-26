@@ -210,29 +210,19 @@ agent_dataset = Dataset(
 # ── Task function (SUT = run_pilgrimage_agent → AgentResult) ─────────
 
 
-def _make_mock_db() -> object:
-    from unittest.mock import AsyncMock, MagicMock
+def make_agent_task(db: object, model: object | None = None) -> object:
+    """Create the task: AgentInput → AgentResult (no extraction layer).
 
-    db = MagicMock()
-    db.bangumi.find_bangumi_by_title = AsyncMock(return_value="262243")
-    db.bangumi.find_all_by_title = AsyncMock(return_value=[])
-    db.bangumi.upsert_bangumi_title = AsyncMock(return_value=None)
-    db.points = MagicMock()
-    db.points.search_points_by_location = AsyncMock(return_value=[])
-    return db
-
-
-def make_agent_task(db: object | None = None, model: object | None = None) -> object:
-    """Create the task: AgentInput → AgentResult (no extraction layer)."""
+    Requires a real DB (testcontainer) — no mock fallback.
+    """
     resolved_model = model or _make_model()
 
     async def task(inp: AgentInput) -> AgentResult:
         from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
-        resolved_db = db if db is not None else _make_mock_db()
         return await run_pilgrimage_agent(
             text=inp.query,
-            db=resolved_db,
+            db=db,
             model=resolved_model,
             locale=inp.locale,
         )
@@ -268,16 +258,10 @@ def _print_scores(scores: dict[str, float]) -> None:
 
 
 @pytest.mark.integration
-def test_agent(request: pytest.FixtureRequest) -> None:
-    """Run the unified agent assessment against real or mock DB."""
-    db: object | None = None
-    try:
-        db = request.getfixturevalue("real_db")
-    except pytest.FixtureLookupError:
-        pass
-
-    task = make_agent_task(db=db)
-    report = agent_dataset.evaluate_sync(
+async def test_agent(real_db: object) -> None:
+    """Run the unified agent assessment against real testcontainer DB."""
+    task = make_agent_task(db=real_db)
+    report = await agent_dataset.evaluate(
         task,
         name=f"agent_{_EVAL_MODEL_ID}",
         max_concurrency=50,
@@ -317,7 +301,16 @@ if __name__ == "__main__":
     async def main() -> None:
         mid = model_arg or _EVAL_MODEL_ID
         model = _make_model(model_arg) if model_arg else _make_model()
-        task = make_agent_task(db=None, model=model)
+
+        # Standalone mode: connect to local Supabase (supabase start)
+        db_url = os.environ.get(
+            "SUPABASE_DB_URL",
+            "postgresql://postgres:postgres@localhost:54322/postgres",
+        )
+        from backend.infrastructure.supabase.client import SupabaseClient
+
+        db = await SupabaseClient.create(db_url)
+        task = make_agent_task(db=db, model=model)
 
         report = await agent_dataset.evaluate(
             task,

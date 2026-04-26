@@ -17,7 +17,7 @@ class ClarifyCandidateModel(BaseModel):
     """A single clarify candidate with optional enrichment."""
 
     title: str
-    cover_url: str | None = None
+    cover_url: str = ""
     spot_count: int = 0
     city: str = ""
 
@@ -37,7 +37,7 @@ class ClarifyResponseModel(BaseModel):
     intent: Literal["clarify"]
     message: str
     data: ClarifyDataModel
-    ui: dict[str, str] | None = None
+    ui: dict[str, str] = Field(default_factory=dict)
 
 
 class PilgrimagePointModel(BaseModel):
@@ -45,19 +45,19 @@ class PilgrimagePointModel(BaseModel):
 
     id: str
     name: str
-    name_cn: str | None = None
-    episode: int | None = None
-    time_seconds: int | None = None
-    screenshot_url: str | None = None
-    bangumi_id: str | None = None
+    name_cn: str = ""
+    episode: int = -1
+    time_seconds: int = -1
+    screenshot_url: str = ""
+    bangumi_id: str = ""
     latitude: float
     longitude: float
-    title: str | None = None
-    title_cn: str | None = None
-    distance_m: float | None = None
-    origin: str | None = None
+    title: str = ""
+    title_cn: str = ""
+    distance_m: float = -1.0
+    origin: str = ""
     # Backend convenience: used to populate nearby_groups cover and route cover_url.
-    cover_url: str | None = None
+    cover_url: str = ""
 
 
 class NearbyGroupModel(BaseModel):
@@ -65,7 +65,7 @@ class NearbyGroupModel(BaseModel):
 
     bangumi_id: str
     title: str
-    cover_url: str | None = None
+    cover_url: str = ""
     points_count: int = 0
     closest_distance_m: float = 0
 
@@ -73,13 +73,13 @@ class NearbyGroupModel(BaseModel):
 class ResultsMetadataModel(BaseModel):
     """Typed metadata returned alongside search results."""
 
-    anime_title: str | None = None
-    anime_title_cn: str | None = None
-    cover_url: str | None = None
-    radius_m: int | None = None
-    data_origin: str | None = None
-    source: str | None = None
-    cache: str | None = None
+    anime_title: str = ""
+    anime_title_cn: str = ""
+    cover_url: str = ""
+    radius_m: int = -1
+    data_origin: str = ""
+    source: str = ""
+    cache: str = ""
 
     model_config = {"extra": "allow"}
 
@@ -97,10 +97,10 @@ class ResultsMetaModel(BaseModel):
 
     rows: list[PilgrimagePointModel] = Field(default_factory=list)
     row_count: int = 0
-    strategy: str | None = None
-    status: Literal["ok", "empty"] | None = None
-    metadata: ResultsMetadataModel | None = None
-    summary: ResultsSummaryModel | None = None
+    strategy: str = ""
+    status: str = "ok"
+    metadata: ResultsMetadataModel = Field(default_factory=ResultsMetadataModel)
+    summary: ResultsSummaryModel = Field(default_factory=ResultsSummaryModel)
     nearby_groups: list[NearbyGroupModel] = Field(default_factory=list)
 
 
@@ -116,7 +116,7 @@ class SearchResponseModel(BaseModel):
     intent: Literal["search_bangumi", "search_nearby"]
     message: str
     data: SearchDataModel
-    ui: dict[str, str] | None = None
+    ui: dict[str, str] = Field(default_factory=dict)
 
 
 class RouteModel(BaseModel):
@@ -124,11 +124,11 @@ class RouteModel(BaseModel):
 
     ordered_points: list[PilgrimagePointModel] = Field(default_factory=list)
     point_count: int = 0
-    cover_url: str | None = None
-    anime_title: str | None = None
-    anime_title_cn: str | None = None
-    status: Literal["ok", "empty"] | None = None
-    summary: ResultsSummaryModel | None = None
+    cover_url: str = ""
+    anime_title: str = ""
+    anime_title_cn: str = ""
+    status: str = "ok"
+    summary: ResultsSummaryModel = Field(default_factory=ResultsSummaryModel)
     timed_itinerary: TimedItinerary = Field(default_factory=TimedItinerary)
 
 
@@ -144,7 +144,7 @@ class RouteResponseModel(BaseModel):
     intent: Literal["plan_route", "plan_selected"]
     message: str
     data: RouteDataModel
-    ui: dict[str, str] | None = None
+    ui: dict[str, str] = Field(default_factory=dict)
 
 
 class QADataModel(BaseModel):
@@ -160,7 +160,7 @@ class QAResponseModel(BaseModel):
     intent: Literal["general_qa"]
     message: str
     data: QADataModel = Field(default_factory=QADataModel)
-    ui: dict[str, str] | None = None
+    ui: dict[str, str] = Field(default_factory=dict)
 
 
 class GreetingResponseModel(BaseModel):
@@ -169,7 +169,7 @@ class GreetingResponseModel(BaseModel):
     intent: Literal["greet_user"]
     message: str
     data: QADataModel = Field(default_factory=QADataModel)
-    ui: dict[str, str] | None = None
+    ui: dict[str, str] = Field(default_factory=dict)
 
 
 RuntimeStageOutput = (

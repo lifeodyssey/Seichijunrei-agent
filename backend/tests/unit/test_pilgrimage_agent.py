@@ -30,7 +30,7 @@ async def test_run_pilgrimage_agent_returns_clarify_agent_result() -> None:
                 "candidates": [
                     {
                         "title": "凉宫春日的忧郁",
-                        "cover_url": None,
+                        "cover_url": "",
                         "spot_count": 0,
                         "city": "",
                     }

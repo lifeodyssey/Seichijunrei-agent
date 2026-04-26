@@ -33,7 +33,7 @@ def test_response_builder_preserves_clarify_payload():
             candidates=[
                 {
                     "title": "涼宮ハルヒの憂鬱",
-                    "cover_url": None,
+                    "cover_url": "",
                     "spot_count": 0,
                     "city": "",
                 },
