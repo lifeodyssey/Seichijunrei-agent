@@ -77,7 +77,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Logging level")
     debug: bool = Field(default=False, description="Debug mode")
     max_retries: int = Field(default=3, description="Maximum API retry attempts")
-    timeout_seconds: int = Field(default=30, description="API request timeout")
+    timeout_seconds: int = Field(
+        default=120, description="API request timeout (reasoning models need longer)"
+    )
     service_host: str = Field(default="0.0.0.0", description="HTTP service bind host")
     service_port: int = Field(default=8080, description="HTTP service bind port")
     observability_enabled: bool = Field(

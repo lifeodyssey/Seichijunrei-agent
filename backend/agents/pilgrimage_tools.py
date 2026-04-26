@@ -113,12 +113,17 @@ async def resolve_anime(ctx: RunContext[RuntimeDeps], title: str) -> dict[str, o
 
     Call this FIRST whenever the user mentions an anime by name.
 
-    Returns on success: {"bangumi_id": "262243", "title": "君の名は。"}
+    Returns on success: {"bangumi_id": "262243", "title": "君の名は。", "candidates": [...]}
     Returns on ambiguity: {"ambiguous": true, "candidates": [{"title": ..., "bangumi_id": ...}, ...]}
     Returns on failure: {"error": "Could not resolve anime: 'xyz'"}
 
-    If the result contains "ambiguous": true, you MUST call clarify() with the
-    candidate titles. Do NOT guess which anime the user means.
+    The "candidates" list is ALWAYS present and shows all matching anime works
+    found in the database and Bangumi API. Use it to judge whether the user's
+    query is specific enough:
+    - If "ambiguous": true → MUST call clarify() with the candidates.
+    - If single bangumi_id returned but candidates has multiple entries AND the
+      user's query is short/vague → call clarify() to let the user pick.
+    - If query is specific (full title) → proceed with search_bangumi.
 
     Args:
         title: The anime title in any language. Examples: "君の名は", "你的名字",

@@ -1,4 +1,9 @@
-"""Handler: resolve_anime — DB-first title->bangumi_id; API fallback; write-through."""
+"""Handler: resolve_anime — DB-first title->bangumi_id; API enrichment; write-through.
+
+Always returns candidates from both DB and Bangumi API so the agent can
+decide whether to proceed or clarify. The agent (LLM) judges ambiguity
+based on the user's query specificity and the candidate list.
+"""
 
 from __future__ import annotations
 
@@ -13,13 +18,40 @@ logger = structlog.get_logger(__name__)
 _TOOL = "resolve_anime"
 
 
+def _safe_int(value: object) -> int:
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
+def _build_candidates(matches: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Build candidate list from DB or API matches."""
+    return [
+        {
+            "title": str(m.get("title") or m.get("name", "")),
+            "bangumi_id": str(m.get("id", "")),
+            "cover_url": str(m.get("cover_url", "") or ""),
+            "city": str(m.get("city", "")),
+            "points_count": _safe_int(m.get("points_count")),
+        }
+        for m in matches
+    ]
+
+
 async def execute(
     step: PlanStep,
     context: dict[str, object],
     db: object,
     retriever: object,
 ) -> HandlerResult:
-    """Resolve anime title to bangumi_id. DB first, API on miss (write-through)."""
+    """Resolve anime title to bangumi_id with candidate enrichment.
+
+    Returns:
+        Single match: {"bangumi_id": "...", "title": "...", "candidates": [...]}
+        Multiple matches: {"ambiguous": true, "candidates": [...]}
+        No match: HandlerResult.fail(...)
+
+    The ``candidates`` field is always present so the agent can assess
+    whether the user's query is specific enough or needs clarification.
+    """
     params = step.params or {}
     title = params.get("title")
     if not isinstance(title, str):
@@ -34,38 +66,12 @@ async def execute(
     if not callable(find_bangumi_by_title) or not callable(upsert_bangumi_title):
         return HandlerResult.fail(_TOOL, "DB not available")
 
-    # 1. DB lookup — check for ambiguity first
+    # 1. DB lookup
+    db_matches: list[dict[str, object]] = []
     if callable(find_all_by_title):
-        all_matches = await find_all_by_title(title)
-        if len(all_matches) > 1:
-            logger.info(
-                "resolve_anime_ambiguous",
-                title=title,
-                match_count=len(all_matches),
-            )
-            return HandlerResult.ok(
-                _TOOL,
-                {
-                    "ambiguous": True,
-                    "candidates": [
-                        {
-                            "title": str(m.get("title", "")),
-                            "bangumi_id": str(m.get("id", "")),
-                            "cover_url": m.get("cover_url"),
-                            "city": str(m.get("city", "")),
-                            "points_count": int(m.get("points_count", 0) or 0),
-                        }
-                        for m in all_matches
-                    ],
-                },
-            )
+        db_matches = await find_all_by_title(title)
 
-    bangumi_id = await find_bangumi_by_title(title)
-    if bangumi_id:
-        logger.info("resolve_anime_db_hit", title=title, bangumi_id=bangumi_id)
-        return HandlerResult.ok(_TOOL, {"bangumi_id": bangumi_id, "title": title})
-
-    # 2. Bangumi.tv API fallback — reuse shared gateway if available
+    # 2. Bangumi API search — always fetch candidates for the agent to evaluate
     from backend.agents.retriever import Retriever
 
     gateway = (
@@ -73,10 +79,61 @@ async def execute(
         if isinstance(retriever, Retriever)
         else BangumiClientGateway()
     )
-    bangumi_id = await gateway.search_by_title(title)
-    if bangumi_id:
-        await upsert_bangumi_title(title, bangumi_id)
-        logger.info("resolve_anime_api_hit", title=title, bangumi_id=bangumi_id)
-        return HandlerResult.ok(_TOOL, {"bangumi_id": bangumi_id, "title": title})
 
-    return HandlerResult.fail(_TOOL, f"Could not resolve anime: '{title}'")
+    api_results: list[dict[str, object]] = []
+    try:
+        api_results = await gateway.search_subject(
+            keyword=title, subject_type=2, max_results=5
+        )
+    except (OSError, RuntimeError, ValueError):
+        pass
+
+    # 3. Merge DB + API, deduplicate by bangumi_id
+    seen_ids: set[str] = set()
+    merged: list[dict[str, object]] = []
+    for m in db_matches:
+        bid = str(m.get("id", ""))
+        if bid and bid not in seen_ids:
+            seen_ids.add(bid)
+            merged.append(m)
+    for m in api_results:
+        bid = str(m.get("id", ""))
+        if bid and bid not in seen_ids:
+            seen_ids.add(bid)
+            merged.append(m)
+
+    candidates = _build_candidates(merged)
+
+    # 4. Return based on candidate count
+    if not merged:
+        return HandlerResult.fail(_TOOL, f"Could not resolve anime: '{title}'")
+
+    if len(merged) == 1:
+        bid = str(merged[0].get("id", ""))
+        resolved_title = str(merged[0].get("title") or merged[0].get("name", title))
+        # Write-through: ensure the resolved title is in DB
+        if bid and bid not in {str(m.get("id", "")) for m in db_matches}:
+            await upsert_bangumi_title(title, bid)
+        logger.info("resolve_anime_single", title=title, bangumi_id=bid)
+        return HandlerResult.ok(
+            _TOOL,
+            {
+                "bangumi_id": bid,
+                "title": resolved_title,
+                "candidates": candidates,
+            },
+        )
+
+    # Multiple candidates — let the agent decide whether to clarify
+    logger.info(
+        "resolve_anime_multiple",
+        title=title,
+        candidate_count=len(candidates),
+    )
+    return HandlerResult.ok(
+        _TOOL,
+        {
+            "ambiguous": True,
+            "candidates": candidates,
+        },
+    )

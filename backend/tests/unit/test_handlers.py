@@ -103,7 +103,6 @@ def _mock_supabase() -> MagicMock:
 class TestResolveAnime:
     async def test_db_hit(self) -> None:
         db = _mock_supabase()
-        # Single match → not ambiguous
         db.bangumi.find_all_by_title = AsyncMock(
             return_value=[
                 {
@@ -117,13 +116,22 @@ class TestResolveAnime:
             ]
         )
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value="253")
+        db.bangumi.upsert_bangumi_title = AsyncMock()
+
+        mock_gateway = MagicMock()
+        mock_gateway.search_subject = AsyncMock(return_value=[])
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Eupho"})
 
-        result = await execute_resolve(step, {}, db, None)
+        with patch(
+            "backend.agents.handlers.resolve_anime.BangumiClientGateway",
+            return_value=mock_gateway,
+        ):
+            result = await execute_resolve(step, {}, db, None)
 
         assert result.success is True
         assert result.data["bangumi_id"] == "253"
         assert result.data["title"] == "Eupho"
+        assert "candidates" in result.data
 
     async def test_db_ambiguous(self) -> None:
         """Multiple DB matches should return ambiguous signal."""
@@ -150,12 +158,41 @@ class TestResolveAnime:
         )
         step = _step(ToolName.RESOLVE_ANIME, {"title": "凉宫"})
 
+        # DB already has >1 match → returns ambiguous before hitting API
         result = await execute_resolve(step, {}, db, None)
 
         assert result.success is True
         assert result.data["ambiguous"] is True
-        assert len(result.data["candidates"]) == 2
+        assert len(result.data["candidates"]) >= 2
         assert result.data["candidates"][0]["title"] == "涼宮ハルヒの憂鬱"
+
+    async def test_api_enrichment_detects_ambiguity(self) -> None:
+        """Single DB match + multiple API results → ambiguous."""
+        db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(
+            return_value=[{"id": "1", "title": "Fate/stay night"}]
+        )
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value="1")
+
+        mock_gateway = MagicMock()
+        mock_gateway.search_subject = AsyncMock(
+            return_value=[
+                {"id": "1", "name": "Fate/stay night"},
+                {"id": "2", "name": "Fate/Zero"},
+                {"id": "3", "name": "Fate/Grand Order"},
+            ]
+        )
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "fate"})
+
+        with patch(
+            "backend.agents.handlers.resolve_anime.BangumiClientGateway",
+            return_value=mock_gateway,
+        ):
+            result = await execute_resolve(step, {}, db, None)
+
+        assert result.success is True
+        assert result.data["ambiguous"] is True
+        assert len(result.data["candidates"]) == 3
 
     async def test_db_miss_api_hit(self) -> None:
         db = _mock_supabase()
@@ -164,8 +201,9 @@ class TestResolveAnime:
         db.bangumi.upsert_bangumi_title = AsyncMock()
 
         mock_gateway = MagicMock()
-        mock_gateway.search_by_title = AsyncMock(return_value="999")
-
+        mock_gateway.search_subject = AsyncMock(
+            return_value=[{"id": "999", "name": "NewAnime"}]
+        )
         step = _step(ToolName.RESOLVE_ANIME, {"title": "NewAnime"})
 
         with patch(
@@ -184,8 +222,7 @@ class TestResolveAnime:
         db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()
-        mock_gateway.search_by_title = AsyncMock(return_value=None)
-
+        mock_gateway.search_subject = AsyncMock(return_value=[])
         step = _step(ToolName.RESOLVE_ANIME, {"title": "Unknown"})
 
         with patch(

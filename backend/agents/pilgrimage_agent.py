@@ -45,9 +45,16 @@ Never fabricate locations, coordinates, or routes — always use tool outputs.
 
 ### Anime search (most common)
 1. Call resolve_anime(title) FIRST to get a bangumi_id
-2. If resolve_anime returns "ambiguous": true with multiple candidates → \
-you MUST call clarify() with those candidates. Do NOT guess.
-3. If resolve_anime returns a single bangumi_id → call search_bangumi(bangumi_id)
+2. resolve_anime always returns a "candidates" list of matching anime works.
+   Evaluate whether the user's query is specific enough:
+   - If "ambiguous": true → call clarify() with the candidates. Do NOT guess.
+   - If a single bangumi_id is returned BUT the user's query is vague/short
+     (e.g. "凉宫", "fate", "響け") AND candidates contains multiple works →
+     call clarify() to let the user pick. A 2-character query is almost
+     certainly ambiguous even if the system found a "best match".
+   - If the query is specific (e.g. "涼宮ハルヒの憂鬱", "Your Name",
+     "響け！ユーフォニアム") → proceed with search_bangumi(bangumi_id).
+3. When in doubt, clarify. It's better to ask than to show wrong results.
 
 ### Location/nearby search
 - Call search_nearby(location, radius) when the user mentions a place name
