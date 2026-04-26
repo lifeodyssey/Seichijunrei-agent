@@ -1,0 +1,9 @@
+{
+  "case_count": 62,
+  "model": "translation",
+  "scores": {
+    "ExactMatchEvaluator": 0.6949152542372882,
+    "FuzzyMatchEvaluator": 0.8440677966101692,
+    "NotOriginalEvaluator": 1.0
+  }
+}

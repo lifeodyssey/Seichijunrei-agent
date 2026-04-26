@@ -1,0 +1,10 @@
+{
+  "case_count": 163,
+  "model": "openai:qwen3.5-9b@http://localhost:1234/v1",
+  "scores": {
+    "EfficiencyEvaluator": 0,
+    "IntentMatchEvaluator": 0,
+    "OutcomeEvaluator": 0,
+    "StepsMatchEvaluator": 0
+  }
+}

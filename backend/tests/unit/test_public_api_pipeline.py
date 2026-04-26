@@ -190,7 +190,7 @@ class TestRuntimeAPIExecution:
             data={
                 "results": {"rows": [], "row_count": 0},
             },
-            message="Found 3 spots.",
+            message="3件の聖地が見つかりました。",
         )
 
         async def fake_run_agent(

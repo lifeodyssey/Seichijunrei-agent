@@ -108,17 +108,41 @@ def _build_model_settings() -> object | None:
 
 
 def _extract_output(result: object) -> JourneyOutput:
-    """Extract JourneyOutput from a pilgrimage agent result."""
-    intent = str(getattr(result, "intent", "unknown"))
-    final_output = getattr(result, "final_output", None) or {}
-    if isinstance(final_output, dict):
-        message = str(final_output.get("message") or "")
-        data = final_output
-    else:
-        message = ""
-        data = {}
+    """Extract JourneyOutput from an AgentResult."""
+    from backend.agents.agent_result import AgentResult
+    from backend.agents.runtime_models import (
+        ClarifyResponseModel,
+        RouteResponseModel,
+        SearchResponseModel,
+    )
 
-    data_keys = list(data.keys()) if isinstance(data, dict) else []
+    intent = str(getattr(result, "intent", "unknown"))
+    message = str(getattr(result, "message", ""))
+
+    # Build a flat data dict from typed output + tool_state for evaluators
+    data: dict[str, object] = {}
+    if isinstance(result, AgentResult):
+        output = result.output
+        if isinstance(output, ClarifyResponseModel):
+            data = output.data.model_dump(mode="json")
+        elif isinstance(output, SearchResponseModel):
+            tool_payload = result.tool_state.get(str(output.intent))
+            data["results"] = (
+                tool_payload
+                if isinstance(tool_payload, dict)
+                else output.data.results.model_dump(mode="json")
+            )
+        elif isinstance(output, RouteResponseModel):
+            tool_payload = result.tool_state.get(str(output.intent))
+            data["route"] = (
+                tool_payload
+                if isinstance(tool_payload, dict)
+                else output.data.route.model_dump(mode="json")
+            )
+        else:
+            data = output.data.model_dump(mode="json")
+
+    data_keys = list(data.keys())
     results_keys, route_keys, nearby_fields = _extract_sub_keys(data)
 
     return JourneyOutput(

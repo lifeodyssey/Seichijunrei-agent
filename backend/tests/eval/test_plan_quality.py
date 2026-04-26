@@ -110,10 +110,10 @@ def _make_mock_db() -> object:
 
 
 def _extract_plan_output(result: object) -> PlanOutput:
-    """Extract PlanOutput from a pipeline result."""
+    """Extract PlanOutput from an AgentResult."""
     all_steps: list[str] = []
     successful_steps: list[str] = []
-    for sr in getattr(result, "step_results", []) or []:
+    for sr in getattr(result, "steps", []) or []:
         tool = getattr(sr, "tool", None)
         if tool is None:
             continue
@@ -123,11 +123,13 @@ def _extract_plan_output(result: object) -> PlanOutput:
             successful_steps.append(step_name)
 
     row_count = 0
-    final_output = getattr(result, "final_output", None) or {}
-    if isinstance(final_output, dict):
-        results = final_output.get("results")
-        if isinstance(results, dict):
-            row_count = int(results.get("row_count", 0) or 0)
+    tool_state = getattr(result, "tool_state", {}) or {}
+    for key in ("search_bangumi", "search_nearby"):
+        search_data = tool_state.get(key)
+        if isinstance(search_data, dict):
+            row_count = int(search_data.get("row_count", 0) or 0)
+            if row_count > 0:
+                break
 
     return PlanOutput(
         steps=successful_steps,
@@ -142,12 +144,12 @@ def make_plan_task(db: object | None = None, model: object | None = None) -> Tas
     resolved_model = model or _get_eval_model()
 
     async def task(inp: PlanInput) -> PlanOutput:
-        from backend.agents.pipeline import run_pipeline
+        from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
         resolved_db = db if db is not None else _make_mock_db()
-        result = await run_pipeline(
-            inp.query,
-            resolved_db,
+        result = await run_pilgrimage_agent(
+            text=inp.query,
+            db=resolved_db,
             model=resolved_model,
             locale=inp.locale,
             context=inp.context,
