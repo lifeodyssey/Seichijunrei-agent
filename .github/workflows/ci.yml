@@ -183,11 +183,11 @@ jobs:
           path: frontend/out
           retention-days: 1
 
-  eval:
-    name: Eval (Gemini)
+  agent-eval:
+    name: Agent Eval (546 cases)
     runs-on: ubuntu-latest
     needs: backend-quality
-    # Disabled: eval costs ~$10/run. Re-enable when model endpoint is stable.
+    # Disabled: costs ~$10/run. Enable per-release or manually.
     if: false
     steps:
       - uses: actions/checkout@v6
@@ -200,13 +200,18 @@ jobs:
 
       - run: uv sync --all-extras
 
-      - name: Run evals
-        run: uv run pytest backend/tests/eval/ -v -m integration --no-cov -x
+      - name: Run agent eval
+        run: uv run pytest backend/tests/eval/test_agent_eval.py -v -m integration --no-cov -x
         env:
           EVAL_MODEL: openai:gemini-3-pro-preview@https://api.zetatechs.com/v1
           ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Run translation eval
+        run: uv run pytest backend/tests/eval/test_translation.py -v -m integration --no-cov -x
+        env:
+          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ── Stage 3: Deploy (tag-triggered, all tests green) ───────
 

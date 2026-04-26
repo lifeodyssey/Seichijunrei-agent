@@ -57,7 +57,7 @@ test-integration:
 	$(PYTEST) backend/tests/integration/ -v --no-cov
 
 test-eval:
-	$(PYTEST) backend/tests/eval/ -v -m integration --no-cov
+	$(PYTEST) backend/tests/eval/test_agent_eval.py backend/tests/eval/test_translation.py -v -m integration --no-cov
 
 lint:
 	uv run ruff check backend/
