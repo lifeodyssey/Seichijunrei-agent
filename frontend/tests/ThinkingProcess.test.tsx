@@ -106,4 +106,32 @@ describe("ThinkingProcess", () => {
 
     expect(screen.getByText("(1 failed)")).toBeInTheDocument();
   });
+
+  it("shows warning icon for failed step observation when expanded", () => {
+    const steps: StepEvent[] = [
+      makeStep("resolve_anime", "failed", "Title not found in database"),
+    ];
+    render(<ThinkingProcess steps={steps} isStreaming={true} />);
+
+    // Failed observation should show warning sign, not arrow
+    expect(
+      screen.getByText(/\u26A0.*Title not found in database/),
+    ).toBeInTheDocument();
+    // Should NOT show arrow for failed steps
+    expect(
+      screen.queryByText(/\u2192.*Title not found in database/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows arrow icon for successful step observation when expanded", () => {
+    const steps: StepEvent[] = [
+      makeStep("resolve_anime", "done", "Found 3 results"),
+    ];
+    render(<ThinkingProcess steps={steps} isStreaming={true} />);
+
+    // Successful observation should show arrow, not warning
+    expect(
+      screen.getByText(/\u2192.*Found 3 results/),
+    ).toBeInTheDocument();
+  });
 });

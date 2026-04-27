@@ -24,7 +24,7 @@ const SELECTED_ROUTE_ACTION_TEXT = {
 export type StreamEventPayload = {
   event?: string;
   tool?: string;
-  status?: "running" | "done";
+  status?: "running" | "done" | "failed";
   message?: string;
 } & Record<string, unknown>;
 
@@ -202,7 +202,7 @@ export async function sendMessageStream(
   text: string,
   sessionId?: string | null,
   locale?: RuntimeRequest["locale"],
-  onStep?: (tool: string, status: "running" | "done", thought?: string, observation?: string) => void,
+  onStep?: (tool: string, status: "running" | "done" | "failed", thought?: string, observation?: string) => void,
   signal?: AbortSignal,
   coords?: { lat: number; lng: number } | null,
 ): Promise<RuntimeResponse> {
@@ -246,11 +246,24 @@ export async function sendMessageStream(
             options: Array.isArray(payload.options) ? (payload.options as string[]) : [],
           };
         }
+
+        let observation: string | undefined;
+        if (typeof payload.observation === "string" && payload.observation) {
+          observation = payload.observation;
+        } else if (
+          payload.status === "failed" &&
+          typeof payload.data === "object" &&
+          payload.data !== null &&
+          "error" in (payload.data as Record<string, unknown>)
+        ) {
+          observation = String((payload.data as Record<string, unknown>).error);
+        }
+
         onStep?.(
           payload.tool,
-          payload.status,
+          payload.status as "running" | "done" | "failed",
           typeof payload.thought === "string" ? payload.thought : undefined,
-          typeof payload.observation === "string" ? payload.observation : undefined,
+          observation,
         );
       }
       if (event === "done") {

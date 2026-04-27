@@ -120,14 +120,14 @@ export default function ThinkingProcess({
                 </div>
                 {step.observation && !isRunning && (
                   <div
-                    className="ml-5 text-[var(--color-muted-fg)]"
+                    className="ml-5 text-[11px]"
                     style={
                       isFailed
                         ? { color: "var(--color-error-fg)" }
-                        : undefined
+                        : { color: "var(--color-muted-fg)" }
                     }
                   >
-                    {"\u2192"} {step.observation}
+                    {isFailed ? "\u26A0" : "\u2192"} {step.observation}
                   </div>
                 )}
               </div>

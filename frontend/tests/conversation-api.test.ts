@@ -199,7 +199,7 @@ it("sendMessageStream parses SSE frames that use event lines", async () => {
     session_id: "sess-event-lines",
     message: "Route ready",
   });
-  const seenSteps: Array<{ tool: string; status: "running" | "done" }> = [];
+  const seenSteps: Array<{ tool: string; status: "running" | "done" | "failed" }> = [];
 
   global.fetch = (async () =>
     ({
@@ -233,7 +233,7 @@ it("sendMessageStream keeps supporting legacy JSON event payloads", async () => 
     session_id: "sess-legacy-json",
     message: "Legacy stream parsed",
   });
-  const seenSteps: Array<{ tool: string; status: "running" | "done" }> = [];
+  const seenSteps: Array<{ tool: string; status: "running" | "done" | "failed" }> = [];
 
   global.fetch = (async () =>
     ({
