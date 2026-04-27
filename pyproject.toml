@@ -40,6 +40,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "ddgs>=9.14.1",
     "pydantic-ai-guardrails>=0.2.2",
+    "logfire[fastapi,httpx]>=4.29.0",
 ]
 
 [project.scripts]
