@@ -12,7 +12,8 @@
 #
 # Container runtime secrets (explicitly allowlisted in worker/worker.js):
 #   SUPABASE_DB_URL            — postgres://... for asyncpg
-#   GEMINI_API_KEY             — primary planner model provider key
+#   DEEPSEEK_API_KEY           — primary agent model key (DeepSeek V4 Pro)
+#   GEMINI_API_KEY             — optional fallback model provider key
 #   OPENAI_COMPAT_BASE_URL     — custom OpenAI-compatible fallback endpoint
 #   OPENAI_COMPAT_API_KEY      — custom OpenAI-compatible fallback provider key
 #   GOOGLE_MAPS_API_KEY        — optional geocoding provider key

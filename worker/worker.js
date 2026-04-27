@@ -2,7 +2,7 @@
 // runtime API requests to the Python container on port 8080.
 import { Container } from "@cloudflare/containers";
 
-const CONTAINER_REQUIRED_ENV_KEYS = ["GEMINI_API_KEY", "SUPABASE_DB_URL"];
+const CONTAINER_REQUIRED_ENV_KEYS = ["DEEPSEEK_API_KEY", "SUPABASE_DB_URL"];
 
 const CONTAINER_RUNTIME_ENV_KEYS = [
   "ANITABI_API_URL",
@@ -27,6 +27,7 @@ const CONTAINER_RUNTIME_ENV_KEYS = [
   "TIMEOUT_SECONDS",
   "USE_CACHE",
   "ZETA_API_KEY",
+  "GEMINI_API_KEY",
 ];
 
 const CONTAINER_OPTIONAL_ENV_KEYS = [
