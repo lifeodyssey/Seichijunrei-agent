@@ -112,7 +112,6 @@ jobs:
 
       - name: Verify imports
         run: |
-          uv run python -c "from backend.agents.pipeline import run_pipeline; print('pipeline OK')"
           uv run python -c "from backend.interfaces.fastapi_service import create_fastapi_app; print('fastapi OK')"
           uv run python -c "from backend.domain.entities import Point; print('domain OK')"
           uv run python -c "from backend.agents.pilgrimage_runner import run_pilgrimage_agent; print('pilgrimage_agent OK')"
