@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -201,6 +202,43 @@ class TestRuntimeAPIErrors:
         assert response.success is False
         assert response.intent == "unknown"
         assert response.errors[0].code == "internal_error"
+
+    async def test_handle_returns_timeout_when_agent_exceeds_limit(
+        self, mock_db, monkeypatch
+    ):
+        async def _slow_agent(**kwargs: object) -> AgentResult:
+            await asyncio.sleep(5)
+            return _make_result()
+
+        monkeypatch.setattr("backend.interfaces.public_api.AGENT_TIMEOUT_SECONDS", 0.01)
+        api = RuntimeAPI(mock_db)
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent",
+            side_effect=_slow_agent,
+        ):
+            response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
+
+        assert response.success is False
+        assert response.status == "timeout"
+        assert response.intent == "error"
+
+    async def test_timeout_response_contains_error_payload(self, mock_db, monkeypatch):
+        async def _slow_agent(**kwargs: object) -> AgentResult:
+            await asyncio.sleep(5)
+            return _make_result()
+
+        monkeypatch.setattr("backend.interfaces.public_api.AGENT_TIMEOUT_SECONDS", 0.01)
+        api = RuntimeAPI(mock_db)
+        with patch(
+            "backend.interfaces.public_api.run_pilgrimage_agent",
+            side_effect=_slow_agent,
+        ):
+            response = await api.handle(PublicAPIRequest(text="秒速5厘米的取景地在哪"))
+
+        assert len(response.errors) == 1
+        assert response.errors[0].code == "timeout"
+        assert "timed out" in response.errors[0].message
+        assert response.message != ""
 
     async def test_handle_records_runtime_observability(self, mock_db):
         api = RuntimeAPI(mock_db)

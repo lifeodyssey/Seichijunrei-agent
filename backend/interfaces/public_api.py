@@ -6,6 +6,7 @@ session management in ``session_facade``, and persistence in ``persistence``.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from time import perf_counter
 from typing import cast
@@ -59,6 +60,8 @@ __all__ = [
 ]
 
 logger = structlog.get_logger(__name__)
+
+AGENT_TIMEOUT_SECONDS: float = 90.0
 
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 _KANA_RE = re.compile(r"[\u3040-\u30ff]")
@@ -236,14 +239,38 @@ class RuntimeAPI:
                     on_step=on_step,
                 )
             else:
-                result = await run_pilgrimage_agent(
-                    text=request.text,
-                    db=cast(DatabasePort, self._db),
-                    model=effective_model,
-                    locale=request.locale,
-                    context=context,
-                    on_step=on_step,
+                result = await asyncio.wait_for(
+                    run_pilgrimage_agent(
+                        text=request.text,
+                        db=cast(DatabasePort, self._db),
+                        model=effective_model,
+                        locale=request.locale,
+                        context=context,
+                        on_step=on_step,
+                    ),
+                    timeout=AGENT_TIMEOUT_SECONDS,
                 )
+        except TimeoutError:
+            record_exc = getattr(span, "record_exception", None)
+            if callable(record_exc):
+                record_exc(TimeoutError("agent timed out"))
+            logger.warning("agent_timeout", text=request.text[:50])
+            return (
+                None,
+                PublicAPIResponse(
+                    success=False,
+                    status="timeout",
+                    intent="error",
+                    message="The request took too long. Please try again.",
+                    errors=[
+                        PublicAPIError(
+                            code=ErrorCode.TIMEOUT.value,
+                            message=f"Agent execution timed out after {AGENT_TIMEOUT_SECONDS:.0f} seconds.",
+                        )
+                    ],
+                ),
+                context_delta,
+            )
         except ApplicationError as exc:
             record_exc = getattr(span, "record_exception", None)
             if callable(record_exc):
