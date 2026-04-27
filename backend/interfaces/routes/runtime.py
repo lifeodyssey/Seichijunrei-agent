@@ -22,6 +22,19 @@ from backend.interfaces.routes._deps import (
 
 logger = structlog.get_logger(__name__)
 
+
+def _user_facing_error(raw: str) -> str:
+    """Convert raw exception text to a user-friendly message."""
+    lower = raw.lower()
+    if "timeout" in lower:
+        return "The request took too long. Please try again with a simpler query."
+    if "validation" in lower:
+        return "There was a data processing error. Please try a different query."
+    if "rate" in lower and "limit" in lower:
+        return "The service is busy. Please wait a moment and try again."
+    return "Something went wrong. Please try again."
+
+
 router = APIRouter(prefix="/v1", tags=["runtime"])
 
 
@@ -76,12 +89,14 @@ async def handle_runtime_stream(
             )
             await emit("done", response.model_dump(mode="json"))
         except Exception as exc:
-            logger.exception("sse_pipeline_error", error=str(exc))
+            error_message = str(exc)
+            logger.exception("sse_pipeline_error", error=error_message)
             await emit(
                 "error",
                 {
                     "code": "internal_error",
-                    "message": "Something went wrong. Please try again.",
+                    "message": _user_facing_error(error_message),
+                    "detail": error_message[:500],
                 },
             )
         finally:

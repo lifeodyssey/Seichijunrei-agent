@@ -709,3 +709,110 @@ class TestOptimizeRoute:
 
         assert result.success is True
         assert result.data["cover_url"] == "https://example.com/cover.jpg"
+
+
+# ---------------------------------------------------------------------------
+# _run_handler — SSE error detail
+# ---------------------------------------------------------------------------
+
+
+class TestRunHandlerEmitsErrorDetail:
+    """When a handler fails, the SSE step event must include error detail."""
+
+    async def test_emits_error_in_step_data_on_failure(self) -> None:
+        from backend.agents.pilgrimage_tools import _run_handler
+
+        emitted: list[tuple[str, str, dict[str, object], str, str]] = []
+
+        async def fake_on_step(
+            tool: str,
+            status: str,
+            data: dict[str, object],
+            thought: str = "",
+            observation: str = "",
+        ) -> None:
+            emitted.append((tool, status, data, thought, observation))
+
+        deps = MagicMock()
+        deps.on_step = fake_on_step
+        deps.tool_state = {}
+        deps.steps = []
+        deps.retriever = None
+        deps.db = MagicMock()
+
+        ctx = MagicMock()
+        ctx.deps = deps
+
+        error_msg = "Validation failed: missing bangumi_id"
+
+        async def failing_handler(
+            step: object, state: object, db: object, retriever: object
+        ) -> HandlerResult:
+            return HandlerResult.fail("plan_route", error_msg)
+
+        await _run_handler(
+            ctx,
+            tool=ToolName.PLAN_ROUTE,
+            params={},
+            handler=failing_handler,
+        )
+
+        failed_events = [
+            (t, s, d, th, obs) for t, s, d, th, obs in emitted if s == "failed"
+        ]
+        assert len(failed_events) == 1
+
+        _, _, data, _, observation = failed_events[0]
+        assert data["error"] == error_msg
+        assert observation == error_msg
+
+    async def test_emits_error_preserves_partial_data(self) -> None:
+        from backend.agents.pilgrimage_tools import _run_handler
+
+        emitted: list[tuple[str, str, dict[str, object], str, str]] = []
+
+        async def fake_on_step(
+            tool: str,
+            status: str,
+            data: dict[str, object],
+            thought: str = "",
+            observation: str = "",
+        ) -> None:
+            emitted.append((tool, status, data, thought, observation))
+
+        deps = MagicMock()
+        deps.on_step = fake_on_step
+        deps.tool_state = {}
+        deps.steps = []
+        deps.retriever = None
+        deps.db = MagicMock()
+
+        ctx = MagicMock()
+        ctx.deps = deps
+
+        async def failing_handler_with_data(
+            step: object, state: object, db: object, retriever: object
+        ) -> HandlerResult:
+            return HandlerResult(
+                tool="resolve_anime",
+                success=False,
+                data={"partial": "data"},
+                error="Could not resolve",
+            )
+
+        await _run_handler(
+            ctx,
+            tool=ToolName.RESOLVE_ANIME,
+            params={"title": "unknown"},
+            handler=failing_handler_with_data,
+        )
+
+        failed_events = [
+            (t, s, d, th, obs) for t, s, d, th, obs in emitted if s == "failed"
+        ]
+        assert len(failed_events) == 1
+
+        _, _, data, _, observation = failed_events[0]
+        assert data["error"] == "Could not resolve"
+        assert data["partial"] == "data"
+        assert observation == "Could not resolve"

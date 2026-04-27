@@ -133,7 +133,16 @@ async def _run_handler(
         deps.tool_state[tool.value] = result.data
         await _emit_step(deps, tool.value, "done", result.data)
     else:
-        await _emit_step(deps, tool.value, "failed", result.data)
+        error_data: dict[str, object] = {"error": result.error or "Unknown error"}
+        if result.data:
+            error_data.update(result.data)
+        await _emit_step(
+            deps,
+            tool.value,
+            "failed",
+            error_data,
+            observation=result.error or "",
+        )
 
     # Return compact summary to LLM; full data stays in tool_state + SSE
     return _summarize_for_llm(tool, result.data) if result.data else result.data

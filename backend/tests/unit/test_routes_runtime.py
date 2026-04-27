@@ -195,3 +195,34 @@ async def test_patch_conversation_valid_returns_200() -> None:
     body = resp.json()
     assert body["ok"] is True
     db.session.update_conversation_title.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# _user_facing_error — maps raw exceptions to safe user messages
+# ---------------------------------------------------------------------------
+
+
+class TestUserFacingError:
+    def test_maps_timeout_to_friendly_message(self) -> None:
+        from backend.interfaces.routes.runtime import _user_facing_error
+
+        result = _user_facing_error("httpx.ReadTimeout: timed out")
+        assert "took too long" in result
+
+    def test_maps_validation_to_friendly_message(self) -> None:
+        from backend.interfaces.routes.runtime import _user_facing_error
+
+        result = _user_facing_error("ValidationError: field required")
+        assert "data processing error" in result
+
+    def test_maps_rate_limit_to_friendly_message(self) -> None:
+        from backend.interfaces.routes.runtime import _user_facing_error
+
+        result = _user_facing_error("Rate limit exceeded for model")
+        assert "busy" in result
+
+    def test_returns_generic_for_unknown_error(self) -> None:
+        from backend.interfaces.routes.runtime import _user_facing_error
+
+        result = _user_facing_error("NullPointerException: kaboom")
+        assert result == "Something went wrong. Please try again."
