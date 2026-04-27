@@ -203,15 +203,13 @@ jobs:
       - name: Run agent eval
         run: uv run pytest backend/tests/eval/test_agent_eval.py -v -m integration --no-cov -x
         env:
-          EVAL_MODEL: openai:gemini-3-pro-preview@https://api.zetatechs.com/v1
-          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EVAL_MODEL: openai:deepseek-v4-pro@https://api.deepseek.com
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
       - name: Run translation eval
         run: uv run pytest backend/tests/eval/test_translation.py -v -m integration --no-cov -x
         env:
-          ZETA_API_KEY: ${{ secrets.ZETA_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
   # ── Stage 3: Deploy (tag-triggered, all tests green) ───────
 

@@ -37,7 +37,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 T = TypeVar("T", bound=BaseModel)
 
 # Fallback when settings don't specify a model
-_FALLBACK_MODEL = "google-gla:gemini-3.1-pro-preview"
+_FALLBACK_MODEL = "openai:deepseek-v4-pro@https://api.deepseek.com"
 
 
 def _build_http_client() -> httpx.AsyncClient:

@@ -85,14 +85,15 @@ class TestGCPConfiguration:
 class TestAPIKeyValidation:
     """Test API key validation."""
 
-    def test_validate_api_keys_missing_gemini(self):
-        """Test that missing Gemini API key is reported when Gemini is active."""
+    def test_validate_api_keys_deepseek_inline_url(self):
+        """DeepSeek with inline @url resolves keys via env var, not compat config."""
         settings = Settings(
-            gemini_api_key="",
-            default_agent_model="google-gla:gemini-3.1-pro-preview",
+            default_agent_model="openai:deepseek-v4-pro@https://api.deepseek.com",
         )
         missing = settings.validate_api_keys()
-        assert "GEMINI_API_KEY" in missing
+        # Inline @url models resolve keys via DEEPSEEK_API_KEY env var at runtime,
+        # not via the openai_compat_* settings — so no missing keys here.
+        assert "OPENAI_COMPAT_BASE_URL" not in missing
 
     def test_validate_api_keys_all_present(self):
         """Test that no keys are reported missing when all are set."""
@@ -120,12 +121,15 @@ class TestAPIKeyValidation:
         settings = Settings(
             gemini_api_key="test_key",
             openai_compat_api_key="compat_key",
-            default_agent_model="google-gla:gemini-3.1-pro-preview",
+            default_agent_model="openai:deepseek-v4-pro@https://api.deepseek.com",
             fallback_agent_model="openai:gpt-5.4",
             openai_compat_base_url="https://api.univibe.cc/openai",
         )
         config = settings.get_runtime_config()
-        assert config["default_agent_model"] == "google-gla:gemini-3.1-pro-preview"
+        assert (
+            config["default_agent_model"]
+            == "openai:deepseek-v4-pro@https://api.deepseek.com"
+        )
         assert config["fallback_agent_model"] == "openai:gpt-5.4"
         assert config["openai_compat_base_url"] == "https://api.univibe.cc/openai"
 

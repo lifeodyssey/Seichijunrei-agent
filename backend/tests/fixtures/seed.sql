@@ -1,5 +1,5 @@
 -- Seed data for testcontainer integration tests
--- 5 popular anime + 6 pilgrimage spots
+-- 18 anime (incl. multi-season + remakes) + 43 pilgrimage spots
 
 INSERT INTO bangumi (id, title, title_cn, cover_url, city, points_count) VALUES
   ('262243', '君の名は。', '你的名字。', 'https://img.example.com/yourname.jpg', '東京都', 3),
@@ -8,7 +8,18 @@ INSERT INTO bangumi (id, title, title_cn, cover_url, city, points_count) VALUES
   ('11291', '涼宮ハルヒの憂鬱', '凉宫春日的忧郁', 'https://img.example.com/haruhi.jpg', '西宮市', 2),
   ('18809', 'けいおん！', '轻音少女', 'https://img.example.com/keion.jpg', '京都市', 2),
   ('269235', '天気の子', '天气之子', 'https://img.example.com/tenki.jpg', '東京都', 3),
-  ('387120', 'すずめの戸締まり', '铃芽之旅', 'https://img.example.com/suzume.jpg', '宮崎県', 2)
+  ('387120', 'すずめの戸締まり', '铃芽之旅', 'https://img.example.com/suzume.jpg', '宮崎県', 2),
+  ('378862', 'ぼっち・ざ・ろっく！', '孤独摇滚！', 'https://img.example.com/bocchi.jpg', '東京都', 2),
+  ('404804', '【推しの子】', '我推的孩子', 'https://img.example.com/oshinoko.jpg', '東京都', 2),
+  ('396387', 'SPY×FAMILY', '间谍过家家', 'https://img.example.com/spyfamily.jpg', '東京都', 2),
+  ('328609', 'ゆるキャン△', '摇曳露营', 'https://img.example.com/yurucamp.jpg', '山梨県', 2),
+  ('324720', 'THE FIRST SLAM DUNK', '灌篮高手', 'https://image.anitabi.cn/bangumi/324720.jpg?plan=h160', '神奈川県', 2),
+  ('1608', 'スラムダンク', '灌篮高手', 'https://image.anitabi.cn/bangumi/1608.jpg?plan=h160', '神奈川県', 3),
+  ('1482', 'らき☆すた', '幸运星', 'https://img.example.com/luckystar.jpg', '埼玉県', 2),
+  ('36954', '氷菓', '冰菓', 'https://img.example.com/hyouka.jpg', '岐阜県', 2),
+  ('49294', 'ラブライブ!', 'Love Live!', 'https://image.anitabi.cn/bangumi/49294.jpg?plan=h160', '千代田区', 3),
+  ('165553', 'ラブライブ! サンシャイン!!', 'LoveLive! Sunshine!!', 'https://image.anitabi.cn/bangumi/165553.jpg?plan=h160', '沼津市', 3),
+  ('3375', '涼宮ハルヒの消失', '凉宫春日的消失', 'https://img.example.com/haruhi-movie.jpg', '西宮市', 2)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO points (id, bangumi_id, name, name_cn, latitude, longitude, image, episode) VALUES
@@ -36,5 +47,41 @@ INSERT INTO points (id, bangumi_id, name, name_cn, latitude, longitude, image, e
   ('p016', '269235', '代々木公園', '代代木公园', 35.6710, 139.6950, NULL, 5),
   -- すずめの戸締まり (宮崎)
   ('p017', '387120', '日南海岸', '日南海岸', 31.6300, 131.4100, NULL, 1),
-  ('p018', '387120', '宮崎駅', '宫崎站', 31.9130, 131.4230, NULL, 2)
+  ('p018', '387120', '宮崎駅', '宫崎站', 31.9130, 131.4230, NULL, 2),
+  -- ぼっち・ざ・ろっく！ (東京/下北沢)
+  ('p019', '378862', '下北沢駅', '下北泽站', 35.6613, 139.6686, NULL, 1),
+  ('p020', '378862', 'SHELTER', 'SHELTER', 35.6608, 139.6691, NULL, 2),
+  -- 【推しの子】 (東京)
+  ('p021', '404804', '渋谷スクランブル交差点', '涩谷十字路口', 35.6595, 139.7005, NULL, 1),
+  ('p022', '404804', '恵比寿ガーデンプレイス', '惠比寿花园广场', 35.6463, 139.7138, NULL, 3),
+  -- SPY×FAMILY (東京)
+  ('p023', '396387', '東京駅丸の内', '东京站丸之内', 35.6812, 139.7671, NULL, 1),
+  ('p024', '396387', '上野公園', '上野公园', 35.7146, 139.7714, NULL, 2),
+  -- ゆるキャン△ (山梨)
+  ('p025', '328609', '本栖湖', '本栖湖', 35.4504, 138.5839, NULL, 1),
+  ('p026', '328609', '浩庵キャンプ場', '浩庵露营地', 35.4515, 138.5792, NULL, 1),
+  -- THE FIRST SLAM DUNK 2022 (神奈川/鎌倉)
+  ('p027', '324720', '鎌倉高校前駅', '镰仓高校前站', 35.3052, 139.4935, NULL, 1),
+  ('p028', '324720', '七里ヶ浜', '七里滨', 35.3048, 139.5059, NULL, 3),
+  -- スラムダンク 原版TV (神奈川) — 翻拍场景：同 name_cn 不同作品
+  ('p033', '1608', '鎌倉高校前踏切', '镰仓高校前道口', 35.3054, 139.4932, NULL, 1),
+  ('p034', '1608', '湘南海岸', '湘南海岸', 35.3100, 139.4800, NULL, 5),
+  ('p035', '1608', '陵南高校モデル', '陵南高中原型', 35.3200, 139.5100, NULL, 10),
+  -- らき☆すた (埼玉)
+  ('p029', '1482', '鷲宮神社', '鷲宫神社', 36.1034, 139.6012, NULL, 1),
+  ('p030', '1482', '春日部駅', '春日部站', 35.9759, 139.7523, NULL, 2),
+  -- 氷菓 (岐阜/高山)
+  ('p031', '36954', '千反田家モデル', '千反田家原型', 36.1407, 137.2527, NULL, 1),
+  ('p032', '36954', '斐太高校', '斐太高中', 36.1430, 137.2490, NULL, 2),
+  -- ラブライブ! S1 (千代田区/秋葉原) — 多季场景
+  ('p036', '49294', '神田明神', '神田明神', 35.7020, 139.7684, NULL, 1),
+  ('p037', '49294', '竹むら', '竹村', 35.6967, 139.7687, NULL, 3),
+  ('p038', '49294', '秋葉原UDX', '秋叶原UDX', 35.7003, 139.7726, NULL, 5),
+  -- ラブライブ! Sunshine (沼津) — 多季场景：不同城市
+  ('p039', '165553', '淡島', '淡岛', 35.0403, 138.8907, NULL, 1),
+  ('p040', '165553', '三津海水浴場', '三津海水浴场', 35.0440, 138.8960, NULL, 2),
+  ('p041', '165553', '沼津駅', '沼津站', 35.0976, 138.9159, NULL, 1),
+  -- 涼宮ハルヒの消失 (西宮) — 同系列不同作品
+  ('p042', '3375', '西宮北口駅周辺', '西宫北口站周边', 34.7445, 135.3610, NULL, 1),
+  ('p043', '3375', '甲陽園', '甲阳园', 34.7555, 135.3410, NULL, 1)
 ON CONFLICT (id) DO NOTHING;

@@ -1,7 +1,7 @@
 """Unified agent evaluation — PydanticAI native dataset.evaluate().
 
-SUT: run_pilgrimage_agent() → AgentResult
-Dataset: agent_eval_v2.json (546 cases)
+SUT: run_pilgrimage_agent() → AgentResult (+ execute_selected_route for K-path)
+Dataset: agent_eval_v3.json (~600 cases, 60 sub-paths)
 DB: testcontainer PostgreSQL (real schema + seed data)
 Model: EVAL_MODEL env var (default: production model)
 
@@ -20,7 +20,7 @@ import asyncio
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -29,6 +29,7 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from backend.agents.agent_result import AgentResult
+from backend.interfaces.public_api import detect_language
 from backend.tests.eval.eval_common import (
     enforce_gate,
     read_baseline,
@@ -39,7 +40,7 @@ load_dotenv(Path(__file__).parents[3] / ".env")
 
 # ── Pluggable model ──────────────────────────────────────────────────
 
-_DEFAULT_MODEL_ID = "openai:gemini-3-pro-preview@https://api.zetatechs.com/v1"
+_DEFAULT_MODEL_ID = "openai:deepseek-v4-pro@https://api.deepseek.com"
 _EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", _DEFAULT_MODEL_ID)
 
 
@@ -56,28 +57,29 @@ def _make_model(model_id: str | None = None) -> object:
 class AgentInput:
     query: str
     locale: str
+    context: dict[str, object] | None = None
+    selected_point_ids: list[str] | None = None
 
 
 @dataclass
 class AgentExpected:
-    stage: str
-    message_min_len: int
-    data_keys: list[str]
-    results_keys: list[str]
-    route_keys: list[str]
-    nearby_fields: list[str]
+    acceptable_stages: list[str]
+    data_keys: list[str] = field(default_factory=list)
+    message_min_len: int = 2
 
 
-# ── Evaluators (operate on AgentResult directly) ─────────────────────
+# ── Evaluators ───────────────────────────────────────────────────────
 
 
 class IntentMatch(Evaluator[AgentInput, AgentResult]):
-    """1.0 if agent intent matches expected stage."""
+    """1.0 if agent intent is in the list of acceptable stages."""
 
     def evaluate(self, ctx: EvaluatorContext[AgentInput, AgentResult]) -> float:
         if ctx.output is None or ctx.expected_output is None:
             return 0.0
-        return 1.0 if ctx.output.intent == ctx.expected_output.stage else 0.0
+        return (
+            1.0 if ctx.output.intent in ctx.expected_output.acceptable_stages else 0.0
+        )
 
 
 class MessageQuality(Evaluator[AgentInput, AgentResult]):
@@ -96,12 +98,13 @@ class MessageQuality(Evaluator[AgentInput, AgentResult]):
 class ToolExecution(Evaluator[AgentInput, AgentResult]):
     """1.0 if agent executed at least one tool successfully."""
 
+    _NO_TOOL_STAGES = frozenset({"greet_user", "general_qa", "plan_selected"})
+
     def evaluate(self, ctx: EvaluatorContext[AgentInput, AgentResult]) -> float:
         if ctx.output is None:
             return 0.0
-        if ctx.expected_output and ctx.expected_output.stage in (
-            "greet_user",
-            "general_qa",
+        if ctx.expected_output and self._NO_TOOL_STAGES.intersection(
+            ctx.expected_output.acceptable_stages
         ):
             return 1.0
         return 1.0 if any(s.success for s in ctx.output.steps) else 0.0
@@ -132,31 +135,45 @@ class DataCompleteness(Evaluator[AgentInput, AgentResult]):
 class StepEfficiency(Evaluator[AgentInput, AgentResult]):
     """Score based on step count proximity to expected."""
 
+    _EXPECTED_STEPS: dict[str, int] = {
+        "greet_user": 1,
+        "general_qa": 1,
+        "clarify": 1,
+        "search_bangumi": 2,
+        "search_nearby": 1,
+        "plan_route": 3,
+        "plan_selected": 1,
+    }
+
     def evaluate(self, ctx: EvaluatorContext[AgentInput, AgentResult]) -> float:
         if ctx.output is None or ctx.expected_output is None:
             return 0.0
         step_count = len(ctx.output.steps)
-        stage = ctx.expected_output.stage
-        expected = {
-            "greet_user": 1,
-            "general_qa": 1,
-            "clarify": 1,
-            "search_bangumi": 2,
-            "search_nearby": 1,
-            "plan_route": 3,
-        }
-        target = expected.get(stage, 2)
+        primary = (
+            ctx.expected_output.acceptable_stages[0]
+            if ctx.expected_output.acceptable_stages
+            else "clarify"
+        )
+        target = self._EXPECTED_STEPS.get(primary, 2)
         diff = abs(step_count - target)
         if diff <= 1:
             return 1.0
-        if diff <= 3:
-            return 0.5
-        return 0.0
+        return 0.5 if diff <= 3 else 0.0
+
+
+class ResponseLocale(Evaluator[AgentInput, AgentResult]):
+    """1.0 if agent message language matches the requested locale."""
+
+    def evaluate(self, ctx: EvaluatorContext[AgentInput, AgentResult]) -> float:
+        if ctx.output is None or not ctx.output.message:
+            return 0.0
+        detected = detect_language(ctx.output.message)
+        return 1.0 if detected == ctx.inputs.locale else 0.0
 
 
 # ── Load dataset ─────────────────────────────────────────────────────
 
-_DATASET_PATH = Path(__file__).parent / "datasets" / "agent_eval_v2.json"
+_DATASET_PATH = Path(__file__).parent / "datasets" / "agent_eval_v3.json"
 
 
 def _str_list(row: dict[str, object], key: str) -> list[str]:
@@ -168,20 +185,23 @@ def _load_cases() -> list[Case[AgentInput, AgentResult, AgentExpected]]:
     raw: list[dict[str, object]] = json.loads(_DATASET_PATH.read_text())
     cases: list[Case[AgentInput, AgentResult, AgentExpected]] = []
     for row in raw:
+        raw_ctx = row.get("context")
+        ctx = dict(raw_ctx) if isinstance(raw_ctx, dict) else None
+        raw_ids = row.get("selected_point_ids")
+        sel_ids = [str(i) for i in raw_ids] if isinstance(raw_ids, list) else None
         cases.append(
             Case(
                 name=str(row["id"]),
                 inputs=AgentInput(
-                    query=str(row["query"]),
-                    locale=str(row["locale"]),
+                    query=str(row.get("query", "")),
+                    locale=str(row.get("locale", "ja")),
+                    context=ctx,
+                    selected_point_ids=sel_ids,
                 ),
                 expected_output=AgentExpected(
-                    stage=str(row["expected_stage"]),
-                    message_min_len=int(row.get("expected_message_min_len", 2) or 2),
+                    acceptable_stages=_str_list(row, "acceptable_stages"),
                     data_keys=_str_list(row, "expected_data_keys"),
-                    results_keys=_str_list(row, "expected_results_keys"),
-                    route_keys=_str_list(row, "expected_route_keys"),
-                    nearby_fields=_str_list(row, "expected_nearby_fields"),
+                    message_min_len=int(row.get("expected_message_min_len", 2) or 2),
                 ),
             )
         )
@@ -191,7 +211,7 @@ def _load_cases() -> list[Case[AgentInput, AgentResult, AgentExpected]]:
 CASES = _load_cases()
 
 agent_dataset = Dataset(
-    name="agent_eval_v2",
+    name="agent_eval_v3",
     cases=CASES,
     evaluators=[
         IntentMatch(),
@@ -199,18 +219,28 @@ agent_dataset = Dataset(
         ToolExecution(),
         DataCompleteness(),
         StepEfficiency(),
+        ResponseLocale(),
     ],
 )
 
 
-# ── Task function (SUT = run_pilgrimage_agent → AgentResult) ─────────
+# ── Task function ────────────────────────────────────────────────────
 
 
 def make_agent_task(db: object, model: object | None = None) -> object:
-    """Create the task: AgentInput → AgentResult. Requires real DB."""
+    """Create the task: AgentInput → AgentResult. Handles both agent and selected-route."""
     resolved_model = model or _make_model()
 
     async def task(inp: AgentInput) -> AgentResult:
+        if inp.selected_point_ids:
+            from backend.agents.selected_route import execute_selected_route
+
+            return await execute_selected_route(
+                point_ids=inp.selected_point_ids,
+                origin=None,
+                locale=inp.locale,
+                db=db,
+            )
         from backend.agents.pilgrimage_runner import run_pilgrimage_agent
 
         return await run_pilgrimage_agent(
@@ -218,6 +248,7 @@ def make_agent_task(db: object, model: object | None = None) -> object:
             db=db,
             model=resolved_model,
             locale=inp.locale,
+            context=inp.context,
         )
 
     return task
@@ -233,6 +264,7 @@ _EVALUATOR_NAMES = [
     "ToolExecution",
     "DataCompleteness",
     "StepEfficiency",
+    "ResponseLocale",
 ]
 
 
@@ -250,7 +282,52 @@ def _print_scores(scores: dict[str, float], model_id: str) -> None:
     print(f"{'=' * 60}")
 
 
-# ── Pytest integration (testcontainer DB) ────────────────────────────
+def _save_per_case_results(report: object, model_id: str) -> Path:
+    """Save per-case results JSON for post-hoc analysis."""
+    results_dir = Path(__file__).parent / "results"
+    results_dir.mkdir(exist_ok=True)
+    safe_model = model_id.replace(":", "-").replace("@", "-").replace("/", "-")
+    results_file = results_dir / f"agent_{safe_model}.json"
+
+    case_results: list[dict[str, object]] = []
+    for cr in report.cases:
+        case_data: dict[str, object] = {"id": cr.name}
+        scores_dict = dict(cr.scores) if cr.scores else {}
+        case_data["scores"] = {
+            k: v.value if hasattr(v, "value") else v for k, v in scores_dict.items()
+        }
+        if hasattr(cr, "task_error") and cr.task_error:
+            case_data["error"] = str(cr.task_error)
+        if cr.output is not None and isinstance(cr.output, AgentResult):
+            case_data["intent"] = cr.output.intent
+            case_data["message"] = cr.output.message[:200]
+            case_data["message_locale"] = detect_language(cr.output.message)
+            case_data["steps"] = [s.tool for s in cr.output.steps]
+            case_data["step_count"] = len(cr.output.steps)
+        if cr.inputs:
+            case_data["query"] = cr.inputs.query[:100]
+            case_data["locale"] = cr.inputs.locale
+        if cr.expected_output:
+            case_data["expected_stages"] = cr.expected_output.acceptable_stages
+        case_results.append(case_data)
+
+    avg = report.averages()
+    scores = _collect_scores(avg) if avg else {}
+    errored = sum(1 for cr in report.cases if cr.output is None)
+
+    payload = {
+        "model": model_id,
+        "case_count": len(report.cases),
+        "errored_count": errored,
+        "scores": scores,
+        "cases": case_results,
+    }
+    results_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    print(f"\nPer-case results saved to: {results_file}")
+    return results_file
+
+
+# ── Pytest integration ───────────────────────────────────────────────
 
 
 @pytest.mark.integration
@@ -263,10 +340,20 @@ async def test_agent(real_db: object) -> None:
         max_concurrency=50,
     )
     report.print(include_input=True, include_output=True)
+    _save_per_case_results(report, _EVAL_MODEL_ID)
 
     avg = report.averages()
     if avg is None:
         pytest.skip("All cases errored — check model endpoint and DB.")
+
+    # Guard: refuse to proceed if >20% of cases errored (API down, bad key, etc.)
+    errored = sum(1 for c in report.cases if c.output is None)
+    error_rate = errored / len(CASES) if CASES else 0
+    if error_rate > 0.20:
+        pytest.fail(
+            f"{errored}/{len(CASES)} cases errored ({error_rate:.0%}). "
+            "Check API key and model endpoint."
+        )
 
     current_scores = _collect_scores(avg)
     _print_scores(current_scores, _EVAL_MODEL_ID)
@@ -282,7 +369,7 @@ async def test_agent(real_db: object) -> None:
     assert not failures, "Regression:\n" + "\n".join(failures)
 
 
-# ── Standalone runner (PydanticAI native) ────────────────────────────
+# ── Standalone runner ────────────────────────────────────────────────
 
 if __name__ == "__main__":
     model_arg = None
@@ -298,27 +385,24 @@ if __name__ == "__main__":
         mid = model_arg or _EVAL_MODEL_ID
         model = _make_model(model_arg) if model_arg else _make_model()
 
-        # Connect to local Supabase or SUPABASE_DB_URL
         db_url = os.environ.get(
             "SUPABASE_DB_URL",
             "postgresql://postgres:postgres@localhost:54322/postgres",
         )
         from backend.infrastructure.supabase.client import SupabaseClient
 
-        db = await SupabaseClient.create(db_url)
+        db = SupabaseClient(db_url)
+        await db.connect()
 
         task = make_agent_task(db=db, model=model)
         print(f"\nRunning agent assessment: {len(CASES)} cases, model={mid}")
         print(f"DB: {db_url[:50]}...")
 
-        # Run evaluation — PydanticAI native
         report = await agent_dataset.evaluate(
             task,
             name=f"agent_{mid}",
             max_concurrency=50,
         )
-
-        # Print full report with per-case details
         report.print(include_input=True, include_output=True)
 
         avg = report.averages()
@@ -327,41 +411,8 @@ if __name__ == "__main__":
 
         current_scores = _collect_scores(avg)
         _print_scores(current_scores, mid)
+        _save_per_case_results(report, mid)
 
-        # Save per-case results to JSON for analysis
-        results_dir = Path(__file__).parent / "results"
-        results_dir.mkdir(exist_ok=True)
-        safe_model = mid.replace(":", "-").replace("@", "-").replace("/", "-")
-        results_file = results_dir / f"agent_{safe_model}.json"
-
-        case_results: list[dict[str, object]] = []
-        for case_report in report.cases:
-            case_data: dict[str, object] = {
-                "id": case_report.name,
-                "scores": dict(case_report.scores) if case_report.scores else {},
-            }
-            if case_report.error:
-                case_data["error"] = str(case_report.error)
-            if case_report.output is not None:
-                output = case_report.output
-                if isinstance(output, AgentResult):
-                    case_data["intent"] = output.intent
-                    case_data["message_len"] = len(output.message)
-                    case_data["steps"] = [s.tool for s in output.steps]
-            case_results.append(case_data)
-
-        results_payload = {
-            "model": mid,
-            "case_count": len(CASES),
-            "scores": current_scores,
-            "cases": case_results,
-        }
-        results_file.write_text(
-            json.dumps(results_payload, ensure_ascii=False, indent=2) + "\n"
-        )
-        print(f"\nPer-case results saved to: {results_file}")
-
-        # Baseline management
         baseline_scores = read_baseline(_LAYER, mid)
         if not baseline_scores:
             write_baseline(_LAYER, mid, current_scores, case_count=len(CASES))

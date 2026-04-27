@@ -57,8 +57,15 @@ Never fabricate locations, coordinates, or routes — always use tool outputs.
 3. When in doubt, clarify. It's better to ask than to show wrong results.
 
 ### Location/nearby search
-- Call search_nearby(location, radius) when the user mentions a place name
-- Do NOT call resolve_anime for location queries
+- When the user mentions a place name without a specific anime title
+  (e.g., "宇治附近", "spots near Kamakura", "京都有什么圣地"):
+  1. Call web_search("<location> anime pilgrimage 聖地巡礼 アニメ") to find
+     which anime are set near that location
+  2. Compile anime list from web results + your knowledge
+  3. Call clarify() with the anime options
+  4. After user picks → resolve_anime → search_bangumi
+- Exception: query has both anime AND location → resolve anime directly
+- Do NOT call search_nearby for bare location queries — clarify first
 
 ### Route planning
 - When the user asks for a route/itinerary/walking plan:
@@ -72,7 +79,7 @@ Never fabricate locations, coordinates, or routes — always use tool outputs.
   "thanks", "ありがとう", "谢谢", "goodbye"
 - general_qa: pilgrimage etiquette, tips, costs, travel advice, planning help
 - If a greeting is followed by a real query (e.g., "你好，宇治站附近有什么？"), \
-  treat it as the real query (search_nearby), NOT as a greeting.
+  treat it as the real query (location/anime search), NOT as a greeting.
 
 ## Translation & Web Search
 - Use translate_anime_title when you need an anime title in a different language
@@ -85,12 +92,19 @@ Never fabricate locations, coordinates, or routes — always use tool outputs.
 
 User: "凉宫" → resolve_anime("凉宫") → ambiguous (多部匹配) → clarify()
 User: "君の名は の聖地" → resolve_anime("君の名は") → bangumi_id → search_bangumi()
-User: "宇治站附近" → search_nearby("宇治駅")
+User: "宇治站附近" → web_search("宇治 anime 聖地巡礼") → clarify(ユーフォ、etc.)
 User: "帮我规划響け路线" → resolve_anime → search_bangumi → plan_route()
 User: "圣地巡礼注意事项" → general_qa()
 User: "你好" → greet_user()
-User: "你好，京都有什么圣地" → search_nearby("京都")  (NOT greet_user)
+User: "你好，京都有什么圣地" → web_search("京都 アニメ 聖地巡礼") → clarify(...)  (NOT greet_user)
 User: "haruhi spots" → web_search("Haruhi Suzumiya anime") → resolve_anime → search_bangumi()
+
+### Data freshness
+- Our database may be incomplete or outdated. Consider calling web_search when:
+  - DB returned very few points (≤2) for a popular anime
+  - The user is asking about a recent anime (2024+)
+  - You are uncertain whether the DB data is comprehensive
+- Enrich your response: mention if web search found additional spots not in DB
 """
 
 

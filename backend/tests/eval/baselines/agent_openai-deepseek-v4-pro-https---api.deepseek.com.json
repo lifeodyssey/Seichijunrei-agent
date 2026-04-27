@@ -1,11 +1,12 @@
 {
-  "case_count": 546,
+  "case_count": 617,
   "model": "openai:deepseek-v4-pro@https://api.deepseek.com",
   "scores": {
-    "DataCompleteness": 0.4470842332613391,
-    "IntentMatch": 0.3693304535637149,
+    "DataCompleteness": 0.47584973166368516,
+    "IntentMatch": 0.5384615384615384,
     "MessageQuality": 1.0,
-    "StepEfficiency": 0.9632829373650108,
-    "ToolExecution": 0.9870410367170627
+    "ResponseLocale": 0.5974955277280859,
+    "StepEfficiency": 0.9221824686940966,
+    "ToolExecution": 0.998211091234347
   }
 }

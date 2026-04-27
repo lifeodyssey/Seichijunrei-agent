@@ -36,7 +36,7 @@ def mock_settings():
         timeout_seconds=5,
         cache_ttl_seconds=60,
         use_cache=False,
-        default_agent_model="google-gla:gemini-2.5-pro",
+        default_agent_model="openai:deepseek-v4-pro@https://api.deepseek.com",
         output_dir=Path("/tmp/test_outputs"),
         template_dir=Path("/tmp/test_templates"),
     )
