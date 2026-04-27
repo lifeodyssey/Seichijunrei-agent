@@ -65,6 +65,40 @@ def _record_step(
     )
 
 
+def _summarize_for_llm(tool: ToolName, data: dict[str, object]) -> dict[str, object]:
+    """Return a compact summary of tool results for the LLM.
+
+    Full data is kept in tool_state and SSE events for the frontend.
+    The LLM only needs enough context to decide its next action.
+    """
+    if tool not in (ToolName.SEARCH_BANGUMI, ToolName.SEARCH_NEARBY):
+        return data
+
+    rows = data.get("rows")
+    if not isinstance(rows, list) or len(rows) <= 5:
+        return data
+
+    row_count = data.get("row_count", len(rows))
+    metadata = data.get("metadata")
+    title = ""
+    if isinstance(metadata, dict):
+        title = str(metadata.get("anime_title", "") or "")
+
+    preview_rows = [
+        {k: row[k] for k in ("name", "episode") if k in row}
+        for row in rows[:5]
+        if isinstance(row, dict)
+    ]
+    return {
+        "row_count": row_count,
+        "status": data.get("status", "ok"),
+        "metadata": metadata,
+        "preview": preview_rows,
+        "note": f"Found {row_count} pilgrimage spots{' for ' + title if title else ''}. "
+        "Full data is available — proceed to return a search_response.",
+    }
+
+
 async def _run_handler(
     ctx: RunContext[RuntimeDeps],
     *,
@@ -101,7 +135,8 @@ async def _run_handler(
     else:
         await _emit_step(deps, tool.value, "failed", result.data)
 
-    return result.data
+    # Return compact summary to LLM; full data stays in tool_state + SSE
+    return _summarize_for_llm(tool, result.data) if result.data else result.data
 
 
 # ── Tool registrations ────────────────────────────────────────────────

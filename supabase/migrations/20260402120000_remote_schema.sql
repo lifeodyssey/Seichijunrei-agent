@@ -36,6 +36,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_bangumi_updated_at ON bangumi;
 CREATE TRIGGER trg_bangumi_updated_at
     BEFORE UPDATE ON bangumi
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -83,6 +84,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_points_updated_at ON points;
 CREATE TRIGGER trg_points_updated_at
     BEFORE UPDATE ON points
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -109,6 +111,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires_at      TIMESTAMPTZ
 );
 
+DROP TRIGGER IF EXISTS trg_sessions_updated_at ON sessions;
 CREATE TRIGGER trg_sessions_updated_at
     BEFORE UPDATE ON sessions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();

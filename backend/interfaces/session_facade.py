@@ -111,20 +111,30 @@ def build_session_summary(state: dict[str, object]) -> dict[str, object]:
     }
 
 
+@dataclass(frozen=True)
+class _InteractionContext:
+    """Extracted context fields from session interactions."""
+
+    current_bangumi_id: str | None
+    current_anime_title: str | None
+    last_location: str | None
+    last_search_data: dict[str, object] | None
+    visited_bangumi_ids: list[str]
+    resolve_candidates: list[dict[str, object]] | None
+    pending_clarify: bool
+
+
 def _extract_from_interactions(
     interactions: list[object],
-) -> tuple[str | None, str | None, str | None, dict[str, object] | None, list[str]]:
-    """Walk interactions in reverse and extract context fields.
-
-    Returns:
-        (current_bangumi_id, current_anime_title, last_location,
-         last_search_data, visited_bangumi_ids)
-    """
+) -> _InteractionContext:
+    """Walk interactions in reverse and extract context fields."""
     current_bangumi_id: str | None = None
     current_anime_title: str | None = None
     last_location: str | None = None
     last_search_data: dict[str, object] | None = None
     visited_bangumi_ids: list[str] = []
+    resolve_candidates: list[dict[str, object]] | None = None
+    pending_clarify: bool = False
 
     for interaction in reversed(interactions):
         if not isinstance(interaction, dict):
@@ -149,15 +159,25 @@ def _extract_from_interactions(
             if isinstance(raw_search, dict):
                 last_search_data = raw_search
 
+        # Only grab clarify state from the most recent interaction
+        if resolve_candidates is None:
+            raw_candidates = delta.get("resolve_candidates")
+            if isinstance(raw_candidates, list) and raw_candidates:
+                resolve_candidates = [c for c in raw_candidates if isinstance(c, dict)]
+            if delta.get("pending_clarify") is True:
+                pending_clarify = True
+
         if current_bangumi_id and last_location:
             break
 
-    return (
-        current_bangumi_id,
-        current_anime_title,
-        last_location,
-        last_search_data,
-        visited_bangumi_ids,
+    return _InteractionContext(
+        current_bangumi_id=current_bangumi_id,
+        current_anime_title=current_anime_title,
+        last_location=last_location,
+        last_search_data=last_search_data,
+        visited_bangumi_ids=visited_bangumi_ids,
+        resolve_candidates=resolve_candidates,
+        pending_clarify=pending_clarify,
     )
 
 
@@ -170,13 +190,11 @@ def build_context_block(
     interactions = raw_interactions if isinstance(raw_interactions, list) else []
     summary = as_str_or_none(session_state.get("summary"))
 
-    (
-        current_bangumi_id,
-        current_anime_title,
-        last_location,
-        last_search_data,
-        visited_bangumi_ids,
-    ) = _extract_from_interactions(interactions)
+    ictx = _extract_from_interactions(interactions)
+
+    current_bangumi_id = ictx.current_bangumi_id
+    current_anime_title = ictx.current_anime_title
+    visited_bangumi_ids = list(ictx.visited_bangumi_ids)
 
     if user_memory:
         raw_visited = user_memory.get("visited_anime")
@@ -198,25 +216,31 @@ def build_context_block(
                 current_bangumi_id = as_str_or_none(most_recent.get("bangumi_id"))
                 current_anime_title = as_str_or_none(most_recent.get("title"))
 
-    if (
-        not current_bangumi_id
-        and not last_location
-        and not visited_bangumi_ids
-        and not summary
-        and last_search_data is None
-    ):
+    has_content = (
+        current_bangumi_id
+        or ictx.last_location
+        or visited_bangumi_ids
+        or summary
+        or ictx.last_search_data is not None
+        or ictx.pending_clarify
+    )
+    if not has_content:
         return None
 
     block: dict[str, object] = {
         "summary": summary,
         "current_bangumi_id": current_bangumi_id,
         "current_anime_title": current_anime_title,
-        "last_location": last_location,
+        "last_location": ictx.last_location,
         "last_intent": session_state.get("last_intent"),
         "visited_bangumi_ids": visited_bangumi_ids,
     }
-    if last_search_data is not None:
-        block["last_search_data"] = last_search_data
+    if ictx.last_search_data is not None:
+        block["last_search_data"] = ictx.last_search_data
+    if ictx.resolve_candidates is not None:
+        block["resolve_candidates"] = ictx.resolve_candidates
+    if ictx.pending_clarify:
+        block["pending_clarify"] = True
     return block
 
 
@@ -246,17 +270,22 @@ def _extract_from_search_step(
 
 
 def extract_context_delta(result: AgentResult) -> dict[str, object]:
-    """Extract bangumi_id / anime_title / location / last_search_data from steps."""
+    """Extract bangumi_id / anime_title / location / last_search_data / clarify state."""
     bangumi_id: str | None = None
     anime_title: str | None = None
     location: str | None = None
     last_search_data: dict[str, object] | None = None
+    resolve_candidates: list[dict[str, object]] | None = None
+    pending_clarify: bool = False
 
     for step in result.steps:
         if step.tool == "resolve_anime" and step.success:
             data = step.data if isinstance(step.data, dict) else {}
             bangumi_id = as_str_or_none(data.get("bangumi_id"))
             anime_title = as_str_or_none(data.get("title") or data.get("anime_title"))
+            raw_candidates = data.get("candidates")
+            if isinstance(raw_candidates, list) and raw_candidates:
+                resolve_candidates = [c for c in raw_candidates if isinstance(c, dict)]
             break
 
     for step in result.steps:
@@ -272,6 +301,13 @@ def extract_context_delta(result: AgentResult) -> dict[str, object]:
                 bangumi_id = new_bid
             if anime_title is None:
                 anime_title = new_title
+        if step.tool == "clarify":
+            pending_clarify = True
+
+    # Also mark pending_clarify based on intent — some models output
+    # ClarifyResponseModel directly without calling the clarify() tool.
+    if not pending_clarify and result.intent == "clarify" and resolve_candidates:
+        pending_clarify = True
 
     context_delta: dict[str, object] = {}
     if bangumi_id is not None:
@@ -282,6 +318,10 @@ def extract_context_delta(result: AgentResult) -> dict[str, object]:
         context_delta["location"] = location
     if last_search_data is not None:
         context_delta["last_search_data"] = last_search_data
+    if resolve_candidates is not None:
+        context_delta["resolve_candidates"] = resolve_candidates
+    if pending_clarify:
+        context_delta["pending_clarify"] = True
     return context_delta
 
 

@@ -143,7 +143,7 @@ class Settings(BaseSettings):
         description="Second fallback LLM model (disabled by default)",
     )
     openai_compat_base_url: str = Field(
-        default="https://api.univibe.cc/openai",
+        default="https://api.univibe.cc/openai/v1",
         description="Base URL for the OpenAI-compatible provider",
     )
 

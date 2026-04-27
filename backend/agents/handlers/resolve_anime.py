@@ -36,6 +36,26 @@ def _build_candidates(matches: list[dict[str, object]]) -> list[dict[str, object
     ]
 
 
+def _match_clarify_candidate(
+    title: str,
+    context: dict[str, object],
+) -> dict[str, object] | None:
+    """Match title against previous resolve candidates from a clarify turn."""
+    if not context.get("pending_clarify"):
+        return None
+    raw = context.get("resolve_candidates")
+    if not isinstance(raw, list):
+        return None
+    normalized = title.strip().lower()
+    for candidate in raw:
+        if not isinstance(candidate, dict):
+            continue
+        candidate_title = str(candidate.get("title", "")).strip().lower()
+        if candidate_title and candidate_title == normalized:
+            return candidate
+    return None
+
+
 async def execute(
     step: PlanStep,
     context: dict[str, object],
@@ -58,6 +78,22 @@ async def execute(
         title = ""
     if not title:
         return HandlerResult.fail(_TOOL, "No title provided")
+
+    # Fast path: match against previous clarify candidates
+    matched = _match_clarify_candidate(title, context)
+    if matched is not None:
+        bid = str(matched.get("bangumi_id", ""))
+        if bid:
+            resolved_title = str(matched.get("title", title))
+            logger.info("resolve_anime_from_clarify", title=title, bangumi_id=bid)
+            return HandlerResult.ok(
+                _TOOL,
+                {
+                    "bangumi_id": bid,
+                    "title": resolved_title,
+                    "candidates": [matched],
+                },
+            )
 
     repo = getattr(db, "bangumi", None)
     find_bangumi_by_title = getattr(repo, "find_bangumi_by_title", None)

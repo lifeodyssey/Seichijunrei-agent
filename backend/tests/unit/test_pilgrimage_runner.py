@@ -52,6 +52,34 @@ def test_seed_tool_state_ignores_non_dict_search_data() -> None:
     assert "search_bangumi" not in deps.tool_state
 
 
+def test_seed_tool_state_restores_clarify_context() -> None:
+    from unittest.mock import MagicMock
+
+    deps = RuntimeDeps(db=MagicMock(), locale="zh", query="涼宮ハルヒの憂鬱")
+    context: dict[str, object] = {
+        "pending_clarify": True,
+        "resolve_candidates": [
+            {"title": "涼宮ハルヒの憂鬱", "bangumi_id": "100"},
+            {"title": "涼宮ハルヒの消失", "bangumi_id": "101"},
+        ],
+    }
+    _seed_tool_state(deps, context)
+
+    assert deps.tool_state.get("pending_clarify") is True
+    candidates = deps.tool_state.get("resolve_candidates")
+    assert isinstance(candidates, list)
+    assert len(candidates) == 2
+
+
+def test_seed_tool_state_omits_clarify_when_absent() -> None:
+    from unittest.mock import MagicMock
+
+    deps = RuntimeDeps(db=MagicMock(), locale="en", query="test")
+    _seed_tool_state(deps, {"last_location": "Uji"})
+    assert "pending_clarify" not in deps.tool_state
+    assert "resolve_candidates" not in deps.tool_state
+
+
 def test_status_from_payload_extracts_status() -> None:
     assert _status_from_payload({"status": "ok"}, fallback="err") == "ok"
 

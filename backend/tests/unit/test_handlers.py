@@ -285,6 +285,106 @@ class FakeRetrievalResult:
             self.strategy = RetrievalStrategy.SQL
 
 
+class TestResolveAnimeClarifyFastPath:
+    """AC: resolve_anime matches title against previous clarify candidates."""
+
+    async def test_exact_match_returns_bangumi_id(self) -> None:
+        context: dict[str, object] = {
+            "pending_clarify": True,
+            "resolve_candidates": [
+                {
+                    "title": "涼宮ハルヒの憂鬱",
+                    "bangumi_id": "100",
+                    "cover_url": "",
+                    "city": "",
+                },
+                {
+                    "title": "涼宮ハルヒの消失",
+                    "bangumi_id": "101",
+                    "cover_url": "",
+                    "city": "",
+                },
+            ],
+        }
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "涼宮ハルヒの憂鬱"})
+
+        result = await execute_resolve(step, context, MagicMock(), None)
+
+        assert result.success is True
+        assert result.data["bangumi_id"] == "100"
+        assert result.data["title"] == "涼宮ハルヒの憂鬱"
+
+    async def test_no_pending_clarify_skips_fast_path(self) -> None:
+        """Without pending_clarify flag, candidates are not checked."""
+        db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
+        db.bangumi.upsert_bangumi_title = AsyncMock()
+
+        context: dict[str, object] = {
+            "resolve_candidates": [
+                {"title": "涼宮ハルヒの憂鬱", "bangumi_id": "100"},
+            ],
+        }
+        mock_gw = MagicMock()
+        mock_gw.search_subject = AsyncMock(return_value=[])
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "涼宮ハルヒの憂鬱"})
+
+        with patch(
+            "backend.agents.handlers.resolve_anime.BangumiClientGateway",
+            return_value=mock_gw,
+        ):
+            result = await execute_resolve(step, context, db, None)
+
+        # Falls through to normal path (no DB/API match → fail)
+        assert result.success is False
+
+    async def test_no_match_falls_through(self) -> None:
+        """Title not in candidates → normal resolve path."""
+        db = _mock_supabase()
+        db.bangumi.find_all_by_title = AsyncMock(return_value=[])
+        db.bangumi.find_bangumi_by_title = AsyncMock(return_value=None)
+        db.bangumi.upsert_bangumi_title = AsyncMock()
+
+        context: dict[str, object] = {
+            "pending_clarify": True,
+            "resolve_candidates": [
+                {"title": "涼宮ハルヒの憂鬱", "bangumi_id": "100"},
+            ],
+        }
+        mock_gw = MagicMock()
+        mock_gw.search_subject = AsyncMock(return_value=[])
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "完全別の作品"})
+
+        with patch(
+            "backend.agents.handlers.resolve_anime.BangumiClientGateway",
+            return_value=mock_gw,
+        ):
+            result = await execute_resolve(step, context, db, None)
+
+        # Falls through — not in candidates, no DB/API match
+        assert result.success is False
+
+    async def test_case_insensitive_match(self) -> None:
+        context: dict[str, object] = {
+            "pending_clarify": True,
+            "resolve_candidates": [
+                {
+                    "title": "Your Name",
+                    "bangumi_id": "200",
+                    "cover_url": "",
+                    "city": "",
+                },
+            ],
+        }
+        step = _step(ToolName.RESOLVE_ANIME, {"title": "your name"})
+
+        result = await execute_resolve(step, context, MagicMock(), None)
+
+        assert result.success is True
+        assert result.data["bangumi_id"] == "200"
+
+
 class TestSearchBangumi:
     async def test_returns_results(self) -> None:
         fake_result = FakeRetrievalResult(

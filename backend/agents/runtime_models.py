@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.agents.models import TimedItinerary
 
@@ -40,8 +40,15 @@ class ClarifyResponseModel(BaseModel):
     ui: dict[str, str] = Field(default_factory=dict)
 
 
+def _coerce_str(v: object) -> str:
+    """Coerce None to empty string for nullable DB columns."""
+    return str(v) if v is not None else ""
+
+
 class PilgrimagePointModel(BaseModel):
     """A single pilgrimage point row returned to the frontend."""
+
+    model_config = {"coerce_numbers_to_str": False}
 
     id: str
     name: str
@@ -58,6 +65,20 @@ class PilgrimagePointModel(BaseModel):
     origin: str = ""
     # Backend convenience: used to populate nearby_groups cover and route cover_url.
     cover_url: str = ""
+
+    @field_validator(
+        "name_cn",
+        "screenshot_url",
+        "bangumi_id",
+        "title",
+        "title_cn",
+        "origin",
+        "cover_url",
+        mode="before",
+    )
+    @classmethod
+    def coerce_none_to_empty(cls, v: object) -> str:
+        return _coerce_str(v)
 
 
 class NearbyGroupModel(BaseModel):

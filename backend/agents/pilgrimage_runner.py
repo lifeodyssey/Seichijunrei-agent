@@ -36,6 +36,13 @@ def _seed_tool_state(deps: RuntimeDeps, context: dict[str, object] | None) -> No
     if isinstance(origin_lng, int | float):
         deps.tool_state["origin_lng"] = float(origin_lng)
 
+    # Restore resolve candidates from previous clarify turn
+    raw_candidates = context.get("resolve_candidates")
+    if isinstance(raw_candidates, list) and raw_candidates:
+        deps.tool_state["resolve_candidates"] = raw_candidates
+    if context.get("pending_clarify") is True:
+        deps.tool_state["pending_clarify"] = True
+
     raw = context.get("last_search_data")
     if not isinstance(raw, dict):
         return

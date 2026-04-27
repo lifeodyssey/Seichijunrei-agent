@@ -546,6 +546,132 @@ class TestBuildContextBlockSearchData:
         assert block["current_bangumi_id"] is None
 
 
+class TestExtractContextDeltaClarify:
+    """AC: extract_context_delta captures clarify state and resolve candidates."""
+
+    def test_clarify_step_sets_pending_clarify(self) -> None:
+        result = _make_agent_result(
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "凉宫"},
+                    data={
+                        "ambiguous": True,
+                        "candidates": [
+                            {"title": "涼宮ハルヒの憂鬱", "bangumi_id": "100"},
+                            {"title": "涼宮ハルヒの消失", "bangumi_id": "101"},
+                        ],
+                    },
+                ),
+                StepRecord(
+                    tool="clarify",
+                    success=True,
+                    params={"question": "你是指哪部凉宫？"},
+                    data={"status": "needs_clarification"},
+                ),
+            ],
+        )
+
+        delta = extract_context_delta(result)
+        assert delta.get("pending_clarify") is True
+        assert "resolve_candidates" in delta
+        candidates = delta["resolve_candidates"]
+        assert isinstance(candidates, list)
+        assert len(candidates) == 2
+        assert candidates[0]["bangumi_id"] == "100"
+
+    def test_no_clarify_step_omits_pending_clarify(self) -> None:
+        result = _make_agent_result(
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "Eupho"},
+                    data={"bangumi_id": "253", "title": "Eupho"},
+                ),
+            ],
+        )
+
+        delta = extract_context_delta(result)
+        assert "pending_clarify" not in delta
+
+    def test_resolve_with_no_candidates_omits_field(self) -> None:
+        result = _make_agent_result(
+            steps=[
+                StepRecord(
+                    tool="resolve_anime",
+                    success=True,
+                    params={"title": "Eupho"},
+                    data={"bangumi_id": "253", "title": "Eupho"},
+                ),
+            ],
+        )
+
+        delta = extract_context_delta(result)
+        assert "resolve_candidates" not in delta
+
+
+class TestBuildContextBlockClarify:
+    """AC: build_context_block restores clarify candidates from session."""
+
+    def test_restores_clarify_candidates(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "凉宫",
+                    "intent": "clarify",
+                    "context_delta": {
+                        "pending_clarify": True,
+                        "resolve_candidates": [
+                            {"title": "涼宮ハルヒの憂鬱", "bangumi_id": "100"},
+                            {"title": "涼宮ハルヒの消失", "bangumi_id": "101"},
+                        ],
+                    },
+                }
+            ],
+            "last_intent": "clarify",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        assert block.get("pending_clarify") is True
+        assert "resolve_candidates" in block
+        candidates = block["resolve_candidates"]
+        assert isinstance(candidates, list)
+        assert len(candidates) == 2
+
+    def test_returns_non_none_for_pending_clarify_only(self) -> None:
+        """pending_clarify alone is enough for non-None context."""
+        state = {
+            "interactions": [
+                {
+                    "text": "凉宫",
+                    "context_delta": {"pending_clarify": True},
+                }
+            ],
+        }
+        block = build_context_block(state)
+        assert block is not None
+        assert block.get("pending_clarify") is True
+
+    def test_no_clarify_data_omits_fields(self) -> None:
+        state = {
+            "interactions": [
+                {
+                    "text": "search",
+                    "context_delta": {"bangumi_id": "253"},
+                }
+            ],
+            "last_intent": "search_bangumi",
+        }
+        block = build_context_block(state)
+
+        assert block is not None
+        assert "pending_clarify" not in block
+        assert "resolve_candidates" not in block
+
+
 class TestAsStrOrNone:
     def test_none_returns_none(self) -> None:
         assert as_str_or_none(None) is None
