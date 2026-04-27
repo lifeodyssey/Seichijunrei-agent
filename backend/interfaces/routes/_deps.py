@@ -205,7 +205,7 @@ async def call_optional_async(target: object, method_name: str) -> None:
         await cast(Awaitable[object], result)
 
 
-def setup_logfire(settings: Settings) -> None:
+def setup_logfire(settings: Settings, app: object | None = None) -> None:
     """Configure Logfire for pydantic-ai agent tracing (no-op if token not set)."""
     import os
 
@@ -220,6 +220,11 @@ def setup_logfire(settings: Settings) -> None:
             service_version=settings.observability_service_version,
         )
         logfire.instrument_pydantic_ai()
+        if app is not None:
+            from fastapi import FastAPI as _FastAPI
+
+            logfire.instrument_fastapi(cast(_FastAPI, app))
+        logfire.instrument_httpx()
         _logger.info("logfire_configured", service=settings.observability_service_name)
     except ImportError:
         _logger.debug("logfire_skipped", reason="logfire package not installed")

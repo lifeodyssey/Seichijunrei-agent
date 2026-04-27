@@ -50,7 +50,6 @@ def create_fastapi_app(
 ) -> FastAPI:
     """Build the FastAPI service app for the runtime."""
     resolved_settings = settings or get_settings()
-    setup_logfire(resolved_settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -100,6 +99,7 @@ def create_fastapi_app(
                 shutdown_observability()
 
     app = FastAPI(lifespan=lifespan)
+    setup_logfire(resolved_settings, app=app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[resolved_settings.cors_allowed_origin],

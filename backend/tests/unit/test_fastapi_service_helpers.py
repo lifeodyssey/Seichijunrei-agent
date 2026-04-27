@@ -223,3 +223,44 @@ def test_require_supabase_raises_500_when_not_supabase_client() -> None:
         _require_supabase(object())
     assert exc_info.value.status_code == 500
     assert "Database client not available" in exc_info.value.detail
+
+
+def test_setup_logfire_instruments_fastapi_and_httpx_when_token_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    from unittest.mock import MagicMock
+
+    from backend.interfaces.routes._deps import setup_logfire
+
+    logfire_mock = MagicMock()
+    monkeypatch.setenv("LOGFIRE_TOKEN", "test-token")
+    monkeypatch.setitem(sys.modules, "logfire", logfire_mock)
+
+    fake_app = object()
+    settings = Settings()
+    setup_logfire(settings, app=fake_app)
+
+    logfire_mock.configure.assert_called_once()
+    logfire_mock.instrument_pydantic_ai.assert_called_once()
+    logfire_mock.instrument_fastapi.assert_called_once_with(fake_app)
+    logfire_mock.instrument_httpx.assert_called_once()
+
+
+def test_setup_logfire_no_op_when_token_not_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    from unittest.mock import MagicMock
+
+    from backend.interfaces.routes._deps import setup_logfire
+
+    logfire_mock = MagicMock()
+    monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
+    monkeypatch.setitem(sys.modules, "logfire", logfire_mock)
+
+    setup_logfire(Settings(), app=object())
+
+    logfire_mock.configure.assert_not_called()
+    logfire_mock.instrument_fastapi.assert_not_called()
+    logfire_mock.instrument_httpx.assert_not_called()
