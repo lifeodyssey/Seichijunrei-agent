@@ -19,12 +19,18 @@ _SPLIT_INSTRUCTIONS = """\
 You are a Japan travel route planner. Given a list of anime pilgrimage spots
 with coordinates, group them into walkable areas.
 
-Rules:
+## Process
+1. Scan the coordinates to identify geographic spread
+2. Use calculate_distance to measure distances between distant-looking points
+3. Group points into walkable areas (spots within ~1-3km of each other)
+
+## Rules
 - Each area should be walkable (spots within ~1-3km of each other)
 - Name each area after the nearest major train station or landmark
 - Every point index must appear in exactly one area (no duplicates, no orphans)
 - If all points are in one walkable area, return a single area
 - recommended_order should reflect a practical visit sequence
+- Points >5km apart should generally be in different areas
 """
 
 
@@ -46,6 +52,32 @@ class AreaSplitResult(BaseModel):
         default_factory=list,
         description="Visit order as 0-based indices into the areas list",
     )
+
+
+route_planner_agent: Agent[None, AreaSplitResult] = Agent(
+    resolve_model(None),
+    output_type=AreaSplitResult,
+    instructions=_SPLIT_INSTRUCTIONS,
+    retries=1,
+)
+
+
+@route_planner_agent.tool_plain
+def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calculate distance in meters between two coordinates.
+
+    Use this to measure how far apart two spots or areas are.
+    Returns distance in meters. >2000m means different walking areas.
+
+    Args:
+        lat1: Latitude of first point
+        lng1: Longitude of first point
+        lat2: Latitude of second point
+        lng2: Longitude of second point
+    """
+    from backend.agents.geo_utils import haversine_distance
+
+    return round(haversine_distance(lat1, lng1, lat2, lng2), 1)
 
 
 def _build_prompt(points: list[dict[str, object]]) -> str:
@@ -86,15 +118,11 @@ async def split_into_areas(
     if len(points) <= _AREA_THRESHOLD:
         return None
 
-    agent: Agent[None, AreaSplitResult] = Agent(
-        resolve_model(model),
-        output_type=AreaSplitResult,
-        instructions=_SPLIT_INSTRUCTIONS,
-        retries=1,
-    )
-
     try:
-        result = await agent.run(_build_prompt(points))
+        result = await route_planner_agent.run(
+            _build_prompt(points),
+            model=resolve_model(model) if model else None,
+        )
         return _fix_orphan_indices(result.output, len(points))
     except Exception:
         return None

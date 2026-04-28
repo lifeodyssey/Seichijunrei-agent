@@ -58,12 +58,10 @@ class TestSplitIntoAreasLargeSets:
         mock_run_result = MagicMock()
         mock_run_result.output = mock_output
 
-        mock_agent_instance = MagicMock()
-        mock_agent_instance.run = AsyncMock(return_value=mock_run_result)
-
         with patch(
-            "backend.agents.route_area_splitter.Agent", return_value=mock_agent_instance
-        ):
+            "backend.agents.route_area_splitter.route_planner_agent"
+        ) as mock_agent:
+            mock_agent.run = AsyncMock(return_value=mock_run_result)
             result = await split_into_areas(_make_points(15))
 
         assert result is not None
@@ -76,12 +74,10 @@ class TestSplitIntoAreasLargeSets:
 
 class TestSplitIntoAreasHandlesFailure:
     async def test_returns_none_on_agent_exception(self) -> None:
-        mock_agent_instance = MagicMock()
-        mock_agent_instance.run = AsyncMock(side_effect=RuntimeError("LLM timeout"))
-
         with patch(
-            "backend.agents.route_area_splitter.Agent", return_value=mock_agent_instance
-        ):
+            "backend.agents.route_area_splitter.route_planner_agent"
+        ) as mock_agent:
+            mock_agent.run = AsyncMock(side_effect=RuntimeError("LLM timeout"))
             result = await split_into_areas(_make_points(15))
 
         assert result is None
@@ -103,12 +99,10 @@ class TestSplitIntoAreasFixesOrphans:
         mock_run_result = MagicMock()
         mock_run_result.output = mock_output
 
-        mock_agent_instance = MagicMock()
-        mock_agent_instance.run = AsyncMock(return_value=mock_run_result)
-
         with patch(
-            "backend.agents.route_area_splitter.Agent", return_value=mock_agent_instance
-        ):
+            "backend.agents.route_area_splitter.route_planner_agent"
+        ) as mock_agent:
+            mock_agent.run = AsyncMock(return_value=mock_run_result)
             result = await split_into_areas(_make_points(12))
 
         assert result is not None
@@ -118,3 +112,17 @@ class TestSplitIntoAreasFixesOrphans:
         assert all_indices == set(range(12)), (
             f"Missing indices: {set(range(12)) - all_indices}"
         )
+
+
+class TestCalculateDistanceTool:
+    def test_returns_correct_haversine_for_tokyo_osaka(self) -> None:
+        from backend.agents.route_area_splitter import calculate_distance
+
+        dist = calculate_distance(35.6762, 139.6503, 34.6937, 135.5023)
+        assert 390_000 < dist < 410_000
+
+    def test_returns_zero_for_same_point(self) -> None:
+        from backend.agents.route_area_splitter import calculate_distance
+
+        dist = calculate_distance(35.0, 139.0, 35.0, 139.0)
+        assert dist == 0.0
