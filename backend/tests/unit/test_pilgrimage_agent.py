@@ -140,3 +140,58 @@ async def test_run_pilgrimage_agent_returns_qa_agent_result() -> None:
     assert result.intent == "general_qa"
     assert isinstance(result.output, QAResponseModel)
     assert result.message
+
+
+async def test_run_agent_passes_message_history() -> None:
+    """message_history parameter is forwarded to agent.run()."""
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
+
+    db = MagicMock()
+    model = TestModel(
+        call_tools=[],
+        seed=3,
+        custom_output_args={
+            "intent": "general_qa",
+            "message": "test",
+            "data": {"status": "info", "message": "test"},
+            "ui": {"component": "GeneralAnswer"},
+        },
+    )
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="previous turn")])
+    ]
+
+    result = await run_pilgrimage_agent(
+        text="follow up",
+        db=db,
+        locale="zh",
+        model=model,
+        message_history=history,
+    )
+
+    assert result.intent == "general_qa"
+
+
+async def test_agent_result_captures_new_messages() -> None:
+    """AgentResult.new_messages is populated from run_result.new_messages()."""
+    db = MagicMock()
+    model = TestModel(
+        call_tools=[],
+        seed=3,
+        custom_output_args={
+            "intent": "general_qa",
+            "message": "hello",
+            "data": {"status": "info", "message": "hello"},
+            "ui": {"component": "GeneralAnswer"},
+        },
+    )
+
+    result = await run_pilgrimage_agent(
+        text="hi",
+        db=db,
+        locale="zh",
+        model=model,
+    )
+
+    assert isinstance(result.new_messages, list)
+    assert len(result.new_messages) > 0

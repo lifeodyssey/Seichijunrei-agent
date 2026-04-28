@@ -104,9 +104,10 @@ class TestRuntimeAPIExecution:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ):
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         with patch(
@@ -161,9 +162,10 @@ class TestRuntimeAPIExecution:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ):
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         with patch(
@@ -200,9 +202,10 @@ class TestRuntimeAPIExecution:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         monkeypatch.setattr(
@@ -331,6 +334,7 @@ class TestTranslationGate:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
             return result
@@ -396,6 +400,7 @@ class TestTranslationGate:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
             return result

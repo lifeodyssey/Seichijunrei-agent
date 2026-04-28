@@ -35,6 +35,7 @@ class SessionUpdate:
     response_success: bool
     response_message: str = field(default="")
     context_delta: dict[str, object] | None = field(default=None)
+    new_messages_serialized: list[object] = field(default_factory=list)
 
 
 def normalize_session_state(state: dict[str, object] | None) -> dict[str, object]:
@@ -80,6 +81,7 @@ def build_updated_session_state(
             "success": update.response_success,
             "created_at": datetime.now(UTC).isoformat(),
             "context_delta": update.context_delta or {},
+            "new_messages": update.new_messages_serialized,
         }
     )
     interactions = interactions[-MAX_INTERACTIONS:]
@@ -92,6 +94,21 @@ def build_updated_session_state(
         "last_message": update.response_message,
         "updated_at": datetime.now(UTC).isoformat(),
     }
+
+
+def build_message_history(session_state: dict[str, object]) -> list[object]:
+    """Collect all serialized messages from interactions in order."""
+    raw_interactions = session_state.get("interactions")
+    if not isinstance(raw_interactions, list):
+        return []
+    history: list[object] = []
+    for interaction in raw_interactions:
+        if not isinstance(interaction, dict):
+            continue
+        msgs = interaction.get("new_messages")
+        if isinstance(msgs, list):
+            history.extend(msgs)
+    return history
 
 
 def build_session_summary(state: dict[str, object]) -> dict[str, object]:

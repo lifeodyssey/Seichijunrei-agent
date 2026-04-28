@@ -59,9 +59,10 @@ class TestGreetUserEphemeral:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ):
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         db = MagicMock()
@@ -195,9 +196,10 @@ class TestUserMemoryUpsert:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ):
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         with patch(

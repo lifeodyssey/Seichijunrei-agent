@@ -13,6 +13,8 @@ from typing import cast
 from uuid import uuid4
 
 import structlog
+from pydantic_ai import ModelMessagesTypeAdapter
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
 from backend.agents.agent_result import AgentResult
@@ -46,6 +48,7 @@ from backend.interfaces.schemas import (
 )
 from backend.interfaces.session_facade import (
     build_context_block,
+    build_message_history,
     extract_context_delta,
     normalize_session_state,
 )
@@ -121,11 +124,11 @@ class RuntimeAPI:
             result: AgentResult | None = None
             user_message_persisted = False
             try:
-                previous_state, context = await self._load_session(
+                previous_state, context, message_history = await self._load_session(
                     session_id, user_id, request
                 )
                 result, response, context_delta = await self._execute_pipeline(
-                    request, context, effective_model, on_step, span
+                    request, context, message_history, effective_model, on_step, span
                 )
 
                 if response.intent == "greet_user":
@@ -202,8 +205,8 @@ class RuntimeAPI:
         session_id: str | None,
         user_id: str | None,
         request: PublicAPIRequest,
-    ) -> tuple[dict[str, object], dict[str, object] | None]:
-        """Load session state and build context block."""
+    ) -> tuple[dict[str, object], dict[str, object] | None, list[ModelMessage]]:
+        """Load session state, context block, and message history."""
         previous_state = (
             await load_session_state(self._session_store, session_id)
             if session_id
@@ -216,12 +219,14 @@ class RuntimeAPI:
                 context = {}
             context["origin_lat"] = request.origin_lat
             context["origin_lng"] = request.origin_lng
-        return previous_state, context
+        message_history = _deserialize_history(previous_state)
+        return previous_state, context, message_history
 
     async def _execute_pipeline(
         self,
         request: PublicAPIRequest,
         context: dict[str, object] | None,
+        message_history: list[ModelMessage],
         effective_model: Model | str | None,
         on_step: OnStep | None,
         span: object,
@@ -246,6 +251,7 @@ class RuntimeAPI:
                         model=effective_model,
                         locale=request.locale,
                         context=context,
+                        message_history=message_history,
                         on_step=on_step,
                     ),
                     timeout=AGENT_TIMEOUT_SECONDS,
@@ -368,6 +374,16 @@ async def handle_public_request(
     """Convenience helper for one-off public API execution."""
     api = RuntimeAPI(db, session_store=session_store)
     return await api.handle(request, model=model, user_id=user_id, on_step=on_step)
+
+
+def _deserialize_history(
+    previous_state: dict[str, object],
+) -> list[ModelMessage]:
+    """Rebuild validated ModelMessage list from serialized session data."""
+    raw_history = build_message_history(previous_state)
+    if not raw_history:
+        return []
+    return list(ModelMessagesTypeAdapter.validate_python(raw_history))
 
 
 async def _apply_translation_gate(

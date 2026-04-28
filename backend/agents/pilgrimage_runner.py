@@ -7,6 +7,7 @@ and the tool module can import the agent object without circular deps.
 from __future__ import annotations
 
 import structlog
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
@@ -59,6 +60,7 @@ async def run_pilgrimage_agent(
     locale: str,
     model: Model | str | None = None,
     context: dict[str, object] | None = None,
+    message_history: list[ModelMessage] | None = None,
     on_step: OnStep | None = None,
     model_settings: ModelSettings | None = None,
 ) -> AgentResult:
@@ -78,6 +80,7 @@ async def run_pilgrimage_agent(
         deps=deps,
         model=model,
         model_settings=model_settings,
+        message_history=message_history or [],
     )
     raw_output = run_result.output
     if isinstance(raw_output, str):
@@ -89,6 +92,7 @@ async def run_pilgrimage_agent(
         output=raw_output,
         steps=list(deps.steps),
         tool_state=dict(deps.tool_state),
+        new_messages=list(run_result.new_messages()),
     )
     logger.info(
         "pilgrimage_agent_complete",

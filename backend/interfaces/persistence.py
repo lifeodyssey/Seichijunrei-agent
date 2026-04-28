@@ -10,6 +10,7 @@ import asyncio
 from datetime import UTC, datetime
 
 import structlog
+from pydantic_core import to_jsonable_python
 
 from backend.agents.agent_result import AgentResult
 from backend.infrastructure.session import SessionStore
@@ -62,6 +63,11 @@ async def persist_result(
 
     Returns (session_state, user_message_persisted, generated_title).
     """
+    new_messages_serialized: list[object] = (
+        list(to_jsonable_python(result.new_messages))
+        if result and result.new_messages
+        else []
+    )
     session_state = build_updated_session_state(
         previous_state,
         SessionUpdate(
@@ -71,6 +77,7 @@ async def persist_result(
             response_success=response.success,
             response_message=response.message,
             context_delta=context_delta,
+            new_messages_serialized=new_messages_serialized,
         ),
     )
 

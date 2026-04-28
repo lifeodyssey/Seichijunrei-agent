@@ -66,9 +66,10 @@ class TestHandlePublicRequest:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, locale, context, on_step)
+            _ = (text, db, locale, context, message_history, on_step)
             captured["model"] = model
             return _make_result(locale=locale)
 
@@ -133,9 +134,10 @@ class TestLocalePassthrough:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         with patch(
@@ -162,9 +164,10 @@ class TestLocalePassthrough:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, context, on_step)
+            _ = (text, db, model, locale, context, message_history, on_step)
             return result
 
         with patch(
@@ -193,9 +196,10 @@ class TestBuildContextBlockWithUserMemory:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, on_step)
+            _ = (text, db, model, locale, message_history, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 
@@ -227,9 +231,10 @@ class TestOriginCoordinatesWiredToContext:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, on_step)
+            _ = (text, db, model, locale, message_history, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 
@@ -257,9 +262,10 @@ class TestOriginCoordinatesWiredToContext:
             model: object | None = None,
             locale: str = "ja",
             context: dict[str, object] | None = None,
+            message_history: object | None = None,
             on_step: object | None = None,
         ) -> AgentResult:
-            _ = (text, db, model, locale, on_step)
+            _ = (text, db, model, locale, message_history, on_step)
             captured["context"] = context
             return _make_result(locale=locale)
 

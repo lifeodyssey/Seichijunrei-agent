@@ -672,6 +672,101 @@ class TestBuildContextBlockClarify:
         assert "resolve_candidates" not in block
 
 
+class TestBuildMessageHistory:
+    """AC: build_message_history collects new_messages from interactions."""
+
+    def test_collects_from_interactions_in_order(self) -> None:
+        from backend.interfaces.session_facade import build_message_history
+
+        state: dict[str, object] = {
+            "interactions": [
+                {"new_messages": [{"kind": "request", "parts": []}]},
+                {"new_messages": [{"kind": "response", "parts": []}]},
+            ],
+        }
+        history = build_message_history(state)
+        assert len(history) == 2
+        assert history[0] == {"kind": "request", "parts": []}
+        assert history[1] == {"kind": "response", "parts": []}
+
+    def test_returns_empty_when_no_messages(self) -> None:
+        from backend.interfaces.session_facade import build_message_history
+
+        state: dict[str, object] = {"interactions": []}
+        assert build_message_history(state) == []
+
+    def test_returns_empty_when_no_interactions_key(self) -> None:
+        from backend.interfaces.session_facade import build_message_history
+
+        assert build_message_history({}) == []
+
+    def test_skips_non_dict_interactions(self) -> None:
+        from backend.interfaces.session_facade import build_message_history
+
+        state: dict[str, object] = {
+            "interactions": ["not_a_dict", {"new_messages": [{"kind": "request"}]}],
+        }
+        history = build_message_history(state)
+        assert len(history) == 1
+
+    def test_skips_interactions_without_new_messages(self) -> None:
+        from backend.interfaces.session_facade import build_message_history
+
+        state: dict[str, object] = {
+            "interactions": [
+                {"text": "hello", "intent": "greet"},
+                {"new_messages": [{"kind": "request"}]},
+            ],
+        }
+        history = build_message_history(state)
+        assert len(history) == 1
+
+
+class TestSessionUpdateNewMessages:
+    """AC: SessionUpdate includes new_messages_serialized field."""
+
+    def test_defaults_to_empty_list(self) -> None:
+        request = PublicAPIRequest(text="hi")
+        update = SessionUpdate(
+            request=request,
+            response_intent="greet_user",
+            response_status="ok",
+            response_success=True,
+        )
+        assert update.new_messages_serialized == []
+
+    def test_stores_serialized_messages(self) -> None:
+        request = PublicAPIRequest(text="hi")
+        msgs: list[object] = [{"kind": "request", "parts": []}]
+        update = SessionUpdate(
+            request=request,
+            response_intent="greet_user",
+            response_status="ok",
+            response_success=True,
+            new_messages_serialized=msgs,
+        )
+        assert update.new_messages_serialized == msgs
+
+
+class TestBuildUpdatedSessionStateNewMessages:
+    """AC: build_updated_session_state persists new_messages in interaction."""
+
+    def test_includes_new_messages_in_interaction(self) -> None:
+        prev = normalize_session_state(None)
+        msgs: list[object] = [{"kind": "request", "parts": []}]
+        update = SessionUpdate(
+            request=PublicAPIRequest(text="hello"),
+            response_intent="greet_user",
+            response_status="ok",
+            response_success=True,
+            new_messages_serialized=msgs,
+        )
+        state = build_updated_session_state(prev, update)
+        interactions = state["interactions"]
+        assert isinstance(interactions, list)
+        assert interactions[0]["new_messages"] == msgs
+
+
 class TestAsStrOrNone:
     def test_none_returns_none(self) -> None:
         assert as_str_or_none(None) is None

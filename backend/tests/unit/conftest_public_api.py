@@ -112,9 +112,10 @@ def make_fake_agent(
         model: object | None = None,
         locale: str = "ja",
         context: dict[str, object] | None = None,
+        message_history: object | None = None,
         on_step: object | None = None,
     ) -> AgentResult:
-        _ = (text, db, model, context, on_step)
+        _ = (text, db, model, context, message_history, on_step)
         if result_fn is not None:
             return result_fn(locale=locale)
         return make_result(locale=locale)

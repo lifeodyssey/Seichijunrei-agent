@@ -14,6 +14,7 @@ Separation rationale:
 from __future__ import annotations
 
 from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
 from pydantic_ai.output import ToolOutput
 
 from backend.agents.base import resolve_model
@@ -25,6 +26,9 @@ from backend.agents.runtime_models import (
     RouteResponseModel,
     SearchResponseModel,
 )
+
+COMPACT_THRESHOLD = 10
+_KEEP_RECENT = 4
 
 _INSTRUCTIONS = """\
 You are the runtime agent for Seichijunrei (聖地巡礼), an anime pilgrimage search \
@@ -105,7 +109,54 @@ User: "haruhi spots" → web_search("Haruhi Suzumiya anime") → resolve_anime �
   - The user is asking about a recent anime (2024+)
   - You are uncertain whether the DB data is comprehensive
 - Enrich your response: mention if web search found additional spots not in DB
+
+### Conversation context
+You have access to the conversation history from previous turns. Use it to:
+- Understand references like "that anime", "show me a route", "换一个"
+- Avoid re-clarifying when the user already selected an option
+- Continue multi-step workflows (search → route) without re-asking
+Do NOT repeat information the user has already seen.
 """
+
+
+def _compact_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
+    """Compress old tool return content, keep latest turns intact."""
+    if len(messages) <= COMPACT_THRESHOLD:
+        return messages
+    cutoff = len(messages) - _KEEP_RECENT
+    result: list[ModelMessage] = []
+    for i, msg in enumerate(messages):
+        if i >= cutoff or not isinstance(msg, ModelRequest):
+            result.append(msg)
+            continue
+        result.append(_compress_request(msg))
+    return result
+
+
+def _compress_request(msg: ModelRequest) -> ModelRequest:
+    """Replace large ToolReturnParts with compact placeholders."""
+    new_parts = [
+        _compress_tool_return(p) if isinstance(p, ToolReturnPart) else p
+        for p in msg.parts
+    ]
+    return ModelRequest(parts=new_parts)
+
+
+def _compress_tool_return(part: ToolReturnPart) -> ToolReturnPart:
+    if len(str(part.content)) <= 200:
+        return part
+    return ToolReturnPart(
+        tool_name=part.tool_name,
+        content=f"[{part.tool_name}: completed]",
+        tool_call_id=part.tool_call_id,
+    )
+
+
+def _sliding_window(messages: list[ModelMessage]) -> list[ModelMessage]:
+    """Keep only last COMPACT_THRESHOLD messages (~5 turns)."""
+    if len(messages) <= COMPACT_THRESHOLD:
+        return messages
+    return messages[-COMPACT_THRESHOLD:]
 
 
 pilgrimage_agent = Agent(
@@ -120,6 +171,7 @@ pilgrimage_agent = Agent(
     ],
     instructions=_INSTRUCTIONS,
     retries=2,
+    history_processors=[_compact_tool_results, _sliding_window],
 )
 
 
