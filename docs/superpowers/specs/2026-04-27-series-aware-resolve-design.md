@@ -374,14 +374,95 @@ new_messages_serialized = (
 )
 ```
 
-### Guardrails
+### Context Management — Trigger-Based Compaction
 
-| Concern | Mitigation |
-|---------|------------|
-| Token explosion | Cap history at **last 10 interactions** (≈20 messages). Older ones are dropped. Agent instructions + tool_state still provide structured context for older state. |
-| Large tool call payloads in history | PydanticAI messages include tool calls/results. These can be large (search results with 50+ points). Strip `ToolReturnPart.content` from messages older than 2 turns, keeping only tool name + success status. |
-| Serialization size in session | Monitor session state size. If >100KB, trigger compaction (summarize old messages into a `SystemPromptPart`). |
-| Backward compatibility | `message_history` defaults to `[]`. Existing sessions without it work as before — agent just has no history (current behavior). |
+Best practice: use PydanticAI `history_processors` with trigger-based compaction.
+Processors run on every `agent.run()` call but only compress when thresholds are
+exceeded. Most requests (≤5 turns) pass through untouched, zero overhead.
+
+Refs: [Microsoft Agent Framework: Compaction](https://learn.microsoft.com/en-us/agent-framework/agents/conversations/compaction),
+[PydanticAI: history_processors](https://pydantic.dev/docs/ai/core-concepts/message-history/),
+[Factory.ai: Context Compression](https://factory.ai/news/evaluating-compression)
+
+#### Compaction pipeline (gentlest → most aggressive)
+
+```python
+from pydantic_ai import Agent, ReinjectSystemPrompt
+from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
+
+COMPACT_THRESHOLD = 10  # messages (~5 turns)
+
+def compact_tool_results(messages: list[ModelMessage]) -> list[ModelMessage]:
+    """Layer 1 (gentle): Compress old tool return content to summaries.
+
+    Keeps latest 2 turns (4 messages) fully intact. Only compresses
+    ToolReturnPart content in older messages. Tool call/return pairs
+    stay paired — never delete one without the other.
+    Triggers: only when len(messages) > COMPACT_THRESHOLD.
+    """
+    if len(messages) <= COMPACT_THRESHOLD:
+        return messages  # No-op for short conversations
+    cutoff = len(messages) - 4  # Preserve last 2 turns
+    result = []
+    for i, msg in enumerate(messages):
+        if i >= cutoff or not isinstance(msg, ModelRequest):
+            result.append(msg)
+            continue
+        new_parts = []
+        for part in msg.parts:
+            if isinstance(part, ToolReturnPart) and len(str(part.content)) > 200:
+                part = ToolReturnPart(
+                    tool_name=part.tool_name,
+                    content=f"[{part.tool_name}: completed successfully]",
+                    tool_call_id=part.tool_call_id,
+                )
+            new_parts.append(part)
+        result.append(ModelRequest(parts=new_parts))
+    return result
+
+def sliding_window(messages: list[ModelMessage]) -> list[ModelMessage]:
+    """Layer 2 (aggressive): Keep only last 10 messages (~5 turns).
+
+    Triggers: only when len(messages) > COMPACT_THRESHOLD.
+    """
+    if len(messages) <= COMPACT_THRESHOLD:
+        return messages  # No-op for short conversations
+    return messages[-COMPACT_THRESHOLD:]
+
+# Register on agent
+pilgrimage_agent = Agent(
+    model,
+    history_processors=[compact_tool_results, sliding_window],
+    capabilities=[ReinjectSystemPrompt()],  # Re-inject system prompt if lost
+    ...
+)
+```
+
+#### Why this design
+
+| Decision | Rationale |
+|----------|-----------|
+| Trigger at 10 messages, not every call | Typical session is 3-5 turns (~6-10 messages). No wasted processing. |
+| Tool result compaction first | Tool results dominate token usage (76 spots = ~15KB). Compressing these alone may be enough. |
+| Sliding window as backstop | If tool compaction isn't enough (user does 10+ turns), hard-cap at 5 recent turns. |
+| `ReinjectSystemPrompt` | System prompt may get lost when history is sliced. This auto-reinserts it. |
+| No LLM summarization (for now) | Extra LLM call per request = +20s latency. Sliding window is good enough for 3-5 turn sessions. Can add summarization later if users have longer sessions. |
+| tool_state coexists with message_history | `message_history` gives LLM conversational context. `tool_state` gives tools structured data (bangumi_id, search results). Both needed. |
+
+#### Trigger thresholds
+
+| Threshold | Value | Rationale |
+|-----------|-------|-----------|
+| COMPACT_THRESHOLD | 10 messages | ~5 turns. Typical session completes within this. |
+| Tool result max content | 200 chars | Anything longer gets compressed to `[tool_name: completed]`. |
+| Sliding window size | 10 messages | Keeps ~5 recent turns. Older context available via tool_state. |
+| Token hard limit | Not needed (Phase 1) | 10 messages × ~2K tokens/turn ≈ 20K tokens. Well under model limits. Add token counting if sessions grow longer. |
+
+#### Backward compatibility
+
+`message_history` defaults to `[]`. Existing sessions without stored messages
+work as before — agent has no history (current behavior). New sessions
+automatically start accumulating history.
 
 ### Agent Instructions Update
 
