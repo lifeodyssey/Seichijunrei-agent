@@ -283,9 +283,39 @@ class RuntimeAPI:
                 record_exc(exc)
             return None, application_error_response(exc), context_delta
         except Exception as exc:
+            error_msg = str(exc)
+            is_provider_error = any(
+                k in error_msg.lower()
+                for k in (
+                    "502",
+                    "503",
+                    "rate limit",
+                    "network",
+                    "modelhttperror",
+                    "fallbackexceptiongroup",
+                )
+            )
             record_exc = getattr(span, "record_exception", None)
             if callable(record_exc):
                 record_exc(exc)
+            if is_provider_error:
+                logger.warning("provider_error", error=error_msg[:200])
+                return (
+                    None,
+                    PublicAPIResponse(
+                        success=False,
+                        status="provider_error",
+                        intent="error",
+                        message="The AI service is temporarily unavailable. Please try again in a moment.",
+                        errors=[
+                            PublicAPIError(
+                                code="provider_error",
+                                message=error_msg[:500],
+                            )
+                        ],
+                    ),
+                    context_delta,
+                )
             logger.error("pipeline_unhandled_exception", exc_info=exc)
             return (
                 None,
