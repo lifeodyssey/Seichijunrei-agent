@@ -148,13 +148,90 @@ def _compress_request(msg: ModelRequest) -> ModelRequest:
 
 
 def _compress_tool_return(part: ToolReturnPart) -> ToolReturnPart:
-    if len(str(part.content)) <= 200:
+    content_str = str(part.content)
+    if len(content_str) <= 200:
         return part
+    summary = _summarize_tool_content(part.tool_name, part.content)
     return ToolReturnPart(
         tool_name=part.tool_name,
-        content=f"[{part.tool_name}: completed]",
+        content=summary,
         tool_call_id=part.tool_call_id,
     )
+
+
+def _summarize_tool_content(tool_name: str, content: object) -> str:
+    """Extract key info from tool result for compressed history."""
+    data = _parse_content_to_dict(content)
+    if data is None:
+        return f"[{tool_name}: completed]"
+    if tool_name in ("search_bangumi", "search_nearby"):
+        return _summarize_search(tool_name, data)
+    if tool_name == "resolve_anime":
+        return _summarize_resolve(data)
+    if tool_name == "clarify":
+        return _summarize_clarify(data)
+    if tool_name == "plan_route":
+        return _summarize_plan(data)
+    return f"[{tool_name}: completed]"
+
+
+def _parse_content_to_dict(content: object) -> dict[str, object] | None:
+    if isinstance(content, dict):
+        return content
+    if not isinstance(content, str):
+        return None
+    import json
+
+    try:
+        parsed = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(parsed, dict):
+        return parsed
+    return None
+
+
+def _summarize_search(tool_name: str, data: dict[str, object]) -> str:
+    row_count = data.get("row_count", data.get("note", ""))
+    title = _extract_anime_title(data)
+    suffix = f" for {title}" if title else ""
+    return f"[{tool_name}: found {row_count} spots{suffix}]"
+
+
+def _extract_anime_title(data: dict[str, object]) -> str:
+    metadata = data.get("metadata", {})
+    if isinstance(metadata, dict):
+        title = metadata.get("anime_title", "")
+        if isinstance(title, str) and title:
+            return title
+    preview = data.get("preview", [])
+    if isinstance(preview, list) and preview:
+        first = preview[0] if isinstance(preview[0], dict) else {}
+        if isinstance(first, dict):
+            name = first.get("name", "")
+            if isinstance(name, str):
+                return name
+    return ""
+
+
+def _summarize_resolve(data: dict[str, object]) -> str:
+    if data.get("ambiguous"):
+        candidates = data.get("candidates", [])
+        count = len(candidates) if isinstance(candidates, list) else 0
+        return f"[resolve_anime: ambiguous, {count} candidates]"
+    bid = data.get("bangumi_id", "")
+    title = data.get("title", "")
+    return f"[resolve_anime: resolved to {title} (id={bid})]"
+
+
+def _summarize_clarify(data: dict[str, object]) -> str:
+    question = str(data.get("question", ""))[:50]
+    return f"[clarify: asked '{question}']"
+
+
+def _summarize_plan(data: dict[str, object]) -> str:
+    point_count = data.get("point_count", 0)
+    return f"[plan_route: planned route with {point_count} stops]"
 
 
 def _sliding_window(messages: list[ModelMessage]) -> list[ModelMessage]:
@@ -202,6 +279,57 @@ pilgrimage_agent = Agent(
     retries=2,
     history_processors=[_compact_tool_results, _sliding_window],
 )
+
+
+@pilgrimage_agent.instructions
+def _inject_session_context(ctx: RunContext[RuntimeDeps]) -> str:
+    """Inject current session state as dynamic context for multi-turn."""
+    state = ctx.deps.tool_state
+    parts: list[str] = []
+    _add_resolve_context(state, parts)
+    _add_search_context(state, parts)
+    _add_nearby_context(state, parts)
+    _add_clarify_context(state, parts)
+    if not parts:
+        return ""
+    return "\n## Current session state\n" + "\n".join(f"- {p}" for p in parts)
+
+
+def _add_resolve_context(state: dict[str, object], parts: list[str]) -> None:
+    resolve_data = state.get("resolve_anime")
+    if not isinstance(resolve_data, dict):
+        return
+    title = resolve_data.get("title", "")
+    bid = resolve_data.get("bangumi_id", "")
+    if title:
+        parts.append(f"Current anime: {title} (bangumi_id={bid})")
+
+
+def _add_search_context(state: dict[str, object], parts: list[str]) -> None:
+    search_data = state.get("search_bangumi")
+    if not isinstance(search_data, dict):
+        return
+    row_count = search_data.get("row_count", 0)
+    metadata = search_data.get("metadata", {})
+    title = metadata.get("anime_title", "") if isinstance(metadata, dict) else ""
+    suffix = f" for {title}" if title else ""
+    parts.append(f"Search results available: {row_count} spots{suffix}")
+
+
+def _add_nearby_context(state: dict[str, object], parts: list[str]) -> None:
+    search_nearby = state.get("search_nearby")
+    if not isinstance(search_nearby, dict):
+        return
+    row_count = search_nearby.get("row_count", 0)
+    parts.append(f"Nearby search results available: {row_count} spots")
+
+
+def _add_clarify_context(state: dict[str, object], parts: list[str]) -> None:
+    if state.get("pending_clarify"):
+        parts.append(
+            "Previous turn ended with clarification "
+            "— user's response is the current message"
+        )
 
 
 @pilgrimage_agent.output_validator  # type: ignore[arg-type]

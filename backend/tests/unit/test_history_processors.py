@@ -200,3 +200,50 @@ class TestCompressRequestPreservesFields:
         part = compressed.parts[0]
         assert isinstance(part, ToolReturnPart)
         assert "[search: completed]" in str(part.content)
+
+
+class TestSummarizeToolContent:
+    def test_search_bangumi_summary(self) -> None:
+        from backend.agents.pilgrimage_agent import _summarize_tool_content
+
+        result = _summarize_tool_content(
+            "search_bangumi",
+            {
+                "row_count": 76,
+                "metadata": {"anime_title": "涼宮ハルヒの憂鬱"},
+            },
+        )
+        assert "76" in result
+        assert "涼宮ハルヒの憂鬱" in result
+
+    def test_resolve_anime_summary(self) -> None:
+        from backend.agents.pilgrimage_agent import _summarize_tool_content
+
+        result = _summarize_tool_content(
+            "resolve_anime",
+            {
+                "bangumi_id": "485",
+                "title": "涼宮ハルヒの憂鬱",
+            },
+        )
+        assert "485" in result
+        assert "涼宮ハルヒの憂鬱" in result
+
+    def test_resolve_anime_ambiguous(self) -> None:
+        from backend.agents.pilgrimage_agent import _summarize_tool_content
+
+        result = _summarize_tool_content(
+            "resolve_anime",
+            {
+                "ambiguous": True,
+                "candidates": [{"title": "A"}, {"title": "B"}],
+            },
+        )
+        assert "ambiguous" in result
+        assert "2" in result
+
+    def test_unknown_tool_fallback(self) -> None:
+        from backend.agents.pilgrimage_agent import _summarize_tool_content
+
+        result = _summarize_tool_content("unknown_tool", "some content")
+        assert "completed" in result

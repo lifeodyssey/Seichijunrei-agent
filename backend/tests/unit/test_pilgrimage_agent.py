@@ -195,3 +195,37 @@ async def test_agent_result_captures_new_messages() -> None:
 
     assert isinstance(result.new_messages, list)
     assert len(result.new_messages) > 0
+
+
+class TestSessionContextInjection:
+    def test_injects_search_context(self) -> None:
+        from backend.agents.pilgrimage_agent import _inject_session_context
+
+        ctx = MagicMock()
+        ctx.deps.tool_state = {
+            "search_bangumi": {
+                "row_count": 76,
+                "metadata": {"anime_title": "涼宮ハルヒの憂鬱"},
+            }
+        }
+        result = _inject_session_context(ctx)
+        assert "76 spots" in result
+        assert "涼宮ハルヒの憂鬱" in result
+
+    def test_empty_state_returns_empty(self) -> None:
+        from backend.agents.pilgrimage_agent import _inject_session_context
+
+        ctx = MagicMock()
+        ctx.deps.tool_state = {}
+        result = _inject_session_context(ctx)
+        assert result == ""
+
+    def test_injects_resolve_context(self) -> None:
+        from backend.agents.pilgrimage_agent import _inject_session_context
+
+        ctx = MagicMock()
+        ctx.deps.tool_state = {
+            "resolve_anime": {"title": "君の名は。", "bangumi_id": "160209"}
+        }
+        result = _inject_session_context(ctx)
+        assert "君の名は。" in result
