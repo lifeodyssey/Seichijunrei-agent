@@ -12,6 +12,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
 import backend.agents.pilgrimage_tools as _tools  # noqa: F401
+import backend.agents.web_tools as _web_tools  # noqa: F401
 from backend.agents.agent_result import AgentResult
 
 # Importing pilgrimage_tools triggers @tool registrations on the agent.
