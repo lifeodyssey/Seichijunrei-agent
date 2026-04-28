@@ -816,3 +816,61 @@ class TestRunHandlerEmitsErrorDetail:
         assert data["error"] == "Could not resolve"
         assert data["partial"] == "data"
         assert observation == "Could not resolve"
+
+
+# ---------------------------------------------------------------------------
+# plan_route — LLM area splitting (Phase 2)
+# ---------------------------------------------------------------------------
+
+_LARGE_SAMPLE_ROWS = [
+    {
+        "id": f"p{i}",
+        "name": f"Spot {i}",
+        "latitude": 35.0 + i * 0.01,
+        "longitude": 139.0 + i * 0.01,
+    }
+    for i in range(15)
+]
+
+
+class TestPlanRouteAreaSplitting:
+    async def test_uses_area_splitting_for_large_sets(self) -> None:
+        from backend.agents.route_area_splitter import AreaGroup, AreaSplitResult
+
+        split_result = AreaSplitResult(
+            areas=[
+                AreaGroup(
+                    name="Area A",
+                    station="Station A",
+                    point_indices=list(range(8)),
+                ),
+                AreaGroup(
+                    name="Area B",
+                    station="Station B",
+                    point_indices=list(range(8, 15)),
+                ),
+            ],
+            recommended_order=[0, 1],
+        )
+
+        step = _step(ToolName.PLAN_ROUTE, {})
+        context: dict[str, object] = {
+            "search_bangumi": {"rows": _LARGE_SAMPLE_ROWS},
+        }
+
+        with (
+            patch(
+                "backend.agents.handlers.plan_route.split_into_areas",
+                new=AsyncMock(return_value=split_result),
+            ),
+            patch(
+                "backend.agents.handlers.plan_route.resolve_location",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            result = await execute_plan_route(step, context, MagicMock(), MagicMock())
+
+        assert result.success is True
+        assert "areas" in result.data
+        assert result.data["source"] == "llm"
+        assert result.data["total_areas"] == 2
