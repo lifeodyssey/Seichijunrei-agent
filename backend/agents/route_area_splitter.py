@@ -125,4 +125,9 @@ async def split_into_areas(
         )
         return _fix_orphan_indices(result.output, len(points))
     except Exception:
+        import structlog
+
+        structlog.get_logger(__name__).warning(
+            "split_into_areas_failed", point_count=len(points), exc_info=True
+        )
         return None

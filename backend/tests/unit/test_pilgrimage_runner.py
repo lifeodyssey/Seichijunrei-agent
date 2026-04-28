@@ -80,6 +80,23 @@ def test_seed_tool_state_omits_clarify_when_absent() -> None:
     assert "resolve_candidates" not in deps.tool_state
 
 
+def test_seed_tool_state_restores_flat_search_data() -> None:
+    """last_search_data with 'rows' key populates search_bangumi directly."""
+    from unittest.mock import MagicMock
+
+    deps = RuntimeDeps(db=MagicMock(), locale="en", query="plan route")
+    context: dict[str, object] = {
+        "last_search_data": {
+            "rows": [{"bangumi_id": "485", "name": "北高校"}],
+            "row_count": 1,
+            "status": "ok",
+        },
+    }
+    _seed_tool_state(deps, context)
+    assert "search_bangumi" in deps.tool_state
+    assert deps.tool_state["search_bangumi"]["row_count"] == 1
+
+
 def test_status_from_payload_extracts_status() -> None:
     assert _status_from_payload({"status": "ok"}, fallback="err") == "ok"
 

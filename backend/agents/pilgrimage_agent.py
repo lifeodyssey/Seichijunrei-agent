@@ -78,10 +78,10 @@ Never fabricate locations, coordinates, or routes — always use tool outputs.
 
 ### Route planning
 - When the user asks for a route/itinerary/walking plan:
-  1. Call resolve_anime first
-  2. Call search_bangumi to get points
-  3. Call plan_route to create the optimized route
-  ALL THREE steps are required. Do not stop after search.
+  1. If previous search results exist in the conversation history (you already
+     searched for this anime), call plan_route directly.
+  2. Otherwise: resolve_anime → search_bangumi → plan_route (all three steps).
+  Do not stop after search — always follow through to plan_route.
 
 ### Greetings vs QA
 - greet_user: "hi", "hello", "你好", "こんにちは", "你是谁", "what can you do?",

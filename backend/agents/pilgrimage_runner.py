@@ -51,6 +51,9 @@ def _seed_tool_state(deps: RuntimeDeps, context: dict[str, object] | None) -> No
         value = raw.get(key)
         if isinstance(value, dict):
             deps.tool_state[key] = value
+    # Fallback: if raw itself looks like search results, populate directly
+    if "rows" in raw and "search_bangumi" not in deps.tool_state:
+        deps.tool_state["search_bangumi"] = raw
 
 
 async def run_pilgrimage_agent(

@@ -145,7 +145,7 @@ async def _run_handler(
         )
 
     # Return compact summary to LLM; full data stays in tool_state + SSE
-    return _summarize_for_llm(tool, result.data) if result.data else result.data
+    return _summarize_for_llm(tool, result.data) if result.data else {}
 
 
 # ── Tool registrations ────────────────────────────────────────────────
@@ -361,7 +361,7 @@ async def clarify(
     ctx: RunContext[RuntimeDeps],
     *,
     question: str,
-    options: list[str] = [],  # noqa: B006 — PydanticAI copies defaults per call
+    options: list[str] | None = None,
 ) -> dict[str, object]:
     """Ask the user a clarification question when you cannot proceed confidently.
 
@@ -380,7 +380,7 @@ async def clarify(
                  Example: ["涼宮ハルヒの憂鬱", "涼宮ハルヒの消失"]
     """
     deps = ctx.deps
-    normalized_options = list(options)
+    normalized_options = list(options) if options else []
     await _emit_step(deps, ToolName.CLARIFY.value, "running", {})
 
     candidates = await enrich_clarify_candidates(deps, normalized_options)
@@ -402,16 +402,6 @@ async def clarify(
     )
     await _emit_step(deps, ToolName.CLARIFY.value, "done", payload)
     return payload
-
-
-@pilgrimage_agent.tool
-async def enrich_candidates(
-    ctx: RunContext[RuntimeDeps],
-    *,
-    titles: list[str],
-) -> list[dict[str, object]]:
-    """Enrich anime title candidates for clarify cards (DB-first, gateway fallback)."""
-    return await enrich_clarify_candidates(ctx.deps, titles)
 
 
 @pilgrimage_agent.tool
