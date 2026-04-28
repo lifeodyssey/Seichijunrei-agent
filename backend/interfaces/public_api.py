@@ -284,14 +284,17 @@ class RuntimeAPI:
             return None, application_error_response(exc), context_delta
         except Exception as exc:
             error_msg = str(exc)
+            exc_type = type(exc).__name__.lower()
+            search_text = f"{exc_type} {error_msg}".lower()
             is_provider_error = any(
-                k in error_msg.lower()
+                k in search_text
                 for k in (
                     "502",
                     "503",
                     "rate limit",
                     "network",
                     "modelhttperror",
+                    "fallbackmodel",
                     "fallbackexceptiongroup",
                 )
             )

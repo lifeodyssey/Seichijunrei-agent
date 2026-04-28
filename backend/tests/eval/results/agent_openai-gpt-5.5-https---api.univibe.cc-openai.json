@@ -1,0 +1,61 @@
+{
+  "model": "openai:gpt-5.5@https://api.univibe.cc/openai",
+  "case_count": 2,
+  "errored_count": 0,
+  "scores": {
+    "IntentMatch": 1.0,
+    "MessageQuality": 1.0,
+    "ToolExecution": 1.0,
+    "DataCompleteness": 1.0,
+    "StepEfficiency": 1.0,
+    "ResponseLocale": 1.0
+  },
+  "cases": [
+    {
+      "id": "K4_ja_001",
+      "scores": {
+        "IntentMatch": 1.0,
+        "MessageQuality": 1.0,
+        "ToolExecution": 1.0,
+        "DataCompleteness": 1.0,
+        "StepEfficiency": 1.0,
+        "ResponseLocale": 1.0
+      },
+      "intent": "plan_selected",
+      "message": "該当する巡礼地が見つかりませんでした。",
+      "message_locale": "ja",
+      "steps": [
+        "plan_selected"
+      ],
+      "step_count": 1,
+      "query": "",
+      "locale": "ja",
+      "expected_stages": [
+        "plan_selected"
+      ]
+    },
+    {
+      "id": "K4_en_001",
+      "scores": {
+        "IntentMatch": 1.0,
+        "MessageQuality": 1.0,
+        "ToolExecution": 1.0,
+        "DataCompleteness": 1.0,
+        "StepEfficiency": 1.0,
+        "ResponseLocale": 1.0
+      },
+      "intent": "plan_selected",
+      "message": "No pilgrimage spots found.",
+      "message_locale": "en",
+      "steps": [
+        "plan_selected"
+      ],
+      "step_count": 1,
+      "query": "",
+      "locale": "en",
+      "expected_stages": [
+        "plan_selected"
+      ]
+    }
+  ]
+}

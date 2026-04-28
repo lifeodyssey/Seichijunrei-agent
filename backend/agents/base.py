@@ -143,12 +143,21 @@ def _parse_openai_compat_model(
     )
     # DeepSeek V4 models route through their reasoner backend which
     # rejects tool_choice='required'. Use 'auto' instead.
-    # See: https://github.com/pydantic/pydantic-ai/issues/5193
+    # Thinking mode is disabled to avoid reasoning_content roundtrip issues
+    # in multi-turn conversations (PydanticAI issue #5193).
     profile = None
     if model_name.startswith("deepseek-v4"):
         from pydantic_ai.profiles.openai import OpenAIModelProfile
 
         profile = OpenAIModelProfile(openai_supports_tool_choice_required=False)
+        from pydantic_ai.models.openai import OpenAIChatModelSettings
+
+        ds_settings = OpenAIChatModelSettings(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
+        return OpenAIChatModel(
+            model_name, provider=provider, profile=profile, settings=ds_settings
+        )
     return OpenAIChatModel(model_name, provider=provider, profile=profile)
 
 

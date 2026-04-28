@@ -59,23 +59,25 @@ class TestCompactToolResults:
         assert len(result) == 6
 
     def test_compresses_old_tool_returns(self) -> None:
-        from backend.agents.pilgrimage_agent import _compact_tool_results
+        from backend.agents.pilgrimage_agent import (
+            COMPACT_THRESHOLD,
+            _compact_tool_results,
+        )
 
         long_content = "x" * 300
+        # Build enough messages to exceed COMPACT_THRESHOLD
         messages: list[ModelMessage] = [
             _make_request_with_tool_return("resolve_anime", long_content, "c1"),
             _make_response("resolved"),
             _make_request_with_tool_return("search_bangumi", long_content, "c2"),
             _make_response("found results"),
-            _make_user_request("q3"),
-            _make_response("a3"),
-            _make_user_request("q4"),
-            _make_response("a4"),
-            _make_user_request("q5"),
-            _make_response("a5"),
-            _make_user_request("recent"),
-            _make_response("recent answer"),
         ]
+        # Pad with user turns to exceed threshold
+        for i in range(COMPACT_THRESHOLD):
+            messages.append(_make_user_request(f"q{i}"))
+            messages.append(_make_response(f"a{i}"))
+
+        assert len(messages) > COMPACT_THRESHOLD
         result = _compact_tool_results(messages)
 
         assert len(result) == len(messages)
@@ -86,7 +88,7 @@ class TestCompactToolResults:
         assert isinstance(part, ToolReturnPart)
         assert "[resolve_anime: completed]" in str(part.content)
 
-        # Recent messages (last 4) should be unchanged
+        # Recent messages (last _KEEP_RECENT) should be unchanged
         last_msg = result[-1]
         assert isinstance(last_msg, ModelResponse)
 
@@ -100,16 +102,19 @@ class TestSlidingWindow:
         assert len(result) == 8
 
     def test_truncates_over_threshold(self) -> None:
-        from backend.agents.pilgrimage_agent import _sliding_window
+        from backend.agents.pilgrimage_agent import COMPACT_THRESHOLD, _sliding_window
 
-        messages: list[ModelMessage] = [_make_user_request(f"q{i}") for i in range(15)]
+        count = COMPACT_THRESHOLD + 20
+        messages: list[ModelMessage] = [
+            _make_user_request(f"q{i}") for i in range(count)
+        ]
         result = _sliding_window(messages)
-        assert len(result) <= 10
+        assert len(result) <= COMPACT_THRESHOLD
         last_msg = result[-1]
         assert isinstance(last_msg, ModelRequest)
         first_part = last_msg.parts[0]
         assert isinstance(first_part, UserPromptPart)
-        assert first_part.content == "q14"
+        assert first_part.content == f"q{count - 1}"
 
 
 class TestSlidingWindowPairPreservation:

@@ -32,8 +32,8 @@ from backend.agents.runtime_models import (
     SearchResponseModel,
 )
 
-COMPACT_THRESHOLD = 10
-_KEEP_RECENT = 4
+COMPACT_THRESHOLD = 40  # ~5 turns × 8 messages/turn
+_KEEP_RECENT = 8  # Keep latest turn fully uncompressed
 
 _INSTRUCTIONS = """\
 You are the runtime agent for Seichijunrei (聖地巡礼), an anime pilgrimage search \
