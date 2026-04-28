@@ -5,6 +5,27 @@ picking it up in 3 months understands the motivation.
 
 ---
 
+## Provider Resilience
+
+### Cross-Provider Fallback
+**Priority:** P1
+
+Current fallback: `gpt-5.4@Univibe → gpt-5.4@Univibe` (same provider).
+When Univibe goes down, both primary and fallback fail.
+
+Should be cross-provider: primary → fallback on different provider.
+E.g., `gpt-5.4@Univibe → deepseek-v4-pro@DeepSeek` or vice versa.
+
+- [ ] Change `FALLBACK_AGENT_MODEL` to use a different provider than primary
+- [ ] Catch `ModelHTTPError(502)` in `_execute_pipeline` and return friendly
+      "AI service temporarily unavailable" instead of generic pipeline error
+- [ ] Test with provider A down, verify auto-fallback to provider B
+
+**Why:** Univibe 502 "网络有点慢" caused repeated E2E failures. Both models on
+same provider = no resilience.
+
+---
+
 ## Route Planning
 
 ### Route Planner Agent — Full Version (Phase 3)
