@@ -104,6 +104,17 @@ def read_baseline(
                 stored_count,
             )
             return {}
+    if expected_case_count is not None:
+        evaluated = data.get("evaluated_count", data.get("case_count", 0))
+        if isinstance(evaluated, int) and evaluated < expected_case_count * 0.80:
+            logger.warning(
+                "Baseline for %s/%s has too few evaluated cases: %d < 80%% of %d",
+                layer,
+                model_id,
+                evaluated,
+                expected_case_count,
+            )
+            return {}
     scores = data.get("scores")
     if isinstance(scores, dict):
         return {str(k): float(v) for k, v in scores.items()}
@@ -116,16 +127,19 @@ def write_baseline(
     scores: dict[str, float],
     *,
     case_count: int,
+    evaluated_count: int | None = None,
     baselines_dir: Path = _DEFAULT_BASELINES_DIR,
 ) -> None:
     """Write baseline scores to a JSON file."""
     baselines_dir.mkdir(parents=True, exist_ok=True)
     path = baselines_dir / _build_baseline_filename(layer, model_id)
-    payload = {
+    payload: dict[str, object] = {
         "model": model_id,
         "case_count": case_count,
         "scores": scores,
     }
+    if evaluated_count is not None:
+        payload["evaluated_count"] = evaluated_count
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 

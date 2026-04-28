@@ -313,11 +313,12 @@ def _save_per_case_results(report: object, model_id: str) -> Path:
 
     avg = report.averages()
     scores = _collect_scores(avg) if avg else {}
-    errored = sum(1 for cr in report.cases if cr.output is None)
+    errored = len(report.failures)
 
     payload = {
         "model": model_id,
-        "case_count": len(report.cases),
+        "case_count": len(CASES),
+        "evaluated_count": len(report.cases),
         "errored_count": errored,
         "scores": scores,
         "cases": case_results,
@@ -333,11 +334,17 @@ def _save_per_case_results(report: object, model_id: str) -> Path:
 @pytest.mark.integration
 async def test_agent(real_db: object) -> None:
     """Run the unified agent assessment against real testcontainer DB."""
+    from tenacity import stop_after_attempt, wait_exponential
+
     task = make_agent_task(db=real_db)
     report = await agent_dataset.evaluate(
         task,
         name=f"agent_{_EVAL_MODEL_ID}",
-        max_concurrency=50,
+        max_concurrency=10,
+        retry_task={
+            "stop": stop_after_attempt(2),
+            "wait": wait_exponential(min=1, max=5),
+        },
     )
     report.print(include_input=True, include_output=True)
     _save_per_case_results(report, _EVAL_MODEL_ID)
@@ -347,11 +354,12 @@ async def test_agent(real_db: object) -> None:
         pytest.skip("All cases errored — check model endpoint and DB.")
 
     # Guard: refuse to proceed if >20% of cases errored (API down, bad key, etc.)
-    errored = sum(1 for c in report.cases if c.output is None)
-    error_rate = errored / len(CASES) if CASES else 0
+    total = len(report.cases) + len(report.failures)
+    errored = len(report.failures)
+    error_rate = errored / total if total > 0 else 1.0
     if error_rate > 0.20:
         pytest.fail(
-            f"{errored}/{len(CASES)} cases errored ({error_rate:.0%}). "
+            f"{errored}/{total} cases errored ({error_rate:.0%}). "
             "Check API key and model endpoint."
         )
 
@@ -362,7 +370,13 @@ async def test_agent(real_db: object) -> None:
         _LAYER, _EVAL_MODEL_ID, expected_case_count=len(CASES)
     )
     if not baseline_scores:
-        write_baseline(_LAYER, _EVAL_MODEL_ID, current_scores, case_count=len(CASES))
+        write_baseline(
+            _LAYER,
+            _EVAL_MODEL_ID,
+            current_scores,
+            case_count=len(CASES),
+            evaluated_count=len(report.cases),
+        )
         pytest.skip(f"Baseline created for {_EVAL_MODEL_ID}; re-run to enforce gate.")
 
     failures = enforce_gate(current_scores, baseline_scores)
@@ -398,10 +412,16 @@ if __name__ == "__main__":
         print(f"\nRunning agent assessment: {len(CASES)} cases, model={mid}")
         print(f"DB: {db_url[:50]}...")
 
+        from tenacity import stop_after_attempt, wait_exponential
+
         report = await agent_dataset.evaluate(
             task,
             name=f"agent_{mid}",
-            max_concurrency=50,
+            max_concurrency=10,
+            retry_task={
+                "stop": stop_after_attempt(2),
+                "wait": wait_exponential(min=1, max=5),
+            },
         )
         report.print(include_input=True, include_output=True)
 
@@ -415,7 +435,13 @@ if __name__ == "__main__":
 
         baseline_scores = read_baseline(_LAYER, mid)
         if not baseline_scores:
-            write_baseline(_LAYER, mid, current_scores, case_count=len(CASES))
+            write_baseline(
+                _LAYER,
+                mid,
+                current_scores,
+                case_count=len(CASES),
+                evaluated_count=len(report.cases),
+            )
             print("Baseline created. Re-run to enforce gate.")
             return
 
