@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from backend.agents.handlers._helpers import optimize_route
 from backend.agents.models import LocationCluster
 from backend.agents.route_optimizer import (
     build_timed_itinerary,
@@ -378,3 +379,46 @@ def test_itinerary_single_cluster() -> None:
     assert len(itinerary.stops) == 1
     assert len(itinerary.legs) == 0
     assert itinerary.stops[0].arrive == "10:00"
+
+
+# ── optimize_route truncation tests ────────────────────────────────
+
+
+def _make_distant_rows(count: int) -> list[dict[str, object]]:
+    """Create *count* rows spaced >50m apart so each becomes its own cluster."""
+    return [
+        {
+            "id": f"p{i}",
+            "latitude": 35.0 + i * 0.001,
+            "longitude": 135.0,
+            "name": f"spot_{i}",
+            "bangumi_id": "bg_1",
+            "episode": "1",
+        }
+        for i in range(count)
+    ]
+
+
+def test_optimize_route_truncates_when_over_30_clusters() -> None:
+    rows = _make_distant_rows(60)
+    result = optimize_route(rows, {}, None)
+    assert result.success is True
+    assert result.data["point_count"] <= 30, (
+        f"Expected at most 30 points, got {result.data['point_count']}"
+    )
+
+
+def test_optimize_route_truncated_includes_warning() -> None:
+    rows = _make_distant_rows(60)
+    result = optimize_route(rows, {}, None)
+    assert "warning" in result.data, "Expected warning key in truncated result"
+    warning = result.data["warning"]
+    assert isinstance(warning, str)
+    assert "60" in warning, f"Warning should mention total count 60, got: {warning}"
+
+
+def test_optimize_route_no_warning_when_under_limit() -> None:
+    rows = _make_distant_rows(10)
+    result = optimize_route(rows, {}, None)
+    assert result.success is True
+    assert "warning" not in result.data, "No warning expected for 10 clusters"

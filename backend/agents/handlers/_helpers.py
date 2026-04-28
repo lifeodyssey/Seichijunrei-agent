@@ -13,6 +13,8 @@ from backend.agents.route_optimizer import (
     validate_coordinates,
 )
 
+MAX_ROUTE_CLUSTERS = 30
+
 
 @dataclass(frozen=True)
 class RoutePlanParams:
@@ -161,6 +163,14 @@ def optimize_route(
     # 2. Cluster by location
     clusters = cluster_by_location(valid_rows, threshold_m=50.0)
 
+    # 2.5 Truncate if too many clusters (Phase 1 crash fix)
+    truncated = False
+    total_cluster_count = len(clusters)
+    if len(clusters) > MAX_ROUTE_CLUSTERS:
+        clusters.sort(key=lambda c: c.photo_count, reverse=True)
+        clusters = clusters[:MAX_ROUTE_CLUSTERS]
+        truncated = True
+
     # 3. Extract typed route params
     rp = RoutePlanParams.from_raw(params, origin)
     pacing = rp.pacing
@@ -202,21 +212,25 @@ def optimize_route(
         None,
     )
 
-    return HandlerResult.ok(
-        tool_name,
-        {
-            "ordered_points": ordered_points,
-            "timed_itinerary": itinerary.model_dump(mode="json"),
+    result_data: dict[str, object] = {
+        "ordered_points": ordered_points,
+        "timed_itinerary": itinerary.model_dump(mode="json"),
+        "point_count": len(ordered_points),
+        "cover_url": cover_url,
+        "status": "ok",
+        "summary": {
             "point_count": len(ordered_points),
-            "cover_url": cover_url,
-            "status": "ok",
-            "summary": {
-                "point_count": len(ordered_points),
-                "with_coordinates": len(with_coords),
-                "without_coordinates": len(rows) - len(with_coords),
-                "clusters": len(clusters),
-                "total_minutes": itinerary.total_minutes,
-                "total_distance_m": itinerary.total_distance_m,
-            },
+            "with_coordinates": len(with_coords),
+            "without_coordinates": len(rows) - len(with_coords),
+            "clusters": len(clusters),
+            "total_minutes": itinerary.total_minutes,
+            "total_distance_m": itinerary.total_distance_m,
         },
-    )
+    }
+    if truncated:
+        result_data["warning"] = (
+            f"Selected {len(clusters)} representative locations from "
+            f"{total_cluster_count} total. Some spots were omitted to create "
+            f"a walkable route."
+        )
+    return HandlerResult.ok(tool_name, result_data)
