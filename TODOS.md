@@ -151,3 +151,18 @@ Translation eval 72.6% — 3 bug patterns:
 - [ ] Bangumi API returns sequel/spinoff instead of main work (13 cases)
 - [ ] Place names treated as anime titles (3 cases)
 - [ ] Update translation_v1.json expected values for community names (6 cases)
+
+### Area Splitter Performance
+**Priority:** P1
+
+Route planner sub-agent calls `calculate_distance` 15+ times for 76 points via
+LLM tool calls — each call is an LLM roundtrip (~2s). 76 points × multiple
+distance checks = 90s timeout.
+
+Options:
+- [ ] Pre-compute pairwise distances for distant points and pass as context (no tool calls)
+- [ ] Use algorithmic clustering (DBSCAN/hierarchical) as primary, LLM only for naming areas
+- [ ] Limit calculate_distance to sampled point pairs (e.g., centroids only)
+- [ ] Increase agent timeout for route planning specifically
+
+**Why:** E2E test showed plan_route correctly triggered but area_splitter timed out.
