@@ -14,7 +14,12 @@ Separation rationale:
 from __future__ import annotations
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.output import ToolOutput
 
 from backend.agents.base import resolve_model
@@ -139,7 +144,7 @@ def _compress_request(msg: ModelRequest) -> ModelRequest:
         _compress_tool_return(p) if isinstance(p, ToolReturnPart) else p
         for p in msg.parts
     ]
-    return ModelRequest(parts=new_parts)
+    return ModelRequest(parts=new_parts, instructions=msg.instructions)
 
 
 def _compress_tool_return(part: ToolReturnPart) -> ToolReturnPart:
@@ -153,10 +158,34 @@ def _compress_tool_return(part: ToolReturnPart) -> ToolReturnPart:
 
 
 def _sliding_window(messages: list[ModelMessage]) -> list[ModelMessage]:
-    """Keep only last COMPACT_THRESHOLD messages (~5 turns)."""
+    """Keep last ~COMPACT_THRESHOLD messages, slicing on turn boundaries."""
     if len(messages) <= COMPACT_THRESHOLD:
         return messages
-    return messages[-COMPACT_THRESHOLD:]
+    turn_starts = _find_turn_starts(messages)
+    if not turn_starts:
+        return messages[-COMPACT_THRESHOLD:]
+    return messages[_pick_keep_from(turn_starts, len(messages)) :]
+
+
+def _find_turn_starts(messages: list[ModelMessage]) -> list[int]:
+    """Return indices of messages containing a UserPromptPart."""
+    return [
+        i
+        for i, msg in enumerate(messages)
+        if isinstance(msg, ModelRequest)
+        and any(isinstance(p, UserPromptPart) for p in msg.parts)
+    ]
+
+
+def _pick_keep_from(turn_starts: list[int], total: int) -> int:
+    """Find the earliest turn start within COMPACT_THRESHOLD of the end."""
+    keep_from = turn_starts[-1]
+    for start in reversed(turn_starts):
+        if total - start <= COMPACT_THRESHOLD:
+            keep_from = start
+        else:
+            break
+    return keep_from
 
 
 pilgrimage_agent = Agent(

@@ -104,10 +104,94 @@ class TestSlidingWindow:
 
         messages: list[ModelMessage] = [_make_user_request(f"q{i}") for i in range(15)]
         result = _sliding_window(messages)
-        assert len(result) == 10
-        # Should keep the last 10
+        assert len(result) <= 10
         last_msg = result[-1]
         assert isinstance(last_msg, ModelRequest)
         first_part = last_msg.parts[0]
         assert isinstance(first_part, UserPromptPart)
         assert first_part.content == "q14"
+
+
+class TestSlidingWindowPairPreservation:
+    def test_preserves_tool_call_return_pair(self) -> None:
+        """Sliding window must not orphan a ToolReturnPart from its ToolCallPart."""
+        from backend.agents.pilgrimage_agent import _sliding_window
+
+        messages: list[ModelMessage] = [
+            _make_user_request("q1"),
+            _make_response("a1"),
+            _make_user_request("q2"),
+            _make_tool_call_response("search_bangumi", "call_1"),
+            _make_request_with_tool_return("search_bangumi", "results", "call_1"),
+            _make_response("found 76 spots"),
+            _make_user_request("q3"),
+            _make_response("a3"),
+            _make_user_request("q4"),
+            _make_response("a4"),
+            _make_user_request("q5"),
+            _make_response("a5"),
+            _make_user_request("q6"),
+            _make_response("a6"),
+        ]
+        result = _sliding_window(messages)
+
+        for i, msg in enumerate(result):
+            if not isinstance(msg, ModelRequest):
+                continue
+            for part in msg.parts:
+                if not isinstance(part, ToolReturnPart):
+                    continue
+                found_call = any(
+                    isinstance(prev, ModelResponse)
+                    and any(
+                        isinstance(pp, ToolCallPart)
+                        and pp.tool_call_id == part.tool_call_id
+                        for pp in prev.parts
+                    )
+                    for prev in result[:i]
+                )
+                assert found_call, (
+                    f"ToolReturnPart '{part.tool_name}' at index {i} "
+                    f"has no preceding ToolCallPart with id '{part.tool_call_id}'"
+                )
+
+    def test_cuts_on_user_turn_boundary(self) -> None:
+        """Window should start at a UserPromptPart, not mid-turn."""
+        from backend.agents.pilgrimage_agent import _sliding_window
+
+        messages: list[ModelMessage] = [
+            _make_user_request("old1"),
+            _make_tool_call_response("resolve_anime", "c1"),
+            _make_request_with_tool_return("resolve_anime", "data", "c1"),
+            _make_response("resolved"),
+            _make_user_request("old2"),
+            _make_response("a2"),
+            _make_user_request("recent1"),
+            _make_response("r1"),
+            _make_user_request("recent2"),
+            _make_response("r2"),
+            _make_user_request("recent3"),
+            _make_response("r3"),
+        ]
+        result = _sliding_window(messages)
+
+        first = result[0]
+        assert isinstance(first, ModelRequest)
+        assert any(isinstance(p, UserPromptPart) for p in first.parts)
+
+
+class TestCompressRequestPreservesFields:
+    def test_preserves_instructions_field(self) -> None:
+        from backend.agents.pilgrimage_agent import _compress_request
+
+        original = ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name="search", content="x" * 300, tool_call_id="c1")
+            ],
+            instructions="You are a helpful assistant.",
+        )
+        compressed = _compress_request(original)
+        assert compressed.instructions == "You are a helpful assistant."
+        part = compressed.parts[0]
+        assert isinstance(part, ToolReturnPart)
+        assert "[search: completed]" in str(part.content)
