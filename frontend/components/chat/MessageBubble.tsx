@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatMessage, ErrorCode, RuntimeResponse } from "../../lib/types";
-import { isQAData, isRouteData, isSearchData, isClarifyData } from "../../lib/types";
+import { isSearchResponse, isRouteResponse, isQAResponse, isClarifyResponse } from "../../lib/types";
 import { isVisualResponse } from "../generative/registry";
 import { useDict } from "../../lib/i18n-context";
 import ThinkingProcess from "./ThinkingProcess";
@@ -44,11 +44,11 @@ export default function MessageBubble({
   }
 
   const isClarification =
-    message.response != null && isClarifyData(message.response.data);
+    message.response != null && isClarifyResponse(message.response);
   const isNearby =
     message.response != null &&
     message.response.intent === "search_nearby" &&
-    isSearchData(message.response.data);
+    isSearchResponse(message.response);
 
   return (
     <div
@@ -130,10 +130,9 @@ function ErrorDisplay({
 }
 
 function getResultCount(response: RuntimeResponse): number {
-  const data = response.data;
-  if (data == null) return 0;
-  if (isQAData(data)) return 1;
-  if (isRouteData(data)) return data.route.point_count ?? data.route.ordered_points.length;
-  if (isSearchData(data)) return data.results.row_count ?? data.results.rows.length;
+  if (response.data == null) return 0;
+  if (isQAResponse(response)) return 1;
+  if (isRouteResponse(response)) return response.data.route.point_count ?? response.data.route.ordered_points.length;
+  if (isSearchResponse(response)) return response.data.results.row_count ?? response.data.results.rows.length;
   return 0;
 }

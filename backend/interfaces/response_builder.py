@@ -37,47 +37,11 @@ def agent_result_to_response(
     include_debug: bool,
 ) -> PublicAPIResponse:
     """Map an ``AgentResult`` to the stable ``PublicAPIResponse``."""
-    from backend.agents.runtime_models import (
-        ClarifyResponseModel,
-        RouteResponseModel,
-        SearchResponseModel,
-    )
-
     output = result.output
     component = _UI_MAP.get(result.intent)
     ui = {"component": component} if component else None
 
-    # Build data dict from typed output + tool_state
-    data: dict[str, object] = {}
-    status = "ok"
-
-    if isinstance(output, ClarifyResponseModel):
-        status = "needs_clarification"
-        data = output.data.model_dump(mode="json")
-    elif isinstance(output, SearchResponseModel):
-        tool_key = str(output.intent)
-        tool_payload = result.tool_state.get(tool_key)
-        payload = (
-            tool_payload
-            if isinstance(tool_payload, dict)
-            else output.data.results.model_dump(mode="json")
-        )
-        status = _status_from_payload(payload, fallback="ok")
-        data["results"] = payload
-    elif isinstance(output, RouteResponseModel):
-        tool_key = str(output.intent)
-        tool_payload = result.tool_state.get(tool_key)
-        payload = (
-            tool_payload
-            if isinstance(tool_payload, dict)
-            else output.data.route.model_dump(mode="json")
-        )
-        status = _status_from_payload(payload, fallback="ok")
-        data["route"] = payload
-    else:
-        payload = output.data.model_dump(mode="json")
-        status = _status_from_payload(payload, fallback="info")
-        data.update(payload)
+    status, data = output.to_response_data(result.tool_state)
 
     errors: list[PublicAPIError] = []
     failed_steps = [s for s in result.steps if not s.success and s.error]

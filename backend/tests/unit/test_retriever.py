@@ -255,6 +255,39 @@ class TestMergeRows:
         assert merged[0]["distance_m"] == 120
 
 
+class TestDefaultCallablesAreGatewayMethods:
+    """Verify Retriever wires gateway methods directly (no use-case wrapper)."""
+
+    def test_default_fetch_bangumi_points_is_gateway_bound_method(self, mock_db):
+        """When no override is given, _fetch_bangumi_points must be a bound
+        method of AnitabiClientGateway, not a use-case wrapper class."""
+        retriever = Retriever(mock_db)
+        callable_ = retriever._fetch_bangumi_points
+        assert callable_ is not None
+        # Must be a bound method, not a dataclass instance with __call__
+        assert hasattr(callable_, "__self__"), (
+            "Expected a bound method but got a wrapper class"
+        )
+        from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
+
+        assert isinstance(callable_.__self__, AnitabiClientGateway)
+        assert callable_.__func__.__name__ == "get_bangumi_points"
+
+    def test_default_get_bangumi_subject_is_gateway_bound_method(self, mock_db):
+        """When no override is given, _get_bangumi_subject must be a bound
+        method of BangumiClientGateway, not a use-case wrapper class."""
+        retriever = Retriever(mock_db)
+        callable_ = retriever._get_bangumi_subject
+        assert callable_ is not None
+        assert hasattr(callable_, "__self__"), (
+            "Expected a bound method but got a wrapper class"
+        )
+        from backend.infrastructure.gateways.bangumi import BangumiClientGateway
+
+        assert isinstance(callable_.__self__, BangumiClientGateway)
+        assert callable_.__func__.__name__ == "get_subject"
+
+
 class TestForceRefresh:
     @pytest.mark.asyncio
     async def test_force_refresh_bypasses_row_count_short_circuit(self, mock_db):

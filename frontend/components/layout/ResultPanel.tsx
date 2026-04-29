@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import type { RuntimeResponse, PilgrimagePoint, SearchResultData } from "../../lib/types";
-import { isSearchData, isRouteData } from "../../lib/types";
+import { isSearchResponse, isRouteResponse } from "../../lib/types";
 import { usePointSelectionContext } from "../../contexts/PointSelectionContext";
 import { useDict } from "../../lib/i18n-context";
 import { useSuggest } from "../../contexts/SuggestContext";
@@ -97,7 +97,7 @@ export default function ResultPanel({
 
   // Extract search points from the response (when available).
   const searchPoints = useMemo<PilgrimagePoint[]>(() => {
-    if (!activeResponse || !isSearchData(activeResponse.data)) return [];
+    if (!activeResponse || !isSearchResponse(activeResponse)) return [];
     return (activeResponse.data as SearchResultData).results.rows;
   }, [activeResponse]);
 
@@ -150,7 +150,7 @@ export default function ResultPanel({
   }
 
   // ── Active response with search results ───────────────────────────────────
-  if (isSearchData(activeResponse.data)) {
+  if (isSearchResponse(activeResponse)) {
     // Prewarm Mapbox GL when results arrive — shaves ~800ms off first map render
     prewarmMapbox();
     const isEmpty = searchPoints.length === 0;
@@ -271,7 +271,7 @@ export default function ResultPanel({
   }
 
   // ── Route results: full-bleed (no padding) for horizontal split layout ────
-  if (isRouteData(activeResponse.data)) {
+  if (isRouteResponse(activeResponse)) {
     return (
       <section
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-bg)]"

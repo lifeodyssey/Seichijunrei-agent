@@ -39,6 +39,21 @@ class ClarifyResponseModel(BaseModel):
     data: ClarifyDataModel
     ui: dict[str, str] = Field(default_factory=dict)
 
+    def to_response_data(
+        self, tool_state: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """Return (status, data_dict) for the response builder."""
+        return "needs_clarification", self.data.model_dump(mode="json")
+
+
+def _status_from_payload(payload: object, *, fallback: str) -> str:
+    """Extract status string from a dict payload, or return fallback."""
+    if isinstance(payload, dict):
+        value = payload.get("status")
+        if isinstance(value, str) and value:
+            return value
+    return fallback
+
 
 def _coerce_str(v: object) -> str:
     """Coerce None to empty string for nullable DB columns."""
@@ -139,6 +154,19 @@ class SearchResponseModel(BaseModel):
     data: SearchDataModel
     ui: dict[str, str] = Field(default_factory=dict)
 
+    def to_response_data(
+        self, tool_state: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """Return (status, data_dict) for the response builder."""
+        tool_payload = tool_state.get(str(self.intent))
+        payload = (
+            tool_payload
+            if isinstance(tool_payload, dict)
+            else self.data.results.model_dump(mode="json")
+        )
+        status = _status_from_payload(payload, fallback="ok")
+        return status, {"results": payload}
+
 
 class RouteModel(BaseModel):
     """Route container for route stage."""
@@ -167,6 +195,19 @@ class RouteResponseModel(BaseModel):
     data: RouteDataModel
     ui: dict[str, str] = Field(default_factory=dict)
 
+    def to_response_data(
+        self, tool_state: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """Return (status, data_dict) for the response builder."""
+        tool_payload = tool_state.get(str(self.intent))
+        payload = (
+            tool_payload
+            if isinstance(tool_payload, dict)
+            else self.data.route.model_dump(mode="json")
+        )
+        status = _status_from_payload(payload, fallback="ok")
+        return status, {"route": payload}
+
 
 class QADataModel(BaseModel):
     """Data payload for QA/greet stage."""
@@ -183,6 +224,14 @@ class QAResponseModel(BaseModel):
     data: QADataModel = Field(default_factory=QADataModel)
     ui: dict[str, str] = Field(default_factory=dict)
 
+    def to_response_data(
+        self, tool_state: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """Return (status, data_dict) for the response builder."""
+        payload = self.data.model_dump(mode="json")
+        status = _status_from_payload(payload, fallback="info")
+        return status, payload
+
 
 class GreetingResponseModel(BaseModel):
     """Full response for greeting stage."""
@@ -191,6 +240,14 @@ class GreetingResponseModel(BaseModel):
     message: str
     data: QADataModel = Field(default_factory=QADataModel)
     ui: dict[str, str] = Field(default_factory=dict)
+
+    def to_response_data(
+        self, tool_state: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """Return (status, data_dict) for the response builder."""
+        payload = self.data.model_dump(mode="json")
+        status = _status_from_payload(payload, fallback="info")
+        return status, payload
 
 
 RuntimeStageOutput = (
