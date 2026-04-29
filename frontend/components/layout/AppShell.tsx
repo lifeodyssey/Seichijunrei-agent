@@ -13,7 +13,7 @@ import { useRouteSelection } from "../../hooks/useRouteSelection";
 import { PointSelectionContext } from "../../contexts/PointSelectionContext";
 import { SuggestContext } from "../../contexts/SuggestContext";
 import { isVisualResponse } from "../generative/registry";
-import { isRouteData } from "../../lib/types";
+import { isRouteResponse } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import IconSidebar from "./IconSidebar";
 import ChatPanel from "../chat/ChatPanel";
@@ -122,7 +122,7 @@ export default function AppShell() {
     if (!isVisualResponse(last.response)) return;
     const id = last.id;
     const mobile = isMobile;
-    const isRoute = last.response.data ? isRouteData(last.response.data) : false;
+    const isRoute = last.response ? isRouteResponse(last.response) : false;
     queueMicrotask(() => {
       setActiveMessageId(id);
       if (mobile) setDrawerOpen(true);
@@ -193,7 +193,7 @@ export default function AppShell() {
   );
 
   const isSending = sending || routeSending;
-  const isRouteResult = activeResponse?.data ? isRouteData(activeResponse.data) : false;
+  const isRouteResult = activeResponse ? isRouteResponse(activeResponse) : false;
 
   return (
     <SuggestContext.Provider value={{ onSuggest: handleSend }}>

@@ -3,6 +3,12 @@
 Each ``@pilgrimage_agent.tool`` is a deterministic wrapper around a handler
 (DB/retriever/route), keeping tool docs close to the LLM-facing contract.
 
+Trivial tools (greet_user, general_qa) are inlined directly here — they only
+build a ``{"message": ..., "status": "info"}`` dict.  Search tools
+(search_bangumi, search_nearby) use inline closures that call shared helpers
+from ``_base_search``.  Complex tools (resolve_anime, plan_route) still
+delegate to their handler modules via ``_run_handler``.
+
 Import this module after ``pilgrimage_agent`` is created so the decorators
 can attach to it.
 """
@@ -17,14 +23,14 @@ from pydantic_ai import ModelRetry, RunContext
 from backend.agents.agent_result import StepRecord
 from backend.agents.handlers import (
     HandlerResult,
-    execute_answer_question,
-    execute_greet_user,
     execute_plan_route,
     execute_resolve_anime,
-    execute_search_bangumi,
-    execute_search_nearby,
 )
-from backend.agents.models import PlanStep, ToolName
+from backend.agents.handlers._base_search import (
+    build_bangumi_request,
+    execute_retrieval,
+)
+from backend.agents.models import PlanStep, RetrievalRequest, ToolName
 from backend.agents.pilgrimage_agent import pilgrimage_agent
 from backend.agents.retriever import Retriever
 from backend.agents.runtime_deps import RuntimeDeps
@@ -222,11 +228,21 @@ async def search_bangumi(
         "bangumi_id": resolved_id,
         "bangumi": resolved_id,
     }
+
+    async def _inline_search_bangumi(
+        step: PlanStep,
+        context: dict[str, object],
+        db: object,
+        retriever: object,
+    ) -> HandlerResult:
+        req = build_bangumi_request(resolved_id, step.params or {})
+        return await execute_retrieval(req, retriever)
+
     return await _run_handler(
         ctx,
         tool=ToolName.SEARCH_BANGUMI,
         params=params,
-        handler=execute_search_bangumi,
+        handler=_inline_search_bangumi,
     )
 
 
@@ -254,11 +270,27 @@ async def search_nearby(
     params: dict[str, object] = {"location": location}
     if radius > 0:
         params["radius"] = radius
+
+    async def _inline_search_nearby(
+        step: PlanStep,
+        context: dict[str, object],
+        db: object,
+        retriever: object,
+    ) -> HandlerResult:
+        p = step.params or {}
+        loc = p.get("location")
+        req = RetrievalRequest(
+            tool="search_nearby",
+            location=loc if isinstance(loc, str) else "",
+            radius=p.get("radius") if isinstance(p.get("radius"), int) else None,
+        )
+        return await execute_retrieval(req, retriever)
+
     return await _run_handler(
         ctx,
         tool=ToolName.SEARCH_NEARBY,
         params=params,
-        handler=execute_search_nearby,
+        handler=_inline_search_nearby,
     )
 
 
@@ -323,12 +355,20 @@ async def greet_user(ctx: RunContext[RuntimeDeps], message: str) -> dict[str, ob
         message: A friendly introduction in the user's language (2-4 sentences).
                  Include 2-3 example queries the user can try.
     """
-    return await _run_handler(
-        ctx,
-        tool=ToolName.GREET_USER,
+    deps = ctx.deps
+    await _emit_step(deps, ToolName.GREET_USER.value, "running", {})
+    data: dict[str, object] = {"message": message, "status": "info"}
+    _record_step(
+        deps,
+        tool=ToolName.GREET_USER.value,
+        success=True,
         params={"message": message},
-        handler=execute_greet_user,
+        data=data,
+        error=None,
     )
+    deps.tool_state[ToolName.GREET_USER.value] = data
+    await _emit_step(deps, ToolName.GREET_USER.value, "done", data)
+    return data
 
 
 @pilgrimage_agent.tool
@@ -347,12 +387,20 @@ async def general_qa(ctx: RunContext[RuntimeDeps], answer: str) -> dict[str, obj
     Args:
         answer: Your helpful answer about pilgrimage in the user's language.
     """
-    return await _run_handler(
-        ctx,
-        tool=ToolName.ANSWER_QUESTION,
+    deps = ctx.deps
+    await _emit_step(deps, ToolName.ANSWER_QUESTION.value, "running", {})
+    data: dict[str, object] = {"message": answer, "status": "info"}
+    _record_step(
+        deps,
+        tool=ToolName.ANSWER_QUESTION.value,
+        success=True,
         params={"answer": answer},
-        handler=execute_answer_question,
+        data=data,
+        error=None,
     )
+    deps.tool_state[ToolName.ANSWER_QUESTION.value] = data
+    await _emit_step(deps, ToolName.ANSWER_QUESTION.value, "done", data)
+    return data
 
 
 @pilgrimage_agent.tool

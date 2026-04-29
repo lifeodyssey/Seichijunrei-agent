@@ -1,7 +1,7 @@
 "use client";
 
 import type { RuntimeResponse } from "../../lib/types";
-import { isClarifyData } from "../../lib/types";
+import { isClarifyResponse } from "../../lib/types";
 import type { ClarifyCandidate } from "../../lib/types";
 import Clarification from "../generative/Clarification";
 import { useSuggest } from "../../contexts/SuggestContext";
@@ -17,8 +17,7 @@ export default function ClarificationBubble({
 }: ClarificationBubbleProps) {
   const contextSuggest = useSuggest();
   const suggest = onSuggest ?? contextSuggest;
-  const data = response.data;
-  const clarifyData = isClarifyData(data) ? data : null;
+  const clarifyData = isClarifyResponse(response) ? response.data : null;
   const options =
     clarifyData != null && Array.isArray(clarifyData.options)
       ? (clarifyData.options as string[])

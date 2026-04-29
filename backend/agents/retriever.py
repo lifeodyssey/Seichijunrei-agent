@@ -25,8 +25,6 @@ from backend.agents.retrievers.geo import fetch_geo_rows, get_area_suggestions
 from backend.agents.retrievers.hybrid import merge_rows_preserving_order
 from backend.agents.retrievers.sql import execute_sql_with_fallback
 from backend.agents.sql_agent import SQLAgent, SQLResult  # noqa: F401
-from backend.application.use_cases.fetch_bangumi_points import FetchBangumiPoints
-from backend.application.use_cases.get_bangumi_subject import GetBangumiSubject
 from backend.domain.entities import Point
 from backend.domain.ports import DatabasePort
 from backend.infrastructure.gateways.anitabi import AnitabiClientGateway
@@ -86,11 +84,10 @@ class Retriever:
         self._get_bangumi_subject = get_bangumi_subject
         if isinstance(db, SupabaseClient):
             self._fetch_bangumi_points = (
-                self._fetch_bangumi_points
-                or FetchBangumiPoints(anitabi=AnitabiClientGateway())
+                self._fetch_bangumi_points or AnitabiClientGateway().get_bangumi_points
             )
-            self._get_bangumi_subject = self._get_bangumi_subject or GetBangumiSubject(
-                bangumi=BangumiClientGateway()
+            self._get_bangumi_subject = (
+                self._get_bangumi_subject or BangumiClientGateway().get_subject
             )
 
     @property

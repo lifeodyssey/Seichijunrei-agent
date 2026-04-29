@@ -31,10 +31,28 @@ export type {
 
 export type { ErrorCode, ChatMessage } from "./components";
 
-// ── Type guards ────────────────────────────────────────────────────────────
+// ── Response-level guards (preferred — use intent as discriminator) ────────
 
 import type { RuntimeResponse } from "./api";
 import type { SearchResultData, RouteData, QAData, ClarifyData, TimedRouteData } from "./domain";
+
+export function isSearchResponse(r: RuntimeResponse): r is RuntimeResponse & { data: SearchResultData } {
+  return r.intent === "search_bangumi" || r.intent === "search_nearby";
+}
+
+export function isRouteResponse(r: RuntimeResponse): r is RuntimeResponse & { data: RouteData } {
+  return r.intent === "plan_route" || r.intent === "plan_selected";
+}
+
+export function isQAResponse(r: RuntimeResponse): r is RuntimeResponse & { data: QAData } {
+  return r.intent === "answer_question" || r.intent === "general_qa" || r.intent === "greet_user";
+}
+
+export function isClarifyResponse(r: RuntimeResponse): r is RuntimeResponse & { data: ClarifyData } {
+  return r.intent === "clarify" || r.intent === "unclear";
+}
+
+// ── Data-level guards (backward compat — for callers that only have data) ──
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;

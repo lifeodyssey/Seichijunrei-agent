@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import type { RuntimeResponse } from "../../lib/types";
-import { isQAData, isRouteData, isSearchData, isClarifyData } from "../../lib/types";
+import { isSearchResponse, isRouteResponse, isQAResponse, isClarifyResponse } from "../../lib/types";
 import PilgrimageGrid from "./PilgrimageGrid";
 import NearbyMap from "./NearbyMap";
 import NearbyBubble from "./NearbyBubble";
@@ -16,31 +16,31 @@ export type ComponentRenderer = (
 
 export const COMPONENT_REGISTRY: Record<string, ComponentRenderer> = {
   PilgrimageGrid: (response) =>
-    isSearchData(response.data)
+    isSearchResponse(response)
       ? createElement(PilgrimageGrid, { data: response.data })
       : null,
   NearbyMap: (response) =>
-    isSearchData(response.data)
+    isSearchResponse(response)
       ? createElement(NearbyMap, { data: response.data })
       : null,
   NearbyBubble: (response, onSuggest) =>
-    isSearchData(response.data)
+    isSearchResponse(response)
       ? createElement(NearbyBubble, { data: response.data, onSuggest })
       : null,
   RouteVisualization: (response) =>
-    isRouteData(response.data)
+    isRouteResponse(response)
       ? createElement(RouteVisualization, { data: response.data })
       : null,
   RoutePlannerWizard: (response) =>
-    isRouteData(response.data)
+    isRouteResponse(response)
       ? createElement(RoutePlannerWizard, { data: response.data })
       : null,
   GeneralAnswer: (response) =>
-    isQAData(response.data)
+    isQAResponse(response)
       ? createElement(GeneralAnswer, { data: response.data })
       : null,
   Clarification: (response, onSuggest) => {
-    const clarify = isClarifyData(response.data) ? response.data : undefined;
+    const clarify = isClarifyResponse(response) ? response.data : undefined;
     return createElement(Clarification, {
       message: response.message,
       options: clarify?.options,

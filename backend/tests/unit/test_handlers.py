@@ -1,4 +1,8 @@
-"""Unit tests for backend.agents.handlers (resolve_anime, search_bangumi, answer_question)."""
+"""Unit tests for backend.agents.handlers (resolve_anime, plan_route, base_search).
+
+Trivial handler tests (answer_question, greet_user, search_bangumi, search_nearby)
+moved to test_pilgrimage_tools.py where the logic now lives inline.
+"""
 
 from __future__ import annotations
 
@@ -9,11 +13,9 @@ import pytest
 
 from backend.agents.handlers._base_search import execute_retrieval, resolve_bangumi_id
 from backend.agents.handlers._helpers import build_query_payload, optimize_route
-from backend.agents.handlers.answer_question import execute, execute_clarify
 from backend.agents.handlers.plan_route import execute as execute_plan_route
 from backend.agents.handlers.resolve_anime import execute as execute_resolve
 from backend.agents.handlers.result import HandlerResult
-from backend.agents.handlers.search_bangumi import execute as execute_search
 from backend.agents.models import PlanStep, RetrievalRequest, ToolName
 from backend.agents.retriever import RetrievalStrategy
 from backend.infrastructure.supabase.client import SupabaseClient
@@ -385,91 +387,6 @@ class TestResolveAnimeClarifyFastPath:
         assert result.data["bangumi_id"] == "200"
 
 
-class TestSearchBangumi:
-    async def test_returns_results(self) -> None:
-        fake_result = FakeRetrievalResult(
-            success=True,
-            rows=[{"id": "p1", "bangumi_id": "253"}],
-            row_count=1,
-        )
-        retriever = MagicMock()
-        retriever.execute = AsyncMock(return_value=fake_result)
-
-        step = _step(ToolName.SEARCH_BANGUMI, {"bangumi_id": "253"})
-        result = await execute_search(step, {}, MagicMock(), retriever)
-
-        assert result.success is True
-        assert result.data["row_count"] == 1
-
-    async def test_returns_empty(self) -> None:
-        fake_result = FakeRetrievalResult(
-            success=True,
-            rows=[],
-            row_count=0,
-        )
-        retriever = MagicMock()
-        retriever.execute = AsyncMock(return_value=fake_result)
-
-        step = _step(ToolName.SEARCH_BANGUMI, {"bangumi_id": "999"})
-        result = await execute_search(step, {}, MagicMock(), retriever)
-
-        assert result.success is True
-        assert result.data["row_count"] == 0
-        assert result.data["status"] == "empty"
-
-    async def test_no_bangumi_id_fails(self) -> None:
-        step = _step(ToolName.SEARCH_BANGUMI, {})
-        result = await execute_search(step, {}, MagicMock(), MagicMock())
-
-        assert result.success is False
-        assert result.error is not None
-        assert "No bangumi_id" in result.error
-
-    async def test_inherits_bangumi_id_from_context(self) -> None:
-        fake_result = FakeRetrievalResult(
-            success=True,
-            rows=[{"id": "p1"}],
-            row_count=1,
-        )
-        retriever = MagicMock()
-        retriever.execute = AsyncMock(return_value=fake_result)
-
-        context = {"resolve_anime": {"bangumi_id": "253"}}
-        step = _step(ToolName.SEARCH_BANGUMI, {})
-        result = await execute_search(step, context, MagicMock(), retriever)
-
-        assert result.success is True
-
-
-# ---------------------------------------------------------------------------
-# answer_question
-# ---------------------------------------------------------------------------
-
-
-class TestAnswerQuestion:
-    async def test_returns_correct_shape(self) -> None:
-        step = _step(ToolName.ANSWER_QUESTION, {"answer": "42 is the answer"})
-        result = await execute(step, {}, MagicMock(), MagicMock())
-
-        assert result.tool == "answer_question"
-        assert result.success is True
-        assert result.data["message"] == "42 is the answer"
-        assert result.data["status"] == "info"
-
-    async def test_empty_answer(self) -> None:
-        step = _step(ToolName.ANSWER_QUESTION, {})
-        result = await execute(step, {}, MagicMock(), MagicMock())
-
-        assert result.success is True
-        assert result.data["message"] == ""
-
-    async def test_no_params(self) -> None:
-        step = PlanStep(tool=ToolName.ANSWER_QUESTION)
-        result = await execute(step, {}, MagicMock(), MagicMock())
-
-        assert result.success is True
-
-
 # ---------------------------------------------------------------------------
 # plan_route — coordinate origin path
 # ---------------------------------------------------------------------------
@@ -603,53 +520,6 @@ class TestPlanRouteCoordinateOrigin:
         assert result.data["options"] == ["宇治駅（京阪）", "宇治駅（JR）"]
         assert result.data["candidates"][0]["title"] == "宇治駅（京阪）"
         assert "cover_url" in result.data["candidates"][0]
-
-
-class TestClarify:
-    async def test_returns_clarification(self) -> None:
-        step = _step(
-            ToolName.CLARIFY,
-            {"question": "Which one?", "options": ["A", "B"]},
-        )
-        result = await execute_clarify(step, {}, MagicMock(), MagicMock())
-
-        assert result.tool == "clarify"
-        assert result.success is True
-        assert result.data["question"] == "Which one?"
-        assert result.data["options"] == ["A", "B"]
-        assert result.data["status"] == "needs_clarification"
-        assert result.data["candidates"][0]["title"] == "A"
-        assert result.data["candidates"][1]["title"] == "B"
-
-    async def test_empty_clarify(self) -> None:
-        step = _step(ToolName.CLARIFY, {})
-        result = await execute_clarify(step, {}, MagicMock(), MagicMock())
-
-        assert result.success is True
-        assert result.data["question"] == ""
-        assert result.data["options"] == []
-        assert result.data["candidates"] == []
-
-    async def test_explicit_candidates_are_preserved(self) -> None:
-        step = _step(
-            ToolName.CLARIFY,
-            {
-                "question": "Which one?",
-                "options": ["A"],
-                "candidates": [
-                    {
-                        "title": "Custom A",
-                        "cover_url": "https://example.com/a.jpg",
-                        "spot_count": 3,
-                        "city": "Uji",
-                    }
-                ],
-            },
-        )
-        result = await execute_clarify(step, {}, MagicMock(), MagicMock())
-
-        assert result.data["candidates"][0]["title"] == "Custom A"
-        assert result.data["candidates"][0]["spot_count"] == 3
 
 
 class TestQueryPayload:
