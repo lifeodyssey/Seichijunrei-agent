@@ -20,10 +20,10 @@ afterEach(() => {
 });
 
 describe("theme bootstrap script", () => {
-  it("applies the stored night preference before hydration", () => {
+  it("ignores a stored night preference while night mode is paused (2026-09)", () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, "night");
     runBootstrap();
-    expect(document.documentElement.dataset.theme).toBe("night");
+    expect(document.documentElement.dataset.theme).toBeUndefined();
   });
 
   it("applies the stored day preference before hydration", () => {

@@ -31,14 +31,19 @@ function adoptTheme(theme: Theme, setTheme: (theme: Theme) => void, adopted: { c
   if (adopted.current) return false;
   adopted.current = true;
   const persisted = seededTheme() ?? readStoredTheme();
-  if (persisted === null || persisted === theme) return false;
+  // Night mode is paused (2026-09): only "day" is adopted. A stale stored
+  // "night" falls through here and the effect below rewrites it to "day",
+  // healing storage on first load; the settings switch is commented out, so
+  // adopting night would trap the user. Dropping this guard restores night.
+  if (persisted !== "day" || persisted === theme) return false;
   setTheme(persisted);
   return true;
 }
 
 /** Day/night theme, persisted through the `theme-storage` adapter; SSR and the
  * first client render use the day default, then the stored preference is
- * adopted once on hydration. */
+ * adopted once on hydration. While night mode is paused (2026-09) the adopted
+ * value is only ever "day" — see `adoptTheme`. */
 export function useTheme(): ThemeControl {
   const [theme, setTheme] = useState<Theme>("day");
   const adopted = useRef(false);

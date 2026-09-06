@@ -5,10 +5,14 @@ import { solveTurnstileEntry, stubTurnstileEntry } from "./helpers/turnstile";
 /**
  * Issue #1009 AC3 + AC5 (parent spec #1004) browser evidence: the two durable
  * frontend state values keep exactly one owner. Day/night is owned by the
- * typed storage adapter (features/config/lib/theme-storage.ts), so a stored
- * night preference is adopted once and survives a toggle + reload. BYOK is a
+ * typed storage adapter (features/config/lib/theme-storage.ts). BYOK is a
  * stable settings-page anchor (`/settings#api-key`), not duplicated panel
  * state, and the route survives reload unchanged.
+ *
+ * Night mode is paused (2026-09, night palette undecided): the switch is
+ * commented out of the settings page, and a stale seeded "night" must be
+ * ignored by the bootstrap script rather than trap the visitor in a theme
+ * with no UI way back.
  *
  * The storage key is pinned here deliberately: it is the wire contract the
  * pre-hydration bootstrap script embeds, and importing the adapter under test
@@ -20,10 +24,10 @@ const ja = chatDictFor("ja");
 
 /**
  * Owner 2026-08-23: the landing that used to carry the fixed day/night pill is
- * deleted, and `/` is a doorway that navigates itself away. The switch now
- * lives on the dedicated settings page.
+ * deleted, and `/` is a doorway that navigates itself away. Preferences now
+ * live on the dedicated settings page.
  */
-const THEME_SWITCH_URL = "/settings";
+const PREFERENCES_URL = "/settings";
 
 test.use({
   baseURL: process.env.E2E_WEB_BASE_URL ?? "http://localhost:3000",
@@ -61,49 +65,20 @@ async function openAnonymousChat(page: Page): Promise<void> {
 }
 
 /**
- * The switch in its night position. The accessible NAME is deliberately the
- * same in both positions — renaming a control when its value changes makes it
- * a different control to a screen reader (WCAG 4.1.2) — so night/day is read
- * off `aria-checked`, the switch role's own state, and the stable name is
- * asserted alongside it.
+ * While night mode is paused (2026-09) a stale seeded "night" must be ignored:
+ * the bootstrap script skips it, the page renders in the day default, and the
+ * settings page shows no switch that could trap the visitor. `data-theme` is
+ * asserted directly here because the switch — the accessible surface the AC3
+ * journey used to read — is the thing that is paused.
  */
-async function expectNight(toggle: Locator): Promise<void> {
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await expect(toggle).toHaveAccessibleName("夜間モード");
-}
-
-/** The switch in its day position — the OFF default. */
-async function expectDay(toggle: Locator): Promise<void> {
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(toggle).toHaveAccessibleName("夜間モード");
-}
-
-/**
- * AC3 — the stored theme is the single authority: after the seed the bootstrap
- * script applies night on the reload, the toggle reports it checked, a click
- * persists day, and a further reload honours that persisted day. The theme is
- * asserted through the switch's accessible state — `aria-checked` — never
- * through the `data-theme` implementation detail on `<html>`, and never
- * through the name, which stays put on purpose. The switch's `aria-checked`
- * flips to true only once React adopted the stored value, so awaiting it
- * doubles as the hydration barrier (clicking a pre-hydration toggle would
- * drop the handler).
- */
-async function seededNightPage(page: Page): Promise<Locator> {
+test("a seeded night theme is ignored while night mode is paused", { tag: "@browser" }, async ({ page }) => {
   await stubSignedOut(page);
-  await page.goto(THEME_SWITCH_URL);
+  await page.goto(PREFERENCES_URL);
   await seedNight(page);
   await page.reload();
-  return page.getByRole("switch");
-}
-
-test("a seeded night theme survives a toggle to day and a reload", { tag: "@browser" }, async ({ page }) => {
-  const toggle = await seededNightPage(page);
-  await expectNight(toggle);
-  await toggle.click();
-  await expectDay(toggle);
-  await page.reload();
-  await expectDay(page.getByRole("switch"));
+  await expect(page.locator("main.settings-page")).toBeVisible();
+  await expect(page.getByRole("switch")).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", "night");
 });
 
 /**
@@ -134,7 +109,6 @@ test("the rightmost chat setting entry navigates to the dedicated page", { tag: 
   await openAnonymousChat(page);
   const settings = page.getByRole("link", { name: ja.appbar.settings });
   await expect(settings).toHaveAttribute("href", "/settings");
-  await expect(page.locator(".chat-appbar > :last-child")).toHaveAttribute("href", "/settings");
   await settings.click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.locator("main.settings-page")).toBeVisible();

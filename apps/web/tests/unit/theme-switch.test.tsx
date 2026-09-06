@@ -52,10 +52,11 @@ describe("ThemeSwitch — ON is night, OFF is the day default", () => {
     expect(window.localStorage.getItem("animichi-theme")).toBe("day");
   });
 
-  it("restores a stored night preference on mount", () => {
+  it("ignores a stored night preference while night mode is paused (2026-09)", () => {
     window.localStorage.setItem("animichi-theme", "night");
     renderWithLocale(<ThemeSwitch />);
-    expect(themeSwitch().getAttribute("aria-checked")).toBe("true");
+    expect(themeSwitch().getAttribute("aria-checked")).toBe("false");
+    expect(window.localStorage.getItem("animichi-theme")).toBe("day");
   });
 
   it("ignores an invalid stored value and stays on day", () => {

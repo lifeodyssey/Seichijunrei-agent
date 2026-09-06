@@ -70,16 +70,22 @@ async function captureCanonical(page: Page, server: VisualServer, canonicalName:
   await page.screenshot({ path: outPath, animations: "disabled", caret: "hide" });
 }
 
-async function setNightTheme(page: Page, night: boolean): Promise<void> {
+/**
+ * Night mode is paused (2026-09): the app no longer honors a stored
+ * "animichi-theme=night", so the rig forces the attribute directly. The night
+ * tokens stay in the stylesheet, which keeps night frames shootable for when
+ * the palette work resumes.
+ */
+async function forceNightTheme(page: Page, night: boolean): Promise<void> {
   if (!night) return;
-  await page.addInitScript(() => {
-    localStorage.setItem("animichi-theme", "night");
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "night";
   });
 }
 
 async function gotoApp(page: Page, night: boolean, route: string): Promise<void> {
-  await setNightTheme(page, night);
   await page.goto(`${APP_BASE_URL}${route}`, { waitUntil: "load" });
+  await forceNightTheme(page, night);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('[data-splash="static"]')).toBeHidden({ timeout: 10_000 });
   await expect(page.locator("main.landing").first()).toBeVisible();
