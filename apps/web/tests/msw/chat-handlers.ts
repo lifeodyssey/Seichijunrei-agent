@@ -173,6 +173,27 @@ export function conversationMessagesErrorHandler(sessionId: string, status: numb
   return http.get(url, () => new HttpResponse(null, { status }));
 }
 
+/** GET /v1/conversations rows: the compact SessionListRow shape the agent's
+ * SQLModel repository returns (total=False domain row — nulls included). */
+export interface ConversationListRowFixture {
+  readonly session_id: string;
+  readonly title: string | null;
+  readonly first_query: string | null;
+  readonly created_at: string | null;
+  readonly updated_at: string | null;
+}
+
+export function conversationsListHandler(
+  rows: readonly ConversationListRowFixture[],
+  spy?: (request: Request) => void,
+): HttpHandler {
+  const url = `${TEST_ORIGIN}/v1/conversations`;
+  return http.get(url, ({ request }) => {
+    spy?.(request);
+    return HttpResponse.json([...rows]);
+  });
+}
+
 export function conversationMessagesHandler(
   sessionId: string,
   rows: readonly HistoryRowFixture[],

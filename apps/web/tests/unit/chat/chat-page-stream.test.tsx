@@ -71,14 +71,14 @@ describe("B4 settled footprint", () => {
   });
 });
 
-describe("A1 example chips", () => {
-  it("sends the chip text as a user message on click", async () => {
+describe("A1 entry doors", () => {
+  it("sends the entry door's prompt as a user message on click", async () => {
     server.use(chatStreamHandler("clarify"));
     renderChatPage();
-    const chip = await screen.findByRole("button", { name: ja.chips[0].text });
-    fireEvent.click(chip);
+    const door = await screen.findByRole("button", { name: ja.entryAnimeTitle });
+    fireEvent.click(door);
     await screen.findByText("どの作品でしょうか？");
-    expect(screen.getAllByText(ja.chips[0].text).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(ja.entryAnimePrompt).length).toBeGreaterThan(0);
   });
 });
 

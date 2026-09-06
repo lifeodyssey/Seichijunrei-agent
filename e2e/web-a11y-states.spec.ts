@@ -59,7 +59,7 @@ test.describe("AC4 loading/streaming state", () => {
     await expect(page.getByRole("button", { name: ja.send })).toBeDisabled();
     await page.keyboard.press("Shift+Tab");
     await expect(page.locator("*:focus")).toHaveCount(1);
-    await expect(page.locator("*:focus")).not.toHaveAttribute("class", /chat-input__field/);
+    await expect(input).not.toBeFocused();
   });
 });
 

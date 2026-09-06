@@ -18,10 +18,13 @@ describe("chat bubble sizing", () => {
   });
 });
 
+/* The centred message column moved into the direction-E panel (Tailwind,
+   ChatShell.tsx); chat.css no longer owns a page-frame rule. */
 describe("chat body column", () => {
-  it("centers the message column on wide viewports", () => {
-    expect(ruleDeclaration(chatCss, ".chat-body", "max-width")).toBe("48rem");
-    expect(ruleDeclaration(chatCss, ".chat-body", "margin-inline")).toBe("auto");
-    expect(ruleDeclaration(chatCss, ".chat-body", "width")).toBe("100%");
+  it("declares no hand-written frame rules since the direction-E rebuild", () => {
+    /* `ruleDeclaration` THROWS on a missing rule; a deleted selector is the
+     * assertion here, so the sheet must simply never name the old frame. */
+    expect(chatCss).not.toContain(".chat-body");
+    expect(chatCss).not.toContain(".chat-dock");
   });
 });

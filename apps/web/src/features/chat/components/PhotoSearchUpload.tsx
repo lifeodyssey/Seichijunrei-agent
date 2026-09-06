@@ -1,6 +1,6 @@
 import type { ChatDataPart } from "@animichi/contract";
 import { useCallback, useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useChatActions } from "../ChatActions";
 import type { ChatDict } from "../i18n";
 import {
@@ -35,7 +35,30 @@ type UploadState =
   | { readonly kind: "quota"; readonly guidance: PhotoGuidance }
   | { readonly kind: "done"; readonly part: ChatDataPart; readonly offerId: string };
 
-type Props = Readonly<{ dict: ChatDict; baseUrl: string; context: PhotoSearchContext }>;
+type Props = Readonly<{
+  dict: ChatDict;
+  baseUrl: string;
+  context: PhotoSearchContext;
+  /** Direction-E composer: the trigger renders as the pill's camera icon
+   * button instead of the labelled tray control. The flow is identical. */
+  iconTrigger?: boolean;
+  /** Placement override (direction-E composer): the caller positions the
+   * camera trigger inside the composer pill and the outcome below it. */
+  children?: (slots: Readonly<{ control: ReactNode; outcome: ReactNode }>) => ReactNode;
+}>;
+
+/** Mockup `.icon-btn`: the camera key at the composer's left edge. The ring
+ * is focus-within: the focusable file input hides inside the label. */
+const ICON_TRIGGER_CLASS = "grid size-11 flex-none cursor-pointer place-items-center rounded-full text-ground-ink transition-colors duration-100 focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ground-ink hover:bg-gold-soft";
+
+function CameraIcon() {
+  return (
+    <svg className="size-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
 
 function quotaCopy(dict: ChatDict, guidance: PhotoGuidance): string {
   if (guidance === "switch_vision_endpoint") return dict.photo.quotaByokNoVision;
@@ -138,13 +161,19 @@ function makeFileChange(upload: (file: File) => void) {
   };
 }
 
-function UploadControl({ dict, onChange }: Readonly<{ dict: ChatDict; onChange: (event: ChangeEvent<HTMLInputElement>) => void }>) {
-  return (
-    <>
-      <label className="chat-photo__label">{dict.photo.upload}<input type="file" className="chat-photo__input" accept="image/jpeg,image/png,image/webp" aria-label={dict.photo.upload} onChange={onChange} /></label>
-      <span className="chat-photo__note">{dict.photo.processedNote}</span>
-    </>
-  );
+function IconControl({ dict, onChange }: Readonly<{ dict: ChatDict; onChange: (event: ChangeEvent<HTMLInputElement>) => void }>) {
+  const input = <input type="file" className="chat-photo__input" accept="image/jpeg,image/png,image/webp" aria-label={dict.photo.upload} onChange={onChange} />;
+  return <label className={ICON_TRIGGER_CLASS} title={dict.photo.upload}><CameraIcon /><span className="sr-only">{dict.photo.upload}</span>{input}</label>;
+}
+
+function TrayControl({ dict, onChange }: Readonly<{ dict: ChatDict; onChange: (event: ChangeEvent<HTMLInputElement>) => void }>) {
+  const input = <input type="file" className="chat-photo__input" accept="image/jpeg,image/png,image/webp" aria-label={dict.photo.upload} onChange={onChange} />;
+  return <><label className="chat-photo__label">{dict.photo.upload}{input}</label><span className="chat-photo__note">{dict.photo.processedNote}</span></>;
+}
+
+function UploadControl({ dict, iconTrigger, onChange }: Readonly<{ dict: ChatDict; iconTrigger: boolean; onChange: (event: ChangeEvent<HTMLInputElement>) => void }>) {
+  if (iconTrigger) return <IconControl dict={dict} onChange={onChange} />;
+  return <TrayControl dict={dict} onChange={onChange} />;
 }
 
 function ResultGate({ dict, baseUrl, state, context }: Readonly<{ dict: ChatDict; baseUrl: string; state: UploadState; context: PhotoSearchContext }>) {
@@ -163,12 +192,12 @@ function UploadOutcome({ dict, baseUrl, state, context, onRetry }: OutcomeProps)
   );
 }
 
-export function PhotoSearchUpload({ dict, baseUrl, context }: Props) {
+export function PhotoSearchUpload({ dict, baseUrl, context, iconTrigger = false, children }: Props) {
   const { state, upload, reset } = useUpload(baseUrl, context);
-  return (
-    <div className="chat-photo">
-      <UploadControl dict={dict} onChange={makeFileChange(upload)} />
-      <UploadOutcome dict={dict} baseUrl={baseUrl} state={state} context={context} onRetry={reset} />
-    </div>
-  );
+  const control = <UploadControl dict={dict} iconTrigger={iconTrigger} onChange={makeFileChange(upload)} />;
+  const outcome = <UploadOutcome dict={dict} baseUrl={baseUrl} state={state} context={context} onRetry={reset} />;
+  if (children) return <>{children({ control, outcome })}</>;
+  /* TrayControl already carries the processed note — adding it again here
+   * printed it twice on the default path. */
+  return <div className="chat-photo">{control}{outcome}</div>;
 }

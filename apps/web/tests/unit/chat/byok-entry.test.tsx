@@ -10,28 +10,33 @@ import { renderChatPage } from "./_chat-page";
 
 const ja = chatDictFor("ja");
 
-function renderSettingsLink(): HTMLAnchorElement {
+function renderSettingsLinks(): HTMLAnchorElement[] {
   setLanguages(["ja"]);
   renderChatPage();
-  return screen.getByRole<HTMLAnchorElement>("link", { name: ja.appbar.settings });
+  return screen.getAllByRole<HTMLAnchorElement>("link", { name: ja.appbar.settings });
 }
 
 describe("settings entry point", () => {
-  it("is ordinary navigation to the dedicated page", () => {
-    const link = renderSettingsLink();
-    expect(link.getAttribute("href")).toBe("/settings");
-    expect(link.getAttribute("aria-expanded")).toBeNull();
-    expect(link.closest("form")).toBeNull();
+  it("is ordinary navigation to the dedicated page, wherever the chrome renders it", () => {
+    const links = renderSettingsLinks();
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.every((link) => link.getAttribute("href") === "/settings")).toBe(true);
+    expect(links.every((link) => link.getAttribute("aria-expanded") === null)).toBe(true);
+    expect(links.every((link) => link.closest("form") === null)).toBe(true);
   });
 
-  it("occupies the true rightmost app-bar slot", async () => {
-    const link = renderSettingsLink();
-    await waitFor(() => { expect(screen.getByRole("button", { name: ja.appbar.login })).toBeTruthy(); });
-    expect(link.parentElement?.lastElementChild).toBe(link);
+  it("occupies the rightmost slot of the mobile bar's action cluster", async () => {
+    const links = renderSettingsLinks();
+    /* Anonymous mounts a Log in in BOTH the mobile bar and the desktop
+     * sidebar — jsdom applies no media queries, so the settle-wait counts
+     * both rather than expecting a single match. */
+    await waitFor(() => { expect(screen.getAllByRole("button", { name: ja.appbar.login }).length).toBe(2); });
+    const barLink = links.find((link) => link.closest("header") !== null);
+    expect(barLink?.parentElement?.lastElementChild).toBe(barLink);
   });
 
   it("does not mount legacy drawer or BYOK content inside chat", () => {
-    renderSettingsLink();
+    renderSettingsLinks();
     expect(document.querySelector("[data-animal-drawer-portal]")).toBeNull();
     expect(screen.queryByText(ja.byok.anonymousTeaser)).toBeNull();
   });

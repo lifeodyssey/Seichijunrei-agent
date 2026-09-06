@@ -25,20 +25,15 @@ function renderAppBar(status: AuthStatus) {
   );
 }
 
-describe("chat appbar brand mark", () => {
-  it("renders the torii and the fox as decorative marks", () => {
+describe("mobile top bar brand lockup", () => {
+  it("renders the torii beside the outlined wordmark", () => {
     renderAppBar("authenticated");
-    const marks = screen.getAllByAltText("");
-    expect(marks).toHaveLength(2);
-    const torii = marks.find((image) => image.getAttribute("src") === "/images/landing/torii.svg");
-    const fox = marks.find((image) => image.getAttribute("src") === "/images/landing/fox/fox-curious.svg");
-    expect(torii?.getAttribute("width")).toBe("40");
-    expect(torii?.getAttribute("height")).toBe("40");
-    expect(fox?.getAttribute("width")).toBe("24");
-    expect(fox?.getAttribute("height")).toBe("24");
+    const torii = screen.getAllByAltText("").find((image) => image.getAttribute("src") === "/images/landing/torii.svg");
+    expect(torii?.getAttribute("width")).toBe("26");
+    expect(screen.getByText(ja.appbar.brand)).toBeTruthy();
   });
 
-  it.each(LOCALES)("shows the %s wordmark over the latin lockup", (locale) => {
+  it.each(LOCALES)("shows the %s wordmark", (locale) => {
     const dict = chatDictFor(locale);
     render(
       <AppRouterContext>
@@ -48,7 +43,6 @@ describe("chat appbar brand mark", () => {
       </AppRouterContext>,
     );
     expect(screen.getByText(dict.appbar.brand)).toBeTruthy();
-    expect(screen.getByText(dict.appbar.tagline)).toBeTruthy();
   });
 
   it("keeps the English mark the latin Animichi, never a romanized 圣地巡礼", () => {
@@ -56,11 +50,16 @@ describe("chat appbar brand mark", () => {
   });
 });
 
-describe("chat appbar new conversation", () => {
-  it("makes the new-conversation control a link to /chat with the localized name", () => {
+describe("mobile top bar actions", () => {
+  it("makes the plus control a link to /chat labelled as a new journey", () => {
     renderAppBar("anonymous");
-    const link = screen.getByRole("link", { name: ja.appbar.newConversation });
+    const link = screen.getByRole("link", { name: ja.newJourney });
     expect(link.getAttribute("href")).toBe("/chat");
+  });
+
+  it("keeps the settings deep link on the bar", () => {
+    renderAppBar("anonymous");
+    expect(screen.getByRole("link", { name: ja.appbar.settings }).getAttribute("href")).toBe("/settings");
   });
 });
 
@@ -82,23 +81,18 @@ describe("chat appbar settings link", () => {
   });
 });
 
-describe("chat appbar identity slot", () => {
-  it("shows the labelled identity disc for a signed-in visitor and no login entry", () => {
-    renderAppBar("authenticated");
-    expect(screen.getByRole("img", { name: ja.appbar.signedIn })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: ja.appbar.login })).toBeNull();
-  });
-
+describe("mobile top bar identity slot", () => {
   it("shows the login entry and never a stand-in avatar for an anonymous visitor", () => {
     renderAppBar("anonymous");
     expect(screen.getByRole("button", { name: ja.appbar.login })).toBeTruthy();
-    expect(screen.queryByRole("img", { name: ja.appbar.signedIn })).toBeNull();
   });
 
-  it("renders neither identity affordance while auth is pending", () => {
+  it("renders no login affordance while auth is pending or signed in", () => {
     renderAppBar("pending");
     expect(screen.queryByRole("button", { name: ja.appbar.login })).toBeNull();
-    expect(screen.queryByRole("img", { name: ja.appbar.signedIn })).toBeNull();
+    cleanup();
+    renderAppBar("authenticated");
+    expect(screen.queryByRole("button", { name: ja.appbar.login })).toBeNull();
   });
 
   it("opens and closes the login dialog from the login entry", () => {

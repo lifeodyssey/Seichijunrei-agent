@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { readChatDraft, writeChatDraft } from "../lib/draft-storage";
 import type { ChatDict } from "../i18n";
@@ -14,10 +14,18 @@ type Props = Readonly<{
   quotaLocked?: boolean;
   /** G5: the turn that just left failed, so its text belongs back in the field. */
   sendFailed?: boolean;
+  /** The camera trigger (photo search) rendered inside the pill's left edge. */
+  leading?: ReactNode;
   onSend: (text: string) => void;
 }>;
 
 type Submittable = Readonly<{ preventDefault: () => void }>;
+
+/** Mockup `.input-wrap`: the wide rounded composer pill on cream. Focus swaps
+ * the ink edge for teal and keeps the hard ledge — no glow stack. The deep
+ * teal reads 4.1:1 on the day card; at night the bright teal takes over
+ * (7.4:1) because the deep one falls under WCAG 1.4.11's 3:1 state floor. */
+const PILL_CLASS = "flex w-full items-center gap-1.5 rounded-full border-[3px] border-ground-ink bg-card py-2 pe-2.5 ps-2 text-ground-ink shadow-[0_5px_0_var(--shadow-3d)] transition-[border-color,box-shadow,opacity] duration-150 focus-within:border-primary-strong night:focus-within:border-primary";
 
 function useDraftPersistence(text: string): void {
   useEffect(() => { writeChatDraft(text); }, [text]);
@@ -79,19 +87,29 @@ function sendWithheld(text: string, disabled: boolean, busy: boolean, quotaLocke
   return disabled || busy || quotaLocked || text.trim() === "";
 }
 
-/** The paper plane of the design's `.composer .snd`. */
+/** The mockup `.send`: a gold disc with an up-arrow, an ink ring, and a ledge. */
 function SendGlyph() {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-      <path d="M3.5 11.8 20.5 4l-7.4 16.6-2.3-6.9z" />
+    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="var(--color-gold-ink)" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M12 19V5M5 12l7-7 7 7" />
     </svg>
   );
 }
 
-/** G3: the round key. Its press shadow is CSS-side, keyed on `:disabled`. */
+/* The send disc is the library's 3D-press `primary` button rethemed onto our
+ * tokens: `bg-gold` stays on the element (the composer test pins it) and beats
+ * the package's components-layer fill, while the ledge vars ride `--shadow-3d`
+ * so the press depth flips with the theme. The muted disabled face stays ours —
+ * the package's disabled fade (opacity only) cannot speak it. */
+const SEND_PRESS = "[--animal-shadow-press:0_3px_0_0_var(--shadow-3d)] [--animal-shadow-press-hover:0_4px_0_0_var(--shadow-3d)] [--animal-shadow-press-active:0_1px_0_0_var(--shadow-3d)]";
+const SEND_CLASS = `animal-btn animal-btn-primary size-[46px] flex-none border-[3px] border-ground-ink bg-gold focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-ground-ink disabled:border-ground-ink/40 disabled:bg-muted disabled:shadow-none ${SEND_PRESS}`;
+
+/** G3: the round gold key goes flat and muted when there is nothing to send. */
 function SendKey({ dict, withheld }: Readonly<{ dict: ChatDict; withheld: boolean }>) {
   return (
-    <button type="submit" className="chat-input__send" aria-label={dict.send} disabled={withheld}><SendGlyph /></button>
+    <button type="submit" className={SEND_CLASS} aria-label={dict.send} disabled={withheld}>
+      <SendGlyph />
+    </button>
   );
 }
 
@@ -100,6 +118,9 @@ type FieldProps = Readonly<{
   text: string; onChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }>;
 
+/** The field disappears into the pill; the pill draws the focus ring. */
+const FIELD_CLASS = "min-h-11 flex-1 min-w-0 border-0 bg-transparent text-[16.5px] font-bold text-ground-ink outline-none placeholder:text-ground-ink/40";
+
 /**
  * The accessible NAME stays the ordinary placeholder in every state — a field
  * whose name changes to "sign in to send this" is a different control to a
@@ -107,21 +128,28 @@ type FieldProps = Readonly<{
  * D12 banner that is already on screen and already announced as an alert.
  */
 function ComposerField({ dict, disabled, busy, quotaLocked, text, onChange }: FieldProps) {
+  const describedby = quotaLocked ? QUOTA_BANNER_ID : undefined;
   return (
-    <input className="chat-input__field" autoFocus value={text} placeholder={placeholderFor(dict, quotaLocked, busy)} aria-label={dict.inputPlaceholder} aria-describedby={quotaLocked ? QUOTA_BANNER_ID : undefined} disabled={disabled} onChange={onChange} />
+    <input className={FIELD_CLASS} autoFocus value={text} onChange={onChange} disabled={disabled} aria-label={dict.inputPlaceholder} placeholder={placeholderFor(dict, quotaLocked, busy)} aria-describedby={describedby} />
   );
+}
+
+function pillClassOf(busy: boolean): string {
+  return busy ? `${PILL_CLASS} opacity-75` : PILL_CLASS;
 }
 
 /**
  * G4's rule generalised for D12 (#282 S1.10): a running turn and a quota lock
  * both keep the composer editable and keep whatever is already typed — only the
- * send path is withheld, and the placeholder says why.
+ * send path is withheld, and the placeholder says why. G4 dims the pill, it
+ * does not remove it.
  */
-export function ChatInput({ dict, disabled, busy = false, quotaLocked = false, sendFailed = false, onSend }: Props) {
+export function ChatInput({ dict, disabled, busy = false, quotaLocked = false, sendFailed = false, leading, onSend }: Props) {
   const composer = useComposer(onSend, sendFailed);
   const withheld = sendWithheld(composer.text, disabled, busy, quotaLocked);
-  return <form className={busy ? "chat-input chat-input--busy" : "chat-input"} onSubmit={withheld ? blockSubmit : composer.submit}>
-    <ComposerField dict={dict} disabled={disabled} busy={busy} quotaLocked={quotaLocked} text={composer.text} onChange={composer.change} />
-    <SendKey dict={dict} withheld={withheld} />
-  </form>;
+  const submit = withheld ? blockSubmit : composer.submit;
+  const field = <ComposerField dict={dict} disabled={disabled} busy={busy} quotaLocked={quotaLocked} text={composer.text} onChange={composer.change} />;
+  return (
+    <form className={pillClassOf(busy)} onSubmit={submit}>{leading}{field}<SendKey dict={dict} withheld={withheld} /></form>
+  );
 }

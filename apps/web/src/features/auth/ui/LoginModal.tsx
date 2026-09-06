@@ -92,7 +92,13 @@ function LoginDialog({ auth, onClose, onSendCommitted, returnTarget, panelRef }:
   );
 }
 
-/** Magic-link login modal wired to the Neon Auth (Better Auth) client. */
+/** Magic-link login dialog wired to the Neon Auth (Better Auth) client.
+ * Deliberately NOT the library `Modal`: it renders no close button (our pinned
+ * 閉じる affordance is the first tab stop), its Radix FocusScope autofocuses
+ * the FIRST tabbable with no `onOpenAutoFocus` escape hatch (our pinned initial
+ * focus is the email field, which must stay second in tab order), and its panel
+ * is blob-clipped by a package-internal SVG path. The shell stays ours; the
+ * form fields inside already ride the library's input/button classes. */
 export function LoginModal({ open, onClose, onSendCommitted, returnTarget }: LoginModalProps) {
   const auth = useDict().auth;
   const panelRef = useRef<HTMLDivElement>(null);

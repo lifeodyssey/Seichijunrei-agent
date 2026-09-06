@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { webCwvConfig } from "../apps/web/web-cwv.config";
 import { median } from "../apps/web/src/features/telemetry/lib/vitals-stats";
+import { chatDictFor } from "../apps/web/src/features/chat/i18n";
 import { solveTurnstileEntry, stubTurnstileEntry } from "./helpers/turnstile";
+
+/* This harness sets no locale, so the app negotiates the browser default
+ * (English); the login name comes from the en dictionary, not ja. */
+const en = chatDictFor("en");
 
 interface CwvMetrics {
   cls: number;
@@ -165,8 +170,9 @@ test(`a representative mobile interaction drives INP at or below ${String(webCwv
     // Representative interaction on /chat: login opens its existing dialog,
     // a React state update plus a mounted focus trap that stays on the measured
     // document. Settings is now ordinary navigation, whose document load would
-    // correctly reset this page-scoped Event Timing observer.
-    await page.locator(".chat-appbar__login").click();
+    // correctly reset this page-scoped Event Timing observer. The mobile bar
+    // carries the login entry on this fixed narrow profile.
+    await page.getByRole("button", { name: en.appbar.login }).click();
     await page.waitForFunction(() => (window.__cwv?.inp ?? 0) > 0);
     inpRuns.push(await page.evaluate(() => window.__cwv?.inp ?? 0));
   }

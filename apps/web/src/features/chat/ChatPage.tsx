@@ -6,8 +6,11 @@ import { useAuthStatus } from "../../lib/auth/session";
 import { ChatActionsProvider, sendWithOriginOf } from "./ChatActions";
 import type { ChatActions } from "./ChatActions";
 import { ChatIntro, ChatNotices, ChatShell, DepartureGate, DockTray, ScrollAnchor, TurnStream } from "./components/ChatShell";
-import { ChatInput } from "./components/ChatInput";
 import { ChatAppBar } from "./components/ChatAppBar";
+import { ChatHeader } from "./components/ChatHeader";
+import { ChatSidebar } from "./components/ChatSidebar";
+import { ComposerDock } from "./components/ComposerDock";
+import type { ComposerGate } from "./components/ComposerDock";
 import { currentChatConfig } from "./config";
 import { deriveEntryState, resolveRouteReference } from "./entry-state";
 import type { ChatEntryState } from "./entry-state";
@@ -165,8 +168,6 @@ type PageState = ReturnType<typeof useChatPage>;
 /** What the composer is allowed to do this render (spec group G): A5 and the
  * A3 history gate take the field away, a running turn only takes the send key,
  * and a failed turn owes the visitor their words back. */
-export type ComposerGate = Readonly<{ locked: boolean; busy: boolean; failed: boolean }>;
-
 function composerGateOf(entry: ChatEntryState, chat: ChatSession, history: ConversationHistory, failure: TurnFailureView | undefined): ComposerGate {
   const historyBlocked = entry === "A3" && history.status !== "success";
   return {
@@ -188,30 +189,36 @@ function chatBody(entry: ChatEntryState, chat: ChatSession, history: Conversatio
   );
 }
 
-/** Plain page-level assembly: the departure chips and the dock surfaces. */
-function chatDock(departure: DeparturePromptState, dict: ChatDict, baseUrl: string, photo: PhotoSearchContext, chat: ChatSession, recompute: RecomputeTurn): ReactNode {
+/** Plain page-level assembly: the dock surfaces above the composer. */
+function chatDock(departure: DeparturePromptState, dict: ChatDict, chat: ChatSession, recompute: RecomputeTurn): ReactNode {
   return (
     <>
       <DepartureGate departure={departure} dict={dict} />
-      <DockTray dict={dict} baseUrl={baseUrl} photo={photo} chat={chat} recompute={recompute} />
+      <DockTray dict={dict} chat={chat} recompute={recompute} />
     </>
   );
 }
 
-/** Plain page-level assembly: the input and its current send gate. */
-function chatComposer(dict: ChatDict, quota: QuotaLock, onSend: (text: string) => void, gate: ComposerGate): ReactNode {
-  return <ChatInput dict={dict} disabled={gate.locked} busy={gate.busy} sendFailed={gate.failed} quotaLocked={quota.locked} onSend={onSend} />;
+/** Plain page-level assembly: the direction-E composer dock (camera key, gold
+ * send, and the hint line) with its current send gate. */
+function chatComposer(dict: ChatDict, baseUrl: string, photo: PhotoSearchContext, quota: QuotaLock, onSend: (text: string) => void, gate: ComposerGate): ReactNode {
+  return <ComposerDock dict={dict} baseUrl={baseUrl} photo={photo} gate={gate} quotaLocked={quota.locked} onSend={onSend} />;
+}
+
+function shellProps(search: ChatSearch, page: PageState, entry: ChatEntryState, gate: ComposerGate) {
+  const chrome = {
+    appbar: <ChatAppBar dict={page.dict} status={page.auth} />,
+    sidebar: <ChatSidebar dict={page.dict} status={page.auth} baseUrl={page.config.baseUrl} activeSessionId={search.session} />,
+    header: <ChatHeader dict={page.dict} />,
+    notices: <ChatNotices entry={entry} onRetry={page.health.retry} history={page.history} dict={page.dict} />,
+  };
+  return { ...chrome, body: chatBody(entry, page.chat, page.history, page.dict, page.departure.onSend, page.failure, page.locale), dock: chatDock(page.departure, page.dict, page.chat, page.recompute), composer: chatComposer(page.dict, page.config.baseUrl, page.photo, page.quota, page.departure.onSend, gate) };
 }
 
 function ChatPageView({ search, page }: Readonly<{ search: ChatSearch; page: PageState }>) {
   const entry = entryStateOf(search, page.health);
-  return <ChatShell
-    appbar={<ChatAppBar dict={page.dict} status={page.auth} />}
-    notices={<ChatNotices entry={entry} onRetry={page.health.retry} history={page.history} dict={page.dict} />}
-    body={chatBody(entry, page.chat, page.history, page.dict, page.departure.onSend, page.failure, page.locale)}
-    dock={chatDock(page.departure, page.dict, page.config.baseUrl, page.photo, page.chat, page.recompute)}
-    composer={chatComposer(page.dict, page.quota, page.departure.onSend, composerGateOf(entry, page.chat, page.history, page.failure))}
-  />;
+  const gate = composerGateOf(entry, page.chat, page.history, page.failure);
+  return <ChatShell {...shellProps(search, page, entry, gate)} />;
 }
 
 /** Publishes the live session id so every in-chat login wall and the settings

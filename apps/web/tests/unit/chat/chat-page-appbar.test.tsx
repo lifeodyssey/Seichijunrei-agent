@@ -15,19 +15,22 @@ beforeEach(() => {
   setLanguages(["ja"]);
 });
 
-/** The header element the brand lockup lives in, as the page renders it. */
+/** The mobile top bar — the first header on the page, where the brand lives
+ * above the notices so an outage never moves it nor reads as chrome. */
 function renderedAppBar(): HTMLElement | null {
-  return screen.getByText(ja.appbar.brand).closest("header");
+  const brands = screen.getAllByText(ja.appbar.brand);
+  return brands[0]?.closest("header") ?? null;
 }
 
 describe("the chat page's own chrome", () => {
-  it("mounts the appbar on the page, not only in isolation", () => {
+  it("mounts the mobile bar with a new-journey link to /chat", () => {
     renderChatPage();
-    expect(renderedAppBar()).not.toBeNull();
-    expect(screen.getByRole("link", { name: ja.appbar.newConversation }).getAttribute("href")).toBe("/chat");
+    const links = screen.getAllByRole("link", { name: ja.newJourney });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link.getAttribute("href")).toBe("/chat");
   });
 
-  it("keeps the appbar above the A5 banner and outside it, so an outage never moves the brand nor reads as chrome", async () => {
+  it("keeps the mobile bar above the A5 banner and outside it, so an outage never moves the brand nor reads as chrome", async () => {
     server.use(healthzDownHandler);
     renderChatPage(chatSearch(), false);
     const banner = await screen.findByRole("alert");

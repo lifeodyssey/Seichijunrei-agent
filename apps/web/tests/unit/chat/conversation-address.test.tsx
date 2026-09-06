@@ -59,19 +59,21 @@ describe("the chat page publishes its conversation to the address bar", () => {
     });
   });
 
-  // The address alone is not the fix: the way out has to carry the id. The
-  // appbar reads it through `useChatSessionId`, a reader over a ref that does
-  // not re-render on its own, so this pins the rendered `href` rather than the
-  // mechanism — a reader frozen to its first render leaves the URL correct and
-  // this assertion red.
-  it("hands the assigned id to the settings link, not just to the address bar", async () => {
+  // The address alone is not the fix: the way out has to carry the id. Both
+  // settings entries — the mobile bar's gear and the desktop sidebar's — read
+  // it through `useChatSessionId`, a reader over a ref that does not re-render
+  // on its own, so this pins the rendered `href`s rather than the mechanism —
+  // a reader frozen to its first render leaves the URL correct and this
+  // assertion red.
+  it("hands the assigned id to every settings link, not just to the address bar", async () => {
     server.use(chatStreamHandler("search", { sessionId: ASSIGNED }));
     renderChatPage();
     sendText("ユーフォ");
     await screen.findByText(ROUTE_CARD_TEXT);
     await waitFor(() => {
-      const settings = screen.getByRole("link", { name: ja.appbar.settings });
-      expect(settings.getAttribute("href")).toBe(`/settings?session=${ASSIGNED}`);
+      const hrefs = screen.getAllByRole("link", { name: ja.appbar.settings })
+        .map((link) => link.getAttribute("href"));
+      expect(hrefs).toEqual([`/settings?session=${ASSIGNED}`, `/settings?session=${ASSIGNED}`]);
     });
   });
 
