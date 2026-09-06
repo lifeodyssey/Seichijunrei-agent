@@ -11,12 +11,15 @@
 #               `test` shells out to
 #   workspace   a job that runs a repository script importing workspace
 #               dependencies installs the workspace first
+#   image       every step building the offline Postgres image resolves the one
+#               declaration in `packages/test-postgres/postgres-image.env`
 #   aggregates  `Security` and `PR Verification` each name their dependencies,
 #               run `always()`, and fail on a failed or cancelled one; the
 #               transitional codeql job is in neither
 #
 # The repository-wide meta-invariants (timeouts, permissions, concurrency,
-# action pinning) are `test_workflow_invariants.rb`, not this file.
+# action pinning) are `test_workflow_invariants.rb`; the Python lane's own
+# shape and the Makefile gate behind it are `test_agent_lane_contract.rb`.
 #
 # Usage: ruby .github/scripts/test_ci_workflow_contract.rb [REPO_ROOT]
 
@@ -45,6 +48,14 @@ AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.resul
 # it reports an ordinary failure (run 34001151283).
 WORKSPACE_SETUP = "./.github/actions/setup"
 NODE_SCRIPT = %r{\bnode \.github/scripts/\S+\.mjs}
+
+# The offline image's tag is declared once. A `run:` reads it by sourcing the
+# declaration; a step that spells the tag out instead is only legal while it
+# still agrees with what the declaration says (packages/test-postgres/AGENTS.md).
+IMAGE_DECLARATION = "packages/test-postgres/postgres-image.env"
+IMAGE_BUILD = "docker build -f apps/agent/docker/test-postgres/Dockerfile"
+IMAGE_REFERENCE = '"$TEST_POSTGRES_IMAGE"'
+DECLARED_IMAGE = File.read(File.join(repository_root, IMAGE_DECLARATION))[/^TEST_POSTGRES_IMAGE=(.+)$/, 1].to_s.strip
 
 @log = ViolationLog.new
 @ci = WorkflowDocument.load(CI_FILE)
@@ -113,6 +124,31 @@ def assert_node_scripts_have_a_workspace
   end
 end
 
+def image_build_runs
+  @ci.jobs.keys.flat_map { |job| @ci.steps_of(job) }
+     .map { |step| step["run"] }.compact.select { |run| run.include?(IMAGE_BUILD) }
+end
+
+def built_tag(run)
+  run[/#{Regexp.escape(IMAGE_BUILD)} -t (\S+) \./, 1].to_s
+end
+
+def resolves_the_declared_tag?(run)
+  return true if built_tag(run) == DECLARED_IMAGE
+
+  built_tag(run) == IMAGE_REFERENCE && run.include?(". #{IMAGE_DECLARATION}")
+end
+
+def assert_image_builds_resolve_one_tag
+  @log.unless_true(!image_build_runs.empty?,
+                   "pr-verification.yml: nothing builds the offline Postgres image any more")
+  image_build_runs.each do |run|
+    @log.unless_true(resolves_the_declared_tag?(run),
+                     "pr-verification.yml: the image build tagged #{built_tag(run)} neither sources " \
+                     "#{IMAGE_DECLARATION} nor names the tag it declares (#{DECLARED_IMAGE})")
+  end
+end
+
 def assert_aggregate(job, expected_needs)
   @log.unless_true(@ci.dig("jobs", job, "if").to_s.include?("always()"),
                    "pr-verification.yml:#{job}: must run always()")
@@ -131,15 +167,24 @@ def assert_codeql_is_outside_the_aggregates
   end
 end
 
-def main
+def assert_affected_lane
   assert_plan_subtracts_owned_projects
   assert_matrix_guard
   assert_matrix_runs_package_scripts
   assert_matrix_provisions_toolchains
-  assert_node_scripts_have_a_workspace
+end
+
+def assert_aggregates
   assert_aggregate("security", SECURITY_JOBS)
   assert_aggregate("aggregate", LANE_JOBS)
   assert_codeql_is_outside_the_aggregates
+end
+
+def main
+  assert_affected_lane
+  assert_aggregates
+  assert_node_scripts_have_a_workspace
+  assert_image_builds_resolve_one_tag
   @log.report("CI workflow contract: all assertions hold")
 end
 

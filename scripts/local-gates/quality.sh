@@ -25,6 +25,7 @@ for ruby_file in \
   "$GS/workflow_document.rb" \
   "$GS/test_workflow_invariants.rb" \
   "$GS/test_ci_workflow_contract.rb" \
+  "$GS/test_agent_lane_contract.rb" \
   "$GS/test_package_test_segments.rb" \
   "$GS/test_gitleaks_config_extends_defaults.rb" \
   "$GS/test_gitleaks_config_extends_defaults_mutation.rb" \
@@ -47,6 +48,7 @@ for ruby_file in \
 done
 run ruby "$GS/test_workflow_invariants.rb"
 run ruby "$GS/test_ci_workflow_contract.rb"
+run ruby "$GS/test_agent_lane_contract.rb"
 run ruby "$GS/test_package_test_segments.rb"
 run python3 "$GS/test_component_manifest.py"
 run python3 "$GS/test_change_plan.py"

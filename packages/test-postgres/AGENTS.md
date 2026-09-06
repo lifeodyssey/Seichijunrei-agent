@@ -75,14 +75,18 @@ read: `src/postgres-image.ts` parses it, `scripts/local-gates/db-fresh-schema.sh
 bash. `test/image-tag-contract.test.ts` resolves it **both ways** — it runs the shell read rather
 than reading the shell — and then checks that no consumer kept a tag of its own to drift with.
 
-Building the image is the one step that needs network, and it is the fourth place the tag appears
-(`.github/workflows/pr-verification.yml`); a workflow `run:` cannot source a shell library, so the
-contract test asserts that step's tag instead:
+Building the image is the one step that needs network, and it is the fourth consumer
+(`.github/workflows/pr-verification.yml`). A workflow `run:` sources the declaration like any other
+shell, so that step names no tag either:
 
 ```bash
 . packages/test-postgres/postgres-image.env
 docker build -f apps/agent/docker/test-postgres/Dockerfile -t "$TEST_POSTGRES_IMAGE" .
 ```
+
+`test/image-tag-contract.test.ts` does **not** read the workflow (card B2 / #1360): pipeline text
+belongs to `.github/scripts/test_ci_workflow_contract.rb`, which reads `postgres-image.env` itself
+and fails any build step that neither sources it nor names the tag it declares.
 
 ## Pitfalls
 
