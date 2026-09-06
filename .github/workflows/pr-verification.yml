@@ -8,11 +8,12 @@
 # and the root lockfile land in it by directory containment, and it has no
 # lint/typecheck/test scripts) and `@animichi/agent` (a pnpm project whose
 # `test` is `uv run pytest` — the `agent` job runs it). `animichi-e2e` is
-# subtracted for the same reason: its `test` is the full Playwright suite,
-# which needs a served Worker; the `e2e` job owns that lane (B4 folds the two).
+# subtracted for the same reason: its `test` builds apps/web and serves the
+# emitted Worker before it runs a browser spec, and the `e2e` job owns that
+# lane, browser binary and all (B4 / #1362).
 #
-# `agent`, `e2e` and `db` are TRANSITIONAL jobs carried over unchanged so no
-# lane goes dark between B1 and B2 / B4 / B5, which rewrite them in place.
+# `agent` and `db` are TRANSITIONAL jobs carried over unchanged so no lane goes
+# dark between B1 and B2 / B5, which rewrite them in place.
 # `codeql` is transitional too (B3 replaces it with CodeQL default setup); it
 # is deliberately absent from both aggregates — the ruleset's code_scanning
 # rule consumes its results directly, and default setup makes in-flight PRs'
@@ -298,7 +299,7 @@ jobs:
           use_oidc: true
 
   e2e:
-    name: CI / cross stack
+    name: CI / browser
     needs: plan
     if: ${{ needs.plan.result == 'success' && (needs.plan.outputs.web == 'true' || needs.plan.outputs.e2e == 'true' || needs.plan.outputs.deps == 'true') }}
     runs-on: ubuntu-latest
@@ -308,11 +309,28 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # `animichi-e2e` is outside the affected matrix (its `test` is the
-      # served-Worker Playwright suite), so the composite carries both halves
-      # of today's browser lane — static gates and specs — until B4 folds them
-      # into the package's own `test`.
-      - uses: ./.github/actions/cross-stack-e2e
+      - uses: ./.github/actions/setup
+      - name: Restore the Playwright browser cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}-chromium
+      - name: Install the Playwright browser
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          node_modules/.bin/playwright install --with-deps chromium
+      # `animichi-e2e` is outside the affected matrix because its `test` is the
+      # served-Worker lane: it builds apps/web and starts `wrangler dev` itself
+      # (e2e/playwright.config.ts `webServer`). Everything this job needs is
+      # therefore the package's own scripts, run the way the matrix runs every
+      # other package's.
+      - name: Run the browser package's own gates
+        run: |
+          set -euo pipefail
+          for script in lint typecheck test; do
+            pnpm --filter animichi-e2e run "$script"
+          done
 
   db:
     name: CI / schema

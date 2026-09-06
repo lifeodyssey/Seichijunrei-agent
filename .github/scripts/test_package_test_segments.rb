@@ -36,7 +36,22 @@ REQUIRED_SEGMENTS = {
   "infra" => ["node --test", "test:program-load"],
   "apps/web" => ["vitest run"],
   "apps/agent" => ["uv run pytest"],
-  "e2e" => ["playwright test"]
+  # The browser lane's spec set (card B4 / #1362): what the retired
+  # `cross-stack-e2e` composite ran, which is the union of its own list and
+  # `pr-verification-gate.sh`'s plus `web-chat-settings-return` (owner, on the
+  # B4 report: the spec text's "nine" predates that spec, and running nine
+  # would be a coverage regression). `test` names them one by one because it
+  # serves the emitted Worker itself and the rest of `e2e/` runs against an app
+  # someone else started, so a dropped name here is a spec that stops running
+  # with every gate still green. E2E_SERVE_EMITTED_WORKER is pinned for the
+  # same reason and is the sharper edge of it: without the flag the config
+  # starts no server at all and all ten specs fail on a refused connection.
+  "e2e" => ["playwright test", "E2E_SERVE_EMITTED_WORKER=1",
+            "web-404.spec.ts", "web-maplibre-canary.spec.ts",
+            "web-chat-anonymous.spec.ts", "web-hero-query.spec.ts",
+            "web-state-ownership.spec.ts", "web-a11y-axe.spec.ts",
+            "web-a11y-keyboard.spec.ts", "web-a11y-states.spec.ts",
+            "web-cwv.spec.ts", "web-chat-settings-return.spec.ts"]
 }.freeze
 
 # A segment that delegates to a repository gate script: the script name alone

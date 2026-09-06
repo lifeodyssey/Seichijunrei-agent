@@ -19,6 +19,39 @@ if (isMcpTestServer)
   process.env.E2E_SEED_PROJECT = "1";
 const seedProjectEnabled = isMcpTestServer || process.env.E2E_SEED_PROJECT === "1";
 
+// The emitted-Worker lane (card B4 / #1362): `pnpm test` — the CI `e2e` job —
+// is the one invocation that owns its server. It builds `apps/web` and serves
+// the emitted Worker through `wrangler dev` from here, which is what the
+// retired `.github/actions/cross-stack-e2e` composite spelled out as a build
+// step, a background `wrangler dev` and a curl readiness loop. Every other
+// invocation targets an app someone else started (`make dev-local` on :3000,
+// staging through E2E_WEB_BASE_URL), so the server is opt-in.
+const emittedWorkerPort = "8799";
+const emittedWorkerOrigin = `http://localhost:${emittedWorkerPort}`;
+const servesEmittedWorker = process.env.E2E_SERVE_EMITTED_WORKER === "1";
+// Cloudflare's always-passing test site key, and an unroutable stand-in for
+// the agent and Neon Auth origins: the specs stub every transport with
+// `page.route`, so the lane needs the shapes, not reachable services.
+const turnstileTestSiteKey = "1x00000000000000000000AA";
+const unroutableOrigin = "http://127.0.0.1:9";
+// The SSR `RUNTIME_CONFIG` var apps/web parses per request
+// (apps/web/src/lib/runtime-config/provider.ts). Public placeholder values
+// only; `wrangler dev --var KEY:VALUE` keeps everything after the first colon
+// (wrangler 4.114 `collectKeyValues`), so the JSON survives intact.
+const emittedWorkerRuntimeConfig = JSON.stringify({
+  schemaVersion: 1,
+  api: { agentUrl: "http://127.0.0.1:9001", siteOrigin: emittedWorkerOrigin },
+  neonAuthBaseUrl: unroutableOrigin,
+  turnstileSiteKey: turnstileTestSiteKey,
+  showcaseMode: "false",
+  featureFlags: {},
+});
+// Each spec resolves its own `test.use` base from E2E_WEB_BASE_URL, so the
+// lane that starts the server is also the one that names it. Same propagation
+// as E2E_SEED_PROJECT above: workers inherit the environment at fork time.
+if (servesEmittedWorker)
+  process.env.E2E_WEB_BASE_URL = emittedWorkerOrigin;
+
 export default defineConfig({
   globalSetup: "./global-setup.ts",
   testDir: ".",
@@ -30,6 +63,32 @@ export default defineConfig({
   testIgnore: ["generated/**", "agent-discovered/**"],
   timeout: 30_000,
   retries: 0,
+  // Playwright defaults to the `dot` reporter whenever CI is set: one
+  // character per test, names printed for failures only. The browser lane's
+  // acceptance is that the run log shows each spec, so CI gets `list`. The
+  // `github` reporter is not the alternative it looks like — its
+  // `printsToStdio()` is false and it emits annotations for failures, slow
+  // tests and the summary only (playwright 1.62, lib/runner/index.js).
+  reporter: process.env.CI ? "list" : undefined,
+  // `wrangler dev` serves `.output`, so the build has to precede it inside the
+  // same command; the readiness probe on `url` replaces the composite's curl
+  // loop and its timeout has to cover a cold Vite build, not just a boot.
+  ...(servesEmittedWorker
+    ? {
+        webServer: {
+          command:
+            `pnpm --filter web run build && pnpm --filter web exec wrangler dev ` +
+            `--port ${emittedWorkerPort} --var 'RUNTIME_CONFIG:${emittedWorkerRuntimeConfig}'`,
+          url: emittedWorkerOrigin,
+          timeout: 300_000,
+          env: {
+            VITE_TURNSTILE_SITE_KEY: turnstileTestSiteKey,
+            VITE_SHOWCASE_MODE: "false",
+            VITE_NEON_AUTH_BASE_URL: unroutableOrigin,
+          },
+        },
+      }
+    : {}),
   use: {
     // Issue #537 retired the legacy Next.js frontend, so `apps/web` is the only
     // browser surface left. Specs still set their own `E2E_WEB_BASE_URL` base
