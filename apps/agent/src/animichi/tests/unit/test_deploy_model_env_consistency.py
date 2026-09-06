@@ -7,8 +7,7 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[6]
 _ENV = _ROOT / "workers/edge/src/container/container-env.ts"
-_BUILD = _ROOT / ".github/actions/build-release-unit/action.yml"
-_PROMOTE = _ROOT / ".github/scripts/promote-release-unit.sh"
+_DELIVERY = _ROOT / ".github/workflows/cd.yml"
 _DOCKERFILE = _ROOT / "apps/agent/Dockerfile"
 
 
@@ -31,19 +30,20 @@ def test_container_required_keys_are_forwarded() -> None:
 
 
 def test_promotion_reuses_worker_artifacts_without_mutating_runtime_secrets() -> None:
-    promotion = _PROMOTE.read_text()
-    assert "verify-release-artifact.py" in promotion
-    assert "wrangler deploy" in promotion
-    assert "--no-bundle" in promotion
-    assert "secret put" not in promotion
-    assert "worker_secrets" not in promotion
+    delivery = _DELIVERY.read_text()
+    assert "download-artifact" in delivery
+    assert "deploy " in delivery
+    assert "--no-bundle" in delivery
+    assert "secret put" not in delivery
+    assert "secret bulk" not in delivery
+    assert "worker_secrets" not in delivery
 
 
 def test_sealed_release_artifacts_do_not_contain_agent_model_keys() -> None:
-    for source in (_BUILD.read_text(), _PROMOTE.read_text()):
-        assert "ZEN_GO_API_KEY" not in source
-        assert "MIMO_API_KEY" not in source
-        assert "DEEPSEEK_API_KEY" not in source
+    delivery = _DELIVERY.read_text()
+    assert "ZEN_GO_API_KEY" not in delivery
+    assert "MIMO_API_KEY" not in delivery
+    assert "DEEPSEEK_API_KEY" not in delivery
 
 
 def test_dockerfile_does_not_hardcode_a_privileged_app_env() -> None:

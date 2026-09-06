@@ -48,7 +48,7 @@ void test("no runtime worker wrangler.toml binds the migrator DSN", () => {
 });
 
 void test("no deploy workflow ferries the migrator DSN as a worker secret", () => {
-  for (const workflow of [".github/workflows/cd.yml", ".github/actions/promote-release-phase/action.yml"]) {
+  for (const workflow of [".github/workflows/cd.yml"]) {
     assert.doesNotMatch(read(workflow), migratorSecretRegex, `${workflow} must not upload MIGRATOR_DATABASE_URL as a worker secret`);
   }
 });

@@ -32,8 +32,9 @@ Authentication-only legacy migrations remain under `supabase/migrations/`. Root 
 
 - `neon/*.sql` — ordered **schema** migrations (append-only).
 - `neon/atlas.sum` — Atlas integrity manifest.
-- `../.github/workflows/cd.yml` — main-only affected cohort and migration-before-consumer order.
-- `../.github/actions/promote-release-phase/action.yml` — verified staging phase promotion.
+- `../.github/workflows/cd.yml` — main-only affected range and migration-before-consumer order.
+- `../scripts/delivery/migrate-through-worker.sh` — the staging handshake: CI proves its identity
+  with GitHub OIDC and the migrator Worker applies the sealed chain; CI holds no DSN.
 - `../docs/data-sources.md` — gazetteer provenance and regeneration inputs.
 - `../docs/ops/migrations.md` — authoring/apply boundary and expand/contract.
 - `../docs/ops/neon-backup-rpo.md` — Neon PITR / RPO·RTO / failed-migrate + bad-migration recovery (N5).

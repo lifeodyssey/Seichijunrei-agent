@@ -51,7 +51,7 @@ PREREQ_TOOLS=(
   "pnpm: corepack enable, or npm install -g pnpm@10.33.2"
   "node: Node >= 24 required (nvm or Homebrew)"
   "ruby: system Ruby is sufficient"
-  "atlas: must print a version (CI pins v0.30.0) — brew install ariga/tap/atlas, or use .github/actions/install-atlas"
+  "atlas: must print a version (CI pins v0.30.0 through ariga/setup-atlas) — brew install ariga/tap/atlas"
   "pulumi: brew install pulumi/tap/pulumi"
   "docker: Docker Desktop/colima with the daemon running (fresh-schema + agent integration; the gate fails closed when it is unavailable)"
   "actionlint: brew install actionlint (CI pins v1.7.7)"

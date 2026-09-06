@@ -1,0 +1,24 @@
+# actionlint's workflow schema has no `concurrency.queue` key.
+#
+# GitHub documents it (workflow syntax, `concurrency.queue`): `"single"`
+# (default) allows at most one pending job or run per group, `"max"` allows up
+# to 100, and `queue: max` together with `cancel-in-progress: true` is a
+# validation error. `cd.yml` sets `queue: max` with `cancel-in-progress: false`
+# on both delivery groups because the platform default cancels the job already
+# waiting, which in a job-level group can be the newer run (spec §六 #3, owner
+# decision 2026-09-05).
+#
+# actionlint's last release is v1.7.12 (2026-03-30) and its main branch as of
+# 2026-04-19 still rejects the key; the pull request adding it
+# (rhysd/actionlint#661, for issues #654 and #657) is closed unmerged and the
+# maintainer is inactive (#719). So this is a stale linter schema, not a defect
+# in the workflow.
+#
+# Scoped to the one file that carries the key and matched on actionlint's exact
+# message, so every other syntax-check and expression finding — here and in every
+# other workflow — still fails the run. `queue: max` itself is asserted by
+# .github/scripts/test_cd_shape_contract.rb.
+paths:
+  .github/workflows/cd.yml:
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'

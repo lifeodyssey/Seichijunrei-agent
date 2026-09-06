@@ -311,13 +311,13 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
   production code never imports from `test/`.
 - `db-test/` — the opt-in real-PostgreSQL lane (W0-S4, #1247). Test-only, outside `pnpm test`,
   and deleted with the spike when W0 closes.
-- `api-test/` — the W1-4 staging lane (#1253). Test-only and excluded from the edge deploy unit in
-  `.github/ci/components.json`, like every other lane directory here.
+- `api-test/` — the W1-4 staging lane (#1253). Test-only: `main` in `wrangler.toml` is the only
+  boundary the edge bundle has, and no lane directory is reachable from it.
 - `agent-db-test/` — the agent-tier database arm (#1251), kept apart from `db-test/` precisely
-  because that one leaves with the spike. Test-only: both directories are excluded from the edge
-  deploy unit in `.github/ci/components.json`, and `pg`/`testcontainers` are devDependencies.
-- `bundle-smoke/` — the bundler gates (#1246, #1285). Test-only: its entrypoint is
-  excluded from the edge deploy unit in `.github/ci/components.json`. `@earendil-works/pi-ai` and
+  because that one leaves with the spike. Test-only: neither directory is reachable from the
+  Worker's `main`, and `pg`/`testcontainers` are devDependencies.
+- `bundle-smoke/` — the bundler gates (#1246, #1285). Test-only: its entrypoint is outside the
+  Worker's `main`. `@earendil-works/pi-ai` and
   `pi-agent-core` are runtime `dependencies` as of #1252 — `src/agent/session/` runs the kernel,
   so a devDependency there would be a Worker that cannot bundle its own agent loop.
   Its entrypoint carries the esbuild `.lazy` chunk-init workaround reported in

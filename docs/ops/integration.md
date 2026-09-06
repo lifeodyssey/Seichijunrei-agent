@@ -71,14 +71,13 @@ users Worker = 用户数据(Hono/oRPC);maintenance Worker = 定时清理(cron �
 ## 4. 部署链
 
 ```
-merge → main push → cd.yml 计算累计 affected cohort，并为该 main SHA 构建一次密封产物
-      → staging 按 foundation → DB → services → edge → web 顺序提升 affected 单元
-      → owner 手工 smoke（自动 smoke 暂记技术债）
+merge → main push → cd.yml 按 before..sha 选出 affected 包，build 一次产出唯一产物 release-<sha>
+      → staging 按 foundation → migration → services → edge → web 顺序发布受影响的段
+      → smoke job 探 staging 的 healthz 与 SSR 外壳(#1198)
       → production approval(GitHub production environment,一次人工批)
-      → production 按同序提升同一批密封产物（不重建）
-兜底：`rollback.yml` 需 production approval，并按 successful main CD 的 run ID、source SHA、unit、
-artifact digest 恢复显式选定的 sealed artifact；edge 同时恢复同一 run 的 agent image pair，绝不让
-Cloudflare 动态猜“上一版本”，artifact 过期则 fail closed 并走 reviewed main recovery；
+      → production 下载同一个 artifact 发布(无构建步、镜像不重打 tag)
+兜底:没有 rollback workflow(#1364 删)。恢复走 `wrangler rollback <version-id> --name <worker>`,
+版本带 `sha-<sha>` tag,`wrangler versions list` 可查;operator runbook 与演练归 #1366。
 数据库和基础设施按 deployment runbook 的 forward-fix / state restore 处理。
 规则:无本地部署(hook 强制);tag 不触发任何部署
 ```

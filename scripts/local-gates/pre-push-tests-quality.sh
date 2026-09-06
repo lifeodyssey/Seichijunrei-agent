@@ -12,7 +12,7 @@ copy_quality_tree() {
   local dst="$1"
   mkdir -p "$dst/.github/scripts"
   cp -R "$REPO_ROOT/.github/scripts/." "$dst/.github/scripts/"
-  rm -f "$dst/.github/scripts/test_production_safety_contract.rb"
+  rm -f "$dst/.github/scripts/test_package_test_segments.rb"
 }
 
 run_quality_in() {
@@ -25,7 +25,7 @@ run_quality_in() {
 }
 
 assert_later_path_named() {
-  grep -q "test_production_safety_contract.rb" "$GATE_STUB_ROOT/quality.out" || {
+  grep -q "test_package_test_segments.rb" "$GATE_STUB_ROOT/quality.out" || {
     echo "FAIL: the failure must name the missing later path" >&2
     cat "$GATE_STUB_ROOT/quality.out" >&2
     exit 1

@@ -43,9 +43,9 @@ bindings remain in Wrangler; route ownership stays here. Root guide: `../AGENTS.
 - `src/neon-auth.ts` — pure Neon Auth derivation (JWKS URL ↔ issuer base URL, env-var names); pinned by `topology-neon-auth.test.ts`.
 - `Pulumi.yaml` — project metadata and base encrypted config.
 - `Pulumi.staging.yaml` · `Pulumi.prod.yaml` — live environment stacks.
-- `../.github/workflows/cd.yml` — main-only affected release cohort and production approval.
-- `../.github/actions/build-release-unit/action.yml` — immutable release payload builder.
-- `../.github/actions/promote-release-phase/action.yml` — ordered staging phase promotion.
+- `../.github/workflows/cd.yml` — the whole delivery path: one build, one artifact, five ordered
+  staging stages, production approval. Both Pulumi programs are applied from the sealed
+  `release/foundation/` tree it carries, never from a fresh checkout.
 - `../docs/ops/deployment.md` — environment and approval runbook.
 
 ## Pitfalls

@@ -28,35 +28,31 @@ void test("Drizzle schemas cannot become migration runners", () => {
   }
 });
 
-// The PR lane's own shape — which job validates, in what order, and that it
-// never applies — moved to .github/scripts/test_ci_workflow_contract.rb with
-// B5 (#1363): it is a fact about pr-verification.yml, and asserting it from
-// the edge package made the edge lane fail for a workflow's reasons. What
-// stays here is the boundary itself: who may migrate, and from what source.
-
-void test("main CD orders migration between foundation and services", () => {
+// Both workflow-shape halves of this file are gone, for the same reason: a fact
+// about a workflow's shape asserted from the edge package made the edge lane
+// fail for a workflow's reasons. The PR lane's — which job validates, in what
+// order, and that no job applies — went to
+// .github/scripts/test_schema_lane_contract.rb with B5 (#1363); the CD lane's —
+// which job needs which — went to .github/scripts/test_cd_shape_contract.rb
+// with C1 (#1364). What stays here is the boundary itself: who may migrate, and
+// from what source. Staging reaches the database only through the migrator
+// Worker on the job's own OIDC identity, and production still applies the
+// sealed Atlas chain until C3 (#1365) routes it through the migrator too.
+void test("staging migrates through the migrator Worker on an OIDC identity", () => {
   const cd = read(".github/workflows/cd.yml");
-  // #1218/audit §2.2: every stage's `needs` lists every earlier stage directly (not just
-  // its immediate predecessor) so a failure two or more stages back can't evaporate into
-  // a `skipped` result on the way to a later stage — see
-  // .github/scripts/test_cd_skip_propagation_contract.rb. The ordering assertion here
-  // checks that stage-foundation still precedes stage-migration, and stage-migration still
-  // precedes stage-services, within each stage's (now longer) needs list.
-  assert.match(cd, /stage-migration:[\s\S]*needs: \[route, build-release-artifacts, stage-foundation\]/);
-  assert.match(cd, /stage-services:[\s\S]*needs: \[route, build-release-artifacts, stage-foundation, stage-migration\]/);
-  assert.match(cd, /uses: \.\/\.github\/actions\/promote-release-phase/);
+  const handshake = read("scripts/delivery/migrate-through-worker.sh");
+  assert.match(cd, /stage-migration:[\s\S]*id-token: write/);
+  assert.match(cd, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_STAGING_URL \}\}/);
+  assert.match(cd, /migrate-through-worker\.sh staging/);
+  assert.match(handshake, /audience=animichi:github-actions:migrator/);
+  assert.doesNotMatch(cd, /NEON_DATABASE_URL[\s\S]*--env staging/);
 });
 
-void test("staging migration uses OIDC while production applies the sealed Atlas chain", () => {
+void test("production applies the sealed Atlas chain, never a staging-only baseline", () => {
   const cd = read(".github/workflows/cd.yml");
-  const action = read(".github/actions/promote-release-phase/action.yml");
-  const promotion = read(".github/scripts/promote-release-unit.sh");
-  assert.match(cd, /stage-migration:[\s\S]*id-token: write/);
-  assert.match(cd, /migrator_url: \$\{\{ vars\.MIGRATOR_STAGING_URL \}\}/);
-  assert.match(action, /MIGRATOR_URL: \$\{\{ inputs\.migrator_url \}\}/);
-  assert.match(promotion, /audience=animichi:github-actions:migrator/);
-  assert.match(promotion, /atlas migrate validate --dir "file:\/\/\$PAYLOAD_DIR\/migrations"/);
-  assert.match(promotion, /atlas migrate apply[\s\S]*--revisions-schema public/);
+  assert.match(cd, /atlas migrate validate --dir "file:\/\/release\/migrations"/);
+  assert.match(cd, /atlas migrate apply[\s\S]*--revisions-schema public/);
+  assert.match(cd, /release\/migrations\/STAGING_ONLY_BASELINE/);
 });
 
 void test("README points operators to the migration runbook", () => {

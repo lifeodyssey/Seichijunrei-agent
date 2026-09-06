@@ -18,7 +18,7 @@ FROM alpine:3.20
 COPY migrations/neon /migrations
 
 # Bring in the PINNED Atlas binary (not the base image's atlas). SHA-256 is the
-# single source of truth from .github/actions/install-atlas/action.yml.
+# single source of truth from the `version:` CI pins on ariga/setup-atlas.
 ADD --checksum=sha256:dbaaf350634304d4bf92753559261a67afb399fe4ff0ea6ae5bb5d1ce6e0011a \
     https://release.ariga.io/atlas/atlas-community-linux-amd64-v0.30.0 \
     /usr/local/bin/atlas

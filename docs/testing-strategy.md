@@ -602,11 +602,14 @@ not define a second coverage policy.
 
 ### Affected PR CI
 
-`.github/workflows/pr-verification.yml` is the single pull-request and merge-queue workflow.
-`.github/ci/components.json` maps changed paths to component gates and expands them through reverse
-dependencies; unknown paths fail closed to the full set. `PR Verification` blocks merge unless every
-selected deterministic, static, and browser lane succeeds; the direct `Security` context separately
-fail-closes the always-on changed-secret scans and every selected security tool.
+`.github/workflows/pr-verification.yml` is the single pull-request and merge-queue workflow. The
+affected set is pnpm's: `pnpm ls -r --depth -1 --json --filter "...[<merge-base>]"` selects every
+workspace project whose files changed plus every dependent, and each selected package runs its own
+`lint` / `typecheck` / `test` / `test:integration`. The paths outside the package graph
+(`apps/agent`, `migrations/neon`, `e2e`, the root dependency files) are routed by
+`dorny/paths-filter` into dedicated jobs, and a root dependency change means every package.
+`PR Verification` blocks merge unless every lane succeeds; the direct `Security` context separately
+fail-closes the six always-on security jobs.
 
 Prompt, model-config, guardrail, and eval-source changes also select `CI / agent eval (L0 smoke)`.
 That job preserves the existing provider-backed contract: at most 80 trajectories, MiMo through

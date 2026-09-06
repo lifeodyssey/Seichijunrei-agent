@@ -1,5 +1,37 @@
+# Main-line delivery (CI/CD redesign spec §3.4, card C1 / #1364).
+#
+# One push, one plan, ONE build, one artifact, five ordered staging stages, one
+# smoke probe, one production promotion of the same bytes. The affected set is
+# pnpm's — `--filter "...[<before>]"` selects every workspace project whose
+# files changed plus every dependent — so there is no components.json, no
+# change-plan.py and no cd-cohort-plan.py to drift from CI's router.
+#
+# What is still written by hand, and why:
+#
+#   plan      two guards. A zero or unreachable `before` falls back to `HEAD~1`
+#             (first push, force push, rewritten history); `github.sha` must
+#             still be the head of origin/main, so a rerun of a run that a newer
+#             push has overtaken deploys nothing (spec §六 #3).
+#   pairing   two rules, both because a deploy unit's inputs live outside its own
+#             pnpm project. `stage-edge` also fires on an `apps/agent` change
+#             because the edge Worker carries the agent container image (W4
+#             removes the image and this half of the condition with it). The
+#             migrator image bakes `migrations/neon`, which no pnpm project
+#             contains, so every migrator step — image, bundle, deploy — also
+#             fires on a `migrations/neon` change, and so does `stage-migration`.
+#   handshake `scripts/delivery/migrate-through-worker.sh` — staging migrates
+#             only through the migrator Worker, on the job's own OIDC identity.
+#   smoke     the two staging surfaces and the retry window.
+#
+# Concurrency is per job, not per workflow: `cd-staging` for the five stages and
+# the smoke probe, `cd-production` for the promotion. A run parked at the
+# production approval gate no longer holds the staging lane (#1204 / #1325), and
+# `queue: max` orders up to 100 pending jobs per group instead of cancelling the
+# one already waiting (owner decision, spec §六 #3). actionlint has no schema
+# entry for `queue` — see .github/actionlint.yaml.
+#
+# Shape contract: .github/scripts/test_cd_shape_contract.rb.
 name: CD
-
 on:
   push:
     branches: [main]
@@ -7,245 +39,537 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: affected-cd-main
-  cancel-in-progress: false
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  route:
-    name: Resolve affected release cohort
+  plan:
+    name: CD / plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: read
-      actions: read
     outputs:
-      has_deployments: ${{ steps.cohort.outputs.has_deployments }}
-      deploy_units: ${{ steps.cohort.outputs.deploy_units }}
-      production_units: ${{ steps.cohort.outputs.production_units }}
-      foundation: ${{ steps.cohort.outputs.foundation }}
-      migration: ${{ steps.cohort.outputs.migration }}
-      services: ${{ steps.cohort.outputs.services }}
-      edge: ${{ steps.cohort.outputs.edge }}
-      web: ${{ steps.cohort.outputs.web }}
+      packages: ${{ steps.pnpm.outputs.packages }}
+      deploy: ${{ steps.pnpm.outputs.deploy }}
+      agent: ${{ steps.paths.outputs.agent }}
+      migrations: ${{ steps.paths.outputs.migrations }}
+      infra: ${{ steps.paths.outputs.infra }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Resolve before..sha through the canonical component graph
-        id: cohort
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Resolve the deployable range and refuse a superseded head
+        id: range
         env:
           EVENT_BEFORE: ${{ github.event.before }}
-          SOURCE_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          base="$(bash .github/scripts/resolve-cd-base.sh "$EVENT_BEFORE" "$SOURCE_SHA")"
-          python3 .github/scripts/change-plan.py --base "$base" --head "$SOURCE_SHA" --range main --purpose deploy --format json \
-            | python3 .github/scripts/cd-cohort-plan.py --manifest .github/ci/components.json \
-            > "$RUNNER_TEMP/cohort.json"
-          for key in has_deployments deploy_units production_units foundation migration services edge web; do
-            echo "$key=$(jq -c ".$key" "$RUNNER_TEMP/cohort.json")" >> "$GITHUB_OUTPUT"
-          done
-          jq . "$RUNNER_TEMP/cohort.json"
+          base="$EVENT_BEFORE"
+          # A first push and every force push report a 40-zero `before`; a
+          # rewritten history reports one this clone does not have. Both fall
+          # back to the parent commit. CD's range is `before..sha` and nothing
+          # else — there is no deployment-record baseline (spec decision 3).
+          if [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD~1)"
+          fi
+          # A rerun of a run a newer push has already overtaken would publish an
+          # older tree over a newer one. `queue: max` orders the live runs; this
+          # refuses the stale rerun outright, before anything is built.
+          remote_head="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$remote_head" != "$HEAD_SHA" ]; then
+            echo "::error::main is at $remote_head, past this run's $HEAD_SHA — refusing to deploy a superseded tree"
+            exit 1
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+      # `migrations/neon` and `infra/database-access` sit outside the pnpm
+      # project graph, and `apps/agent` is a pnpm project whose deploy unit is a
+      # container image rather than a Worker bundle — all three are routed by
+      # path instead.
+      - name: Filter the paths the package graph cannot see
+        id: paths
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.range.outputs.base }}
+          ref: ${{ github.sha }}
+          filters: |
+            agent:
+              - 'apps/agent/**'
+            migrations:
+              - 'migrations/neon/**'
+            infra:
+              - 'infra/**'
+      - name: Select the affected packages
+        id: pnpm
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ github.sha }}
+          AGENT_CHANGED: ${{ steps.paths.outputs.agent }}
+          MIGRATIONS_CHANGED: ${{ steps.paths.outputs.migrations }}
+          INFRA_CHANGED: ${{ steps.paths.outputs.infra }}
+        run: |
+          set -euo pipefail
+          # Subtracted for the same reason CI subtracts them: the root project
+          # has no deploy unit, `@animichi/agent` deploys as a container image
+          # routed by path above, and `animichi-e2e` is a test suite.
+          packages="$(pnpm ls -r --depth -1 --json --filter "...[$BASE_SHA]" \
+            | jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent", "animichi-e2e"]')"
+          # `packages` also carries library projects (contract, eval,
+          # test-postgres) that no stage deploys. The five names below are the
+          # deployable ones; without this filter a push touching only a library
+          # would start a build with nothing to package and no stage to run it.
+          deployable="$(jq -c '[.[] | select(. == "catalog" or . == "edge-worker" or . == "migrator" or . == "users" or . == "web")]' <<< "$packages")"
+          deploy=false
+          if [ "$deployable" != "[]" ] ||
+             [ "$AGENT_CHANGED" = true ] ||
+             [ "$MIGRATIONS_CHANGED" = true ] ||
+             [ "$INFRA_CHANGED" = true ]; then
+            deploy=true
+          fi
+          {
+            echo "packages=$packages"
+            echo "deploy=$deploy"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "Range: $BASE_SHA..$HEAD_SHA"
+            echo "Affected packages: $packages"
+            echo "Deployable: $deployable (agent=$AGENT_CHANGED migrations=$MIGRATIONS_CHANGED infra=$INFRA_CHANGED)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-  build-release-artifacts:
-    name: Build release artifact (${{ matrix.unit }})
-    needs: route
-    if: ${{ needs.route.outputs.has_deployments == 'true' }}
+  # The only build in this workflow. Everything below downloads what this job
+  # produced; `promote-production` has no build step at all, so production
+  # publishes the bytes staging was smoke-checked on.
+  build:
+    name: CD / build
+    needs: plan
+    if: ${{ needs.plan.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        unit: ${{ fromJSON(needs.route.outputs.deploy_units) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: ./.github/actions/build-release-unit
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          unit: ${{ matrix.unit }}
-          source_sha: ${{ github.sha }}
-
-  # Skip-propagation invariant (docs/specs/2026-08-26-system-health-audit.md §2.2,
-  # `cd.yml:79-107,226-227` at audit time): `!failure()`/`!cancelled()` only inspect the
-  # jobs literally present in `needs`. When a stage's own `if` evaluates false — because
-  # its direct predecessor genuinely failed — that stage's own result is `skipped`, not
-  # `failure`, so a naive "needs just the previous stage" chain loses the failure at the
-  # very next hop and the stage after that runs clean. Every stage below therefore lists
-  # every earlier stage directly in `needs`, so a real failure anywhere in the chain is
-  # visible to `failure()` at every later stage, not only the one right after it. A stage
-  # skipped because its own cohort was empty (`route.outputs.<domain> == '[]'`) still has
-  # result `skipped` and does not trip `failure()` — that is the legitimate, non-blocking
-  # skip this chain must keep allowing. Contract: .github/scripts/test_cd_skip_propagation_contract.rb.
-  stage-foundation:
-    needs: [route, build-release-artifacts]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.foundation != '[]' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-      # Pulumi Cloud login is OIDC (#1077), not a stored access token; the same
-      # identity opens the ESC environment holding the Pulumi-plane tokens (#1078).
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the web output
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'web') }}
+        run: |
+          set -euo pipefail
+          pnpm --filter web build
+          mkdir -p release/web
+          cp -R apps/web/.output release/web/.output
+          cp apps/web/wrangler.jsonc release/web/wrangler.jsonc
+      - name: Bundle the catalog Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
+        run: bash .github/scripts/bundle-release-worker.sh catalog production
+      - name: Bundle the users Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'users') }}
+        run: bash .github/scripts/bundle-release-worker.sh users production
+      - name: Set up Buildx for the container images
+        if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') || contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      # The edge Worker runs the agent image, so an edge deploy needs one even
+      # when `apps/agent` itself did not change — same pairing as `stage-edge`.
+      - name: Build the agent image
+        if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/promote-release-phase
+          context: .
+          file: apps/agent/Dockerfile
+          load: true
+          push: false
+          tags: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+      - name: Push the agent image
+        if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+        run: pnpm exec wrangler containers push "$IMAGE_REF"
+      - name: Bundle the edge Worker
+        if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') }}
+        env:
+          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+        run: bash .github/scripts/bundle-release-worker.sh edge production "$IMAGE_REF"
+      # The migrator image bakes the migration chain (`workers/migrator/Dockerfile`
+      # `COPY migrations/neon /migrations`), and `migrations/neon` is outside every
+      # pnpm project — so a migrations-only push selects no package at all. Without
+      # the `migrations` half of this condition the run would POST a new head to a
+      # migrator still carrying the old chain and get `head_mismatch`. Same pairing
+      # rule as agent+edge above; the retired router spelled it
+      # `IMMUTABLE_PAIRS = ({"agent","edge"}, {"migrator","db"})`.
+      - name: Build the migrator image
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          phase: foundation
-          units: ${{ needs.route.outputs.foundation }}
-          source_sha: ${{ github.sha }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          pulumi_organization: lifeodyssey
-          # #1216/audit §2.6: the shared reset script fired on every foundation promotion
-          # regardless of whether this push touched the schema at all. Narrow the trigger
-          # to pushes whose cohort actually includes the `db` unit.
-          reset_staging_db: ${{ contains(fromJSON(needs.route.outputs.migration), 'db') }}
-
-  stage-migration:
-    needs: [route, build-release-artifacts, stage-foundation]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.migration != '[]' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          context: .
+          file: workers/migrator/Dockerfile
+          load: true
+          push: false
+          tags: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+      - name: Push the migrator image
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+        run: pnpm exec wrangler containers push "$IMAGE_REF"
+      - name: Bundle the migrator Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        env:
+          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+        run: bash .github/scripts/bundle-release-worker.sh migrator staging "$IMAGE_REF"
+      - name: Seal the migration chain
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        run: |
+          set -euo pipefail
+          mkdir -p release/migrations
+          cp -R migrations/neon/. release/migrations/
+      # The database-access program imports `@pulumi/neon`, a provider SDK that
+      # is generated rather than published; the sealed copy is what the staging
+      # and production stacks install, so both apply the same generated code.
+      # Generating it needs the CLI, which is why this job installs one too.
+      - name: Install the pinned Pulumi CLI for the SDK generation
+        if: ${{ needs.plan.outputs.infra == 'true' }}
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/promote-release-phase
-        with:
-          phase: migration
-          units: ${{ needs.route.outputs.migration }}
-          source_sha: ${{ github.sha }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          migrator_url: ${{ vars.MIGRATOR_STAGING_URL }}
-
-  stage-services:
-    needs: [route, build-release-artifacts, stage-foundation, stage-migration]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.services != '[]' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/promote-release-phase
-        with:
-          phase: services
-          units: ${{ needs.route.outputs.services }}
-          source_sha: ${{ github.sha }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  stage-edge:
-    needs: [route, build-release-artifacts, stage-foundation, stage-migration, stage-services]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.edge != '[]' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/promote-release-phase
-        with:
-          phase: edge
-          units: ${{ needs.route.outputs.edge }}
-          source_sha: ${{ github.sha }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          deepseek_api_key: ${{ secrets.DEEPSEEK_API_KEY }}
-          mimo_api_key: ${{ secrets.MIMO_API_KEY }}
-          zen_go_api_key: ${{ secrets.ZEN_GO_API_KEY }}
-          supabase_db_url: ${{ secrets.SUPABASE_DB_URL }}
-          google_maps_api_key: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          logfire_token: ${{ secrets.LOGFIRE_TOKEN }}
-          turnstile_secret: ${{ secrets.TURNSTILE_SECRET }}
-          anon_id_secret: ${{ secrets.ANON_ID_SECRET }}
-
-  stage-web:
-    needs: [route, build-release-artifacts, stage-foundation, stage-migration, stage-services, stage-edge]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.web != '[]' }}
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: ./.github/actions/promote-release-phase
-        with:
-          phase: web
-          units: ${{ needs.route.outputs.web }}
-          source_sha: ${{ github.sha }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          vite_site_origin: ${{ vars.VITE_SITE_ORIGIN }}
-          vite_catalog_url: ${{ vars.VITE_CATALOG_URL }}
-          vite_users_url: ${{ vars.VITE_USERS_URL }}
-          vite_agent_url: ${{ vars.VITE_AGENT_URL }}
-          vite_neon_auth_base_url: ${{ vars.VITE_NEON_AUTH_BASE_URL }}
-          vite_turnstile_site_key: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          vite_cf_beacon_token: ${{ vars.VITE_CF_BEACON_TOKEN }}
-          vite_showcase_mode: ${{ vars.VITE_SHOWCASE_MODE }}
-
-  post-staging:
-    name: Verify staging cohort identity
-    needs: [route, build-release-artifacts, stage-foundation, stage-migration, stage-services, stage-edge, stage-web]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.has_deployments == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Record the single main-SHA cohort
+          pulumi-version-file: .pulumi.version
+      - name: Seal the Pulumi programs with their generated Neon SDK
+        if: ${{ needs.plan.outputs.infra == 'true' }}
         env:
           SOURCE_SHA: ${{ github.sha }}
-          DEPLOY_UNITS: ${{ needs.route.outputs.deploy_units }}
-        run: echo "staging cohort source=$SOURCE_SHA units=$DEPLOY_UNITS"
+        run: |
+          set -euo pipefail
+          ( cd infra/database-access
+            pulumi package add terraform-provider kislerdm/neon
+            git restore package.json
+            pnpm install --frozen-lockfile )
+          out=release/foundation
+          mkdir -p "$out"
+          git archive "$SOURCE_SHA" infra | tar -x -C "$out"
+          built=infra/database-access/node_modules/@pulumi/neon
+          sealed="$out/infra/database-access/sdks/neon"
+          [ -f "$built/bin/index.js" ] || { echo "::error::built Neon provider SDK entrypoint is missing"; exit 1; }
+          mkdir -p "$out/infra/database-access/sdks"
+          cp -RL "$built" "$sealed"
+          [ -f "$sealed/bin/index.js" ] || { echo "::error::sealed Neon provider SDK entrypoint is missing"; exit 1; }
+          cp package.json pnpm-lock.yaml pnpm-workspace.yaml .pulumi.version "$out/"
+      # `upload-artifact` zips, and a zip does not carry file permissions; the
+      # tar inside it does. `--sort`/`--mtime`/`--owner` make the archive a
+      # function of its contents so the digest below identifies the tree.
+      - name: Archive the release tree
+        run: |
+          set -euo pipefail
+          [ -d release ] || { echo "::error::plan said this push deploys, but nothing was built"; exit 1; }
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf release.tar release
+      - name: Publish the release artifact
+        id: artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ github.sha }}
+          path: release.tar
+          if-no-files-found: error
+          retention-days: 14
+      - name: Record the artifact identity
+        env:
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          ARTIFACT_NAME: release-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Release artifact"
+            echo "- name: $ARTIFACT_NAME"
+            echo "- artifact-digest: $ARTIFACT_DIGEST"
+            echo '```'
+            tar -tvf release.tar
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Every stage lists every earlier stage in `needs`, not just its predecessor.
+  # `!failure()` and `!cancelled()` are evaluated over the jobs literally named
+  # in `needs`; a stage whose own `if` turned false because its predecessor
+  # failed has result `skipped`, which would otherwise let the stage after it
+  # run clean. A stage skipped because its unit was not affected is `skipped`
+  # too, and that is the skip this chain must keep allowing.
+  stage-foundation:
+    name: CD / staging foundation
+    needs: [plan, build]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' && needs.plan.outputs.infra == 'true' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # Pulumi Cloud login is OIDC (#1077), not a stored access token; the same
+      # identity opens the ESC environment holding the Pulumi-plane tokens.
+      id-token: write
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-      # #1198 park lifted by owner decision (docs/specs/2026-08-26-system-health-audit.md
-      # §6.3/§7 W4): byte-level verification of the release payload was strict while
-      # whether staging could actually serve a request was never checked at all. This is
-      # the gate that stands between a broken staging deploy and promote-production.
-      - name: Smoke-check the staging cohort
-        # workers.dev, not the zone hostname: GitHub-runner IPs get a managed
-        # challenge at the zone front door (audit follow-up; owner-predicted).
-        # The container cold-starts on ~every deploy (audited at 24.5s), so the
-        # first probes hit "error connecting to the port" by design — the retry
-        # window must outlast cold start plus agent boot, not just propagation.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Install the pinned Pulumi CLI
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
+        with:
+          pulumi-version-file: .pulumi.version
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      # The ESC action installs a Pulumi CLI and prepends it to PATH. Unpinned
+      # it fetches the latest release and shadows the `.pulumi.version` CLI the
+      # step above installed; given the same version it downloads nothing.
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      # An explicit two-name allowlist rather than the export-everything
+      # default: whatever else the ESC environment grows, no runtime DSN and no
+      # model key can reach this job (ADR 0003).
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
+      - name: Install the sealed Pulumi programs
+        run: |
+          set -euo pipefail
+          pnpm install --dir release/foundation --frozen-lockfile --ignore-scripts
+          pnpm install --dir release/foundation/infra/database-access --frozen-lockfile --ignore-scripts
+      - name: Apply the staging database-access stack
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        with:
+          command: up
+          stack-name: lifeodyssey/staging
+          work-dir: release/foundation/infra/database-access
+      # Only when this push carries schema changes: the shared reset drops and
+      # recreates the staging `public` schema, and firing it on every foundation
+      # promotion was the #1216 defect.
+      - name: Reset the staging schema baseline
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        run: bash release/foundation/infra/database-access/reset-staging-baseline.sh
+      - name: Apply the staging topology stack
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        with:
+          command: up
+          stack-name: lifeodyssey/staging
+          work-dir: release/foundation/infra
+
+  stage-migration:
+    name: CD / staging migration
+    needs: [plan, build, stage-foundation]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' && (contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # The migrator Worker verifies this job's own OIDC token; CI never holds a
+      # database credential, not even a short-lived one (decision 6).
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      # wrangler-action runs Wrangler through `npx`, so the Node the runner
+      # image happens to ship is otherwise the version that publishes.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Deploy the migrator Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy migrator/bundle/index.js --no-bundle --config migrator/wrangler.toml --env staging --tag sha-${{ github.sha }}
+      - name: Migrate staging through the migrator Worker
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        env:
+          MIGRATOR_URL: ${{ vars.MIGRATOR_STAGING_URL }}
+        run: bash scripts/delivery/migrate-through-worker.sh staging
+
+  stage-services:
+    name: CD / staging services
+    needs: [plan, build, stage-foundation, stage-migration]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' && (contains(fromJSON(needs.plan.outputs.packages), 'catalog') || contains(fromJSON(needs.plan.outputs.packages), 'users')) }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      # wrangler-action runs Wrangler through `npx`, so the Node the runner
+      # image happens to ship is otherwise the version that publishes.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Deploy the catalog Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy catalog/bundle/index.js --no-bundle --config catalog/wrangler.toml --env staging --tag sha-${{ github.sha }}
+      - name: Deploy the users Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'users') }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy users/bundle/index.js --no-bundle --config users/wrangler.toml --env staging --tag sha-${{ github.sha }}
+
+  stage-edge:
+    name: CD / staging edge
+    needs: [plan, build, stage-foundation, stage-migration, stage-services]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' && (contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') || needs.plan.outputs.agent == 'true') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      # wrangler-action runs Wrangler through `npx`, so the Node the runner
+      # image happens to ship is otherwise the version that publishes.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Deploy the edge Worker
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy edge/bundle/entry.js --no-bundle --config edge/wrangler.toml --env staging --tag sha-${{ github.sha }}
+
+  stage-web:
+    name: CD / staging web
+    needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' && contains(fromJSON(needs.plan.outputs.packages), 'web') }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      # wrangler-action runs Wrangler through `npx`, so the Node the runner
+      # image happens to ship is otherwise the version that publishes.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      # No build-time environment values anywhere in this file: the one artifact
+      # serves both environments and reads its public per-environment settings
+      # from `env.<stage>.vars.RUNTIME_CONFIG` in the committed wrangler.jsonc
+      # at request time (#1013, spec §七 #18).
+      - name: Deploy the web Worker
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy web/.output/server/index.mjs --no-bundle --config web/wrangler.jsonc --env staging --tag sha-${{ github.sha }}
+
+  # #1198: staging deploys used to be verified by exit code alone. This is the
+  # gate between a broken staging and `promote-production`. workers.dev, not the
+  # zone hostname — GitHub-runner IPs get a managed challenge at the zone front
+  # door, and Bot Fight Mode cannot be skipped on the Free plan (spec §六 #4).
+  smoke:
+    name: CD / staging smoke
+    needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge, stage-web]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: cd-staging
+      cancel-in-progress: false
+      queue: max
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      # The container cold-starts on roughly every deploy (measured at 24.5s),
+      # so the first probes hit a closed port by design — the retry window has
+      # to outlast cold start plus agent boot, not just route propagation.
+      - name: Probe the staging agent and SSR shell
         env:
           SMOKE_ATTEMPTS: "8"
           SMOKE_RETRY_DELAY: "15"
@@ -254,126 +578,162 @@ jobs:
           https://animichi-staging.zhenjiazhou0127.workers.dev
           https://animichi-web-staging.zhenjiazhou0127.workers.dev
 
+  # Every earlier job is listed: depending on `smoke` alone would read an
+  # upstream failure as a skip. There is no build step here — the artifact
+  # downloaded below is byte-identical to the one staging was smoke-checked on.
   promote-production:
-    name: Promote the staging cohort
-    needs: [route, build-release-artifacts, stage-foundation, stage-migration, stage-services, stage-edge, stage-web, post-staging]
-    if: ${{ !failure() && !cancelled() && needs.route.outputs.has_deployments == 'true' }}
+    name: CD / promote production
+    needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge, stage-web, smoke]
+    if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: cd-production
+      cancel-in-progress: false
+      queue: max
     timeout-minutes: 90
     permissions:
       contents: read
-      actions: read
-      # Pulumi Cloud login is OIDC (#1077), not a stored access token; the same
-      # identity opens the ESC environment holding the Pulumi-plane tokens (#1078).
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      # Same reason as the staging phases: a pattern download gives a cohort of one
-      # a different tree than a cohort of five, and the adapter only reads one of them.
-      - name: Download the staging cohort payloads
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ github.sha }}
+      - run: tar -xf release.tar
+      - name: Record the promoted artifact contents
         env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.run_id }}
-          SOURCE_SHA: ${{ github.sha }}
-          RELEASE_UNITS: ${{ needs.route.outputs.production_units }}
+          ARTIFACT_NAME: release-${{ github.sha }}
         run: |
-          bash .github/scripts/download-release-cohort.sh \
-            "$RUN_ID" "$SOURCE_SHA" "$RELEASE_UNITS" "$RUNNER_TEMP/release-cohort"
-      - uses: ./.github/actions/setup
-      - uses: ./.github/actions/install-atlas
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'db') }}
-      - name: Install Pulumi CLI
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'infra') }}
+          set -euo pipefail
+          {
+            echo "### Promoted artifact"
+            echo "- name: $ARTIFACT_NAME"
+            echo '```'
+            tar -tvf release.tar
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        if: ${{ needs.plan.outputs.infra == 'true' }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Install the pinned Pulumi CLI
+        if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         with:
           pulumi-version-file: .pulumi.version
       - name: Log into Pulumi Cloud with GitHub OIDC
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'infra') }}
+        if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
           organization: lifeodyssey
           requested-token-type: urn:pulumi:token-type:access_token:personal
           scope: user:lifeodyssey
-      # The ESC action installs a Pulumi CLI and prepends it to PATH. Unpinned it
-      # fetches the latest release and shadows the `.pulumi.version` CLI the step
-      # above installed; given the same version it downloads nothing.
       - name: Resolve the pinned Pulumi CLI version
         id: pulumi-cli
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'infra') }}
-        run: |
-          set -euo pipefail
-          printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
-      # Same contract as the staging phase (#1078): the Pulumi-plane Cloudflare
-      # token and the Neon provisioning key come from ESC under the OIDC login
-      # above, exported into `$GITHUB_ENV` for the infra promotion only. The
-      # explicit two-name allowlist is what keeps ADR 0003 true structurally.
-      # The Worker-publishing steps further down set their own
-      # `secrets.CLOUDFLARE_API_TOKEN` in their step `env`, which wins over this
-      # job-level injection — the Pulumi-plane token never deploys a Worker.
+        if: ${{ needs.plan.outputs.infra == 'true' }}
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
       - name: Open the production ESC environment
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'infra') }}
+        if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
         with:
           version: ${{ steps.pulumi-cli.outputs.version }}
           environment: lifeodyssey/animichi/prod
           export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
-      - name: Promote production foundation payloads
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'infra') }}
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PULUMI_ORG: lifeodyssey
-        run: bash .github/scripts/promote-release-unit.sh infra production "$SOURCE_SHA" "$RUNNER_TEMP/release-cohort/release-$SOURCE_SHA-infra"
-      - name: Promote production database payload
-        if: ${{ contains(fromJSON(needs.route.outputs.production_units), 'db') }}
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-        run: bash .github/scripts/promote-release-unit.sh db production "$SOURCE_SHA" "$RUNNER_TEMP/release-cohort/release-$SOURCE_SHA-db"
-      - name: Promote production service payloads
-        if: ${{ needs.route.outputs.services != '[]' }}
-        env:
-          RELEASE_UNITS: ${{ needs.route.outputs.services }}
-          SOURCE_SHA: ${{ github.sha }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Install the sealed Pulumi programs
+        if: ${{ needs.plan.outputs.infra == 'true' }}
         run: |
           set -euo pipefail
-          jq -r '.[]' <<< "$RELEASE_UNITS" | while IFS= read -r unit; do
-            bash .github/scripts/promote-release-unit.sh "$unit" production "$SOURCE_SHA" \
-              "$RUNNER_TEMP/release-cohort/release-$SOURCE_SHA-$unit"
-          done
-      - name: Promote production edge payload
-        if: ${{ needs.route.outputs.edge != '[]' }}
+          pnpm install --dir release/foundation --frozen-lockfile --ignore-scripts
+          pnpm install --dir release/foundation/infra/database-access --frozen-lockfile --ignore-scripts
+      - name: Apply the production database-access stack
+        if: ${{ needs.plan.outputs.infra == 'true' }}
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          SOURCE_SHA: ${{ github.sha }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
-          ZEN_GO_API_KEY: ${{ secrets.ZEN_GO_API_KEY }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
-          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
-          ANON_ID_SECRET: ${{ secrets.ANON_ID_SECRET }}
-        run: bash .github/scripts/promote-release-unit.sh edge production "$SOURCE_SHA" "$RUNNER_TEMP/release-cohort/release-$SOURCE_SHA-edge"
-      - name: Promote production web payload
-        if: ${{ needs.route.outputs.web != '[]' }}
+        with:
+          command: up
+          stack-name: lifeodyssey/prod
+          work-dir: release/foundation/infra/database-access
+      - name: Apply the production topology stack
+        if: ${{ needs.plan.outputs.infra == 'true' }}
+        uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          SOURCE_SHA: ${{ github.sha }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          VITE_SITE_ORIGIN: ${{ vars.VITE_SITE_ORIGIN }}
-          VITE_CATALOG_URL: ${{ vars.VITE_CATALOG_URL }}
-          VITE_USERS_URL: ${{ vars.VITE_USERS_URL }}
-          VITE_AGENT_URL: ${{ vars.VITE_AGENT_URL }}
-          VITE_NEON_AUTH_BASE_URL: ${{ vars.VITE_NEON_AUTH_BASE_URL }}
-          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          VITE_CF_BEACON_TOKEN: ${{ vars.VITE_CF_BEACON_TOKEN }}
-          VITE_SHOWCASE_MODE: ${{ vars.VITE_SHOWCASE_MODE }}
-        run: bash .github/scripts/promote-release-unit.sh web production "$SOURCE_SHA" "$RUNNER_TEMP/release-cohort/release-$SOURCE_SHA-web"
+        with:
+          command: up
+          stack-name: lifeodyssey/prod
+          work-dir: release/foundation/infra
+      # Transitional (spec §五 C1 → C3 / #1365): production still applies the
+      # sealed Atlas chain directly, while staging already migrates through the
+      # migrator Worker. C3 deletes these two steps and the last database
+      # credential CI holds.
+      - name: Install the pinned Atlas CLI
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
+        with:
+          version: v0.30.0
+      - name: Apply the sealed migration chain to production
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -f release/migrations/STAGING_ONLY_BASELINE ]; then
+            echo "::error::staging-only baseline requires a separately approved production cutover"
+            exit 1
+          fi
+          scoped_url="$NEON_DATABASE_URL"
+          case "$scoped_url" in
+            *\?*) scoped_url="${scoped_url}&search_path=public" ;;
+            *) scoped_url="${scoped_url}?search_path=public" ;;
+          esac
+          atlas migrate validate --dir "file://release/migrations"
+          atlas migrate apply --dir "file://release/migrations" --url "$scoped_url" --revisions-schema public
+      - name: Deploy the catalog Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy catalog/bundle/index.js --no-bundle --config catalog/wrangler.toml --env production --tag sha-${{ github.sha }}
+      - name: Deploy the users Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'users') }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy users/bundle/index.js --no-bundle --config users/wrangler.toml --env production --tag sha-${{ github.sha }}
+      # The same `sha-<sha>` image staging runs: production re-tagged the image
+      # under a second name until C1, which meant the bytes production started
+      # were never the bytes staging was smoke-checked on.
+      - name: Deploy the edge Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') || needs.plan.outputs.agent == 'true' }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy edge/bundle/entry.js --no-bundle --config edge/wrangler.toml --env production --tag sha-${{ github.sha }}
+      - name: Deploy the web Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'web') }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy web/.output/server/index.mjs --no-bundle --config web/wrangler.jsonc --env production --tag sha-${{ github.sha }}
