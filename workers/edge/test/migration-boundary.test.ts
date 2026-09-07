@@ -28,18 +28,11 @@ void test("Drizzle schemas cannot become migration runners", () => {
   }
 });
 
-// #1359 replaced the `matrix.component` router with the pnpm-affected shape,
-// so the pin is the schema lane's own commands: validate, never apply. The
-// disposable-container apply lives inside db-fresh-schema.sh, not here.
-void test("PR CI validates migrations without applying a live database", () => {
-  const gate = read("scripts/local-gates/pre-push.sh");
-  const workflow = read(".github/workflows/pr-verification.yml");
-  assert.match(workflow, /atlas migrate validate --dir file:\/\/migrations\/neon/);
-  assert.doesNotMatch(workflow, /atlas migrate apply/);
-  assert.match(gate, /atlas migrate validate --dir file:\/\/migrations\/neon/);
-  assert.doesNotMatch(gate, /atlas migrate apply/);
-  assert.doesNotMatch(workflow, /supabase db push/);
-});
+// The PR lane's own shape — which job validates, in what order, and that it
+// never applies — moved to .github/scripts/test_ci_workflow_contract.rb with
+// B5 (#1363): it is a fact about pr-verification.yml, and asserting it from
+// the edge package made the edge lane fail for a workflow's reasons. What
+// stays here is the boundary itself: who may migrate, and from what source.
 
 void test("main CD orders migration between foundation and services", () => {
   const cd = read(".github/workflows/cd.yml");
