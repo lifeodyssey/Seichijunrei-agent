@@ -472,31 +472,30 @@ EDGE_SHOWCASE_MODE = "false"
 # anything but this file.
 AGENT_TURN_ROUTE = "edge"
 # #527/#528 (P1-A): CORS_ALLOWED_ORIGIN was never provisioned for staging as
-# either a repo-level or a staging-environment GH secret. Simply removing it
-# from the deployment secret set (an earlier revision did that) would
-# NOT preserve staging's current behavior — there is no wildcard fallback.
-# `workers/edge/src/container/container-env.ts` hardcodes `APP_ENV: "production"` for every
-# environment (confirmed: no APP_ENV var/secret exists anywhere — the base
-# section, staging, or production), and only forwards CORS_ALLOWED_ORIGIN to the
-# container when it is non-empty. With it absent, the container boots with
-# `app_env=production` and `cors_allowed_origin=""`'s Pydantic-validated
-# default `"*"` — and `settings.py`'s `validate_cors_origin` raises
-# ValueError on `"*"` when `app_env == "production"` (verified: reproduced
-# the exact ValidationError locally with `env -i APP_ENV=production ...`).
-# Deleting the entry would have swapped "deploy step fails loudly, before
-# anything is live" for "deploy succeeds, container crash-loops" — worse,
-# not better. A domain name isn't a secret; putting the real staging web
-# origin here (verified reachable: `curl -o /dev/null -w '%{http_code}'
-# https://animichi-web-staging.zhenjiazhou0127.workers.dev/` -> 200, and
-# matches apps/web/wrangler.jsonc's `env.staging.name` = "animichi-web-staging"
-# with no custom route, i.e. the default workers.dev URL) is more honest than
-# a GH secret nobody would think to look for, and needs no owner action.
-# `buildContainerEnvVars` forwards `vars` and `secrets` identically — this
-# is not a behavior change from the container's point of view. NOTE: the
-# edge `animichi-staging` Worker has never successfully deployed yet
-# (`wrangler secret list --env staging` -> "Worker ... not found"), so there
-# is no pre-existing manually-set CORS_ALLOWED_ORIGIN secret this could
-# conflict with.
+# either a repo-level or a staging-environment GH secret, and there is no
+# wildcard fallback, so simply dropping it (an earlier revision did) would not
+# preserve staging's behavior. `src/container/container-env.ts` forwards
+# CORS_ALLOWED_ORIGIN only when it is a non-empty string, so with it absent the
+# container falls back to `cors_allowed_origin`'s Pydantic default `"*"` — and
+# `settings.py`'s `validate_cors_origin` raises ValueError on `"*"` for every
+# APP_ENV except "development".
+#
+# APP_ENV reaches the container as a plain var, one per block: `[vars]`
+# "development", staging "staging" (above), production "production". It is
+# forwarded by name because it sits in both CONTAINER_ENV_KEYS and
+# CONTAINER_REQUIRED_KEYS, and the required list throws `Missing required
+# container env: APP_ENV` rather than seeding a default — a missing entry
+# breaks the deploy instead of mislabelling the environment. Issue #498 put it
+# there; before that container-env.ts hardcoded "production" for every
+# environment, which is why `validate_cors_origin` now tests `!= "development"`
+# rather than `== "production"`.
+#
+# Deleting this entry would fail no deploy step (CD uploads no secrets, #1364)
+# — it would ship a Worker whose container crash-loops on boot. A domain name
+# isn't a secret; the real staging web origin here is more honest than a GH
+# secret nobody would think to look for, and needs no owner action. It matches
+# apps/web/wrangler.jsonc's `env.staging.name` = "animichi-web-staging" with no
+# custom route, i.e. the default workers.dev URL.
 CORS_ALLOWED_ORIGIN = "https://animichi-web-staging.zhenjiazhou0127.workers.dev"
 ANON_ACCESS_ENABLED = "true"
 # AUTH-2 #950 hard cut (committed 2026-08-11): edge verifies Neon Auth (Better
