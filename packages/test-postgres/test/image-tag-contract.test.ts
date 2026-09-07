@@ -11,6 +11,13 @@
  * BOTH ways — it runs the shell read rather than reading the shell — and then
  * checks that no consumer kept a tag of its own to drift with.
  *
+ * The fourth place the tag appears is the workflow step that BUILDS the image.
+ * A `run:` can source the declaration, so that step keeps no copy either, and
+ * this package no longer reads `.github/workflows/pr-verification.yml` to find
+ * out (card B2 / #1360): pipeline text is the CI contract's to read, and
+ * `.github/scripts/test_ci_workflow_contract.rb` reads the declaration too, so
+ * neither side holds a second copy of the tag.
+ *
  * test-type: unit (reads checked-in files and one `bash -c`; no network).
  */
 import assert from "node:assert/strict";
@@ -27,7 +34,6 @@ const IMAGE_DECLARATION = "packages/test-postgres/postgres-image.env";
 const FRESH_SCHEMA_GATE = "scripts/local-gates/db-fresh-schema.sh";
 const SPIKE_FIXTURE = "workers/catalog/test/spike-db-global.ts";
 const AGENT_DB_FIXTURE = "workers/edge/agent-db-test/postgres-arm.ts";
-const IMAGE_BUILD_WORKFLOW = ".github/workflows/pr-verification.yml";
 
 /** The repository's image family. A consumer that names one names its own. */
 const IMAGE_LITERAL = /animichi-test-postgres:/;
@@ -66,13 +72,4 @@ void test("the edge agent-db fixture names no image and boots no container of it
   assert.doesNotMatch(fixture, IMAGE_LITERAL);
   assert.doesNotMatch(fixture, CONTAINER_CONSTRUCTION);
   assert.match(fixture, /startTestPostgres\(/);
-});
-
-/** The fourth place the tag appears is where the image is BUILT. It cannot read
- * the declaration — a workflow `run:` has no shell library — so the contract is
- * the assertion instead. */
-void test("CI builds the image under the tag the three consumers resolve", () => {
-  const built = /docker build -f apps\/agent\/docker\/test-postgres\/Dockerfile -t (\S+) \./
-    .exec(read(IMAGE_BUILD_WORKFLOW))?.[1];
-  assert.equal(built, OFFLINE_POSTGRES_IMAGE);
 });

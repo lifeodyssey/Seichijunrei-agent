@@ -73,8 +73,13 @@ test-all:
 test-cov:
 	cd apps/agent && $(PYTEST) src/animichi/tests/unit/ -v --cov --cov-report=html --cov-report=term-missing
 
+# The integration arm reports its own coverage under its own name: it is a
+# separate Codecov flag (codecov.yml), and pytest-cov's `xml:<path>` replaces
+# the addopts destination rather than adding to it, so the unit run's
+# coverage.xml survives `make check`. The floor belongs to the unit arm alone —
+# integration-only coverage is far below it, hence --cov-fail-under=0.
 test-integration:
-	cd apps/agent && $(PYTEST) src/animichi/tests/integration/ -v --no-cov
+	cd apps/agent && $(PYTEST) src/animichi/tests/integration/ -v --cov-report=xml:coverage-integration.xml --cov-fail-under=0
 
 test-eval:
 	cd apps/agent && $(PYTHON) -m animichi.tests.eval.run_agent_eval
@@ -91,7 +96,10 @@ test-docs:
 # already execute them. Keeping the dependency made `make check` run them twice.
 # The target stays as a fast standalone loop while editing docs.
 lint:
-	cd apps/agent && uv run ruff check src/animichi/ scripts/
+	# The whole package, not just src/ and scripts/: conftest.py, pyproject.toml
+	# and tests/fixtures/ live outside both, and CI reaches ruff only through
+	# this target now — a narrower path here is lint coverage silently dropped.
+	cd apps/agent && uv run ruff check .
 	cd apps/agent && uv run ruff format --check src/animichi/ scripts/
 	# vulture runs in the affected agent CI gate; without it here a dead-code finding
 	# reaches CI as a bare "exit code 3" after `make check` was green locally.

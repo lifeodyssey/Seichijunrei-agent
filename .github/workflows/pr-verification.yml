@@ -196,6 +196,8 @@ jobs:
         run: ruby .github/scripts/test_workflow_invariants.rb
       - name: Verify the CI workflow's affected-matrix shape
         run: ruby .github/scripts/test_ci_workflow_contract.rb
+      - name: Verify the Python lane and the Makefile gate behind it
+        run: ruby .github/scripts/test_agent_lane_contract.rb
       - name: Verify every package's test script chains its segments
         run: ruby .github/scripts/test_package_test_segments.rb
       # The delivery contracts the retired `security-tool` composite ran. §4.2
@@ -255,32 +257,35 @@ jobs:
         with:
           python: "true"
       - run: uv python install 3.11
+      # The tag has one declaration (packages/test-postgres/postgres-image.env);
+      # a `run:` reads it by sourcing it, so the builder keeps no copy either.
       - name: Build the hermetic Postgres+PostGIS+pgvector test image
-        run: docker build -f apps/agent/docker/test-postgres/Dockerfile -t animichi-test-postgres:18-3.6-pgvector-0.8.5 .
-      - name: Lint, typecheck and prove the Python agent
-        working-directory: apps/agent
         run: |
           set -euo pipefail
-          uv run ruff check
-          uv run ruff format --check src/animichi/
-          uv run mypy src/animichi/agents/ src/animichi/interfaces/ src/animichi/domain/ src/animichi/infrastructure/ src/animichi/clients/
-          uv run vulture src/animichi/ vulture_whitelist.py
-          uv run pytest src/animichi/tests/unit/ -v --cov --cov-report=xml:coverage-unit.xml
+          . packages/test-postgres/postgres-image.env
+          docker build -f apps/agent/docker/test-postgres/Dockerfile -t "$TEST_POSTGRES_IMAGE" .
+      # One command, and it is the one pre-push runs: `make check` is ruff +
+      # ruff-format + vulture, mypy, the unit suite under the 87% floor
+      # (apps/agent/pyproject.toml addopts) and the integration suite. CI no
+      # longer keeps its own copy of that list to drift from.
+      #
       # env -u strips the live/BYO database selectors so an exported TEST_DB can
       # never route the integration arm at Neon: the offline Docker arm only.
-      - name: Run the offline integration arm
-        working-directory: apps/agent
+      - name: Run the agent's own gate
         run: >
           env -u TEST_DB -u TEST_DATABASE_URL -u TEST_DB_ALLOW_MUTATION
           -u NEON_API_KEY -u NEON_PROJECT_ID -u NEON_ENDPOINT_SUFFIX
-          uv run pytest src/animichi/tests/integration/ -v --cov
-          --cov-report=xml:coverage-integration.xml --cov-fail-under=0
+          make check
       - name: Build the agent image
         run: docker build -f apps/agent/Dockerfile -t animichi-agent:ci .
+      # The two arms report under separate flags, which codecov.yml carries
+      # forward separately, so each needs its own report. `make check` writes
+      # both: the unit run at pytest's configured `coverage.xml`, the
+      # integration run at the name `Makefile`'s `test-integration` passes it.
       - name: Publish unit coverage
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
-          files: apps/agent/coverage-unit.xml
+          files: apps/agent/coverage.xml
           flags: unit
           fail_ci_if_error: true
           use_oidc: true
