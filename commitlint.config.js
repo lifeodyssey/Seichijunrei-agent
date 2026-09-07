@@ -113,12 +113,12 @@ module.exports = {
         ],
         'ai-attribution-forbidden': ({ body, footer }) => {
           const text = `${body ?? ''}\n${footer ?? ''}`;
-          const coauthorLine = text
+          const coauthored = text
             .split('\n')
-            .find((line) => /^co-authored-by\s*:/i.test(line));
+            .filter((line) => /^co-authored-by\s*:/i.test(line));
           return [
             !(
-              (coauthorLine !== undefined && AI_IDENTITY.test(coauthorLine)) ||
+              coauthored.some((line) => AI_IDENTITY.test(line)) ||
               /generated with .*\b(?:claude|anthropic|codex|openai)\b/i.test(text)
             ),
             'commits must not carry AI attribution (Co-Authored-By identity or Generated-with footer)',
