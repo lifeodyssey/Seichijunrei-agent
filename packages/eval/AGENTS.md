@@ -407,3 +407,60 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   repeats per case out of `AgentResult`; neither number crosses the wire. It is
   report-only in Python too (`DIRECT_GATE_ENFORCE`), so nothing that blocked
   there stopped blocking here.
+
+### Where a failed case first went wrong (E-4 #1383)
+
+`GateRunResult.failure_attribution` answers the question an end-to-end score cannot: not "did this
+case fail" but "from which step". Spec §十 10.4, 李博杰 ch.7 「失败归因：从整条轨迹定位首个错误」.
+Report-only by the **same mechanism** as `report_only` — computed over the finished report in
+`gate-run/`, outside `scores`, outside `metricNames()`, outside `caseScoresFromReport`, and read by
+no gate. It gets a field of its own only because `report_only` is typed as metric columns.
+
+- **A failed case is the run's own verdict, not a new threshold.** An errored case
+  (`report.failures`) has no turn to read and is only counted — the error-rate gate's business, as
+  in `score-breakdown.ts`. An evaluated case failed when one of the scores `caseScoresFromReport`
+  already keeps for it, plus the report-only `reply_claim_traceability`, is below 1 — the value
+  every evaluator here emits for "nothing was violated". On the committed 657-case baseline that is
+  312 failed against 345 perfect.
+- **Four rules, no LLM, earliest wins** (`first-deviation.ts`): the first positional divergence
+  from the case's accepted chains (`chain-divergence.ts`, asking `accepted-chains.ts` rather than
+  re-deriving it), every step settled `status === "error"`, every completed call whose two witnesses
+  disagree (`argument_correctness`' own predicate), and every claim E-3's verifier could not trace
+  (`unsourced-claims.ts`). The spec §十 10.4 lists three; the fourth is there because
+  `argument_correctness` is a live column whose failure HAS a step index — without it the oracle's
+  `settled_params_dropped_an_optional_null` came back unattributed. Order is
+  `(step_index ?? trajectory.length, category tie-break, claim_index)`, so a reply claim is later
+  than every step, a missing call sits at `trajectory.length` and beats a claim on the tie, and at
+  one step a chain divergence beats wrong arguments, which beat a tool error.
+- **`"unsettled"` is not a signal, and it suspends the chain comparison.** A call that was made and
+  never settled makes the completed-call sequence a partial record of the turn, so the positional
+  comparison is skipped rather than reporting `missing_call` about a call that WAS made — the
+  oracle's `unsettled_call_excluded_from_chain` is unattributed here on purpose. Blaming the harness'
+  own observation gap on the model is the AndroidWorld mistake §十 10.4 footnotes.
+- **A closed six-member vocabulary**, the book's table cut to what these rules can witness:
+  `wrong_tool`, `missing_call`, `extra_call`, `wrong_arguments`, `tool_error`, `reply_unsourced`.
+  `deviationCategory` is the one door a category becomes a record through and throws on anything
+  else.
+- **A failed case the rules cannot place gets no record** and is named under `unattributed`. A
+  locale slip has no position in a trajectory, and inventing step 0 for it would be a fabricated
+  root cause.
+- **A tool name is model text, so the committed record whitelists it.** `turn-transcript.ts` takes
+  `toolName` verbatim off a `tool-input-start` frame, so a hallucinated or injection-induced name
+  would otherwise reach `results/`. `declared-tool-name.ts` projects anything the contract does not
+  declare to `<unknown-tool>`; the list is a `Record` keyed on `CatalogToolName | WebToolName`, so
+  the compiler goes red the day a seventh tool is declared. `expected_tool` is not masked — it comes
+  from `accepted-chains.ts`' own constants.
+- **Raw evidence never enters git.** The committed record carries ids, indices, declared tool names
+  and numbers plus an `evidence_artifact` reference; the query, the reply and the tool returns go to
+  `artifacts/attribution/<date>-<dataset>.jsonl`, gitignored. **No CI lane runs `eval:gate` today** —
+  `agent-eval-nightly.yml` runs the Python suite through `.github/actions/agent-eval`, and the TS
+  gate is a hand-run from a worktree until W3-5 (#1303) gives it one; `attribution-evidence.ts`
+  states what the upload step must do when it exists. `results/` is committable because
+  「Nothing here is a secret」; `run_steps` is not granted even to `readonly` because it carries the
+  visitor's query text, and a failed `injection_g1_v1` case carries the injection itself. One
+  analysis, two projections, and `test/gate-run-attribution-evidence.test.ts` proves the drop with a
+  marker string.
+- **`unsourced-claims.ts` restates E-3's two verdict lines** because the verifier folds them with
+  `Math.min` and keeps them private. `test/gate-run-unsourced-claims.test.ts` pins the restatement
+  to the original — the minimum of these verdicts is the metric the verifier reports, and no decided
+  claim is its `{}`.

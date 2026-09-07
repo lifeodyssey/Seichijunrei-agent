@@ -129,6 +129,13 @@ docs/mockups/*
 backend/tests/eval/results/agent_openai-mimo-*
 *.tsbuildinfo
 
+# Failure-attribution evidence (E-4 #1383): the visitor's query, the reply and
+# the tool returns behind each attributed case. `packages/eval/results/` is
+# committed because nothing in it is a secret; this is the other half, and it
+# goes to an access-controlled CI artifact instead. The DIRECTORY is ignored, so
+# a future artifact kind cannot land in a commit by being new.
+packages/eval/artifacts/
+
 # Catalog TS service source — re-include (root lib/ rule is too broad)
 !catalog/src/lib/
 !workers/catalog/src/lib/
