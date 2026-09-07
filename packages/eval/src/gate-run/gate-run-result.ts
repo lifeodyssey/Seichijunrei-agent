@@ -20,6 +20,12 @@ import {
 } from '../gate/paired-bootstrap.ts';
 import { aggregateScores, gateInputFromReport } from '../gate/report-gate-input.ts';
 import type { TranscriptResult } from '../turn-transcript.ts';
+import { attributionEvidenceRef } from './attribution-evidence.ts';
+import {
+  analyseFailures,
+  attributionRecordOf,
+  type RunFailureAttribution,
+} from './failure-attribution.ts';
 import { reportOnlyMetricsOf, type ReportOnlyMetrics } from './report-only-metrics.ts';
 import { scoreBreakdownOf, type ScoreBreakdown } from './score-breakdown.ts';
 import { runSpendOf, type RunSpend } from './run-spend.ts';
@@ -107,6 +113,12 @@ export interface GateRunResult {
    * Its own field rather than a ninth entry in `scores`, because `scores` is
    * positionally aligned with the Python baseline. */
   readonly report_only: ReportOnlyMetrics;
+  /** Where each FAILED case first left the rails (E-4 #1383,
+   * `failure-attribution.ts`). Report-only by the same mechanism `report_only`
+   * is: computed over the finished report, outside `scores`, outside
+   * `metricNames()`, and read by no gate. Its own field rather than a key in
+   * `report_only`, which is typed as metric columns. */
+  readonly failure_attribution: RunFailureAttribution;
   readonly metrics: readonly MetricVerdictRow[];
   readonly failures: readonly string[];
   readonly warnings: readonly string[];
@@ -122,14 +134,19 @@ export function gateRunResultOf(
   const input = gateInputFromReport(report);
   const metrics = comparedMetrics(input.cases, settings);
   const errors = errorRateGate(input.erroredCount, input.total, settings.baseline);
+  const identity = runIdentity(settings);
   return {
-    ...runIdentity(settings),
+    ...identity,
     ...pinnedGateSettings(),
     case_count: settings.caseCount,
     evaluated_count: input.evaluatedCount,
     errored_count: input.erroredCount,
     scores,
     report_only: reportOnlyMetricsOf(report),
+    failure_attribution: attributionRecordOf(
+      analyseFailures(report),
+      attributionEvidenceRef(identity.generated_at, identity.dataset),
+    ),
     metrics: metrics.map(verdictRow),
     ...gateOutcome(metrics, errors, settings),
     breakdown: scoreBreakdownOf(report),

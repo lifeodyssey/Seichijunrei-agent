@@ -45,6 +45,8 @@ import {
   type ExportedDatasetHandle,
 } from "../src/dataset-roundtrip.ts";
 import { canonicalDatasetPath, loadCaseStrata } from "../src/gate/case-strata.ts";
+import { writeAttributionEvidence } from "../src/gate-run/attribution-evidence.ts";
+import { analyseFailures } from "../src/gate-run/failure-attribution.ts";
 import { gateRunSettingsFromBaseline } from "../src/gate-run/baseline-gated-settings.ts";
 import { gateExitCode } from "../src/gate-run/gate-exit-code.ts";
 import { gateRunResultOf, type AgentEvalReport, type GateRunResult } from "../src/gate-run/gate-run-result.ts";
@@ -149,6 +151,23 @@ function gatedResult(report: AgentEvalReport, args: GateRunArgs, caseCount: numb
   );
 }
 
+/**
+ * The raw half of the failure attribution (E-4 #1383). The committed result
+ * carries the REFERENCE and, by design, none of the text — so the analysis is
+ * run again here to get at the text. That is the boundary working, not a
+ * duplication to fold away: a `GateRunResult` that carried the evidence would
+ * be a result file with the visitor's query in it. The destination is a
+ * gitignored directory the eval lane uploads as a CI artifact
+ * (`attribution-evidence.ts` says what that step must do).
+ */
+function announceEvidence(report: AgentEvalReport, result: GateRunResult): void {
+  const path = writeAttributionEvidence(
+    analyseFailures(report),
+    result.failure_attribution.evidence_artifact,
+  );
+  process.stdout.write(`Attribution evidence written to: ${path}\n`);
+}
+
 /** `run_agent_eval._finish`, verbatim strings included. */
 function announce(result: GateRunResult, path: string): void {
   process.stdout.write(`\nGate result written to: ${path}\n`);
@@ -171,6 +190,7 @@ async function main(): Promise<void> {
   });
   process.stdout.write(`${renderReport(report)}\n`);
   const result = gatedResult(report, args, dataset.cases.length, gatedMetricNames(dataset, report));
+  announceEvidence(report, result);
   announce(result, writeGateRunResult(result));
   process.exitCode = gateExitCode(result);
 }
