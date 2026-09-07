@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 # frozen_string_literal: true
 
 # A gitleaks config file REPLACES the built-in rule set unless it extends it.

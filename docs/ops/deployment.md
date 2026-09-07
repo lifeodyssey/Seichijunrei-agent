@@ -67,7 +67,7 @@ environment each job may target — through the action **and** through a shell, 
 and touch no action input — and that the smoke probe's exit code is what decides its job.
 `test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type and
 ESC export list, no retired backend credential, no runtime-secret upload. All three run in CI's
-`contracts` job and in `scripts/local-gates/quality.sh`.
+`contracts` job, which is unconditional — no path filter selects it.
 
 Concurrency is per job, not per workflow: `cd-staging` covers the five stages and the smoke probe,
 `cd-production` covers the promotion. A run parked at the production approval gate no longer holds

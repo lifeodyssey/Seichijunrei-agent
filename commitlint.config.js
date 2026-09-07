@@ -1,12 +1,10 @@
-// CI mirror of scripts/local-gates/commit-message.py (the local commit-msg
-// hook). E1 retires the python hook; until then the two must stay in sync —
-// every rule here has a counterpart there, and vice versa.
-//
-// `type-enum` / `scope-enum` / `header-max-length` are the tables from
-// commit-message.py:10-41. The plugin rules mirror its subject checks
-// (GENERIC_OUTCOMES, the lowercase-verb start, the subject issue-ref ban) and
-// its attribution ban (COAUTHOR_PATTERN × AI_IDENTITY_PATTERN, the Claude Code
-// footer). Merge/Revert subjects are exempt exactly like GIT_MAINTENANCE_PATTERN.
+// The one commit-message validator (#1371). The commit-msg hook
+// (.pre-commit-config.yaml) and CI's `commits` job both read this file, so a
+// subject that passes locally passes the pull request too. It replaced
+// scripts/local-gates/commit-message.py, whose tables (`type-enum`,
+// `scope-enum`, `header-max-length` 72) and subject checks (GENERIC_OUTCOMES,
+// the lowercase-verb start, the issue-ref ban, the AI-attribution ban) are the
+// rules below. Merge/Revert subjects stay exempt, as they were there.
 
 const TYPES = [
   'feat',

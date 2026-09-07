@@ -203,6 +203,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # bundle-release-worker.test.sh drives a real `wrangler deploy --dry-run`,
+      # so this job needs the workspace like the ones that run a .mjs do.
+      - uses: ./.github/actions/setup
       - name: Verify the workflow invariants and action pinning
         run: ruby .github/scripts/test_workflow_invariants.rb
       - name: Verify the CI workflow's affected-matrix shape
@@ -237,15 +240,41 @@ jobs:
       - name: Verify the edge Worker's retired name is gone
         run: ruby .github/scripts/test_edge_naming_contract.rb
       # The gitleaks *config* contract (#1438) — the scan itself is the
-      # `gitleaks` security job. quality.sh has run these two since #1438 and CI
-      # never did, so a config change that muted a default rule was blocked at
-      # pre-push and green on the pull request. That gap is what the new
-      # `contracts`/quality.sh parity assertion above found.
+      # `gitleaks` security job. These two ran only in the retired local quality
+      # lane until #1371, so a config change that muted a default rule was
+      # blocked at pre-push and green on the pull request. That is the gap
+      # test_ci_workflow_contract.rb now closes from the other side: every
+      # committed check has to be named by a job in this file.
       - name: Verify the gitleaks config still loads the default rules
         run: |
           set -euo pipefail
           ruby .github/scripts/test_gitleaks_config_extends_defaults.rb
           ruby .github/scripts/test_gitleaks_config_extends_defaults_mutation.rb
+      # The behavioral self-tests of the repository's own shell gates. Their
+      # only runner was quality.sh, which #1371 deleted with the pre-push
+      # orchestrator; neither the affected matrix nor any package script can
+      # see scripts/local-gates or scripts/delivery, so without this step they
+      # would be committed tests nothing runs. Each is hermetic (stubbed PATH,
+      # throwaway git trees) and takes under six seconds.
+      - name: Verify the local gate scripts' own behavioral tests
+        run: |
+          set -euo pipefail
+          bash scripts/local-gates/pre-push-affected.test.sh
+          bash scripts/local-gates/db-fresh-schema.test.sh
+          bash scripts/local-gates/infra-check.test.sh
+          bash scripts/local-gates/infra-check-unauthorized.test.sh
+          bash scripts/local-gates/contract-drift.test.sh
+          bash scripts/local-gates/eval-fixture-drift.test.sh
+      # The delivery shell scripts cd.yml ships, and the promotion guard that
+      # reads the committed tree rather than a workflow.
+      - name: Verify the delivery scripts' own behavioral tests
+        run: |
+          set -euo pipefail
+          bash scripts/delivery/migrate-through-worker.test.sh
+          bash .github/scripts/bundle-release-worker.test.sh
+          bash .github/scripts/staging-smoke-check.test.sh
+          bash .github/scripts/check-e2e-promotion.test.sh
+          bash .github/scripts/check-e2e-promotion.sh
 
   docs:
     name: CI / documentation hygiene

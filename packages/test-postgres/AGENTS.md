@@ -16,7 +16,8 @@ here.
   no Docker, no clock).
 - `pnpm run typecheck` — TypeScript 7.0.2 `tsc --noEmit`.
 - `pnpm run lint:oxlint` — type-aware oxlint, warnings denied.
-- Pre-push runs all three as `gate_test-postgres` in `scripts/local-gates/pre-push.sh`.
+- Pre-push runs all three when a changed file lands in this package
+  (`scripts/local-gates/pre-push-affected.sh`), which is also how CI's affected matrix runs them.
 
 There is no Docker suite here. The arms that boot the container prove it in their own gates:
 `pnpm --filter catalog run test:spike` and `pnpm --filter edge-worker run test:agent-db`.
