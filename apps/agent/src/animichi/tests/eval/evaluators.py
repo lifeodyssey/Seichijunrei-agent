@@ -17,9 +17,10 @@ from pydantic_evals.evaluators import Evaluator, EvaluatorContext, LLMJudge
 
 from animichi.agents.agent_result import AgentResult
 from animichi.agents.session_state import ItineraryPayloadState, SearchPayloadState
+from animichi.tests.eval.evaluator_version import (
+    EVALUATOR_VERSION as EVALUATOR_VERSION,  # re-export: it lives one import down
+)
 from animichi.utils.language import resolve_reply_language
-
-EVALUATOR_VERSION = "official-v2"
 
 # ── Case types (shared with the dataset builder) ─────────────────────
 
