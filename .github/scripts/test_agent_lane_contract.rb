@@ -11,7 +11,10 @@
 #   coverage    two Codecov uploads, one per arm, each pointing at the report
 #               `make check` actually writes
 #   scope       `make lint` still lints the whole package, because the job's
-#               path-less `ruff check` was retired into it
+#               path-less `ruff check` was retired into it. That is the command;
+#               the file set it resolves is `test_lint_scope_contract.rb`, which
+#               forbids the excludes and the second config files that shrink it
+#               behind a command string this file still reads as correct (#1437)
 #
 # The job delegates to the Makefile, so the Makefile is where the lane's real
 # behaviour lives and this file reads it too. Everything else about the CI

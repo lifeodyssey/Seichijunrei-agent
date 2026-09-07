@@ -209,6 +209,8 @@ jobs:
         run: ruby .github/scripts/test_ci_workflow_contract.rb
       - name: Verify the Python lane and the Makefile gate behind it
         run: ruby .github/scripts/test_agent_lane_contract.rb
+      - name: Verify the file set both linters resolve
+        run: ruby .github/scripts/test_lint_scope_contract.rb
       # The other two lanes the affected matrix cannot see. They were assertion
       # groups inside test_ci_workflow_contract.rb until #1364's additions took
       # that file past 300 lines; the seam is B2's — a job outside the matrix
