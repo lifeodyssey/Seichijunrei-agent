@@ -188,3 +188,5 @@ calibration-only: the official-first switch changes metric semantics and require
 baseline. Per-case results land in `src/animichi/tests/eval/results/`.
 
 ## TDD: invoke `/backend-tdd` before writing Python.
+
+B2 throwaway: agent-only run for #1360 acceptance.
