@@ -2,6 +2,7 @@ import type { EvaluationResultJson, ReportCase } from 'logfire/evals';
 
 import type { ExportedAgentExpected, ExportedAgentInput } from '../src/dataset-roundtrip.ts';
 import type { AgentEvalReport } from '../src/gate-run/gate-run-result.ts';
+import { TURN_SECONDS_ATTRIBUTE } from '../src/staging-turn-task.ts';
 import type { TranscriptResult } from '../src/turn-transcript.ts';
 import { makeAgentInput, makeTranscriptResult, type MetricRecord } from './gated-run.ts';
 import type { AttributedTurn } from './make-attributed-turn.ts';
@@ -11,9 +12,10 @@ import type { AttributedTurn } from './make-attributed-turn.ts';
  *
  * `gated-run.ts` runs a real `Dataset.evaluate` with canned scores, which is
  * the better subject for anything about the gate. This exists for the one
- * thing that cannot be pinned that way: `task_duration` comes from
- * `logfire/evals`' own clock during an evaluate, and a test that asserted on it
- * would be asserting on how fast the machine happened to be.
+ * thing that cannot be pinned that way: a case's seconds. `task_duration` comes
+ * from `logfire/evals`' own clock during an evaluate, and `turn_seconds` from
+ * whatever clock the task ran on, so a test that asserted on either would be
+ * asserting on how fast the machine happened to be.
  */
 
 export interface CannedCaseSpec {
@@ -21,6 +23,7 @@ export interface CannedCaseSpec {
   readonly scores: MetricRecord;
   readonly intent?: string;
   readonly locale?: string;
+  /** What this case's own turns took — what `run-spend.ts` reads (#1476). */
   readonly seconds?: number;
   /** Turns the case replays before the measured one; each is a submission. */
   readonly historyTurns?: number;
@@ -31,6 +34,11 @@ export interface CannedCaseSpec {
 
 const DEFAULT_INTENT = 'search_nearby';
 const DEFAULT_LOCALE = 'ja';
+
+/** The seconds a canned case spent QUEUED, which the driver's own
+ * `task_duration` includes and the run's spend must not (#1476). They are apart
+ * here because equal numbers would let a sum over either column pass. */
+const QUEUED_SECONDS = 10;
 
 /** The three members a `turn` overrides wholesale, defaulted from the spec. */
 function casedTurn(
@@ -54,7 +62,7 @@ export function makeCannedCase(
   const seconds = spec.seconds ?? 0;
   return {
     assertions: {},
-    attributes: {},
+    attributes: { [TURN_SECONDS_ATTRIBUTE]: seconds },
     evaluator_failures: [],
     ...casedTurn(spec),
     labels: {},
@@ -62,8 +70,8 @@ export function makeCannedCase(
     name: spec.name,
     scores: scoreResults(spec.scores),
     span_id: null,
-    task_duration: seconds,
-    total_duration: seconds,
+    task_duration: seconds + QUEUED_SECONDS,
+    total_duration: seconds + QUEUED_SECONDS,
     trace_id: null,
   };
 }

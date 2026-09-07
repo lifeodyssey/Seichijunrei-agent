@@ -21,7 +21,7 @@
  * refusal, a 500 — and retrying any of them would quietly turn a failing case
  * into a passing one, which is the failure mode an eval exists to detect.
  */
-import { setEvalAttribute } from "logfire/evals";
+import { getCurrentTaskRun, setEvalAttribute, type TaskRunState } from "logfire/evals";
 import type { GetSessionHistoryResponse } from "@animichi/contract/session-history-contract";
 
 import { caseSubmissionsOf, type ChatSubmission } from "./case-submissions.ts";
@@ -63,6 +63,26 @@ const SESSION_ID_HEADER = "x-session-id";
  */
 export const PREFIX_SEEDED_ATTRIBUTE = "prefix_seeded";
 
+/**
+ * The seconds ONE case's own turns took, without the wait for a slot (#1476).
+ *
+ * The driver already times a case — `ReportCase.task_duration` is a
+ * `performance.now()` difference taken inside the case runner, around the task
+ * call and nothing else (`logfire/evals`' `runCase`: `let e = J(); try { return
+ * await c(inputs) } finally { b = J() - e }`). That bracket is the problem: this
+ * task ENTERS `InFlightTurns` inside the call, so a case's `task_duration` is
+ * its queue wait plus its turn, and at the documented bound of two the wait is
+ * most of it — the 662-case run of 2026-09-07 walled 8,795 s and summed
+ * 3,043,667 of them, the last case alone reporting the whole run.
+ *
+ * So the turn times ITSELF, from inside the slot, and `run-spend.ts` sums these
+ * instead. `Dataset.evaluate`'s own `maxConcurrency` acquires before that
+ * bracket and would fix the arithmetic too, but it moves the bound protecting a
+ * shared deployment out of the task and into whatever the caller remembered to
+ * pass — and leaves the number on a clock no test can hold still.
+ */
+export const TURN_SECONDS_ATTRIBUTE = "turn_seconds";
+
 /** What one case's submissions left behind: the turn that is being measured
  * (the LAST one — its predecessors only exist to put history in the session),
  * the session they all ran on, and those predecessors' streams. */
@@ -90,6 +110,16 @@ export interface StagingTurnSettings {
   readonly maxConcurrency?: number;
   readonly timeoutMs?: number;
   /**
+   * Milliseconds from a monotonic clock, for the turn's own duration (#1476).
+   *
+   * Injected so a test can hold it still — the measurement this makes is the
+   * difference between two reads taken inside the slot, and a test that asserted
+   * on `performance.now()` would be asserting on how fast the machine was.
+   * `performance.now()` when nobody supplies one, which is the clock the driver
+   * times a case with.
+   */
+  readonly now?: () => number;
+  /**
    * Where a case's frozen prefix was seeded, when it carries one (E-1 #1380).
    *
    * Optional because most runs seed nothing: a set with no `seeded_pending`
@@ -108,6 +138,30 @@ export class TransportFailure extends Error {
   }
 }
 
+/**
+ * The seconds, onto the state of the case that spent them.
+ *
+ * Not `setEvalAttribute`, which looks the state up at WRITE time and would be
+ * the obvious call: `logfire/evals` loads `node:async_hooks` lazily, so a case
+ * that started before that import resolved is on a module-level fallback the
+ * driver abandons the moment the storage exists, and a write made after the
+ * turn — the only moment its duration is known — lands nowhere. Measured on the
+ * first case of a process.
+ *
+ * `prefix_seeded` goes through that same call and still arrives, and NOT
+ * because it is written synchronously: `#seededSession` is reached through
+ * `#inFlight.enter`, which awaits a slot first, so that write is after an await
+ * too. It survives on timing alone — one admitted slot is a microtask hop, and
+ * the import has usually not resolved by then, so the fallback the driver reads
+ * is still this case's. That is #1484, not a guarantee to copy. The state `run`
+ * captures is this case's under either regime, and the driver reads that same
+ * object into the report when the case ends.
+ */
+function recordTurnSeconds(measured: TaskRunState | undefined, seconds: number): void {
+  if (measured === undefined) return;
+  measured.attributes[TURN_SECONDS_ATTRIBUTE] = seconds;
+}
+
 export class StagingTurnTask {
   readonly #settings: StagingTurnSettings;
   readonly #inFlight: InFlightTurns;
@@ -122,9 +176,12 @@ export class StagingTurnTask {
     return (inputs) => this.run(inputs);
   }
 
-  /** One case: its recorded history replayed, then the turn under measurement. */
+  /** One case: its recorded history replayed, then the turn under measurement.
+   * The case's own task-run state is taken HERE, before the queue — see
+   * `recordTurnSeconds` for why it cannot be looked up when the turn ends. */
   run(inputs: ExportedAgentInput): Promise<TranscriptResult> {
-    return this.#inFlight.enter(() => this.#runCase(inputs));
+    const measured = getCurrentTaskRun();
+    return this.#inFlight.enter(() => this.#runCase(inputs, measured));
   }
 
   /**
@@ -156,8 +213,19 @@ export class StagingTurnTask {
     return seeded;
   }
 
-  async #runCase(inputs: ExportedAgentInput): Promise<TranscriptResult> {
-    return this.#shape(await this.submitCase(inputs), inputs.locale);
+  /** The case, timed from INSIDE the slot: the turns it sent and the transcript
+   * it read back, never the queue it waited in (`TURN_SECONDS_ATTRIBUTE`). */
+  async #runCase(
+    inputs: ExportedAgentInput, measured: TaskRunState | undefined,
+  ): Promise<TranscriptResult> {
+    const started = this.#milliseconds();
+    const result = await this.#shape(await this.submitCase(inputs), inputs.locale);
+    recordTurnSeconds(measured, (this.#milliseconds() - started) / 1000);
+    return result;
+  }
+
+  #milliseconds(): number {
+    return this.#settings.now?.() ?? performance.now();
   }
 
   async #shape(submitted: SubmittedCase, locale: string): Promise<TranscriptResult> {

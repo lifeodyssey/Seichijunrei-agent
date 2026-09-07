@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { runSpendOf, TASK_SECONDS_NOTE } from '../src/gate-run/run-spend.ts';
+import { runSpendOf } from '../src/gate-run/run-spend.ts';
 import { scoreBreakdownOf } from '../src/gate-run/score-breakdown.ts';
 import { makeCannedReport } from './canned-report.ts';
 
@@ -65,21 +65,17 @@ void test('the run counts the chat submissions its cases call for', () => {
   assert.equal(spent.turns_planned, 4);
 });
 
-/** The cases here spend 0.1 s and 0.2 s, and the field still refuses to say so:
- * `task_duration` is the whole task call, and `StagingTurnTask` queues on
- * `InFlightTurns` inside it, so on a real run the number is queue wait (#1476).
- * A committed result must not carry a figure that reads as machine time. */
-void test('the seconds the task spent are not claimed, and say where to look', () => {
-  assert.deepEqual(
-    { seconds: spent.task_seconds, note: spent.task_seconds_note },
-    { seconds: null, note: TASK_SECONDS_NOTE },
-  );
+/** The cases' turns took 0.1 s and 0.2 s; each case ALSO carries the driver's
+ * own `task_duration`, which on a real run is the turn plus the wait for an
+ * `InFlightTurns` slot (#1476). Mutation: sum `task_duration` instead and this
+ * reads 20.3 — the queue, charged to the model. */
+void test('the run spends the seconds its turns took, not the ones they queued', () => {
+  assert.equal(spent.task_seconds, 0.3);
 });
 
 void test('a run of nothing spent nothing', () => {
   assert.deepEqual(runSpendOf(makeCannedReport([])), {
     turns_planned: 0,
-    task_seconds: null,
-    task_seconds_note: TASK_SECONDS_NOTE,
+    task_seconds: 0,
   });
 });
