@@ -12,11 +12,17 @@ import { neonClient } from "./sql";
  * non-RPC (staging migrate 2026-08-21, HTTP 500 after #1125).
  */
 export class MigratorApplyLock extends DurableObject {
-  async run(dsn: string): Promise<ContainerOutcome> {
-    return this.ctx.blockConcurrencyWhile(() => applyWithBundle(dsn));
+  async run(dsn: string, expectedHead: string | null): Promise<ContainerOutcome> {
+    return this.ctx.blockConcurrencyWhile(() => applyWithBundle(dsn, expectedHead));
   }
 }
 
-function applyWithBundle(dsn: string): Promise<ContainerOutcome> {
-  return applyChain({ dsn, source: productionChain, connect: neonClient, now: () => new Date() });
+function applyWithBundle(dsn: string, expectedHead: string | null): Promise<ContainerOutcome> {
+  return applyChain({
+    dsn,
+    source: productionChain,
+    connect: neonClient,
+    now: () => new Date(),
+    ...(expectedHead === null ? {} : { expectedHead }),
+  });
 }

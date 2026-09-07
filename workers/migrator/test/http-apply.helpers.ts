@@ -18,6 +18,7 @@ export const HASH_A = "h1:hash-turn-outcome-aaaaaaaaaaaaaaaaaaaaaaa=";
 export const HASH_B = "h1:hash-turn-outbox-bbbbbbbbbbbbbbbbbbbbbbbb=";
 export const BODY_A = "CREATE TABLE public.turn_outcome (id int);";
 export const BODY_B = "CREATE TABLE public.turn_outbox_events (id int);";
+export const HEAD_A = "20260811000001_turn_outcome";
 export const HEAD_B = "20260814191301_turn_idempotency_outbox";
 export const STMT_1 = "CREATE TABLE public.t1 (id int);";
 export const STMT_2 = "CREATE TABLE public.t2 (id int);";
@@ -60,9 +61,12 @@ export function applyFixture(db: FakeSql, extra: Partial<HttpApplyInput> = {}): 
   });
 }
 
+// The Worker's own seam: the head the caller asked for reaches the apply, which
+// is what bounds it (src/requested-chain.ts). Dropping `expectedHead` here would
+// leave the apply unbounded exactly as it was before #1471.
 export function workerHttpDeps(db: FakeSql) {
   return {
-    runContainer: (dsn: string) => applyFixture(db, { dsn }),
+    runContainer: (dsn: string, expectedHead?: string) => applyFixture(db, { dsn, expectedHead }),
     readAppliedHead: (): Promise<string | null> => Promise.resolve(db.head()),
   };
 }

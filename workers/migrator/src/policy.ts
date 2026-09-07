@@ -6,8 +6,12 @@
  * The audience is a fixed project-specific value, DISTINCT from the
  * staging-gate verifier audience (#1054) so the two doors never cross-accept.
  *
- * This card wires STAGING. The production migrator path is #1055 (separate
- * worker/DSN, sub-anchored allowlist) and deliberately does not live here.
+ * #1365 adds PRODUCTION as a SEPARATE allowlist, never extra shapes appended
+ * to the staging one: `refAnchored` is `policy.refAllow.some(...)`
+ * (`oidc-github.ts:77-83`), so one allowlist holding both shapes would let a
+ * token minted by the staging job walk through the production door. MED-2
+ * forbids exactly that. The two policies are selected per deployed Worker by
+ * the `MIGRATOR_OIDC_POLICY` var, which is how they stay apart at runtime.
  */
 
 import { GITHUB_OIDC_ISSUER, type GitHubOidcPolicy } from "@animichi/contract/oidc-github";
@@ -38,3 +42,31 @@ export const STAGING_OIDC_POLICY: GitHubOidcPolicy = {
   subAllow: [],
   trustedWorkflowRefs: [TRUSTED_CD_WORKFLOW],
 };
+
+/**
+ * The production claims allowlist (#1365 / #1055). Two independently complete
+ * anchors, per MED-2: the ref+environment pair, or the environment-scoped
+ * `sub` GitHub mints for a job running in the `production` environment.
+ * Nothing staging-shaped may ever be added here, and nothing here may ever be
+ * added to STAGING_OIDC_POLICY.
+ */
+export const PRODUCTION_OIDC_POLICY: GitHubOidcPolicy = {
+  issuer: GITHUB_OIDC_ISSUER,
+  audience: MIGRATOR_OIDC_AUDIENCE,
+  repository: "lifeodyssey/animichi",
+  refAllow: [{ ref: "refs/heads/main", environment: "production" }],
+  subAllow: ["repo:lifeodyssey/animichi:environment:production"],
+  trustedWorkflowRefs: [TRUSTED_CD_WORKFLOW],
+};
+
+/** The `[env.production]` var that selects the production allowlist. */
+export const PRODUCTION_POLICY_SELECTOR = "production";
+
+/**
+ * Pick the allowlist this deployed Worker enforces. Staging is the default so
+ * a Worker deployed with no selector at all cannot accidentally become the
+ * production door; only the explicit selector opens it.
+ */
+export function policyFor(selector: string | undefined): GitHubOidcPolicy {
+  return selector === PRODUCTION_POLICY_SELECTOR ? PRODUCTION_OIDC_POLICY : STAGING_OIDC_POLICY;
+}

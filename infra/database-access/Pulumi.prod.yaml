@@ -12,14 +12,17 @@
 # The account plan allows only the single default Secrets Store
 # (secretsStoreId), shared with staging.
 #
-# First-deploy provisioning (owner-gated, executed by the operator/orchestrator
-# through the CI production environment approval):
-# The animichi-neon-secrets namespace below is the stable Pulumi state/config
-# identity; the code and delivery component are named database-access.
-#   pulumi config set --stack prod --secret animichi-neon-secrets:neonApiKey "<neon api key>"
-# The neonApiKey secret is deliberately NOT committed here - it is set as a
-# passphrase-encrypted secure value before the first prod apply (mirrors how
-# the staging stack carried a live ciphertext from its local #926 bootstrap).
+# The production apply runs in CD, behind the GitHub production environment
+# approval; everything after the owner's one-time initialisation goes through
+# CI/CD. The animichi-neon-secrets namespace below is the stable Pulumi
+# state/config identity; the code and delivery component are named
+# database-access.
+# The neonApiKey IS committed here, encrypted: a stack-bound "secure:"
+# ciphertext sealed by Pulumi Cloud's managed secrets provider, exactly as
+# Pulumi.staging.yaml carries it. CD's pulumi up reads stack config from this
+# file, so the production apply can only run with the ciphertext committed.
+# The plaintext never lives in the repo or in GitHub - only Pulumi Cloud can
+# decrypt this value, and only for this stack.
 config:
   animichi-neon-secrets:neonProjectId: billowing-fire-22850320
   animichi-neon-secrets:neonBranchId: br-cold-term-aor1v6gl
@@ -27,3 +30,5 @@ config:
   animichi-neon-secrets:secretsStoreName: animichi-secrets
   animichi-neon-secrets:databaseName: neondb
   animichi-neon-secrets:secretsStoreId: 66c9bb0faef644b4a0671bb7d90d98bd
+  animichi-neon-secrets:neonApiKey:
+    secure: AAABAHSIodrecZ5uZurmTZn/7kHkBO05n3nXCdVVVLDxHk5I47JA51+i7EkJ6haPDjuEnoK1jmBEOblP8TMLMSBJye92Xs76QV3GDGBD63rObkTZEIV1v+naw7ZVkklDdPy3UD0=

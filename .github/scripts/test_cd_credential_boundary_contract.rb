@@ -15,6 +15,9 @@
 #   runtime    CI uploads no Worker secret by any of the three routes that
 #              exist — `wrangler secret bulk`, wrangler-action's `secrets:`
 #              input, or simply naming one in the workflow
+#   database   CI holds no database credential at all: every environment reaches
+#              the data plane through the migrator Worker on the job's own OIDC
+#              identity (decision 6; C3 / #1365 removed the last one)
 #
 # `cd.yml`'s job graph is `test_cd_shape_contract.rb`, not this file.
 #
@@ -42,6 +45,11 @@ RETIRED_CREDENTIALS = %w[PULUMI_BACKEND_URL PULUMI_CONFIG_PASSPHRASE R2_ACCESS_K
 # (spec §七 #17, card D4); CI must not name them at all.
 RUNTIME_SECRETS = %w[DEEPSEEK_API_KEY MIMO_API_KEY ZEN_GO_API_KEY SUPABASE_DB_URL
                      GOOGLE_MAPS_API_KEY LOGFIRE_TOKEN TURNSTILE_SECRET ANON_ID_SECRET].freeze
+# Any secret whose name says "database" — NEON_DATABASE_URL was the last one,
+# and MIGRATOR_DATABASE_URL arriving through GitHub instead of the Secrets Store
+# would be the same mistake under a newer name. A pattern, not a list: the point
+# is that no such secret exists here, whatever it is called next.
+DATABASE_CREDENTIAL = /secrets\.[A-Z_]*DATABASE[A-Z_]*/
 
 @log = ViolationLog.new
 @cd = WorkflowDocument.load(CD_FILE)
@@ -82,11 +90,18 @@ def assert_no_runtime_secret_upload
   @log.unless_true(named.empty?, "cd.yml: runtime secrets belong to Pulumi, not CI (#{named.join(', ')})")
 end
 
+def assert_ci_holds_no_database_credential
+  named = @source.scan(DATABASE_CREDENTIAL).uniq
+  @log.unless_true(named.empty?,
+                   "cd.yml: the database is reachable only through the migrator (#{named.join(', ')})")
+end
+
 def main
   assert_pulumi_login_is_the_only_token_type_this_org_can_mint
   assert_esc_exports_exactly_the_pulumi_plane
   assert_retired_credentials_stay_retired
   assert_no_runtime_secret_upload
+  assert_ci_holds_no_database_credential
   @log.report("CD credential boundary: all assertions hold")
 end
 

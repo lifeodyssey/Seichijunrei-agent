@@ -7,13 +7,19 @@
 # role, #1050) is a Secrets Store binding, never in GitHub, never on a runtime
 # worker (workers/edge/test/migrator-role-isolation.test.ts).
 #
-# Reached by the deploy pipeline at POST /migrate. The staging URL is supplied
-# to CI as the `MIGRATOR_STAGING_URL` workflow variable (the account's
-# workers.dev / custom host is provisioned by the operator on first deploy).
+# Reached by the deploy pipeline at POST /migrate. Each environment's URL is
+# supplied to CI as the `MIGRATOR_STAGING_URL` / `MIGRATOR_PRODUCTION_URL`
+# workflow variable (the account's workers.dev / custom host is provisioned by
+# the operator on first deploy).
 #
-# Separated worker + container image by design: this card wires STAGING.
-# The production migrator path (separate worker + DSN, sub-anchored allowlist)
-# is #1055 and deliberately has no [env.production] here.
+# #1365 (#1055) adds [env.production]: a SEPARATE Worker with a separate DSN
+# secret (MIGRATOR_DATABASE_URL_PROD, the "_PROD" name the prod stack of
+# infra/database-access writes — staging and production share the account's one
+# Secrets Store, so the names must differ) and a separate OIDC allowlist,
+# selected by MIGRATOR_OIDC_POLICY. The two allowlists never merge: one array
+# holding both shapes would let the staging job's token open the production
+# door (MED-2, src/policy.ts). Staging sets no selector — the default IS
+# staging, so a Worker deployed without one cannot become the production door.
 
 name = "migrator"
 main = "src/index.ts"
@@ -124,5 +130,47 @@ tag = "v1"
 new_sqlite_classes = ["MigrationContainer"]
 
 [[env.staging.migrations]]
+tag = "v2"
+new_sqlite_classes = ["MigratorApplyLock"]
+
+[env.production]
+name = "migrator-production"
+workers_dev = true
+preview_urls = false
+
+# #1050/#1365: the production migrator DSN. Same store as staging (the account
+# plan allows one), so the secret carries the prod stack's "_PROD" suffix while
+# the binding keeps the single name src/create-app.ts reads.
+[[env.production.secrets_store_secrets]]
+binding = "MIGRATOR_DATABASE_URL"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "MIGRATOR_DATABASE_URL_PROD"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CONTAINER_TIMEOUT_MS = "600000"
+# The only thing that makes this Worker enforce PRODUCTION_OIDC_POLICY.
+MIGRATOR_OIDC_POLICY = "production"
+
+[[env.production.containers]]
+class_name = "MigrationContainer"
+image = "./Dockerfile"
+image_build_context = "../../"
+max_instances = 1
+instance_type = "basic"
+
+[[env.production.durable_objects.bindings]]
+name = "MIGRATOR_CONTAINER"
+class_name = "MigrationContainer"
+
+[[env.production.durable_objects.bindings]]
+name = "MIGRATOR_APPLY_LOCK"
+class_name = "MigratorApplyLock"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["MigrationContainer"]
+
+[[env.production.migrations]]
 tag = "v2"
 new_sqlite_classes = ["MigratorApplyLock"]

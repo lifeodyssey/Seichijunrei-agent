@@ -35,24 +35,36 @@ void test("Drizzle schemas cannot become migration runners", () => {
 // .github/scripts/test_schema_lane_contract.rb with B5 (#1363); the CD lane's —
 // which job needs which — went to .github/scripts/test_cd_shape_contract.rb
 // with C1 (#1364). What stays here is the boundary itself: who may migrate, and
-// from what source. Staging reaches the database only through the migrator
-// Worker on the job's own OIDC identity, and production still applies the
-// sealed Atlas chain until C3 (#1365) routes it through the migrator too.
-void test("staging migrates through the migrator Worker on an OIDC identity", () => {
+// from what source. Both environments reach the database only through the
+// migrator Worker on each job's own OIDC identity — C3 (#1365) moved production
+// onto that path and deleted the last database credential CI held.
+void test("both environments migrate through the migrator Worker on an OIDC identity", () => {
   const cd = read(".github/workflows/cd.yml");
   const handshake = read("scripts/delivery/migrate-through-worker.sh");
   assert.match(cd, /stage-migration:[\s\S]*id-token: write/);
   assert.match(cd, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_STAGING_URL \}\}/);
   assert.match(cd, /migrate-through-worker\.sh staging/);
+  assert.match(cd, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_PRODUCTION_URL \}\}/);
+  assert.match(cd, /migrate-through-worker\.sh production/);
   assert.match(handshake, /audience=animichi:github-actions:migrator/);
-  assert.doesNotMatch(cd, /NEON_DATABASE_URL[\s\S]*--env staging/);
+  assert.doesNotMatch(cd, /NEON_DATABASE_URL/);
 });
 
-void test("production applies the sealed Atlas chain, never a staging-only baseline", () => {
+void test("no job applies the chain itself, and a staging-only baseline still stops production", () => {
   const cd = read(".github/workflows/cd.yml");
-  assert.match(cd, /atlas migrate validate --dir "file:\/\/release\/migrations"/);
-  assert.match(cd, /atlas migrate apply[\s\S]*--revisions-schema public/);
+  assert.doesNotMatch(cd, /atlas migrate apply/);
+  assert.doesNotMatch(cd, /ariga\/setup-atlas/);
   assert.match(cd, /release\/migrations\/STAGING_ONLY_BASELINE/);
+});
+
+// #1332: the deploy call returning is not the new bundle serving. The handshake
+// waits on the head the Worker itself reports before it POSTs anything, and
+// treats the Worker's own `409 stale_bundle` as the same fact from the far side.
+void test("the migration waits for the migrator to serve the sealed head", () => {
+  const handshake = read("scripts/delivery/migrate-through-worker.sh");
+  assert.match(handshake, /healthz/);
+  assert.match(handshake, /bundleHead/);
+  assert.match(handshake, /stale_bundle/);
 });
 
 void test("README points operators to the migration runbook", () => {

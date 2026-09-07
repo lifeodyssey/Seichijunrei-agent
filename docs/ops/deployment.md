@@ -338,11 +338,23 @@ The artifact carries the committed `migrations/neon/` chain and `atlas.sum` unde
 job's GitHub OIDC identity for a token scoped to `animichi:github-actions:migrator`, and POSTs
 `/migrate` with that head. CI holds no database credential on this path, not even a short-lived one.
 
-Production is still transitional: `promote-production` installs the pinned Atlas CLI
-(`ariga/setup-atlas`, `v0.30.0`) and runs `atlas migrate validate` then `atlas migrate apply`
-against `secrets.NEON_DATABASE_URL`, refusing outright if the sealed chain carries a
-`STAGING_ONLY_BASELINE` marker. Card #1365 routes production through the migrator too and deletes
-that step together with the last database credential CI holds.
+Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
+`STAGING_ONLY_BASELINE` marker, deploys the migrator Worker with `--env production`, then runs
+`scripts/delivery/migrate-through-worker.sh production` against `vars.MIGRATOR_PRODUCTION_URL`.
+That Worker is a separate deployment with a separate DSN (`MIGRATOR_DATABASE_URL_PROD` in the
+shared Secrets Store) and a separate OIDC allowlist selected by its `MIGRATOR_OIDC_POLICY` var, so
+a token minted by the staging job cannot open it. The transitional Atlas step and
+`secrets.NEON_DATABASE_URL` are gone with it: CI now holds no database credential at all.
+
+Both environments run the same handshake first, because `wrangler deploy` returning is not the new
+bundle serving (#1332): the script polls `GET /healthz` until the `bundleHead` the Worker reports
+is the sealed head (12 attempts, 5s apart), and retries a bounded number of times if the Worker
+answers `409 stale_bundle` anyway.
+
+The sealed head is also the ceiling of the apply: the Worker applies the carried chain only through
+the head the script asked for, so a run can never leave the database further ahead than the chain it
+sealed. A database already standing past that head is answered `422` with nothing applied — unlike
+the `409`, that refusal is terminal and the script does not re-poll it.
 
 Expand/contract compatibility remains mandatory because schema promotion precedes consumers and a
 Worker rollback does not reverse an applied migration. For provisioning or recovery checks, follow

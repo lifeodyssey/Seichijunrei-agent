@@ -25,6 +25,20 @@ export function filesFrom(source: ChainSource): ChainFile[] {
   }));
 }
 
+/**
+ * The ledger heads this chain can reach, in atlas.sum order. Read from
+ * atlas.sum alone: the migration handshake (#1365) asks which versions the
+ * bundle carries, never what their bodies say, so no file body is loaded.
+ */
+export function headsOf(source: ChainSource): string[] {
+  return parseSum(source.atlasSum()).map((entry) => headOf(splitFilename(entry.filename)));
+}
+
+/** The head a chain file leaves in the ledger — `ledger.ts`'s `version_description`. */
+export function headOf(file: { version: string; description: string }): string {
+  return file.description.length === 0 ? file.version : `${file.version}_${file.description}`;
+}
+
 export function parseSum(text: string): { filename: string; hash: string }[] {
   return text.split("\n").flatMap(parseSumLine);
 }

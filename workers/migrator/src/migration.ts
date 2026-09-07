@@ -15,7 +15,9 @@ export type ContainerOutcome =
   | { kind: "success"; exitCode: 0 }
   | { kind: "failure"; exitCode: number; error?: string }
   | { kind: "unknown_exit" }
-  | { kind: "timeout"; ranMs: number; lastStatus: string; exitCode?: number };
+  | { kind: "timeout"; ranMs: number; lastStatus: string; exitCode?: number }
+  /** Nothing was applied: this bundle and ledger cannot satisfy the request. */
+  | { kind: "refused"; reason: string };
 
 export type PathVerification = "verified" | "unverified";
 
@@ -23,10 +25,12 @@ export type MigrationRunResult =
   | { kind: "success"; exitCode: 0; appliedHead: string | null; pathVerification: PathVerification }
   | { kind: "failure"; exitCode: number; error?: string }
   | { kind: "head_mismatch"; appliedHead: string | null; expectedHead: string | null }
-  | { kind: "timeout"; ranMs: number; lastStatus: string; exitCode?: number };
+  | { kind: "timeout"; ranMs: number; lastStatus: string; exitCode?: number }
+  | { kind: "refused"; reason: string };
 
 export interface MigrationBoundaries {
-  runContainer: (dsn: string) => Promise<ContainerOutcome>;
+  /** The apply is bounded by `expectedHead`; it may not advance past it. */
+  runContainer: (dsn: string, expectedHead?: string) => Promise<ContainerOutcome>;
   readAppliedHead: (dsn: string) => Promise<string | null>;
 }
 
@@ -92,8 +96,9 @@ export async function runMigration(
   expectedHead?: string,
 ): Promise<MigrationRunResult> {
   const pre = await snapshotPreRunHead(dsn, boundaries);
-  const outcome = await boundaries.runContainer(dsn);
+  const outcome = await boundaries.runContainer(dsn, expectedHead);
   if (outcome.kind === "failure") return failOf(outcome);
+  if (outcome.kind === "refused") return { ...outcome };
   if (outcome.kind === "timeout") return { ...outcome };
   if (outcome.kind === "unknown_exit") return judgeUnknownExit(dsn, boundaries, expectedHead, pre);
   return succeeded(await boundaries.readAppliedHead(dsn), "verified");

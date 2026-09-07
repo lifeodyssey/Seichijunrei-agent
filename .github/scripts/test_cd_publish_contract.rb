@@ -16,8 +16,9 @@
 #   smoke      the staging gate probes the two real surfaces, and its exit code
 #              is what decides the job — a discarded one promotes a broken
 #              staging, which is the #1198 failure the job exists to prevent
-#   migration  production applies the sealed chain and refuses a staging-only
-#              baseline BEFORE applying anything
+#   migration  every environment reaches the database only through the migrator
+#              Worker, and the staging-only baseline is refused BEFORE the
+#              production migration rather than after it
 #
 # `cd.yml`'s job graph is `test_cd_shape_contract.rb`; the credentials it may
 # hold are `test_cd_credential_boundary_contract.rb`.
@@ -54,7 +55,15 @@ SMOKE_SURFACES = ["https://animichi-staging.zhenjiazhou0127.workers.dev",
 # assertion about the probe's text while discarding its result; the third is
 # banned repository-wide and named here so the smoke job says why.
 SMOKE_ESCAPES = ["|| true", "set +e", %w[continue on error].join("-")].freeze
-ATLAS_MARKERS = ["STAGING_ONLY_BASELINE", "atlas migrate validate", "atlas migrate apply"].freeze
+# C3 (#1365) retired the transitional Atlas step: production migrates the way
+# staging always has. What is left to pin is that no job applies the chain
+# itself — doing so is holding a database credential by definition — and that
+# each job names the migrator its own environment gates.
+MIGRATION_SCRIPT = "bash scripts/delivery/migrate-through-worker.sh"
+MIGRATION_TARGETS = { "stage-migration" => ["staging", "vars.MIGRATOR_STAGING_URL"],
+                      "promote-production" => ["production", "vars.MIGRATOR_PRODUCTION_URL"] }.freeze
+BASELINE_GUARD = "release/migrations/STAGING_ONLY_BASELINE"
+DIRECT_APPLY = ["atlas migrate apply", "ariga/setup-atlas"].freeze
 
 @log = ViolationLog.new
 @cd = WorkflowDocument.load(CD_FILE)
@@ -169,22 +178,39 @@ def assert_smoke_failure_is_decisive
                    "cd.yml:smoke: nothing may follow the probe, or its result is not what decides")
 end
 
-# Transitional until C3 (#1365): production still applies the sealed chain with
-# Atlas, and the staging-only baseline must not reach production by accident.
-def assert_production_migration_step
-  job = "promote-production"
-  @log.unless_true(steps_using(job, "ariga/setup-atlas").any?,
-                   "cd.yml:#{job}: the transitional migration step needs the pinned Atlas CLI")
-  text = run_text(job)
-  ATLAS_MARKERS.each do |marker|
-    @log.unless_true(text.include?(marker), "cd.yml:#{job}: production migration must run `#{marker}`")
+def migration_step(job, environment)
+  @cd.steps_of(job).find { |step| step["run"].to_s.include?("#{MIGRATION_SCRIPT} #{environment}") }
+end
+
+def assert_every_environment_migrates_through_the_worker
+  MIGRATION_TARGETS.each do |job, (environment, url)|
+    step = migration_step(job, environment)
+    @log.unless_true(!step.nil?, "cd.yml:#{job}: must migrate through `#{MIGRATION_SCRIPT} #{environment}`")
+    @log.unless_true(step.to_h.dig("env", "MIGRATOR_URL").to_s.include?(url),
+                     "cd.yml:#{job}: the migration must name the #{environment} migrator (#{url})")
   end
-  # Order, not presence: a guard placed after `apply` reads identically to one
-  # placed before it, and refuses a cutover that has already happened.
-  guard = text.index(ATLAS_MARKERS.first)
-  apply = text.index(ATLAS_MARKERS.last)
-  @log.unless_true(!guard.nil? && !apply.nil? && guard < apply,
-                   "cd.yml:#{job}: the staging-only guard must refuse before the chain is applied")
+end
+
+# A job that applies the chain itself is holding a database credential by
+# definition — decision 6 is what the migrator Worker exists to make structural.
+def assert_no_job_applies_the_chain_itself
+  @cd.jobs.each_key do |job|
+    text = @cd.steps_of(job).map { |step| "#{step['uses']}\n#{step['run']}" }.join("\n")
+    DIRECT_APPLY.each do |marker|
+      @log.unless_true(!text.include?(marker),
+                       "cd.yml:#{job}: `#{marker}` reaches the database outside the migrator")
+    end
+  end
+end
+
+# Order, not presence: a guard placed after the migration reads identically to
+# one placed before it, and refuses a cutover that has already happened.
+def assert_baseline_guard_precedes_the_production_migration
+  runs = @cd.steps_of("promote-production").map { |step| step["run"].to_s }
+  guard = runs.index { |run| run.include?(BASELINE_GUARD) }
+  migrate = runs.index { |run| run.include?("#{MIGRATION_SCRIPT} production") }
+  @log.unless_true(!guard.nil? && !migrate.nil? && guard < migrate,
+                   "cd.yml:promote-production: the staging-only guard must refuse before production migrates")
 end
 
 def main
@@ -194,7 +220,9 @@ def main
   assert_shell_publishes_obey_the_same_rules
   assert_smoke_probes_the_real_surfaces
   assert_smoke_failure_is_decisive
-  assert_production_migration_step
+  assert_every_environment_migrates_through_the_worker
+  assert_no_job_applies_the_chain_itself
+  assert_baseline_guard_precedes_the_production_migration
   @log.report("CD publish contract: all assertions hold")
 end
 
