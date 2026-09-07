@@ -303,7 +303,7 @@ PR #1329 分支上 `docs/ops/deployment.md` 的 "Pulumi state, encryption, and C
 | B1 → #1359 `pr-verification.yml` 重写 | `plan`（pnpm ls 减根项目与 `@animichi/agent` + paths-filter `agent` / `web` / `migrations` / `deps`；`deps` = 根 `pnpm-lock.yaml` / `package.json` / `pnpm-workspace.yaml` / `.npmrc` 改动则全包运行）、`affected`（`if: packages != '[]'`；matrix；`run --if-present`；`catalog` / `edge-worker` / `@animichi/test-postgres` / `migrator` 这四个包先 `docker build` `animichi-test-postgres:18-3.6-pgvector-0.8.5`，今天 `pr-verification.yml:224-226` 那一步——catalog 的 `test` 是 `test:worker && test:spike`，没有镜像 spike 就红）、`codecov/codecov-action` 按包 flag、六个安全 job（semgrep 只跑 `.semgrep/` 六条自定义规则 + `semgrep-raw-sql-test.sh`）+ 过渡 `codeql` job + `Security`、`docs` job（三个文档卫生脚本，先 `git mv` 到 `scripts/local-gates/`）、`PR Verification` 表达式；三个过渡 job 原样搬进新文件，B2 / B4 / B5 只改造它们、不新建——`agent`（paths-filter `apps/agent/**` + `packages/contract/**`；今天 `affected (agent)` 的 Python 步骤 + 镜像 + `make check`）、`e2e`（paths-filter `apps/web/**` / `e2e/**` / `packages/contract/**`；今天的 `cross-stack-e2e` 复合原样调用）、`db`（paths-filter `migrations/neon/**`；今天 `gate_db` 的四步内联为 run 步）；删 L0 eval lane（`pr-verification.yml:175-193`，owner 已定）；`pr-verification.yml` 不再读 `components.json` / `change-plan.py` / `pr-verification-gate.sh`，但**不删** `cd.yml` 还在用的文件（§4.2 标 C1 的那些）；删标 B1 的 composite、脚本、`test_*` 与 `quality.sh` 里对应行；处置 §4.2 表里标 B1 的四个包内测试 | B0 |
 | B2 → #1360 Python 一臂 | `agent` job：paths-filter `apps/agent/**` + `packages/contract/**`；`make check`；Codecov flags `unit` / `integration`（今天 `coverage/action.yml:23-38` 的两份）；镜像构建步；`image-tag-contract.test.ts` 改读单一来源 | B1 |
 | B3 → #1361 CodeQL default setup + commitlint | owner 开 CodeQL default setup；删 `codeql.yml` 与 B1 的过渡 `codeql` job；`commits` job：`commitlint --from <base> --to <head>` + PR title（title 经 `env:` 注入，不内插进 `run:`） | B1 |
-| B4 → #1362 browser lane | `e2e` job：paths-filter `apps/web/**`、`e2e/**`、`packages/contract/**`；`pnpm --filter animichi-e2e test` 自己起 `wrangler dev` 与 Playwright（今天 `cross-stack-e2e/action.yml:38` 的 4 个与 `pr-verification-gate.sh:72-74` 的 7 个合一，`web-404`、`web-maplibre-canary` 两者都有，并集 9 个：`web-404`、`web-maplibre-canary`、`web-chat-anonymous`、`web-hero-query`、`web-state-ownership`、`web-a11y-axe`、`web-a11y-keyboard`、`web-a11y-states`、`web-cwv`） | B0、B1 |
+| B4 → #1362 browser lane | `e2e` job：paths-filter `apps/web/**`、`e2e/**`、`packages/contract/**`；`pnpm --filter animichi-e2e test` 自己起 `wrangler dev` 与 Playwright（今天 `cross-stack-e2e/action.yml:38` 的 4 个与 `pr-verification-gate.sh:72-74` 的 7 个合一，`web-404`、`web-maplibre-canary` 两者都有，并集 9 个：`web-404`、`web-maplibre-canary`、`web-chat-anonymous`、`web-hero-query`、`web-state-ownership`、`web-a11y-axe`、`web-a11y-keyboard`、`web-a11y-states`、`web-cwv`；**落地为 10 个**，另加 `web-chat-settings-return`，见修订记录 A9） | B0、B1 |
 | B5 → #1363 schema 闸 | `db` job（§4.1 `gate_db` 行）；`pre-push-affected.sh` 的 `migrations/neon` 分支 → `atlas migrate validate`；`migration-boundary.test.ts` 的 lane 半删、边界半保留 | B1 |
 
 B1 验收：
@@ -330,7 +330,7 @@ B3 验收：
 - [ ] **(ci)** 切换后第一个 PR：`gh pr view --json mergeStateStatus` 不是 `BLOCKED`（#1204 第 1 条的观察点）。
 
 B4 验收：
-- [ ] **(browser)** 只改 `apps/web` 的 PR：`e2e` job 跑完上面 9 个 spec（run 日志逐个可见）。
+- [ ] **(browser)** 只改 `apps/web` 的 PR：`e2e` job 跑完上面那组 spec（**落地为 10 个**，A9 加了 `web-chat-settings-return`；run 日志逐个可见）。
 - [ ] **(ci)** 只改 `workers/catalog` 的 PR：`e2e` skipped。
 
 B5 验收：
@@ -574,7 +574,7 @@ E4 验收：
 | M6 | B1 范围加镜像构建步，AC "catalog-only PR 的 `test:spike` 绿" |
 | M7 | §六 第 4 条与 D3 改为 CI 留 workers.dev（第二轮 R9 / #12 再改） |
 | M8 | B1 范围写明 L0 eval lane 随 B1 删，§七 #21 建议删除 |
-| L1–L3 | 文件名写全；加 `never-bundled.test.ts`；B4 写全 9 个 spec 名 |
+| L1–L3 | 文件名写全；加 `never-bundled.test.ts`；B4 写全 9 个 spec 名（落地为 10，A9） |
 | L4 | §4.1 `secrets:` 行改为 README 原文 + 源码顺序（第二轮 R10 再修正） |
 | L5 | §3.2 写明 agent arm 的 `make check` 含离线 Docker arm |
 | L6 | 加 `NEON_AUTH_JWKS_URL` / `CORS_ALLOWED_ORIGIN` 一行（第二轮 R2 改正） |
@@ -637,3 +637,27 @@ E4 验收：
 | 第四轮 F5 | E3 残留白名单再加 `packages/contract/test/oidc-github.helpers.ts`、`oidc-github.allowlist.test.ts`（`workflow_ref` 反例夹具 `evil.yml` / `other.yml` / `ci.yml` / `cd.yml@refs/heads/feature`，`oidc-github.allowlist.test.ts:61-82`，反例需要它们）与 C3 新增的 `workers/migrator/test/policy.test.ts`；§4.2 表里这两个文件的处置改为"保留：claim 夹具，不读 workflow 文本"，不让 contract 读 `workers/migrator/src/policy.ts`（依赖方向） |
 | 第四轮 L-a | ESC 里 edge 的 8 个运行时密钥放 `pulumiConfig`（`fn::secret`），不放 `environmentVariables`（`pulumi/esc-action` 只导出后者，否则进每个发布 job 的 env）；D1 范围写明，D1 AC3 改为分别比对 `environmentVariables` 与 `pulumiConfig` 两张键名清单 |
 | 第四轮 L-b | C3 交叉重放 AC 改为三组：environment 形式的 staging token → 403、ref 形式且无 `environment` claim → 403、反向 → 403；注明 `environment:production` 的 sub 经 `subAnchored` 放行是设计（`oidc-github.ts:85-87,94-96`） |
+
+## 修订记录：B1 落地后（#1359 评审接受的偏离）
+
+B1 在 draft PR #1400 的真实 run 与六个 throwaway 分支上验收；下面是与 §三 / §四 / §五 B1 行不同、且评审席接受的落地形态。后续卡（B2–B5、C1）以本节为准。
+
+| 项 | spec 原文 | 落地形态 | 理由与证据 |
+|---|---|---|---|
+| A1 | §3.1 / §六 #8：matrix 减两项（根 `animichi-cloudflare-worker`、`@animichi/agent`） | 减三项，另减 `animichi-e2e`（`pr-verification.yml` `plan` 的 jq） | `animichi-e2e` 的 `test` 是起 served Worker 的 Playwright 套件，不能作为一个 `affected` 腿裸跑；过渡 `e2e` job 到 B4 前负责这条 lane。B4 落地时决定它是否回到 matrix |
+| A2 | B1 行：`plan` 出 `agent` / `web` / `migrations` / `deps` 四个布尔 | 五个：加 `e2e`（`e2e/**`） | 过渡 `e2e` job 的触发条件本来就含 `e2e/**`（B4 行），B1 行漏列 |
+| A3 | §4.2：47 个 `test_*` 全删；§六 #7：permissions / pin 由 zizmor 守 | 新增 `contracts` job，跑三个**新建**的脚本：`test_workflow_invariants.rb`（全部 workflow 的元不变量，**含每个第三方 `uses:` 必须是 40 位 commit、每个 `docker://` 必须带 sha256 digest** —— pin 的归属在这里，不在 CI 形状那份）、`test_ci_workflow_contract.rb`（新 CI 形状、跑 `.mjs` 的 job 必须先 `./.github/actions/setup`）、`test_package_test_segments.rb`（B0 交接的 lane 段清单）。原 47 个里标 B1 的已全部删除 | 实测 zizmor 1.5.2 默认 persona 对未 pin 的 `dorny/paths-filter@v4` **零发现**；改 `persona: pedantic` 后发现（exit 12）。只靠 zizmor 退役 `check-actions-pinned.sh` 是回退，所以 pin 由 contract 测试守、zizmor 作第二道 |
+| A4 | §4.1：标 C1 的 CD 契约测试到 C1 才动 | 标 C1 的七个 ruby（`test_secret_provisioning_*`、`test_production_safety_contract`、`test_promotion_ac5_*`、`test_cd_worker_promotion_contract`、`test_cd_esc_token_source_contract`）与两个 `.mjs` 自测在 `contracts` job 暂住到 C1 | 它们今天由被删的 `static-quality` job 跑；B1 删了那个 job，不能让它们在 C1 之前失去 CI 家 |
+| A5 | §4.1：zizmor-action 默认参数，persona `regular` | `version: "1.5.2"`、`persona: pedantic`、`annotations: false` | 1.5.2 不认 `--format github`（`annotations: true` 时 action 会传它）；1.30.0 认，但其 `self-repository` 审计对 `cd.yml` / `rollback.yml` 报 16 条 low，不属 B1——升级随 C1 之后另开卡（#1425） |
+| A6 | B1 行：三个过渡 job 各按自己的 paths-filter 触发 | 另加 `deps == 'true'` 也触发（`agent` / `e2e` / `db` 的 `if:`） | 根依赖文件改动时 fail-safe，与 `affected` 全包运行同一语义 |
+| A7 | （新增 job，spec 无对应） | `contracts` job 先 `./.github/actions/setup` 再跑脚本 | `release-web-runtime-config.test.mjs` 会 spawn 被测脚本，后者 import `jsonc-parser`（`apps/web` 依赖，hoisted 布局下只在根安装后存在）；首个真实 run 就是这样红的 |
+| A8 | B1 验收：「零熵假 token（前缀合法、正文全 A）：`gitleaks` 红」 | 探针改为**随机样、无效**的 token（`ghp_` + 36 位混合大小写与数字、无校验和、不含字母表序列） | 零熵探针永远不会红：gitleaks 8.24.3 的 `github-pat` 规则带 `entropy = 3`（`config/gitleaks.toml`），第一次 throwaway（全零正文）扫了 1 个 commit、"no leaks found"。第二次用 `B1canary` + 字母表序列做正文（熵 4.95）仍不红：全局 `allowlist.stopwords` 含 `abcdefghijklmnopqrstuvwxyz`，大小写不敏感命中。本地 gitleaks 8.30.1 五种变体实验后定为随机样正文。这也是仓库里 fixture token 一直用零熵串的原因——同一条规则，反过来用 |
+| A9（B4） | B4 行：browser lane 并集 **9** 个 spec | **10** 个：另加 `web-chat-settings-return`——B1 的过渡 `e2e` job 实际跑 10 个，第 10 个不在 B4 行所并的两份清单里（那两份早于它） | 少跑一个是覆盖回退；清单以 `e2e/package.json` 的 `test` 与 `test_package_test_segments.rb` 的 e2e 段为准 |
+| A10（B4） | §4.2 第 252 行：`check-e2e-promotion.sh`（+ `.test.sh`）标 B4 删除 | 保留 | 它守的是 `e2e/generated/`、`e2e/agent-discovered/` 下不得提交 `*.spec.ts`（测试代理产物的晋级规则，`docs/testing-strategy.md`），不是流水线契约的复制品；无替代物就删是回退 |
+| A11（B4） | （检查名） | `e2e` job 的检查名由 B1 的 `CI / cross stack` 改为 `CI / browser` | ruleset 只要求 `PR Verification` / `Security`，汇总 job 引用 job id `e2e`，改名无阻断；旧名残留只在 C1 要删的 `components.json` / `test_change_plan.py` 与 E 波要扫的 `docs/ops/deployment.md` |
+| A12（B2） | §五 B2 行第 268 处：`image-tag-contract.test.ts` 改读单一来源 | 该测试**删掉**读 workflow 的那一例，只留读单一来源与三个同语言消费者；镜像 tag 漂移改由 `test_ci_workflow_contract.rb` 覆盖 | 那条 ruby 断言遍历**每一个** job，agent（source 形式）、`affected` matrix（字面量）、`db`（字面量）三处漂移都变红（逐条变异验证）。它比对的是声明本身而非副本，所以覆盖没丢，归属更干净 |
+| A13（B2） | （Makefile 未在 spec 范围内） | `Makefile:76-77` 的 `test-integration` 由 `--no-cov` 改为 `--cov-report=xml:coverage-integration.xml --cov-fail-under=0`；`make lint` 由 `ruff check src/animichi/ scripts/` 改为 `ruff check .` | 前者：spec 同时要求「`make check` 作为唯一命令」与「两个 Codecov flag」，而集成臂原本不产出报告，两者不可兼得。`make check` 的构成与单测臂的 87 下限一字未动。后者：改用 `make check` 后 CI 的 ruff 范围由整棵树缩到两个目录，`conftest.py`、`pyproject.toml` 与一个 fixture 录制脚本失去全部 CI lint 覆盖（`--show-files` 592→589），属回退，已改回并核对文件集合相同 |
+| A14（B2） | §4.2：B1 的 `test_*` 全删后不再新增 | 新增 `.github/scripts/test_agent_lane_contract.rb`（166 行），承载 agent lane 的断言 | 把这些断言并进 `test_ci_workflow_contract.rb` 会让它到 315 行、越过 ≤300 的文件上限；按主题拆分符合该目录既有惯例（`test_cd_esc_token_source_contract.rb` 等），且比删注释凑行数诚实。已接进 `contracts` job 与 `quality.sh` |
+| 保留 | B1 行：删 L0 eval lane | 已删 | owner 定 |
+
+证据：#1400 的 run（六个 affected 腿 + `agent` / `e2e` / `db` 过渡 job + 六个安全 job + 过渡 `codeql` + `Security` / `PR Verification`）；throwaway：docs-only 无 affected 腿且三个过渡 job 全跳过，deps-only 全包（含 `infra`，证明 Pulumi CLI 供应）。B1 验收清单里的 (ci) 项在 #1359 逐条附 run 链接。
