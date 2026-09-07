@@ -48,9 +48,22 @@ class AgentExpected:
 
 _Ctx = EvaluatorContext[AgentInput, AgentResult, AgentExpected]
 
-# ── Stage → locally executed model-call span chains ──────────────────
-# Synthetic terminal steps, internal helpers, and deterministic bypasses never
-# produce PydanticAI tool spans and therefore do not belong in this vocabulary.
+# ── Stage → locally executed tool-call chains ────────────────────────
+# Synthetic terminal steps and internal helpers never produce PydanticAI tool
+# spans and therefore do not belong in this vocabulary.
+#
+# A DETERMINISTIC BYPASS IS TWO CHAINS, because this table now answers to two
+# trajectory sources (#1454). In process, the bypass makes no model call and so
+# no span: the empty chain is what a Python run observes. Over the wire — the TS
+# runner's only source (rewrite spec §一: "工具轨迹从 SSE/GET 转录取,不依赖 span
+# tree") — the same turn publishes ONE tool part named for the stage, because the
+# runtime streams its server-initiated step exactly as it streams a
+# model-initiated one (``selection.py::_emit``, ``turn-frames.ts``'s
+# ``serverStepOpened``) and the frames carry nothing that tells the two apart.
+# Measured on staging 2026-09-07: all four seeded ``plan_multi`` cases of
+# ``phase1c_selection_v1`` published ``plan_multi`` and nothing else. Both chains
+# are listed so that each runner's honest observation is accepted and neither is
+# fitted to the other.
 _GENERAL_QA_CHAINS = (
     (),
     ("web_search",),
@@ -63,7 +76,7 @@ _STAGE_MODEL_CALL_CHAINS: dict[str, tuple[tuple[str, ...], ...]] = {
     "search_nearby": (("search_nearby",),),
     "plan_route": (("resolve_anime", "search_bangumi", "plan_route"),),
     "plan_selected": ((),),
-    "plan_multi": ((),),
+    "plan_multi": ((), ("plan_multi",)),
     "clarify": (("resolve_anime",), ()),
     "clarify_after_nearby": (("search_nearby",),),
     "greet_user": ((),),

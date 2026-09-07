@@ -119,6 +119,13 @@ def test_selected_route_cases_accept_only_an_empty_model_trace() -> None:
     assert chains == [()]
 
 
+def test_multi_selection_accepts_the_step_the_wire_publishes() -> None:
+    """#1454: the bypass makes no span in process and one tool part on the wire."""
+    chains = accepted_chains_for_case(AgentExpected(["plan_multi"]))
+
+    assert chains == [(), ("plan_multi",)]
+
+
 def test_place_selection_still_expects_the_call_its_stage_names() -> None:
     """#1439: a selection whose stage names a tool must not accept nothing."""
     chains = accepted_chains_for_case(AgentExpected(["search_nearby"]))

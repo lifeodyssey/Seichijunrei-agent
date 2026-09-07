@@ -74,15 +74,19 @@ project's own, ported from `evaluators.py`.
 - **`transcript-view.ts` is the seam, and it is W3-2's type.** The evaluators read `TranscriptResult`
   from W3-2's `turn-transcript` module (#1300) and nothing else. Until that branch lands, the file carries a
   field-for-field copy with the one-edit replacement written at the top.
-- **There is no span tree, and no need for one.** Every call the SD-9 stream publishes is a
-  model-initiated tool call, so `trajectory` *is* the span tree and `stepCount` is
-  `len(AgentResult.steps)` for every turn the wire can describe. `status` has three states:
+- **There is no span tree, and no need for one.** `trajectory` is what the SD-9 stream publishes and
+  `stepCount` is `len(AgentResult.steps)` for every turn the wire can describe. It is NOT the span
+  tree: a deterministic selection publishes a tool part named for its stage
+  (`turn-frames.ts::serverStepOpened`) and produces no span at all, and the frames carry no member
+  that tells a server-initiated call from a model-initiated one. Measured on staging 2026-09-07
+  (#1454) — see the ANY-of-N entry below, which is where the difference is paid for. `status` has
+  three states:
   `"unsettled"` (made, never settled) is excluded wherever `include_failed=False` applies and counted
   by `MaxToolCalls`, which counts every attempt.
 - **ANY-of-N lives in `accepted-chains.ts`, and the stage decides it alone.** A case names
   acceptable *stages*, each contributing chains; the tool and trajectory evaluators score once per
-  chain and keep the best. `plan_selected` and `plan_multi` accept only the empty chain because
-  those stages bypass the model — not because the inputs carry a selection. An input-level
+  chain and keep the best. `plan_selected` and `plan_multi` accept the empty chain because those
+  stages bypass the model — not because the inputs carry a selection. An input-level
   short-circuit used to say the second thing. Counted over the six exported sets, **twenty** cases
   carry a selection (fifteen `plan_selected`, four `plan_multi`, one `search_nearby`) — count on
   `!== null`, not on truthiness, because three of the fifteen select an empty list and the
@@ -90,6 +94,19 @@ project's own, ported from `evaluators.py`.
   place selection, whose stage is `search_nearby`: it accepted the empty chain, so a turn that
   called nothing scored 1.0 and the turn that made the call scored 0.0 (#1439).
   `bestOverChains` returns 1.0 for a case with no accepted chain — `_best(..., empty=1.0)`.
+  **A bypass stage is TWO chains, because the table answers to two trajectory sources (#1454).**
+  In process the bypass makes no model call and no span, so Python observes the empty chain; over
+  the wire the same turn publishes one tool part named for the stage, so this runner observes that
+  one. `plan_multi` therefore lists both. Measured on staging 2026-09-07 with all four seeded
+  `plan_multi` cases: every turn published `plan_multi` and nothing else, and under the empty chain
+  alone the two turns that FAILED scored 1.0 (a failed call is excluded from the trajectory) while
+  the two that did the work scored 0.0 — on `trajectory_match`, `tool_correctness` and
+  `max_tool_calls` alike. The empty chain stays listed for port parity, and that has a price: an
+  *unseeded* `plan_multi` turn publishes no step at all and still scores `trajectory_match` 1.0
+  (measured the same day, 1.0 on all four) — #1303 reads these numbers and must not take that 1.0
+  for something the agent did. `plan_selected` carries the same stale row (now #1461): same shape,
+  same measurement (`plan_selected:ok` on `K1_ja_001` / `K1_en_002`), and NOT fixed here because it
+  moves fifteen cases of the 662-case baseline set, so it is its own card.
 - **`{}` is not `0`.** `NonemptyResults` on an untagged case, `ArgumentCorrectness` on a turn with
   no successful call, and `StepEfficiency` on a turn that took no step when the case's every
   acceptable ideal is at least one (#1439) all emit *no metric*. That last one is a ratio with no
@@ -104,15 +121,16 @@ project's own, ported from `evaluators.py`.
   0, and now yields `{}` where it used to yield a 1.0 that was, for those cases, the right answer
   for the wrong reason. The narrower rule — an ideal of 0 for any stage whose only chain is empty —
   would keep it, but it rests on a pre-existing mismatch (the ideal counts deterministic steps that
-  the stage's own chain vocabulary excludes) and on the unresolved `plan_multi` chain question, so
-  it is filed separately rather than widened into #1439.
+  the stage's own chain vocabulary excludes), so it is filed separately rather than widened into
+  #1439. #1454 answered the `plan_multi` half of that question — its chain is no longer only the
+  empty one — without moving `_STAGE_MIN_STEPS`.
 - **`_available_data_keys` is ported once, in W3-2.** `DataKeysPresent` reads `dataKeys`; it does not
   re-derive the rule. The oracle publishes Python's own `_available_data_keys` under that name, so it
   is the tripwire for `dataKeysOf` too.
 - **The oracle, not a re-derivation.** `fixtures/evaluator-oracle.json` is what the *Python*
-  evaluators score for 24 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
-  ties, the two empty-chain selection stages and the place selection that is not one, the
-  zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
+  evaluators score for 25 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
+  ties, the two empty-chain selection stages, the bypass step as the wire publishes it (#1454) and
+  the place selection that is not one, the zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
   decision points, and both answers `argument_correctness` can give (a call settled into a coerced
   value and one settled with an optional null dropped, each scored 0.0 by Python itself) — paired
   with the wire transcript the TS side reads for the same turn. Changing an

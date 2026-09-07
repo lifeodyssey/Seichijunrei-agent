@@ -5,12 +5,13 @@ ones walk `AgentResult` and the session registries. This module reconstructs
 both from a single scenario, which is what makes the two views consistent by
 construction.
 
-Every call in a scenario is a model-initiated tool call, because that is the
-only kind the SD-9 stream publishes — deterministic bypasses and synthetic
-terminal steps produce no `tool-input-start` frame and no PydanticAI span
-either. So the span tree, `AgentResult.steps` and W3-2's `trajectory` are the
-same list here, which is what lets `stepCount` mean the same thing on both
-sides.
+Every call in a scenario is treated as model-initiated, so the span tree,
+`AgentResult.steps` and W3-2's `trajectory` are the same list here, which is
+what lets `stepCount` mean the same thing on both sides. That is a statement
+about this rebuild, NOT about the runtime: a deterministic bypass publishes a
+`tool-input-start` frame exactly like a model call does and produces no span at
+all (#1454), so the wire cannot tell the two apart and neither can a scenario.
+`candidate_selection_published_step` is that shape written down.
 
 An `unsettled` call — made, never settled — is given a span status of `error`
 and `is_success=False`: `include_failed=False` must exclude it, since its

@@ -402,6 +402,83 @@
       }
     },
     {
+      "caseId": "candidate_selection_published_step",
+      "inputs": {
+        "clarification_id": null,
+        "context": null,
+        "locale": "en",
+        "query": "Where is the pilgrimage spot?",
+        "seeded_pending": null,
+        "selected_candidate_ids": [
+          "c1",
+          "c2"
+        ],
+        "selected_point_ids": null
+      },
+      "metadata": {
+        "acceptable_stages": [
+          "plan_multi"
+        ],
+        "data_keys": [
+          "results",
+          "route"
+        ],
+        "expect_nonempty": true
+      },
+      "transcript": {
+        "intent": "plan_multi",
+        "success": true,
+        "message": "The spots are in Nishinomiya.",
+        "locale": "en",
+        "dataKeys": [
+          "results",
+          "route"
+        ],
+        "stepCount": 1,
+        "paramsRecorded": true,
+        "trajectory": [
+          {
+            "toolName": "plan_multi",
+            "args": {},
+            "params": {
+              "candidate_ids": [
+                "c1",
+                "c2"
+              ]
+            },
+            "status": "ok"
+          }
+        ],
+        "response": {
+          "intent": "plan_multi",
+          "success": true,
+          "message": "The spots are in Nishinomiya.",
+          "data": {
+            "results": {
+              "row_count": 6
+            },
+            "itinerary": {
+              "ordered_points": [
+                "p0",
+                "p1"
+              ]
+            }
+          }
+        },
+        "runStatus": "succeeded"
+      },
+      "scores": {
+        "argument_correctness": 0.0,
+        "tool_correctness": 1.0,
+        "trajectory_match": 1.0,
+        "max_tool_calls": 1.0,
+        "data_keys_present": 1.0,
+        "locale_match": 1.0,
+        "nonempty_results": 1.0,
+        "step_efficiency": 1.0
+      }
+    },
+    {
       "caseId": "place_ambiguity_min_steps",
       "inputs": {
         "clarification_id": null,
