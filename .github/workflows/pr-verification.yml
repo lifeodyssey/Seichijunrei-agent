@@ -259,6 +259,7 @@ jobs:
       - name: Verify the local gate scripts' own behavioral tests
         run: |
           set -euo pipefail
+          bash scripts/local-gates/pre-push-affected.test.sh
           bash scripts/local-gates/db-fresh-schema.test.sh
           bash scripts/local-gates/infra-check.test.sh
           bash scripts/local-gates/infra-check-unauthorized.test.sh
