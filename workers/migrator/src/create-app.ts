@@ -176,7 +176,12 @@ function outcomeResponse(result: MigrationRunResult): Response {
   return successResponse(result);
 }
 
-/** The bounded apply seam: the head the caller asked for travels with the DSN. */
+/**
+ * The bounded apply seam: the head the caller asked for travels with the DSN.
+ * A revived container path must forward it too — `ContainerRunner.start(dsn,
+ * timeoutMs)` (src/runner.ts) type-checks while dropping the head, and an apply
+ * that never sees it is unbounded again.
+ */
 type MigrationApply = (dsn: string, expectedHead?: string) => Promise<ContainerOutcome>;
 
 async function runContainerFor(
