@@ -30,6 +30,16 @@
 # one already waiting (owner decision, spec §六 #3). actionlint has no schema
 # entry for `queue` — see .github/actionlint.yaml.
 #
+# This file holds no credential (#1367). Every job that needs one proves who it
+# is instead: `environment:` puts `environment:<name>` into the job's OIDC
+# subject, which is the only subject shape the Pulumi Cloud issuer policy
+# accepts (spec §3.5); `pulumi/auth-actions` exchanges that token for a personal
+# Pulumi token — the only type an individual-edition organization can mint — and
+# `pulumi/esc-action` opens that stage's ESC environment and exports the one or
+# two names the stage publishes with. `CLOUDFLARE_ACCOUNT_ID` is a repository
+# variable, not a secret: it is an account identifier, and storing an identifier
+# as a secret only hid it from the log that needed it.
+#
 # Shape contract: .github/scripts/test_cd_shape_contract.rb.
 name: CD
 on:
@@ -147,9 +157,18 @@ jobs:
     needs: plan
     if: ${{ needs.plan.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
+    # The container registry is account-scoped rather than per-environment: this
+    # job pushes the one image both environments will run. It still declares an
+    # environment because a job that asks Pulumi Cloud for a token has to
+    # present an `environment:` subject (§3.5), and `staging` is the one without
+    # an approval gate — production's reviewer must not be woken up to build.
+    environment: staging
     timeout-minutes: 30
     permissions:
       contents: read
+      # The registry push needs a Cloudflare token, and this job opens it from
+      # ESC with its own OIDC identity rather than reading a stored one.
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -161,6 +180,43 @@ jobs:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      # The ESC action installs a Pulumi CLI and prepends it to PATH. Unpinned
+      # it fetches whatever `pulumi.com/latest-version` answers, so every job
+      # that opens an environment resolves the repository's pin first.
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      # `export-environment-variables` is a mapping list, not a boolean: a
+      # comma-separated value exports exactly those names and nothing else
+      # (esc-action v3.2.0, src/parse-mapping.ts). It is an allowlist over the
+      # environment's `environmentVariables` block alone, and only over what
+      # reaches this job's env — the action publishes every `environmentVariables`
+      # value as a step output whatever this list says. So the allowlist is not
+      # the boundary; where a value lives inside ESC is. That is why the edge
+      # runtime's eight secrets go under `pulumiConfig` as `fn::secret`, read by
+      # Pulumi and never by a publishing job (ADR 0003, card D4).
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      # `pulumi/esc-action` only warns when an exported name has no value in the
+      # environment (v3.2.0 `src/index.ts:327`, `core.warning`) and exits 0, so
+      # a mis-projected key would reach Wrangler as an empty token and fail
+      # somewhere far less legible than here.
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build the web output
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'web') }}
@@ -189,18 +245,19 @@ jobs:
           file: apps/agent/Dockerfile
           load: true
           push: false
-          tags: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+          tags: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+      # `CLOUDFLARE_API_TOKEN` is already in this job's environment: the ESC step
+      # above appended it to `GITHUB_ENV`, and wrangler reads it from there.
       - name: Push the agent image
         if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          IMAGE_REF: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
         run: pnpm exec wrangler containers push "$IMAGE_REF"
       - name: Bundle the edge Worker
         if: ${{ needs.plan.outputs.agent == 'true' || contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') }}
         env:
-          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
+          IMAGE_REF: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:sha-${{ github.sha }}
         run: bash .github/scripts/bundle-release-worker.sh edge production "$IMAGE_REF"
       # The migrator image bakes the migration chain (`workers/migrator/Dockerfile`
       # `COPY migrations/neon /migrations`), and `migrations/neon` is outside every
@@ -217,18 +274,17 @@ jobs:
           file: workers/migrator/Dockerfile
           load: true
           push: false
-          tags: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+          tags: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
       - name: Push the migrator image
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          IMAGE_REF: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
         run: pnpm exec wrangler containers push "$IMAGE_REF"
       - name: Bundle the migrator Worker
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
         env:
-          IMAGE_REF: registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
+          IMAGE_REF: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:sha-${{ github.sha }}
         run: bash .github/scripts/bundle-release-worker.sh migrator staging "$IMAGE_REF"
       - name: Seal the migration chain
         if: ${{ needs.plan.outputs.migrations == 'true' }}
@@ -347,15 +403,22 @@ jobs:
       - name: Resolve the pinned Pulumi CLI version
         id: pulumi-cli
         run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
-      # An explicit two-name allowlist rather than the export-everything
-      # default: whatever else the ESC environment grows, no runtime DSN and no
-      # model key can reach this job (ADR 0003).
+      # Two names, because this is the only staging job that touches Neon's
+      # control plane; every other stage opens the same environment for the
+      # publish token alone. What the list can and cannot promise is spelled out
+      # over the `build` job's ESC step.
       - name: Open the staging ESC environment
         uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
         with:
           version: ${{ steps.pulumi-cli.outputs.version }}
           environment: lifeodyssey/animichi/staging
           export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN NEON_API_KEY; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       - name: Install the sealed Pulumi programs
         run: |
           set -euo pipefail
@@ -364,7 +427,7 @@ jobs:
       - name: Apply the staging database-access stack
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         with:
           command: up
           stack-name: lifeodyssey/staging
@@ -378,7 +441,7 @@ jobs:
       - name: Apply the staging topology stack
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         with:
           command: up
           stack-name: lifeodyssey/staging
@@ -414,12 +477,38 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
+      # `apiToken` is passed explicitly even though ESC already put the value in
+      # this job's environment: wrangler-action assigns
+      # `process.env.CLOUDFLARE_API_TOKEN = getInput("apiToken")` unconditionally
+      # (v4.0.0 `authenticationSetup`), so leaving the input out overwrites the
+      # exported value with the empty string and the deploy fails unauthenticated.
       - name: Deploy the migrator Worker
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -463,7 +552,16 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      # The publish token is opened from ESC with this job's own OIDC identity;
+      # no step here holds a stored credential.
+      id-token: write
     steps:
+      # The tree, not just the artifact: `.pulumi.version` is the repository's
+      # CLI pin and the ESC step below reads it from the checkout.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-${{ github.sha }}
@@ -473,12 +571,33 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       - name: Deploy the catalog Worker
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -487,8 +606,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'users') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -507,7 +626,16 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      # The publish token is opened from ESC with this job's own OIDC identity;
+      # no step here holds a stored credential.
+      id-token: write
     steps:
+      # The tree, not just the artifact: `.pulumi.version` is the repository's
+      # CLI pin and the ESC step below reads it from the checkout.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-${{ github.sha }}
@@ -517,11 +645,32 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       - name: Deploy the edge Worker
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -540,7 +689,16 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      # The publish token is opened from ESC with this job's own OIDC identity;
+      # no step here holds a stored credential.
+      id-token: write
     steps:
+      # The tree, not just the artifact: `.pulumi.version` is the repository's
+      # CLI pin and the ESC step below reads it from the checkout.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-${{ github.sha }}
@@ -550,6 +708,27 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       # No build-time environment values anywhere in this file: the one artifact
       # serves both environments and reads its public per-environment settings
       # from `env.<stage>.vars.RUNTIME_CONFIG` in the committed wrangler.jsonc
@@ -557,8 +736,8 @@ jobs:
       - name: Deploy the web Worker
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -581,11 +760,27 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      # Only to prove the environment subject is the one the issuer policy
+      # accepts; card D3 turns that token into Access headers for the probe.
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      # This job publishes nothing, so it opens no ESC environment — the probe
+      # below is two unauthenticated HTTP requests today. It still exchanges a
+      # token, because that exchange is what proves the `environment:staging`
+      # subject is the one the Pulumi Cloud issuer policy accepts (§3.5 / the
+      # D1 acceptance criteria), and it is the seat card D3 fills when the two
+      # staging surfaces move behind Cloudflare Access and the probe starts
+      # sending `CF-Access-Client-Id` / `CF-Access-Client-Secret` from ESC.
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
       # The container cold-starts on roughly every deploy (measured at 24.5s),
       # so the first probes hit a closed port by design — the retry window has
       # to outlast cold start plus agent boot, not just route propagation.
@@ -615,6 +810,8 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
+      # One identity for the whole promotion: the Pulumi Cloud login, the
+      # production ESC environment, and the migrator's own OIDC door.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -647,8 +844,11 @@ jobs:
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         with:
           pulumi-version-file: .pulumi.version
+      # Unconditional, unlike the CLI install above it: every publish step in
+      # this job needs `CLOUDFLARE_API_TOKEN`, not only the two Pulumi stacks.
+      # `NEON_API_KEY` rides along because the production environment is opened
+      # once — it is read by the database-access stack and by nothing else here.
       - name: Log into Pulumi Cloud with GitHub OIDC
-        if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
           organization: lifeodyssey
@@ -656,15 +856,19 @@ jobs:
           scope: user:lifeodyssey
       - name: Resolve the pinned Pulumi CLI version
         id: pulumi-cli
-        if: ${{ needs.plan.outputs.infra == 'true' }}
         run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
       - name: Open the production ESC environment
-        if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
         with:
           version: ${{ steps.pulumi-cli.outputs.version }}
           environment: lifeodyssey/animichi/prod
           export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_API_TOKEN NEON_API_KEY; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       - name: Install the sealed Pulumi programs
         if: ${{ needs.plan.outputs.infra == 'true' }}
         run: |
@@ -675,7 +879,7 @@ jobs:
         if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         with:
           command: up
           stack-name: lifeodyssey/prod
@@ -684,7 +888,7 @@ jobs:
         if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         with:
           command: up
           stack-name: lifeodyssey/prod
@@ -707,8 +911,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -722,8 +926,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -732,8 +936,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'users') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -745,8 +949,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'edge-worker') || needs.plan.outputs.agent == 'true' }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release
@@ -755,8 +959,8 @@ jobs:
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'web') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.114.0"
           packageManager: npm
           workingDirectory: release

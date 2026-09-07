@@ -22,7 +22,9 @@ interface PnpmLock {
 const dependencyName = "animal-island-ui-tailwind";
 const webPackagePath = resolve(HERE, "../../package.json");
 const lockfilePath = resolve(HERE, "../../../../pnpm-lock.yaml");
-const setupActionPath = resolve(HERE, "../../../../.github/actions/setup/action.yml");
+// The workspace install moved out of `.github/actions/setup` and into the
+// jobs themselves when #1367 deleted the last composite action.
+const ciWorkflowPath = resolve(HERE, "../../../../.github/workflows/pr-verification.yml");
 
 function readText(path: string): string {
   return readFileSync(path, "utf8");
@@ -49,6 +51,6 @@ describe("animal-island-ui-tailwind lockfile pin", () => {
   });
 
   it("keeps CI install drift visible through frozen lockfile installs", () => {
-    expect(readText(setupActionPath)).toContain("pnpm install --frozen-lockfile");
+    expect(readText(ciWorkflowPath)).toContain("pnpm install --frozen-lockfile");
   });
 });

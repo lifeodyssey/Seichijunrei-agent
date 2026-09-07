@@ -9,11 +9,9 @@
 #   affected    cannot start on an empty matrix, runs exactly the four package
 #               scripts, and provisions every binary a selected package's own
 #               `test` shells out to
-#   workspace   a job that runs a repository script importing workspace
-#               dependencies installs the workspace first
 #   workflows   a change under `.github/` still reaches the lanes whose tests
-#               read deployment workflow text, and the route covers every
-#               composite action the jobs call
+#               read deployment workflow text, and no job hides its steps in a
+#               composite action the route cannot see
 #   contracts   every committed repository check runs somewhere in this file:
 #               `.github/scripts/test_*.rb` and every `*.test.sh` under
 #               `scripts/` or `.github/scripts/`, each matched by its
@@ -59,15 +57,16 @@ MATRIX_TOOLCHAINS = [
 ].freeze
 AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')"
 # `.github/**` belongs to the root project, which the matrix subtracts, so pnpm
-# answers a change under it with nothing. The two lanes below own the tests that
-# read deployment workflow text — several extract a shipped shell block and run
-# it — and both have to be reachable from that change alone. The composite
-# actions share that blind spot: while the route named only `workflows/**`, a
-# change to `./.github/actions/setup` selected no package and skipped the agent
-# lane. Which glob covers them is the workflow's business.
-WORKFLOW_ROUTE = "workflows"
+# answers a change under it with nothing. These two lanes own the tests that
+# read deployment workflow text — several of which extract a shipped shell
+# block and run it — and both have to be reachable from that change alone.
+# A composite action used to share that blind spot from the other side: steps
+# hidden in `.github/actions/**` needed a route of their own, and while the
+# route named only `workflows/**` a change to them selected no package and
+# skipped the agent lane. #1367 removed the last composite instead, so the
+# route is one glob again and the assertion below keeps it that way.
 WORKFLOW_FILTER = ".github/workflows/**"
-LOCAL_ACTION_PATH = %r{\A\./(\.github/actions/[^/\s]+)}
+LOCAL_ACTION = %r{\A\./}
 WORKFLOW_PACKAGE = "edge-worker"
 WORKFLOW_ROUTED_JOB = "agent"
 # A check that is committed but invoked by no job is a check nothing runs.
@@ -78,11 +77,6 @@ WORKFLOW_ROUTED_JOB = "agent"
 COMMITTED_CHECKS = (Dir.glob(File.join(repository_root, ".github/scripts/test_*.rb")) +
                     Dir.glob(File.join(repository_root, "{scripts,.github/scripts}/**/*.test.sh")))
                    .map { |path| path.delete_prefix("#{repository_root}/") }.sort.freeze
-# A `.github/scripts/*.mjs` resolves its imports against the repository's
-# node_modules, so a job running one must install the workspace first: without
-# it the script dies with ERR_MODULE_NOT_FOUND (run 34001151283).
-WORKSPACE_SETUP = "./.github/actions/setup"
-NODE_SCRIPT = %r{\bnode \.github/scripts/\S+\.mjs}
 # The offline image's tag is declared once; a `run:` reads it by sourcing the
 # declaration (packages/test-postgres/AGENTS.md).
 IMAGE_DECLARATION = "packages/test-postgres/postgres-image.env"
@@ -140,23 +134,6 @@ def assert_matrix_provisions_toolchains
   end
 end
 
-def runs_node_script?(job)
-  @ci.steps_of(job).any? { |step| step["run"].to_s.match?(NODE_SCRIPT) }
-end
-
-def installs_workspace?(job)
-  @ci.steps_of(job).any? { |step| step["uses"] == WORKSPACE_SETUP }
-end
-
-def assert_node_scripts_have_a_workspace
-  @ci.jobs.each_key do |job|
-    next unless runs_node_script?(job)
-
-    @log.unless_true(installs_workspace?(job),
-                     "pr-verification.yml:#{job}: runs a repository .mjs script without installing the workspace")
-  end
-end
-
 def image_build_runs
   @ci.jobs.keys.flat_map { |job| @ci.steps_of(job) }
      .map { |step| step["run"] }.compact.select { |run| run.include?(IMAGE_BUILD) }
@@ -191,35 +168,19 @@ def assert_workflow_changes_reach_their_tests
                    "pr-verification.yml:#{WORKFLOW_ROUTED_JOB}: must run on a workflow-only change")
 end
 
-# The `workflows` route as the plan job declares it: the paths-filter input is
-# a YAML document of its own, carried as a block scalar.
-def declared_route_globs
-  filters = @ci.steps_of("plan").map { |step| step.dig("with", "filters") }.compact.join("\n")
-  Array(YAML.safe_load(filters)[WORKFLOW_ROUTE])
-end
-
 def local_actions_called
   @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }
-     .map { |step| step["uses"].to_s[LOCAL_ACTION_PATH, 1] }.compact.uniq
+     .map { |step| step["uses"].to_s }.select { |reference| reference.match?(LOCAL_ACTION) }.uniq
 end
 
-# A glob routes a directory when everything before its first wildcard is a
-# prefix of it: `.github/actions/**` and `.github/actions/setup/**` both route
-# `.github/actions/setup`; `.github/workflows/**` routes neither.
-def routes?(glob, directory)
-  "#{directory}/".start_with?(glob[/\A[^*?\[]*/])
-end
-
-# What the jobs call, not only the file they are written in: an action reached
-# through `uses: ./…` sits where pnpm sees nothing, so this route is the only
-# thing that can carry a change to it into a lane that runs it.
-def assert_called_actions_are_routed
-  @log.unless_true(!local_actions_called.empty?,
-                   "pr-verification.yml: no job calls a repository composite action any more")
-  local_actions_called.each do |path|
-    @log.unless_true(declared_route_globs.any? { |glob| routes?(glob, path) },
-                     "pr-verification.yml: the #{WORKFLOW_ROUTE} route does not cover #{path}")
-  end
+# The steps a job runs have to be in the file the route can see. A composite
+# reached through `uses: ./…` sits where pnpm sees nothing and where this
+# workflow's own `workflows/**` filter does not reach, so reintroducing one
+# reopens the gap #1367 closed — silently, because the steps still run.
+def assert_no_job_hides_steps_in_a_composite
+  @log.unless_true(local_actions_called.empty?,
+                   "pr-verification.yml: steps moved into a composite this route cannot see " \
+                   "(#{local_actions_called.join(', ')}) — inline them or give them a route")
 end
 
 # Until #1371 this compared CI's list against `quality.sh`'s — two hand-kept
@@ -278,7 +239,7 @@ end
 # Both failures are silent — the guard exists, and never fires.
 def assert_guards_are_reachable
   assert_workflow_changes_reach_their_tests
-  assert_called_actions_are_routed
+  assert_no_job_hides_steps_in_a_composite
   assert_every_committed_check_runs
 end
 
@@ -292,7 +253,6 @@ def main
   assert_affected_lane
   assert_guards_are_reachable
   assert_aggregates
-  assert_node_scripts_have_a_workspace
   assert_image_builds_resolve_one_tag
   @log.report("CI workflow contract: all assertions hold")
 end

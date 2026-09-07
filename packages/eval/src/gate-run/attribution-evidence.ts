@@ -33,10 +33,10 @@
  * kind cannot land in a commit by being new.
  *
  * NO CI LANE RUNS `eval:gate` TODAY, and this file must not pretend otherwise.
- * `agent-eval-nightly.yml` runs the PYTHON suite through
- * `.github/actions/agent-eval`; `eval:gate` appears in no workflow, action or
- * script. The TS gate is run by hand from a worktree against staging, and giving
- * it a lane is part of W3-5's plan (#1303).
+ * `agent-eval-nightly.yml` runs the PYTHON suite with steps of its own;
+ * `eval:gate` appears in no workflow or script. The TS gate is run by hand from
+ * a worktree against staging, and giving it a lane is part of W3-5's plan
+ * (#1303).
  *
  * WHAT THAT LANE MUST DO WHEN IT EXISTS (this card wires no workflow): one step
  * after the run, `actions/upload-artifact` with `path: packages/eval/artifacts/`,

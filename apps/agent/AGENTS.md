@@ -18,7 +18,8 @@ catalog** — it never calls external anime APIs in the request path and never w
 - Directly: `cd apps/agent && uv run pytest src/animichi/tests/unit/`. Seed data: `src/animichi/tests/fixtures/seed.sql`.
 - The zod wire-contract tests (`src/animichi/tests/unit/test_chat_wire_contract.py`, 12 parametrized cases) spawn
   `node --import tsx chat-wire-parser.ts`; they need the workspace TS toolchain, so run `pnpm install`
-  once (tsx is a declared devDependency of this package). CI always has it via the shared setup action.
+  once (tsx is a declared devDependency of this package). CI's `agent` job installs the workspace
+  before it runs `make check`.
 - In a worktree, format with `uv tool run ruff format` (not `uv run …`).
 
 ## Runtime call-path
@@ -158,11 +159,10 @@ EVAL_MAX_CASES=50 uv run python -m animichi.tests.eval.run_agent_eval ...  # cap
 Direct thrash gates (req≤12 / tool≤10 / repeat=0 / p95≤8 — `src/animichi/tests/eval/direct_gates.py`) are
 **report-only** until `DIRECT_GATE_ENFORCE=1` (owner calibrates first). Capped runs never read/write baselines.
 
-**CI tiering (SD-30, #228/#227).** `EVAL_SMOKE=1` makes the capped job enforce its own
-zero-error/direct-thrash assertions, without reading or writing the baseline. The single PR CI
-runs it through `.github/actions/agent-eval` with `EVAL_MAX_CASES=80` when the affected plan selects
-agent behavior. The job is visible but report-only for the merge verdict, so provider transport
-does not make `PR Verification` nondeterministic. The uncapped L1 suite — owning the statistical baseline
+**CI tiering (SD-30, #228/#227).** `EVAL_SMOKE=1` makes a capped run enforce its own
+zero-error/direct-thrash assertions, without reading or writing the baseline. It has no CI lane:
+pull requests stopped running a model-backed eval when the affected-matrix rewrite landed, so
+provider transport cannot make `PR Verification` nondeterministic. The uncapped L1 suite — owning the statistical baseline
 via `finish_cli_report`/`gate.py` — runs nightly + on `workflow_dispatch` only, in the standalone
 `agent-eval-nightly.yml` (never on PRs, so its cron cadence doesn't ride along with the PR/push
 affected-component matrix in `pr-verification.yml`).

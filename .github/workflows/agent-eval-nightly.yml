@@ -26,12 +26,67 @@ jobs:
     timeout-minutes: 45
     name: Agent Eval (L1 full, uncapped)
     runs-on: ubuntu-latest
+    # The gateway key is no longer a GitHub secret (#1367): it lives in the ESC
+    # environment, and `environment: staging` is what puts `environment:staging`
+    # into this job's OIDC subject — the only subject shape the Pulumi Cloud
+    # issuer policy accepts (spec §3.5). staging has no approval reviewers, so a
+    # 19:14 UTC cron still runs unattended.
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/agent-eval
-        env:
-          ZEN_GO_API_KEY: ${{ secrets.ZEN_GO_API_KEY }}
+      - name: Log into Pulumi Cloud with GitHub OIDC
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
-          tier: l1
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      # The ESC action installs a Pulumi CLI and prepends it to PATH; unpinned it
+      # fetches whatever `pulumi.com/latest-version` answers, so the repository's
+      # pin is resolved first here exactly as it is in cd.yml.
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: ZEN_GO_API_KEY
+      # `pulumi/esc-action` only warns when an exported name has no value in the
+      # environment (v3.2.0 `src/index.ts:327`, `core.warning`) and exits 0, so
+      # a mis-projected key would reach Wrangler as an empty token and fail
+      # somewhere far less legible than here.
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in ZEN_GO_API_KEY; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
+      # These four steps were `.github/actions/agent-eval` and, inside it,
+      # `.github/actions/setup`; both composites are gone (#1367) and this is
+      # their only surviving caller. The workspace half of `setup` — pnpm, Node
+      # and `pnpm install` — did not come with them: the eval suite is
+      # `uv run pytest` over apps/agent and reaches for no Node binary
+      # (`src/animichi/tests/eval/**` spawns no process at all).
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.14"
+          prune-cache: "true"
+      - name: Install Python
+        run: uv python install 3.11
+      - name: Install agent dependencies
+        run: uv sync --frozen --all-extras
+        working-directory: apps/agent
+      - name: Run full L1 trajectories
+        env:
+          EVAL_MODEL: openai:mimo-v2.5@https://opencode.ai/zen/go/v1
+        run: uv run --frozen pytest src/animichi/tests/eval/test_agent_eval.py::test_agent_trajectory -v -m integration --no-cov -x
+        working-directory: apps/agent
+      - name: Run L1 translation eval
+        run: uv run --frozen pytest src/animichi/tests/eval/test_translation.py -v -m integration --no-cov -x
+        working-directory: apps/agent
