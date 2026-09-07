@@ -1,5 +1,6 @@
 /**
- * The five `phase1c_selection_v1` cases, read the way the runner reads them (#1439).
+ * The selection cases of the two real sets, read the way the runner reads them
+ * (#1439).
  *
  * The evaluator numbers are Python's and are proved by `evaluator-parity`; what
  * this file asserts is structural, about the real dataset rather than a
@@ -11,7 +12,8 @@
  * The four `plan_multi` cases kept that inversion after #1439, and #1454
  * measured why: their stage publishes one tool part of its own, so the empty
  * chain alone scored the two turns that FAILED 1.0 and the two that did the
- * work 0.0.
+ * work 0.0. `plan_selected` carried the same stale row until #1461, and it is
+ * measured here on `agent_eval_v3`, the set its fifteen cases live in.
  *
  * test-type: unit (committed fixture, no network, no clock).
  */
@@ -25,14 +27,16 @@ import type { TranscriptResult } from '../src/evaluators/index.ts';
 import { makeTranscriptResult } from './gated-run.ts';
 
 const DATASET = await loadExportedDataset('phase1c_selection_v1');
+/** The 662-case baseline set, the only one carrying `plan_selected` cases (#1461). */
+const BASELINE = await loadExportedDataset('agent_eval_v3');
 
 /** A turn that published no call at all — the unseeded arm's own transcript. */
 const REFUSAL: TranscriptResult = makeTranscriptResult('search_nearby', 'ja');
 
-function expectationOf(name: string): ExportedAgentExpected | undefined {
-  const found = DATASET.cases.find((entry) => entry.name === name);
+function expectationOf(name: string, set = DATASET): ExportedAgentExpected | undefined {
+  const found = set.cases.find((entry) => entry.name === name);
   if (found === undefined) {
-    throw new Error(`no case named ${name} in phase1c_selection_v1`);
+    throw new Error(`no case named ${name} in the loaded set`);
   }
   return found.metadata;
 }
@@ -53,6 +57,28 @@ void test('the multi selections accept the step the wire publishes as well as th
 
   for (const name of multi) {
     assert.deepEqual(acceptedChainsForCase(expectationOf(name)), [[], ['plan_multi']]);
+  }
+});
+
+void test('the point selections accept the step the wire publishes as well as the empty chain', () => {
+  const measured = ['K1_ja_001', 'K1_en_002'];
+
+  for (const name of measured) {
+    assert.deepEqual(acceptedChainsForCase(expectationOf(name, BASELINE)), [
+      [],
+      ['plan_selected'],
+    ]);
+  }
+});
+
+void test('every `plan_selected` case of the baseline set accepts the published step', () => {
+  const selected = BASELINE.cases.filter(
+    (entry) => entry.metadata?.acceptable_stages.includes('plan_selected') === true,
+  );
+
+  assert.equal(selected.length, 15);
+  for (const entry of selected) {
+    assert.deepEqual(acceptedChainsForCase(entry.metadata), [[], ['plan_selected']]);
   }
 });
 

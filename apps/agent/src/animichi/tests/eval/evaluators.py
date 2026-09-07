@@ -61,9 +61,11 @@ _Ctx = EvaluatorContext[AgentInput, AgentResult, AgentExpected]
 # model-initiated one (``selection.py::_emit``, ``turn-frames.ts``'s
 # ``serverStepOpened``) and the frames carry nothing that tells the two apart.
 # Measured on staging 2026-09-07: all four seeded ``plan_multi`` cases of
-# ``phase1c_selection_v1`` published ``plan_multi`` and nothing else. Both chains
-# are listed so that each runner's honest observation is accepted and neither is
-# fitted to the other.
+# ``phase1c_selection_v1`` published ``plan_multi`` and nothing else, and
+# ``K1_ja_001`` / ``K1_en_002`` published ``plan_selected`` alone (#1461) — the
+# same shape on the other bypass, which fifteen ``agent_eval_v3`` cases carry.
+# Both chains are listed so that each runner's honest observation is accepted
+# and neither is fitted to the other.
 _GENERAL_QA_CHAINS = (
     (),
     ("web_search",),
@@ -75,7 +77,7 @@ _STAGE_MODEL_CALL_CHAINS: dict[str, tuple[tuple[str, ...], ...]] = {
     "search_bangumi": (("resolve_anime", "search_bangumi"),),
     "search_nearby": (("search_nearby",),),
     "plan_route": (("resolve_anime", "search_bangumi", "plan_route"),),
-    "plan_selected": ((),),
+    "plan_selected": ((), ("plan_selected",)),
     "plan_multi": ((), ("plan_multi",)),
     "clarify": (("resolve_anime",), ()),
     "clarify_after_nearby": (("search_nearby",),),

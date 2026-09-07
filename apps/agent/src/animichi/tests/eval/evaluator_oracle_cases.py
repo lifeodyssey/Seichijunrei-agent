@@ -3,8 +3,8 @@
 Each scenario pins one branch the TypeScript port has to reproduce: the ANY-of-N
 chain disjunction and its ties, the two selection stages that accept the empty
 chain, the place selection that does not, the deterministic bypass as the WIRE
-publishes it — one tool part named for the stage, opened with no arguments
-(#1454, measured on staging 2026-09-07) — every branch of
+publishes it — one tool part named for the stage, opened with no arguments, once
+per bypass stage (#1454, #1461, measured on staging 2026-09-07) — every branch of
 `_acceptable_min_steps`, the `{}` (no metric) returns — including the zero-step
 turn on a case that required a step (#1439) — the
 `resolve_reply_language` decision points, and — since #1381 — both answers
@@ -71,6 +71,23 @@ SCENARIOS: list[OracleScenario] = [
         intent="plan_selected",
         message=_JA_REPLY,
         acceptable_stages=["plan_selected"],
+        data_keys=["route"],
+        expect_nonempty=True,
+        selected_point_ids=["p1", "p2"],
+        itinerary=OracleItinerary(ordered_point_count=3, source_row_count=4),
+    ),
+    OracleScenario(
+        case_id="point_selection_published_step",
+        query=_EN_QUERY,
+        locale="en",
+        intent="plan_selected",
+        message=_EN_REPLY,
+        acceptable_stages=["plan_selected"],
+        steps=[
+            OracleStep(
+                tool="plan_selected", args={}, params={"point_ids": ["p1", "p2"]}
+            )
+        ],
         data_keys=["route"],
         expect_nonempty=True,
         selected_point_ids=["p1", "p2"],
