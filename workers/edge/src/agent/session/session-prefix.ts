@@ -23,7 +23,7 @@
  * authorisation, so the ownership check below runs on staging exactly as it
  * would anywhere else (`prefix-seeding.ts` owns it).
  */
-import { withAgentDatabase, type AgentTransactions } from "../../db/agent-database.ts";
+import type { AgentDatabase, AgentTransactions } from "../../db/agent-database.ts";
 import { gatewayRejection } from "../../gateway/responses.ts";
 import { NeonTurnRecords } from "../intake/neon-turn-records.ts";
 import { SessionBusyError, SessionOwnershipError } from "../intake/turn-intake.ts";
@@ -35,6 +35,8 @@ import {
   SessionNotEmptyError,
   seedTrajectoryPrefix,
   type PrefixSeedingParts,
+  type PrefixSeedingRequest,
+  type SeededPrefixReceipt,
 } from "./prefix-seeding.ts";
 import type { SessionEnvelopeStore } from "./session-envelope.ts";
 import { trajectoryPrefixIn } from "./trajectory-prefix.ts";
@@ -85,6 +87,20 @@ function refusalFor(error: unknown): Response | null {
   return null;
 }
 
+/**
+ * The seeding one hop performs: the request the caller's body parsed into, and
+ * either its receipt or one of the four refusals above.
+ *
+ * A PORT rather than a direct call to `seedTrajectoryPrefix`, because each of
+ * those refusals is raised behind `withAgentDatabase` — by `factsOf`, by
+ * `openTurn`, by the lease — while the status each takes is decided HERE. With
+ * the call inlined, the whole map was reachable only from a lane that boots
+ * PostgreSQL, and it was asserted nowhere: a catch that answered a blanket 400
+ * for every error passed the entire suite (#1436). In front of the port, one
+ * seeding that raises is one status asserted.
+ */
+export type PrefixSeeding = (request: PrefixSeedingRequest) => Promise<SeededPrefixReceipt>;
+
 /** What the Durable Object supplies that the composition below cannot derive. */
 export interface SessionPrefixParts {
   readonly env: Record<string, unknown>;
@@ -117,15 +133,29 @@ function seedingParts(parts: SessionPrefixParts, transactions: AgentTransactions
   };
 }
 
-/** One seeding on one database connection. */
+/**
+ * The seeding the session's Durable Object performs: one seeding, on one unit
+ * of work of whichever data plane it was handed.
+ *
+ * The data plane is a parameter and not `withAgentDatabase` inlined, so this
+ * composition — the adapters `seedingParts` wires, and the fact that a refusal
+ * leaves it as the CLASS `refusalFor` reads — is driven against a real
+ * PostgreSQL in `agent-db-test/trajectory-prefix.db.test.ts`. Inlined, it was
+ * reachable from no lane at all, and a catch that replaced every refusal with
+ * a plain `Error` survived the whole suite (#1436).
+ */
+export function prefixSeedingOn(parts: SessionPrefixParts, database: AgentDatabase): PrefixSeeding {
+  return (request) => database((transactions) =>
+    seedTrajectoryPrefix(seedingParts(parts, transactions), request));
+}
+
+/** One seeding, once the caller's body has been read as a prefix. */
 async function seededOn(
-  parts: SessionPrefixParts, sessionId: string, identityId: string, body: unknown,
+  seeding: PrefixSeeding, sessionId: string, identityId: string, body: unknown,
 ): Promise<Response> {
   const prefix = trajectoryPrefixIn(body);
   if (prefix === null) return gatewayRejection("invalid_prefix", 400, "The prefix could not be read.");
-  const request = { sessionId, identityId, payer: PREFIX_PAYER, prefix } as const;
-  const receipt = await withAgentDatabase(parts.env, (transactions) =>
-    seedTrajectoryPrefix(seedingParts(parts, transactions), request));
+  const receipt = await seeding({ sessionId, identityId, payer: PREFIX_PAYER, prefix });
   return Response.json({ session_id: sessionId, seeded: receipt.seeded });
 }
 
@@ -151,13 +181,13 @@ async function jsonBodyIn(request: Request): Promise<unknown> {
 const NOT_JSON_MESSAGE = "The prefix body is not JSON.";
 
 /** The seeding this hop asks for, once every part of it is readable. */
-async function readableSeeding(parts: SessionPrefixParts, request: Request): Promise<Response> {
+async function readableSeeding(seeding: PrefixSeeding, request: Request): Promise<Response> {
   const identityId = requiredHeader(request, SEED_IDENTITY_HEADER);
   const sessionId = requiredHeader(request, SEED_SESSION_HEADER);
   if (identityId === null || sessionId === null) return gatewayRejection("invalid_prefix", 400);
   const body = await jsonBodyIn(request);
   if (body === UNREADABLE_BODY) return gatewayRejection("invalid_prefix", 400, NOT_JSON_MESSAGE);
-  return await seededOn(parts, sessionId, identityId, body);
+  return await seededOn(seeding, sessionId, identityId, body);
 }
 
 /**
@@ -169,10 +199,10 @@ async function readableSeeding(parts: SessionPrefixParts, request: Request): Pro
  * status an unowned session gets.
  */
 export async function answerPrefixSeeding(
-  parts: SessionPrefixParts, request: Request,
+  seeding: PrefixSeeding, request: Request,
 ): Promise<Response> {
   try {
-    return await readableSeeding(parts, request);
+    return await readableSeeding(seeding, request);
   } catch (error) {
     const refusal = refusalFor(error);
     if (refusal === null) throw error;

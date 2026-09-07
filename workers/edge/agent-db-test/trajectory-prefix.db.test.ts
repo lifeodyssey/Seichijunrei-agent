@@ -20,7 +20,9 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { sql } from "drizzle-orm";
 import { NeonTurnRecords } from "../src/agent/intake/neon-turn-records.ts";
+import { SessionOwnershipError } from "../src/agent/intake/turn-intake.ts";
 import { SessionNotEmptyError, seedTrajectoryPrefix, type PrefixSeedingParts } from "../src/agent/session/prefix-seeding.ts";
+import { prefixSeedingOn } from "../src/agent/session/session-prefix.ts";
 import { DurableEnvelopeStore } from "../src/agent/session/durable-envelope-store.ts";
 import { NeonSeededSession } from "../src/agent/session/neon-seeded-session.ts";
 import { NeonTurnStore } from "../src/agent/session/neon-turn-store.ts";
@@ -122,6 +124,34 @@ void test("re-seeding the same case writes no second row", async () => {
   assert.equal(replay.seeded, false);
   assert.equal(await countRows(plane.database, "messages"), messagesBefore);
   assert.equal(await countRows(plane.database, "runs"), runsBefore);
+});
+
+/**
+ * The composition the Durable Object actually seeds through (#1436), rather
+ * than the hand-wired `seedingParts` above: `prefixSeedingOn` picks the
+ * adapters itself, and only the pool is substituted — this lane's PostgreSQL
+ * is reached by node-postgres, while `agentDatabaseIn` opens a Neon
+ * WebSocket pool that no container speaks (`postgres-arm.ts`).
+ *
+ * What it is here to prove is that a refusal crosses that composition AS ITS
+ * CLASS. `session-prefix.ts`'s `refusalFor` reads the class and nothing else,
+ * so a seeding that wrapped or replaced it would answer every refusal 500 —
+ * and every case that pins a status hands the port its error ready-made and
+ * would never see it.
+ */
+void test("a refusal crosses the composed seeding as the class refusalFor reads", async () => {
+  const owned = makePrefixSeedingRequest({ sessionId: "prefix-composed" });
+  await seedTrajectoryPrefix(seedingParts(), owned);
+  const parts = {
+    env: {}, envelopes: new DurableEnvelopeStore(new InMemoryEnvelopeStorage()), owner: "do-incarnation-1",
+  };
+
+  const seeding = prefixSeedingOn(parts, (work) => work(plane.transactions));
+
+  await assert.rejects(
+    seeding({ ...owned, identityId: "another-identity" }),
+    (error: unknown) => error instanceof SessionOwnershipError,
+  );
 });
 
 void test("a different case may not seed a session that already took a turn", async () => {

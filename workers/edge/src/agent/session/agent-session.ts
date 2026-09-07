@@ -33,7 +33,8 @@ import { DurableEnvelopeStore } from "./durable-envelope-store.ts";
 import type { SessionEnvelopeStore } from "./session-envelope.ts";
 import { SessionRunQueue } from "./session-run-queue.ts";
 import { armedCredential, armedRunId, SESSION_ARM_PATH } from "./session-wakeup.ts";
-import { answerPrefixSeeding, SESSION_PREFIX_PATH } from "./session-prefix.ts";
+import { agentDatabaseIn } from "../../db/agent-database.ts";
+import { answerPrefixSeeding, prefixSeedingOn, SESSION_PREFIX_PATH } from "./session-prefix.ts";
 import { sseResponse } from "./sse-turn-channel.ts";
 import { TurnSubscribers } from "./turn-subscribers.ts";
 
@@ -130,7 +131,8 @@ export class AgentSession {
    */
   #seedPrefix(request: Request): Promise<Response> {
     const owner = this.#ctx.id.toString();
-    return answerPrefixSeeding({ env: this.#env, envelopes: this.#envelopes, owner }, request);
+    const parts = { env: this.#env, envelopes: this.#envelopes, owner };
+    return answerPrefixSeeding(prefixSeedingOn(parts, agentDatabaseIn(this.#env)), request);
   }
 
   /** One run, then close whoever was watching it. The credential is dropped

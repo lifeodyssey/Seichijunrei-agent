@@ -20,7 +20,7 @@ import { sql } from "drizzle-orm";
 import { DurableTurn } from "../src/agent/session/durable-turn.ts";
 import { NeonTurnStore } from "../src/agent/session/neon-turn-store.ts";
 import { CountingSpotLookup, makeScriptedTurnModel, makeSessionTurnParts } from "../test/doubles/make-turn-parts.ts";
-import { onlyRow, seedSession, type AgentDatabase } from "./agent-rows.ts";
+import { onlyRow, seedSession, type AgentArmDatabase } from "./agent-rows.ts";
 import { SETUP_HOOK_TIMEOUT_MS, startAgentDataPlane, type AgentDataPlane } from "./postgres-arm.ts";
 
 const SESSION = "session-w13";
@@ -39,7 +39,7 @@ after(async () => {
 });
 
 /** A `running` run whose lease belongs to an incarnation that is long gone. */
-async function seedStrandedRun(database: AgentDatabase, sessionId: string): Promise<string> {
+async function seedStrandedRun(database: AgentArmDatabase, sessionId: string): Promise<string> {
   await seedSession(database, sessionId);
   const message = await database.execute(
     sql`insert into messages (session_id, role, content)
