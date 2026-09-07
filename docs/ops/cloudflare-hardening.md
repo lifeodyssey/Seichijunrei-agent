@@ -57,7 +57,7 @@ On success the Worker sets `X-User-Id` and `X-User-Type`, deletes the `Authoriza
 | `CORS_ALLOWED_ORIGIN` | Container-only | Agent CORS allowlist |
 | `GOOGLE_MAPS_API_KEY` | Container-only (optional) | Geocoding |
 | `LOGFIRE_TOKEN` | Container-only (optional) | Observability |
-| `VITE_*` (web build) | `apps/web` build-time only | Injected by CI into the web Worker; not root-Worker secrets |
+| `VITE_*` (web build) | `apps/web` build-time only | Injected by CI into the web Worker; not edge-Worker secrets |
 | `VITE_NEON_AUTH_BASE_URL` | `apps/web` build-time only | Better Auth client origin (login UI + JWT exchange) |
 
 The full container env allowlist is `CONTAINER_ENV_KEYS` / `CONTAINER_REQUIRED_KEYS` in
@@ -65,7 +65,7 @@ The full container env allowlist is `CONTAINER_ENV_KEYS` / `CONTAINER_REQUIRED_K
 
 ## Current Trust Boundary
 
-- Browser clients hit `apps/web`; API clients hit the root edge Worker hostname
+- Browser clients hit `apps/web`; API clients hit the edge Worker hostname
 - Worker-only auth secrets stay at the edge: `NEON_AUTH_JWKS_URL`; the edge JWT path verifies against the branch's public JWKS, so no Supabase/anon key is involved
 - Container runtime receives only its explicit allowlist from `workers/edge/src/container/container-env.ts`
 - Agent auth trust starts from `X-User-Id` and `X-User-Type`, not from raw bearer tokens

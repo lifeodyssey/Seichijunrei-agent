@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { URL, fileURLToPath } from "node:url";
 import { createWorkerApp } from "../src/app.ts";
 
-// Issue #537: the root Worker no longer bundles the legacy Next.js app, so
+// Issue #537: the edge Worker no longer bundles the legacy Next.js app, so
 // there is no HTML renderer left to fall back to. An unmatched path is now a
 // genuine 404 in the same JSON error envelope every other edge rejection uses
 // (`unauthorized`, `rate_limited`) — a 200 "this is an API gateway" body would

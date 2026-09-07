@@ -260,8 +260,8 @@ Its layout, routing, design tokens, and auth wiring are documented in `apps/web/
 that package is the source of truth, not this file.
 
 <!-- historical: retired in #537 -->
-Issue #537 deleted the legacy `frontend/` package and the root Worker's static-asset fallback
-with it. The root Worker (`workers/edge/src/app.ts`) is now an API gateway only: `/v1/*`,
+Issue #537 deleted the legacy `frontend/` package and the edge Worker's static-asset fallback
+with it. The edge Worker (`workers/edge/src/app.ts`) is now an API gateway only: `/v1/*`,
 `/v1/users/*`, `/healthz`, `/img/*`, `/tiles/*`, one allowlisted public catalog read, and a JSON
 `404 not_found` for everything else. It serves no HTML; `apps/web` owns every page.
 

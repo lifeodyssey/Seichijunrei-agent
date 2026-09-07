@@ -230,6 +230,12 @@ jobs:
         run: ruby .github/scripts/test_cd_credential_boundary_contract.rb
       - name: Verify every package's test script chains its segments
         run: ruby .github/scripts/test_package_test_segments.rb
+      # #1315: the gateway Worker's retired name outlived the directory in
+      # cohort labels, job names and runbook prose. Its cohort, deploy job and
+      # docs all say `edge` now, and only this keeps them saying it. The step
+      # name spells none of it out because the contract scans this file too.
+      - name: Verify the edge Worker's retired name is gone
+        run: ruby .github/scripts/test_edge_naming_contract.rb
       # The gitleaks *config* contract (#1438) — the scan itself is the
       # `gitleaks` security job. quality.sh has run these two since #1438 and CI
       # never did, so a config change that muted a default rule was blocked at

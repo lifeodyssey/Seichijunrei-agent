@@ -2,7 +2,7 @@
 
 TypeScript Cloudflare Worker: the **user-domain data service** (saved routes today; the
 anonymous-claim flow and more user data later). Owns user-scoped rows in Neon; reached ONLY via the
-root Worker's `USERS` service binding at `/v1/users/*` — no public route of its own.
+edge Worker's `USERS` service binding at `/v1/users/*` — no public route of its own.
 Root guide: `../../AGENTS.md`. Template sibling: `../catalog/AGENTS.md`.
 
 ## Commands (from `workers/users/`)

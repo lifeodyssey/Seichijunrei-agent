@@ -394,7 +394,7 @@ The three uncertainties previously recorded here — D7's final ruling (SD-4), t
 | The specific 5 smoke-eval cases (X8) | The Planner doesn't know the content of all 617 cases | The AC only locks the selection principle; the concrete cases are picked at execution time | S0.1 |
 | `apps/web`'s coverage-floor starting point is unknown | Can't hardcode a specific percentage | Write it into the config comment once measured | S0.2 |
 | **Catalog's first public exposure** | The new `/catalog/public/*` allowlist widens the attack surface | Strict read-only allowlist, eng-review sign-off | S5.4 |
-| **The new R2 presign route lives in the root Worker** | Needs protection against unauthorized presigning | The presign URL is scoped by the JWT `sub` prefix + a short TTL | S4.7 |
+| **The new R2 presign route lives in the edge Worker** | Needs protection against unauthorized presigning | The presign URL is scoped by the JWT `sub` prefix + a short TTL | S4.7 |
 | **`workers/users` is an entirely new service**, zero existing baseline | Auth/CI/deploy all need building from scratch | Fully clone the pattern already proven in `workers/catalog` | S2.8 |
 | **Regression risk from fixing SD-3①'s cross-database bug** | Fixing a bug can introduce a new one | A before/after data-shape snapshot comparison test around the fix | S1.7 |
 | **SD-3④'s historical data migration** | A one-off script can still have small omissions | Row-count reconciliation + sampled content verification | S2.9, S3.9 |

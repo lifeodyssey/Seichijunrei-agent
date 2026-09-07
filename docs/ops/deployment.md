@@ -240,12 +240,16 @@ Common runtime config:
   (`https://animichi-web-staging.zhenjiazhou0127.workers.dev`) as a plain (non-secret) value, not a
   GitHub secret — a domain name isn't a secret, and this needs no owner action to provision. Do
   **not** add a `CORS_ALLOWED_ORIGIN` secret to the `staging` GitHub Environment: it is no longer
-  in `deploy-root-staging`'s `worker_secrets` list, so such a secret would be dead (unread), and if
-  it were ever added back to that list later, the secret would silently override the wrangler var,
-  reintroducing a second source of truth. Before #527/#528, staging had neither the secret nor the
-  var, and inherited APP_ENV's mislabeling as "production" (see above) — which made
-  `cors_allowed_origin`'s `"*"` default fail the production-strictness CORS check and **crash the
-  container at boot** rather than silently accept a wildcard origin; #527/#528 fixed this at the
+  uploaded to the edge Worker: CD uploads no runtime secret at all since #1364, and `stage-edge`
+  runs `wrangler deploy`, which leaves a secret its config does not declare alone. The eight edge
+  runtime secrets are still the owner's `wrangler secret put` values until #1370 moves them into the
+  Cloudflare Secrets Store — only `AGENT_SVC_DATABASE_URL` arrives through a
+  `secrets_store_secrets` binding today ([`secrets.md`](./secrets.md) chains 1 and 2). So such a
+  secret would be dead (unread), and if one of that name ever reached the Worker, it would silently
+  override the wrangler var, reintroducing a second source of truth. Before #527/#528, staging had
+  neither the secret nor the var, and inherited APP_ENV's mislabeling as "production" (see above) —
+  which made `cors_allowed_origin`'s `"*"` default fail the production-strictness CORS check and
+  **crash the container at boot** rather than silently accept a wildcard origin; #527/#528 fixed this at the
   `wrangler.toml` layer, independent of the APP_ENV fix in this same issue.
 - `GOOGLE_MAPS_API_KEY` (optional)
 - `ANON_DAILY_COST_BUDGET_USD` (optional — the global anonymous daily-dollar circuit breaker, X4/#274; `0` disables it)
@@ -310,8 +314,8 @@ Routing defined by `wrangler.toml`:
 Issue #537 removed the bundled legacy static frontend and with it the `[assets]` binding: this
 Worker has **no** HTML surface. `apps/web` (TanStack Start) deploys as its own Worker and owns
 every page. Route ownership for the apex is declared in Pulumi (`infra/index.ts`, #541): until
-`webRoutesEnabled` is on, the root Worker may have no public hostname at all
-(`workers_dev = false`). `apps/web` owns HTML on its Worker hostname; the root Worker is API +
+`webRoutesEnabled` is on, the edge Worker may have no public hostname at all
+(`workers_dev = false`). `apps/web` owns HTML on its Worker hostname; the edge Worker is API +
 proxy only (`/v1/*`, `/healthz`, `/img/*`, `/tiles/*`, one public catalog read).
 
 ## Deploy Sequence

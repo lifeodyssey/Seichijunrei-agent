@@ -2,7 +2,7 @@ name = "catalog"
 main = "src/index.ts"
 compatibility_date = "2025-09-23"
 compatibility_flags = ["nodejs_compat"]
-# No public host of any kind — catalog is reached only through the root
+# No public host of any kind — catalog is reached only through the edge
 # Worker's CATALOG service binding. Two separate doors have to be shut:
 #
 #   workers_dev  — the <name>.<subdomain>.workers.dev host. wrangler resolves
