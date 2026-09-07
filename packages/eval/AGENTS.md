@@ -147,6 +147,47 @@ able to score 1.0, and "unmeasured" must not look like "every call was wrong".
   search it published. Python's two failure branches (no `source_ref`; a `source_ref` that misses the
   registry) both land on the same observable: no `results` in `data`.
 
+### The ninth metric, which is report-only on purpose (E-3 #1382)
+
+`reply_claim_traceability` is the one measurement here with no Python twin: a **deterministic**
+final-reply verifier (spec §十 10.3, 李博杰 ch.7 「做对了但说错了」). The eight ported evaluators read
+the trajectory and the `data` keys; none of them asserts anything about the sentence a visitor
+reads, which is where a third of τ²-bench's information-reporting failures live.
+
+- **Not an evaluator, and not registered.** The registry resolves the names the exported dataset
+  FILE carries, and every registered evaluator is scored against Python's oracle. This one is a
+  function (`src/evaluators/reply-claim-verifier.ts`) that `src/gate-run/report-only-metrics.ts`
+  calls over the finished report, so it lands in `GateRunResult.report_only` and can reach neither
+  `metricNames()` (positionally aligned with the baseline) nor `caseScoresFromReport` (what the
+  bootstrap gate compares). Owner decides after a full baseline cycle whether it graduates (#1303).
+- **Its coverage is bounded before anything is judged.** `reply-claims.ts` extracts exactly two
+  forms — a quoted span (a NAME claim) and a digit run carrying a counting word (a COUNT claim).
+  Everything else is unmeasured, `{}`, which is neither a pass nor a failure. A reply with no
+  decidable claim must not score 1.0; that vacuous pass is one of the two mistakes the spec names.
+- **The other one is a false positive, and the defence is a COMPLETE source list.**
+  `reply-claim-sources.ts` enumerates five: this run's calls, this reply's own `data` rows (a place
+  name exists *only* here — rows never travel through a tool's `details`), the user's own words,
+  the **earlier runs' calls** (§九 9.1 / #1377 — counting only "this run" contradicts §九
+  directly), and the `<agent_status>` bar (§九 9.3), whose lines that module maps one by one onto
+  the sources that cover them. A "call" is both ends of it: the return AND the arguments, because
+  #1377 replays every assistant tool-call message verbatim and the bar's retention line quotes
+  `run_steps.input` back at the model (`workers/edge/src/agent/memory/rescued-entity.ts`). The one bar line no other
+  source reaches is a SEEDED case's open question, witnessed by `inputs.seeded_pending`. Names are
+  compared by EQUALITY after NFKC folding, so a sequel cannot pass as its original; counts are
+  compared as numbers, so `２件` equals a `row_count` of 2.
+- **The leniency this buys, stated up front:** a name that appears only in a tool ARGUMENT is
+  traceable without being corroborated, since it is the model's own words replayed back to it. That
+  is the false-positive-avoiding direction; catching an invented title needs the OUTCOME read too,
+  which is `tool_correctness`' and `nonempty_results`' job.
+- **Place names are judged only when the reply published rows.** A prose-only answer's `data` is
+  `{}` (`turn-answer-part.ts`), so there is nothing to compare against and the claim is unmeasured
+  rather than wrong.
+- **`TranscriptStep.output` and `TranscriptResult.priorTrajectory` exist for this.** The first is
+  `tool-output-available.output` — the outcome `details`, kept per step instead of discarded. The
+  second is the earlier submissions' calls (`prior-turn-returns.ts`): `StagingTurnTask` used to
+  drop every response but the last, and since #1377 those turns' returns are in the model's context.
+  Neither is folded into `trajectory` or `stepCount`, which stay the measured turn's.
+
 `src/metric-names.ts` ports `eval_harness.metric_names` — same names, same order, checked against the
 oracle's committed dump. Order is load-bearing: baselines and report tables are keyed positionally.
 Three columns are conditional: `nonempty_results` on the DATASET (no tagged case, no column), and
@@ -243,7 +284,8 @@ made. That split is why the task can be tested with a fake fetch at all.
 
 | Piece | Owns |
 |---|---|
-| `src/turn-transcript.ts` | (SSE frames, transcript read) → `TranscriptResult`, the members Python's evaluators read off an `AgentResult` |
+| `src/turn-transcript.ts` | (SSE frames, transcript read) → `TranscriptResult`, the members Python's evaluators read off an `AgentResult`, plus each step's published return (#1382) |
+| `src/prior-turn-returns.ts` | the earlier submissions' calls, which #1377 puts back in the model's context |
 | `src/settled-params.ts` | the one part of the shaper that reads the RETRIEVAL surface: whether a second record was offered at all, and which settled step answers which frame call |
 | `src/case-submissions.ts` | the `POST /v1/chat` bodies one case sends, history first |
 | `src/staging-turn-task.ts` | the `Dataset.evaluate` task: submit, retry policy, concurrency bound, read back |

@@ -107,6 +107,23 @@ void test("a tool that answered with an error keeps its place, marked", () => {
 });
 
 /**
+ * A `tool-output-error` frame carries an `errorText` and no `output`: the call
+ * answered nothing, and the verifier that reads returns must not be handed an
+ * empty record it could read as one (E-3 #1382). Mutation: copy an output onto
+ * the errored branch of `settledCall` and this goes red.
+ */
+void test("a tool that answered with an error published no return", () => {
+  const shaped = shapedCapture("search", {
+    replace: ['"type":"tool-output-available","toolCallId":"search_bangumi-fixture","output":{"row_count":2}'],
+    with: ['"type":"tool-output-error","toolCallId":"search_bangumi-fixture","errorText":"boom"'],
+  });
+  assert.deepEqual(
+    shaped.trajectory.map((step) => step.output),
+    [{ bangumi_id: 12345 }, null, { point_count: 2 }],
+  );
+});
+
+/**
  * A stream cut off mid-call is not a tool failure and not a success. Keeping the
  * call but leaving it `unsettled` is what stops W3-3's `ArgumentCorrectness`
  * port from scoring arguments against an answer nobody saw.
@@ -119,6 +136,33 @@ void test("a call whose output never arrived is kept, and settled by nothing", (
   assert.deepEqual(
     shaped.trajectory.map((step) => [step.toolName, step.status]),
     [["resolve_anime", "ok"], ["search_bangumi", "ok"], ["plan_route", "unsettled"]],
+  );
+});
+
+/**
+ * The RETURN, which no Python evaluator reads and the final-reply verifier
+ * cannot work without (E-3 #1382). `tool-output-available.output` is the
+ * outcome's `details` verbatim (`session/turn-frames.ts::outputOf`), so what
+ * the transcript keeps is the environment's own record of what came back.
+ *
+ * Mutation: fold `output` into a boolean "settled or not" and this goes red —
+ * the values are the whole point.
+ */
+void test("each settled call keeps the return the stream published", () => {
+  assert.deepEqual(
+    shapedCapture("search").trajectory.map((step) => step.output),
+    [{ bangumi_id: 12345 }, { row_count: 2 }, { point_count: 2 }],
+  );
+});
+
+void test("a call the stream never settled published no return", () => {
+  const shaped = shapedCapture("search", {
+    replace: ['"type":"tool-output-available","toolCallId":"plan_route-fixture","output":{"point_count":2}'],
+    with: ['"type":"start-step"'],
+  });
+  assert.deepEqual(
+    shaped.trajectory.map((step) => [step.status, step.output]),
+    [["ok", { bangumi_id: 12345 }], ["ok", { row_count: 2 }], ["unsettled", null]],
   );
 });
 

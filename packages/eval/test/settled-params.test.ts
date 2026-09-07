@@ -56,7 +56,7 @@ function historyOf(steps: GetSessionHistoryResponse["steps"]): GetSessionHistory
 }
 
 function shape(frames: TurnFrame[], steps: GetSessionHistoryResponse["steps"]): TranscriptResult {
-  return transcriptResultOf({ frames, history: historyOf(steps), locale: "ja" });
+  return transcriptResultOf({ frames, priorTrajectory: [], history: historyOf(steps), locale: "ja" });
 }
 
 /** What each call ran with, in call order — the pairing's whole answer. */
@@ -123,7 +123,7 @@ void test("params text that is not a JSON object is no witness at all", () => {
 function shapeWithoutSteps(): TranscriptResult {
   const frames = callFrames("c1", "web_search", { query: "a" });
   const history = { messages: [], revision: 1, next_offset: null, run: null };
-  return transcriptResultOf({ frames, history, locale: "ja" });
+  return transcriptResultOf({ frames, priorTrajectory: [], history, locale: "ja" });
 }
 
 void test("a page that carries no steps key at all leaves every call unwitnessed", () => {

@@ -85,12 +85,21 @@ export type StepStatus = "ok" | "error" | "unsettled";
  * `params` is `null` when that read published no settled step for this call —
  * `StepRecord.params_recorded=False`, said in a way that cannot be mistaken for
  * a call made with no arguments.
+ *
+ * `output` is the RETURN, the one member here no Python evaluator reads (E-3
+ * #1382, spec §十 10.3). It is `tool-output-available.output`, which the edge
+ * fills with the outcome's `details` and nothing else
+ * (`session/turn-frames.ts::outputOf`), so it is `catalog-tool-outcomes.ts`'
+ * vocabulary verbatim. The final-reply verifier needs it because a claim is
+ * traceable against what came BACK and name/args/status say only what was
+ * asked; `null` is a call the stream never settled, not an empty return.
  */
 export interface TranscriptStep {
   readonly toolName: string;
   readonly args: Readonly<Record<string, unknown>>;
   readonly params: Readonly<Record<string, unknown>> | null;
   readonly status: StepStatus;
+  readonly output: Readonly<Record<string, unknown>> | null;
 }
 
 /** The status of the run that produced this transcript, per `GET /v1/conversations/{id}/messages`. */
@@ -105,6 +114,10 @@ export interface TranscriptResult {
   readonly dataKeys: readonly string[];
   readonly stepCount: number;
   readonly trajectory: readonly TranscriptStep[];
+  /** The calls of the session's EARLIER turns, which this turn's model read
+   * back (`prior-turn-returns.ts`, §九 9.1). Apart from `trajectory` on
+   * purpose: folding them in would move eight metrics to feed one. */
+  readonly priorTrajectory: readonly TranscriptStep[];
   /**
    * Whether the transcript read offered a second record for these calls at all
    * (`settled-params.ts::paramsRecordedIn`). False makes `argument_correctness`
@@ -153,15 +166,19 @@ function openedCalls(frames: readonly TurnFrame[]): Map<string, TranscriptStep> 
     const callId = frameString(frame, "toolCallId");
     const toolName = frameString(frame, "toolName");
     if (callId === null || toolName === null) continue;
-    calls.set(callId, { toolName, args: {}, params: null, status: "unsettled" });
+    calls.set(callId, { toolName, args: {}, params: null, status: "unsettled", output: null });
   }
   return calls;
 }
 
-/** The outcome a settling frame reports, or nothing when it settles nothing. */
-function settledStatus(frameType: unknown): StepStatus | null {
-  if (frameType === "tool-output-available") return "ok";
-  return frameType === "tool-output-error" ? "error" : null;
+/** The call as a settling frame leaves it, or nothing when it settles nothing.
+ * Only the successful branch carries a return: `tool-output-error` publishes an
+ * `errorText` and no `output`, and an errored call answered nothing. */
+function settledCall(opened: TranscriptStep, frame: TurnFrame): TranscriptStep | null {
+  if (frame.type === "tool-output-available") {
+    return { ...opened, status: "ok", output: frameRecord(frame, "output") };
+  }
+  return frame.type === "tool-output-error" ? { ...opened, status: "error" } : null;
 }
 
 /** One later frame folded onto the call it names; anything else is ignored. */
@@ -173,8 +190,8 @@ function foldFrame(calls: Map<string, TranscriptStep>, frame: TurnFrame): void {
     calls.set(callId, { ...opened, args: frameRecord(frame, "input") });
     return;
   }
-  const status = settledStatus(frame.type);
-  if (status !== null) calls.set(callId, { ...opened, status });
+  const settled = settledCall(opened, frame);
+  if (settled !== null) calls.set(callId, settled);
 }
 
 /**
@@ -242,6 +259,10 @@ export function dataKeysOf(part: AnswerPart | null): readonly string[] {
 /** What one turn produced, and what reading its transcript back added. */
 export interface TurnTranscript {
   readonly frames: readonly TurnFrame[];
+  /** The calls of the submissions BEFORE the measured one, already read off
+   * their own frames (`prior-turn-returns.ts`, §九 9.1). Empty is the ordinary
+   * case: most sets carry no recorded history. */
+  readonly priorTrajectory: readonly TranscriptStep[];
   readonly history: GetSessionHistoryResponse | null;
   /** The locale the turn was REQUESTED with — see `transcriptResultOf`. */
   readonly locale: string;
@@ -271,6 +292,7 @@ export function transcriptResultOf(transcript: TurnTranscript): TranscriptResult
     dataKeys: dataKeysOf(response),
     stepCount: trajectory.length,
     trajectory,
+    priorTrajectory: transcript.priorTrajectory,
     paramsRecorded: paramsRecordedIn(transcript.history),
     response,
     runStatus: transcript.history?.run?.status ?? null,

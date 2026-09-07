@@ -84,6 +84,7 @@ function edited(stream: string, edit: CaptureEdit | undefined): string {
 export function shapedCapture(name: string, edit?: CaptureEdit): TranscriptResult {
   return transcriptResultOf({
     frames: turnFramesOf(edited(read(CHAT_STREAM_DIR, `${name}.sse`), edit)),
+    priorTrajectory: [],
     history: GetSessionHistoryResponse.parse(JSON.parse(read(CAPTURES_DIR, `${name}.messages.json`))),
     locale: RECORDED_LOCALE,
   });

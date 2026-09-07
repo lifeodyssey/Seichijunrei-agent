@@ -43,11 +43,13 @@ function makeRoutedMultiSelection(): TranscriptResult {
     paramsRecorded: true,
     response,
     runStatus: 'succeeded',
+    priorTrajectory: [],
     stepCount: 1,
     success: true,
     trajectory: [
       {
         args: { result_ref: 'search:multi:1' },
+        output: { status: 'ok' },
         params: { result_ref: 'search:multi:1' },
         status: 'ok',
         toolName: 'plan_route',
