@@ -27,6 +27,7 @@ for ruby_file in \
   "$GS/test_workflow_invariants.rb" \
   "$GS/test_ci_workflow_contract.rb" \
   "$GS/test_agent_lane_contract.rb" \
+  "$GS/test_lint_scope_contract.rb" \
   "$GS/test_browser_lane_contract.rb" \
   "$GS/test_schema_lane_contract.rb" \
   "$GS/test_cd_shape_contract.rb" \
@@ -40,6 +41,7 @@ done
 run ruby "$GS/test_workflow_invariants.rb"
 run ruby "$GS/test_ci_workflow_contract.rb"
 run ruby "$GS/test_agent_lane_contract.rb"
+run ruby "$GS/test_lint_scope_contract.rb"
 run ruby "$GS/test_browser_lane_contract.rb"
 run ruby "$GS/test_schema_lane_contract.rb"
 run ruby "$GS/test_cd_shape_contract.rb"
