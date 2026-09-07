@@ -14,13 +14,12 @@
 #   workflows   a change under `.github/` still reaches the lanes whose tests
 #               read deployment workflow text, and the route covers every
 #               composite action the jobs call
-#   contracts   every repository contract `quality.sh` runs, the `contracts` job
-#               runs too — CI's list is explicit, so a new one added to the local
-#               gate alone would be pre-push-only. SCOPE: this reads only
-#               `run ruby "$GS/test_*.rb"` lines. A contract wired in as
-#               `run bash`, `run python3`, `run node`, or as a Ruby file not
-#               named `test_*` is NOT covered and would still be silent in CI —
-#               widen the pattern rather than assume it caught you.
+#   contracts   every committed repository check runs somewhere in this file:
+#               `.github/scripts/test_*.rb` and every `*.test.sh` under
+#               `scripts/` or `.github/scripts/`. The list is read off the
+#               working tree rather than off a second hand-kept list —
+#               `quality.sh` was that list until #1371, and the checks it alone
+#               ran would have gone dark with it.
 #   image       every step building the offline Postgres image resolves the one
 #               declaration in `packages/test-postgres/postgres-image.env`
 #   commits     the `commits` job runs commitlint (the CI mirror of the
@@ -71,11 +70,12 @@ WORKFLOW_FILTER = ".github/workflows/**"
 LOCAL_ACTION_PATH = %r{\A\./(\.github/actions/[^/\s]+)}
 WORKFLOW_PACKAGE = "edge-worker"
 WORKFLOW_ROUTED_JOB = "agent"
-QUALITY_GATE = File.join(repository_root, "scripts", "local-gates", "quality.sh")
-# Ruby `test_*.rb` only — see the SCOPE note in the header. `run bash`,
-# `run python3`, `run node` and a Ruby file under another name are NOT matched,
-# so this pattern is narrower than "every contract the local gate runs".
-CONTRACT_INVOCATION = %r{\bruby "?\$?\{?GS\}?/?(test_\w+\.rb)"?}
+# A check that is committed but named in no job is a check nothing runs.
+# Package-owned scripts (workers/**, packages/**) are out of scope: their
+# package's own `test` runs them and the affected matrix runs that.
+COMMITTED_CHECKS = (Dir.glob(File.join(repository_root, ".github/scripts/test_*.rb")) +
+                    Dir.glob(File.join(repository_root, "{scripts,.github/scripts}/**/*.test.sh")))
+                   .map { |path| File.basename(path) }.uniq.freeze
 # A `.github/scripts/*.mjs` resolves its imports against the repository's
 # node_modules, so any job that runs one has to install the workspace. Without
 # it the script dies with ERR_MODULE_NOT_FOUND and the assertion that spawned
@@ -222,21 +222,15 @@ def assert_called_actions_are_routed
   end
 end
 
-# The local gate and CI's `contracts` job are two hand-kept lists of the same
-# thing. A contract wired into only the first would run at pre-push and never
-# block a pull request. `CONTRACT_INVOCATION` is the scope limit documented in
-# the header: only `run ruby "$GS/test_*.rb"` is matched, so a contract invoked
-# through another interpreter, or a Ruby file under a different name, passes
-# this assertion while remaining absent from CI.
-def quality_gate_contracts
-  File.read(QUALITY_GATE).lines.grep(/^run ruby /).map { |line| line[CONTRACT_INVOCATION, 1] }.compact
-end
-
-def assert_contracts_job_runs_every_local_contract
-  job = @ci.steps_of("contracts").map { |step| step["run"].to_s }.join("\n")
-  missing = quality_gate_contracts.reject { |script| job.include?(script) }
+# Until #1371 this compared CI's list against `quality.sh`'s — two hand-kept
+# lists of the same thing, and the pre-push orchestrator that held the second
+# one is gone. The working tree is the list now: whatever check is committed
+# under those two directories, some job here has to name it.
+def assert_every_committed_check_runs
+  runs = @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }.map { |step| step["run"].to_s }.join("\n")
+  missing = COMMITTED_CHECKS.reject { |name| runs.include?(name) }
   @log.unless_true(missing.empty?,
-                   "pr-verification.yml:contracts: quality.sh runs contracts CI does not (#{missing.join(', ')})")
+                   "pr-verification.yml: committed checks no job runs (#{missing.join(', ')})")
 end
 
 def assert_aggregate(job, expected_needs)
@@ -271,12 +265,12 @@ end
 
 # Two questions with one shape: is the guard reachable from the change that
 # would break it? A workflow-only pull request has to reach the lanes whose
-# tests read workflow text, and a contract the local gate runs has to be run by
-# CI too. Both failures are silent — the guard exists, and never fires.
+# tests read workflow text, and a committed check has to be named by a job.
+# Both failures are silent — the guard exists, and never fires.
 def assert_guards_are_reachable
   assert_workflow_changes_reach_their_tests
   assert_called_actions_are_routed
-  assert_contracts_job_runs_every_local_contract
+  assert_every_committed_check_runs
 end
 
 def assert_aggregates

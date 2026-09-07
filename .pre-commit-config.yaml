@@ -1,27 +1,22 @@
-# Local gates — three stages, routed by changed package where applicable (contract:
-# docs/ops/local-gates.md):
+# Local gates — three stages (contract: docs/ops/local-gates.md):
 #
 #   pre-commit (fast, <10s): universal checks (format, yaml/toml syntax,
-#     secret scan, shell/workflow lint, repo-wide ruff) + oxlint for the TS
-#     packages actually staged. The router is
-#     scripts/local-gates/changed-packages.sh --staged, which maps the staged
-#     tracked diff (add/modify/rename/delete) plus intentional untracked
-#     inputs onto the package set.
+#     shebang/exec-bit agreement, secret scan, shell/workflow lint, repo-wide
+#     ruff) + oxlint for the TS packages actually staged
+#     (scripts/local-gates/oxlint-changed.sh).
 #
-#   commit-msg: validate the concise typed subject and reject AI attribution
-#     trailers locally. The same validator accepts --subject for PR titles.
+#   commit-msg: commitlint against commitlint.config.js — the same file CI's
+#     `commits` job runs, so there is no second validator to drift from.
 #
-#   pre-push (medium): ONE orchestrator, scripts/local-gates/pre-push.sh,
-#     invoked as a single hook. It re-reads the router in merge-base-to-head
-#     mode and runs the deterministic Quality lane, then each affected
-#     package's CI-equivalent gate set (lint + typecheck + unit + coverage +
-#     build, contract drift, fresh-schema apply, credential-free Pulumi load)
-#     with canonical floors from the packages themselves (agent 87 — nothing
-#     weaker is duplicated here). Checks needing browser e2e / live Neon /
-#     cloud deploys stay in CI.
+#   pre-push: scripts/local-gates/pre-push-affected.sh — the changed files
+#     select the workspace packages (each runs its own lint / typecheck / test /
+#     test:integration scripts, the ones CI runs) plus three buckets: the Python
+#     agent, the migration chain, the documentation hygiene checks. Browser e2e,
+#     live Neon and deploys stay in CI; `make check-full` is the manual
+#     everything-run.
 #
-# Install: pre-commit install && pre-commit install --hook-type commit-msg &&
-#   pre-commit install --hook-type pre-push
+# Install: pre-commit install --hook-type pre-commit --hook-type commit-msg
+#   --hook-type pre-push
 # Policy: fix a failing gate or document an environmental exemption — no
 # silent --no-verify (CI still enforces).
 default_stages: [pre-commit]
@@ -37,6 +32,24 @@ repos:
         exclude: '\.sse$'
       - id: check-yaml
       - id: check-toml
+      # The two halves of the shebang/exec-bit agreement, upstream's own
+      # implementation of what shebang-exec-bit.sh hand-rolled (#1371): a file
+      # with the executable bit must say how to run it, and a file that says so
+      # must be runnable. Together they keep `bash scripts/x.sh` and
+      # `./scripts/x.sh` from disagreeing about a script.
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # commit-msg: the CI mirror is the `commits` job, which runs this same
+  # commitlint.config.js over the PR's commits and its title. The hook brings
+  # its own @commitlint/cli (^21.1.0 at this rev, the workspace's major), and
+  # config-conventional is pinned to the version the workspace resolves.
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.26.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional@21.2.2"]
 
   # Ruff over all repo Python paths (any staged .py — apps/agent, scripts/,
   # .github/scripts/); previously scoped to apps/agent only, which let
@@ -60,9 +73,9 @@ repos:
   - repo: local
     hooks:
       # Oxlint for the TS packages actually staged. Dispatch is derived from
-      # the workspace set (scripts/local-gates/oxlint-changed.sh): a package
-      # with lint:oxlint is picked up automatically, and every workspace
-      # package has one (#1358).
+      # `pnpm ls` (scripts/local-gates/oxlint-changed.sh): a package with
+      # lint:oxlint is picked up automatically, and every workspace package has
+      # one (#1358).
       - id: oxlint
         name: oxlint (changed TS packages)
         entry: bash scripts/local-gates/oxlint-changed.sh
@@ -71,11 +84,15 @@ repos:
         always_run: true
 
       # Shell syntax + common pitfalls (SC2086 reached CI twice in #853/#857).
+      # Every shell file, not only scripts/ and .github/scripts/: #1371 retired
+      # quality.sh, whose hand-written `run shellcheck` lines were the only
+      # thing covering infra/database-access/reset-staging-baseline.sh and the
+      # per-package scripts. `types: [shell]` is the whole scope now, so a new
+      # script cannot land outside it.
       - id: shellcheck
-        name: shellcheck (scripts + CI shell)
+        name: shellcheck (every shell file)
         entry: shellcheck --severity=warning
         language: system
-        files: ^(scripts|\.github/scripts)/
         types: [shell]
 
       # GitHub Actions syntax + workflow_call.secrets typing (actionlint.yaml
@@ -113,22 +130,15 @@ repos:
         files: \.(py|ts)$
         pass_filenames: false
 
-      - id: commit-message
-        name: commit message hygiene
-        entry: python3 scripts/local-gates/commit-message.py
-        language: system
-        stages: [commit-msg]
-        always_run: true
-
-      # --- pre-push stage: the single orchestration surface (#1003). ---
-      # scripts/local-gates/pre-push.sh is the sole pre-push entrypoint. It
-      # re-reads the router in merge-base-to-head mode, runs the deterministic
-      # Quality lane, then each affected package's CI-equivalent gates with
-      # canonical floors from the packages themselves, and fails fast. The
-      # earlier per-hook typecheck/unit/atlas/CI/docs duplication is gone.
-      - id: pre-push
-        name: pre-push orchestrator (scripts/local-gates/pre-push.sh)
-        entry: bash scripts/local-gates/pre-push.sh
+      # --- pre-push stage: the affected-package gate (#1371). ---
+      # The changed files pick the packages and the three buckets; each package
+      # runs its own lint / typecheck / test / test:integration scripts, which
+      # are the ones CI's affected matrix runs, so nothing has to prove the two
+      # agree. A changed path that maps to no package, no bucket and no
+      # whitelist entry fails the push closed.
+      - id: pre-push-affected
+        name: pre-push affected gate (scripts/local-gates/pre-push-affected.sh)
+        entry: bash scripts/local-gates/pre-push-affected.sh
         language: system
         pass_filenames: false
         always_run: true

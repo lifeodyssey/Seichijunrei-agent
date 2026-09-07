@@ -76,9 +76,10 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
   `agent|web|chat|catalog|users|auth|edge|contract|db|infra|delivery|eval|e2e|repo|deps`.
 - Never add Claude/Anthropic/Codex/OpenAI `Co-Authored-By` trailers or a `Generated with Claude Code`
   footer. Human and Dependabot attribution remains valid.
-- `scripts/local-gates/commit-message.py` is the machine source of truth for local commit messages
-  and squash-merge PR titles. Install all hooks with `pre-commit install --hook-type pre-commit
-  --hook-type commit-msg --hook-type pre-push`; never bypass them with `--no-verify`.
+- `commitlint.config.js` is the machine source of truth for local commit messages and squash-merge
+  PR titles: the commit-msg hook and CI's `commits` job read that one file. Install all hooks with
+  `pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push`; never
+  bypass them with `--no-verify`.
 
 ## Authoritative docs (read the matching one when doing that work)
 

@@ -1,6 +1,6 @@
 # Animichi Agent - Makefile
 
-.PHONY: help install dev dev-db dev-local serve test test-all test-cov test-integration test-eval test-eval-fullstack test-docs lint format typecheck typecheck-ty check clean build db-new db-list db-hash db-validate db-push db-push-dry seed-gazetteer test-worker e2e-setup e2e local-login dev-stop visual-canonicalize visual-check visual-check-self-test
+.PHONY: help install dev dev-db dev-local serve test test-all test-cov test-integration test-eval test-eval-fullstack test-docs lint format typecheck typecheck-ty check check-full clean build db-new db-list db-hash db-validate db-push db-push-dry seed-gazetteer test-worker e2e-setup e2e local-login dev-stop visual-canonicalize visual-check visual-check-self-test
 
 UV_CACHE_DIR ?= $(CURDIR)/.uv_cache
 export UV_CACHE_DIR
@@ -35,6 +35,7 @@ help:
 	@echo "  make typecheck   Run mypy type checker"
 	@echo "  make typecheck-ty Run the non-blocking ty baseline checker"
 	@echo "  make check       Run all checks (lint + typecheck + test)"
+	@echo "  make check-full  Every package + the Docker suites (manual; not a hook)"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-new NAME=x  Create a timestamped Atlas migration"
@@ -116,6 +117,28 @@ typecheck-ty:
 	cd apps/agent && uv run ty check src/animichi/
 
 check: lint typecheck test test-integration
+
+# The manual everything-run. pre-push only gates what the branch changed
+# (scripts/local-gates/pre-push-affected.sh), so this is where the whole
+# workspace and the Docker-backed suites live: every package's own scripts, the
+# disposable fresh-schema apply, the catalog spike that boots test-postgres,
+# and the Python agent's gate. Nothing here is a hook — run it before a large
+# refactor lands, or when a lockfile change makes "affected" mean everything.
+#
+# The two suite segments run one package at a time. pnpm's default is one job
+# per CPU, and several packages' `test` claims a fixed resource: the browser
+# suite serves apps/web on :8799 and the container-backed ones each boot
+# test-postgres. Run in parallel they starve each other -- measured 2026-09-08,
+# nine browser specs failing with ERR_CONNECTION_REFUSED while the same suite
+# passes 43/43 on its own. Serial is slower and true.
+check-full:
+	pnpm -r run --if-present lint
+	pnpm -r run --if-present typecheck
+	pnpm -r --workspace-concurrency=1 run --if-present test
+	pnpm -r --workspace-concurrency=1 run --if-present test:integration
+	bash scripts/local-gates/db-fresh-schema.sh
+	pnpm --filter catalog run test:spike
+	$(MAKE) check
 
 # ── Edge worker ───────────────────────────────────────────────
 
