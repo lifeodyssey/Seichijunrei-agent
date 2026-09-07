@@ -5,7 +5,7 @@
     "lint": "pnpm run lint:oxlint",
     "lint:oxlint": "oxlint --type-aware --deny-warnings .",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test",
+    "test": "E2E_SERVE_EMITTED_WORKER=1 playwright test web-404.spec.ts web-maplibre-canary.spec.ts web-chat-anonymous.spec.ts web-hero-query.spec.ts web-state-ownership.spec.ts web-a11y-axe.spec.ts web-a11y-keyboard.spec.ts web-a11y-states.spec.ts web-cwv.spec.ts web-chat-settings-return.spec.ts",
     "test:headed": "playwright test --headed",
     "test:web": "playwright test web-404.spec.ts web-chat-error-states.spec.ts web-chat-anonymous.spec.ts web-chat-save-login-wall.spec.ts web-neon-login.spec.ts web-splash.spec.ts",
     "test:perf-mobile-cold": "playwright test web-splash.spec.ts web-map-spike.spec.ts --grep @perf-mobile-cold"

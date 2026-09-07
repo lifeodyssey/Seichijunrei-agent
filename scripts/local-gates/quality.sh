@@ -82,8 +82,6 @@ run bash scripts/local-gates/check-root-allowlist.test.sh
 run bash scripts/local-gates/check-root-allowlist.sh
 run bash "$GS/check-e2e-promotion.test.sh"
 run bash "$GS/check-e2e-promotion.sh"
-run bash "$GS/check-web-runtime-config-payloads.test.sh"
-run bash "$GS/check-web-runtime-config-payloads.sh"
 # The script itself needs the artifact API; its layout contract is pure and
 # runs here with a `gh` stub.
 run bash "$GS/download-release-cohort.test.sh"

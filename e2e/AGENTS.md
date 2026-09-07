@@ -11,8 +11,17 @@ the Neon Auth login. Root guide: `../AGENTS.md`.
   Supabase — AUTH-2 #950 cut the local-login path over to Neon Auth).
 - `make e2e-setup` — install E2E deps + the Chromium binary and check the web app; it no longer
   starts Supabase or the email function.
-- `make e2e` — run the complete Playwright suite.
+- `make e2e` — run the complete Playwright suite against an app you started.
 - From `e2e/`: `pnpm test` · `pnpm run test:headed` · `pnpm run test:web`.
+
+`pnpm test` is the CI browser lane, not the whole suite: it builds `apps/web`, serves the
+emitted Worker with `wrangler dev` on `:8799` itself (`playwright.config.ts` `webServer`,
+opt-in through `E2E_SERVE_EMITTED_WORKER=1`) and runs the ten specs the lane owns —
+`web-404`, `web-maplibre-canary`, `web-chat-anonymous`, `web-hero-query`,
+`web-state-ownership`, `web-a11y-axe`, `web-a11y-keyboard`, `web-a11y-states`, `web-cwv`,
+`web-chat-settings-return`.
+It needs nothing running beforehand; every other script targets `:3000` (or whatever
+`E2E_WEB_BASE_URL` names) and does need one.
 
 ## Conventions
 
