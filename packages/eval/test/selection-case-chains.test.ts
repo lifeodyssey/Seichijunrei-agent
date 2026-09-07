@@ -8,6 +8,10 @@
  * on — `acceptedChainsForCase` yielded ONLY the empty chain for all five, so a
  * turn that called nothing was a perfect trajectory, while
  * `D3_place_selection_radius` scored 0.0 for making the one call its stage names.
+ * The four `plan_multi` cases kept that inversion after #1439, and #1454
+ * measured why: their stage publishes one tool part of its own, so the empty
+ * chain alone scored the two turns that FAILED 1.0 and the two that did the
+ * work 0.0.
  *
  * test-type: unit (committed fixture, no network, no clock).
  */
@@ -39,7 +43,7 @@ void test('the place selection accepts the call its stage names, not the empty c
   assert.deepEqual(chains, [['search_nearby']]);
 });
 
-void test('the multi selections still accept only the empty chain — their stage says so', () => {
+void test('the multi selections accept the step the wire publishes as well as the empty chain', () => {
   const multi = [
     'D3_multi_success_two',
     'D3_multi_success_single',
@@ -48,7 +52,7 @@ void test('the multi selections still accept only the empty chain — their stag
   ];
 
   for (const name of multi) {
-    assert.deepEqual(acceptedChainsForCase(expectationOf(name)), [[]]);
+    assert.deepEqual(acceptedChainsForCase(expectationOf(name)), [[], ['plan_multi']]);
   }
 });
 

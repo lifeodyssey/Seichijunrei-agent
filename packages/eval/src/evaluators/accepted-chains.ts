@@ -26,12 +26,28 @@ const GENERAL_QA_CHAINS: readonly ModelCallChain[] = [
   ['translate_anime_title', 'web_search'],
 ];
 
+/**
+ * A DETERMINISTIC BYPASS IS TWO CHAINS, because this table answers to two
+ * trajectory sources (#1454).
+ *
+ * In process, a bypass makes no model call and therefore no span, so the empty
+ * chain is what a Python run observes. Over the wire — this runner's only
+ * source (`turn-transcript.ts`, rewrite spec §一) — the same turn publishes ONE
+ * tool part named for the stage: the runtime streams its server-initiated step
+ * exactly as it streams a model-initiated one (`turn-frames.ts`'s
+ * `serverStepOpened`, Python's `selection.py::_emit`), and the frames carry no
+ * member that tells the two apart. Measured on staging 2026-09-07: all four
+ * seeded `plan_multi` cases of `phase1c_selection_v1` published `plan_multi`
+ * and nothing else, so the empty chain scored the two turns that FAILED 1.0 and
+ * the two that did the work 0.0. Both chains are listed so each runner's honest
+ * observation is accepted and neither is fitted to the other.
+ */
 const STAGE_MODEL_CALL_CHAINS = new Map<string, readonly ModelCallChain[]>([
   ['search_bangumi', [['resolve_anime', 'search_bangumi']]],
   ['search_nearby', [['search_nearby']]],
   ['plan_route', [['resolve_anime', 'search_bangumi', 'plan_route']]],
   ['plan_selected', [[]]],
-  ['plan_multi', [[]]],
+  ['plan_multi', [[], ['plan_multi']]],
   ['clarify', [['resolve_anime'], []]],
   ['clarify_after_nearby', [['search_nearby']]],
   ['greet_user', [[]]],
