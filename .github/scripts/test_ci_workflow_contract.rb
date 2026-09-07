@@ -16,10 +16,12 @@
 #               composite action the jobs call
 #   contracts   every committed repository check runs somewhere in this file:
 #               `.github/scripts/test_*.rb` and every `*.test.sh` under
-#               `scripts/` or `.github/scripts/`. The list is read off the
-#               working tree rather than off a second hand-kept list —
-#               `quality.sh` was that list until #1371, and the checks it alone
-#               ran would have gone dark with it.
+#               `scripts/` or `.github/scripts/`, each matched by its
+#               repository-relative path so one directory's file cannot vouch
+#               for another's of the same name. The list is read off the working
+#               tree rather than off a second hand-kept list — `quality.sh` was
+#               that list until #1371, and the checks it alone ran would have
+#               gone dark with it.
 #   image       every step building the offline Postgres image resolves the one
 #               declaration in `packages/test-postgres/postgres-image.env`
 #   commits     the `commits` job runs commitlint (the CI mirror of the
@@ -73,9 +75,12 @@ WORKFLOW_ROUTED_JOB = "agent"
 # A check that is committed but named in no job is a check nothing runs.
 # Package-owned scripts (workers/**, packages/**) are out of scope: their
 # package's own `test` runs them and the affected matrix runs that.
+# Repository-relative, not basenames: two directories may hold the same file
+# name, and a basename match would let a job that runs one of them vouch for
+# the other. The job has to name the path it actually runs.
 COMMITTED_CHECKS = (Dir.glob(File.join(repository_root, ".github/scripts/test_*.rb")) +
                     Dir.glob(File.join(repository_root, "{scripts,.github/scripts}/**/*.test.sh")))
-                   .map { |path| File.basename(path) }.uniq.freeze
+                   .map { |path| path.delete_prefix("#{repository_root}/") }.sort.freeze
 # A `.github/scripts/*.mjs` resolves its imports against the repository's
 # node_modules, so any job that runs one has to install the workspace. Without
 # it the script dies with ERR_MODULE_NOT_FOUND and the assertion that spawned
@@ -228,7 +233,7 @@ end
 # under those two directories, some job here has to name it.
 def assert_every_committed_check_runs
   runs = @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }.map { |step| step["run"].to_s }.join("\n")
-  missing = COMMITTED_CHECKS.reject { |name| runs.include?(name) }
+  missing = COMMITTED_CHECKS.reject { |path| runs.include?(path) }
   @log.unless_true(missing.empty?,
                    "pr-verification.yml: committed checks no job runs (#{missing.join(', ')})")
 end

@@ -51,9 +51,27 @@ Dependabot co-authors survive, and `Merge …` / `Revert "…"` subjects are exe
 
 ## pre-push (`scripts/local-gates/pre-push-affected.sh`)
 
-One hook, forty lines. `git diff --name-only --no-renames $(git merge-base origin/main HEAD)...HEAD`
-lists the changed files; `pnpm ls -r --depth -1 --json` lists the workspace project directories; a
-prefix join gives the package set. The root project and `@animichi/agent` are dropped — the first
+One hook, 66 lines — over the ≤40 the card asked for, and the reason is written into the script:
+reading the pushed refs (below) and checking every path for an owner both take real code, and
+shrinking them back would mean deleting a guard rather than tightening one.
+
+It gates **what is being pushed, not what is checked out**. git hands a pre-push hook one
+`<local ref> <local sha> <remote ref> <remote sha>` record per ref on stdin, so
+`git push origin other:other` from a worktree sitting on some other branch has to gate `other`.
+The script reads those records, skips deletions (a zero local sha), and for each one diffs against
+its merge base with `origin/main` — or against the remote sha when that is already an ancestor,
+which narrows the diff to what the remote has not seen. The changed paths of every pushed ref are
+unioned before routing.
+
+One wrinkle worth knowing: pre-commit's pre-push wrapper consumes that stdin itself and re-exports
+only the **first** pushable record as `PRE_COMMIT_TO_REF` / `PRE_COMMIT_FROM_REF`
+(`pre_commit/commands/hook_impl.py`, `_pre_push_ns`). The script therefore reads stdin when it is
+given any, falls back to those variables, and falls back again to `HEAD` for a by-hand run. Under
+the pre-commit wrapper a single `git push a:a b:b` gates only `a`; run as a bare git hook, it gates
+both.
+
+`pnpm ls -r --depth -1 --json` lists the workspace project directories; a prefix join against the
+changed paths gives the package set. The root project and `@animichi/agent` are dropped — the first
 would match every file by directory containment, the second is the agent bucket's job. Each selected
 package then runs, through `pnpm -r --filter "...<name>" run --if-present`:
 
@@ -92,20 +110,26 @@ Paths that need no package gate, because another hook or a CI job already owns t
 
 ```text
 docs/**  .claude/**  .github/**  .semgrep*  scripts/**
-root-level *.md  codecov.yml  .pre-commit-config.yaml  Makefile
+root-level *.md  codecov.yml  .pre-commit-config.yaml  commitlint.config.js  Makefile
 ```
 
-When the diff is non-empty, the package set is empty, neither the agent nor the migrations bucket
-fired, and a changed file is on none of those paths, the push **fails and lists the files**. A new
-top-level directory, a new tool config: both stop the push with their own names in the message
-rather than passing unexamined. The fix is to give the path a home — a package, a bucket, or a
-reviewed whitelist entry — not to widen the pattern reflexively.
+**Every** changed path has to be owned by something: a selected package's directory, a bucket that
+actually fired, or the whitelist. Whatever is left over stops the push and is listed by name. The
+check runs on the whole diff rather than only when nothing was selected — otherwise a commit that
+touched `workers/catalog/src/` *and* added a stray top-level file would sail through on the strength
+of its first half, which is exactly what it did until #1371's review caught it.
 
-The branch is a backstop for the selection itself, not only for unfamiliar paths. Break the prefix
-join or delete a bucket and the paths it used to own arrive here unaccounted, so the push goes red
-naming them rather than passing with an empty package set. That is why the loop skips a blank
-project line: an empty `pnpm ls` result still yields one, and without the guard it would match
-every file and fill the package set with nothing.
+A new top-level directory, a new tool config: both stop the push with their own names in the
+message rather than passing unexamined. The fix is to give the path a home — a package, a bucket,
+or a reviewed whitelist entry — not to widen the pattern reflexively. (`commitlint.config.js` is on
+the whitelist because turning this check on found it owned by nothing at all.)
+
+The ownership set is built from what actually happened, so it also backstops the selection itself.
+Each bucket adds its own paths only when it fired, and each selected package adds its directory, so
+breaking the prefix join or deleting a bucket leaves the paths they used to own unaccounted and the
+push goes red naming them. That is also why the loop skips a blank project line: an empty `pnpm ls`
+result still yields one, and without the guard it would match every file and fill the package set
+with nothing.
 
 ## `make check-full` (manual, not a hook)
 

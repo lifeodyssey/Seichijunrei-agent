@@ -7,28 +7,54 @@ set -euo pipefail
 unset "${!GIT_@}"
 cd "$(git rev-parse --show-toplevel)"
 
-NO_PACKAGE='^(docs/|\.claude/|\.github/|\.semgrep|scripts/|codecov\.yml$|\.pre-commit-config\.yaml$|Makefile$|[^/]+\.md$)'
+NO_PACKAGE='^(docs/|\.claude/|\.github/|\.semgrep|scripts/|codecov\.yml$|\.pre-commit-config\.yaml$|commitlint\.config\.js$|Makefile$|[^/]+\.md$)'
 ROOT_MANIFEST='^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml|\.npmrc)$'
-changed="$(git diff --name-only --no-renames "$(git merge-base origin/main HEAD)"...HEAD)"
+ZERO=0000000000000000000000000000000000000000
+
+# Gate what is being pushed, not what is checked out: `git push origin other:other`
+# from this worktree must gate `other`. git feeds the hook one
+# `<local ref> <local sha> <remote ref> <remote sha>` record per ref. pre-commit's
+# wrapper consumes that stdin and re-exports only the FIRST pushable record as
+# PRE_COMMIT_{TO,FROM}_REF, so read stdin when it is there and fall back to the
+# variables, then to HEAD for a by-hand run (`[ -t 0 ]` keeps a terminal run from
+# blocking on a read that will never arrive).
+records=""
+[ -t 0 ] || records="$(cat)"
+[ -n "$records" ] || records="_ ${PRE_COMMIT_TO_REF:-HEAD} _ ${PRE_COMMIT_FROM_REF:-$ZERO}"
+changed=""
+while read -r _ local_sha _ remote_sha; do
+  { [ -n "$local_sha" ] && [ "$local_sha" != "$ZERO" ]; } || continue  # a deletion pushes no content
+  base="$(git merge-base origin/main "$local_sha")"
+  # A remote sha already in this history is the tighter base: only what is new.
+  ! git merge-base --is-ancestor "${remote_sha:-$ZERO}" "$local_sha" 2>/dev/null || base="$remote_sha"
+  changed="$changed$(git diff --name-only --no-renames "$base...$local_sha")
+"
+done <<<"$records"
+changed="$(sort -u <<<"$changed" | grep -v '^$' || true)"
 [ -n "$changed" ] || exit 0
+
 deps=$(grep -cE "$ROOT_MANIFEST" <<<"$changed" || true)
 projects="$(pnpm ls -r --depth -1 --json | jq -r --arg root "$PWD/" '
   .[] | select(.name != "animichi-cloudflare-worker" and .name != "@animichi/agent")
       | "\(.path | ltrimstr($root))/ \(.name)"')"
-packages=""
+packages=""; covered="$NO_PACKAGE"
 while read -r dir name; do
   [ -n "$dir" ] || continue  # an empty $projects still yields one blank line
-  if [ "$deps" != 0 ] || grep -q "^$dir" <<<"$changed"; then packages="$packages $name"; fi
+  if [ "$deps" != 0 ] || grep -q "^$dir" <<<"$changed"; then packages="$packages $name"; covered="$covered|^$dir"; fi
 done <<<"$projects"
 agent=$(grep -cE '^(apps/agent|packages/contract)/' <<<"$changed" || true)
 schema=$(grep -cE '^migrations/neon/' <<<"$changed" || true)
 docs=$(grep -cE '^(docs/|\.claude/|[^/]+\.md$)' <<<"$changed" || true)
 printf 'pre-push: packages:%s | agent=%s schema=%s deps=%s docs=%s\n' "${packages:- (none)}" "$agent" "$schema" "$deps" "$docs"
-# Nothing selected it, no bucket owns it, and no whitelist entry excuses it.
-if [ -z "$packages" ] && [ "$agent" = 0 ] && [ "$schema" = 0 ]; then
-  loose="$(grep -vE "$NO_PACKAGE" <<<"$changed" || true)"
-  [ -z "$loose" ] || { printf 'pre-push: no gate covers:\n%s\n' "$loose" >&2; exit 1; }
-fi
+
+# Every changed path must be owned by a selected package, a bucket that fired or
+# the whitelist. Checked over the whole diff, so a mixed one cannot carry an
+# unowned path through on the strength of its other half.
+[ "$deps" = 0 ] || covered="$covered|$ROOT_MANIFEST"
+[ "$agent" = 0 ] || covered="$covered|^(apps/agent|packages/contract)/"
+[ "$schema" = 0 ] || covered="$covered|^migrations/neon/"
+loose="$(grep -vE "$covered" <<<"$changed" || true)"
+[ -z "$loose" ] || { printf 'pre-push: no gate covers:\n%s\n' "$loose" >&2; exit 1; }
 closure="..."; [ "$deps" = 0 ] || closure=""  # every package is already selected
 for name in $packages; do
   for script in lint typecheck test test:integration; do
