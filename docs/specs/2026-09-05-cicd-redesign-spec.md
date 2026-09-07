@@ -474,6 +474,7 @@ E4 验收：
 8. **pnpm 图的盲区（四种）。** 目录外的改动（`migrations/neon/**`、`.github/**`）不会让 `[<ref>]` 选中包：前者有 paths-filter，后者由 zizmor / actionlint 守。根项目：`docs/**`、`.github/**`、`pnpm-lock.yaml` 的改动让 pnpm 选中根 `animichi-cloudflare-worker`，`...` 不会因此加进任何依赖方，所以根依赖文件走 `deps` 过滤器触发全包，matrix 减去根（B1）。`apps/agent`：它**是** pnpm 项目（`@animichi/agent`，`test` = `uv run pytest`），agent 改动会让 pnpm 选中它，而 runner 没有 uv、`agent` job 已经跑了同一套——matrix 与本地路由都减去它，`apps/agent` 的路由只走 paths-filter 与 `make check`。linked worktree：pnpm 在其中选不到任何包（§3.2），本地路由不能依赖 pnpm 的选包，CI 在主 checkout 里不受影响（§七 N2）。
 9. **`wrangler rollback` 的边界。** 可回退的版本数、绑定 / 密钥变化后的回退语义未在文档里确认【待核】；镜像回退 = 重发旧 tag，W4 后消失。
 10. **fork PR。** 无 `id-token`，PR 工作流不用 ESC，Codecov OIDC 在 fork 上失败——与今天相同。
+11. **skip 传播的护栏是 `if:`，不是 `needs`（§七 N3 已裁定）。** C1 在 throwaway 分支上人为让 `stage-migration` 红：`promote-production` 在 `needs` 全列时 skipped（run 34134624640），把它的 `needs` 临时缩成 `[plan, build, smoke]` 的对照里同样 skipped（run 34134828691，两次均 2026-09-07）。job 级 `if:` 里的 `failure()` 按文档在整条依赖链的**祖先**上求值，不只看 `needs` 里直接出现的 job。所以挡住一个红 stage 进生产的是 `promote-production` 的 `!failure() && !cancelled()` 守卫——它必须留着；`needs` 全列保留（顺序与可读性），但它不是那道护栏。
 
 ## 七、待核清单
 
@@ -504,7 +505,7 @@ E4 验收：
 | 23 | 合并 hook（owner 侧，决策 15；owner 当晚清单的 ⑤） | 机器外部，不开卡：`~/.claude/hooks/check-pr-comments.sh:160-216` 的"机器人时间戳晚于 head commit"规则改按内容，update-branch / rebase 不算新 diff |
 | N1 | Pulumi Cloud 的 OIDC issuer policy 绑定的 subject | 部分已解：token 类型已定（2026-09-05 探针实测 + Pulumi 文档）——个人版 org 只能换 personal token（`scope: user:lifeodyssey`），policy 要带一条 token type "personal" 的策略，W-A 由 owner 在控制台加。subject 仍开放：GitHub 的 `sub` 在 job 引用 environment 时是 `environment:<name>`，否则 `ref:refs/heads/main`[^gh-oidc]；Pulumi 文档的范例是 `repo:<org>/<repo>:*`[^pl-oidc]，#1072 按它落地（owner 告知）；D1 钉成 §3.5 的两个 subject 并贴原文 |
 | N2 | pnpm 在 linked worktree 里选不到包 | 开放（上游）：行为已复现（§3.2），pnpm 源码里的根因未定位；先在 pnpm 仓库找有没有 issue，没有就开一个并记 URL |
-| N3 | `failure()` 是否跨越 skipped 的 job 传播 | 开放：GitHub 表达式文档说 `failure()` "returns true if any ancestor job fails"[^gha-expr]，仓库 08-26 的测量与 `cd.yml:78-88` 的注释说只看 `needs` 里直接出现的 job。C1 验收第 4 条的对照实验裁定，结果写回 §六 |
+| N3 | `failure()` 是否跨越 skipped 的 job 传播 | 已解（C1 验收第 4 条的对照实验，2026-09-07）：跨越——文档的 "returns true if any ancestor job fails"[^gha-expr] 成立，08-26 的测量与 `cd.yml` 里"只看 `needs` 里直接出现的 job"的注释不成立；两个 run 与由此得出的护栏归属见 §六 第 11 条 |
 | N4 | workers.dev 上的 Access 应用是否接受 Service Auth / service token；能否用 Pulumi 建 | 开放（#12 定案的前提，D3 第一步就测它）：Workers 文档说建的是 destination type `worker` 的 self-hosted Access 应用、之后在 Zero Trust 里编辑[^cf-wdev]，self-hosted 应用的文档又说 "Domains must belong to an active zone in your Cloudflare account"[^cf-selfhosted]（workers.dev 不是账户里的 zone，所以是另一条创建路径）；要在 throwaway 上实测：建应用、加 `nonIdentity` + `serviceToken` policy、带两个 header 的 `curl` 得 200；Pulumi 侧看 `ZeroTrustAccessApplication` 有没有 `destinations`（type `worker`）输入，没有就把 `POST /accounts/{account_id}/access/apps` 那一次调用写进 runbook |
 
 脚注（官方文档，2026-09-05 核对）：

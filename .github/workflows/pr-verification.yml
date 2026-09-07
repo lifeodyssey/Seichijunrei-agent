@@ -77,6 +77,7 @@ jobs:
               - 'migrations/neon/**'
             workflows:
               - '.github/workflows/**'
+              - '.github/actions/**'
             deps:
               - 'pnpm-lock.yaml'
               - 'package.json'

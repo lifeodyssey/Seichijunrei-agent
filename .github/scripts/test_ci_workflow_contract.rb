@@ -11,8 +11,9 @@
 #               `test` shells out to
 #   workspace   a job that runs a repository script importing workspace
 #               dependencies installs the workspace first
-#   workflows   a workflow-only pull request still reaches the lanes whose tests
-#               read deployment workflow text
+#   workflows   a change under `.github/` still reaches the lanes whose tests
+#               read deployment workflow text, and the route covers every
+#               composite action the jobs call
 #   contracts   every repository contract `quality.sh` runs, the `contracts` job
 #               runs too — CI's list is explicit, so a new one added to the local
 #               gate alone would be pre-push-only. SCOPE: this reads only
@@ -58,10 +59,16 @@ MATRIX_TOOLCHAINS = [
 ].freeze
 AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')"
 # `.github/**` belongs to the root project, which the matrix subtracts, so pnpm
-# answers a workflow-only pull request with nothing. These two lanes own the
-# tests that read deployment workflow text — several of which extract a shipped
-# shell block and run it — and both have to be reachable from that change alone.
+# answers a change under it with nothing. These two lanes own the tests that
+# read deployment workflow text — several of which extract a shipped shell
+# block and run it — and both have to be reachable from that change alone.
+# The composite actions share that blind spot: `./.github/actions/setup` is how
+# the matrix, the agent lane and the schema lane get a workspace, and while the
+# route named only `workflows/**` a change to it selected no package and
+# skipped the agent lane. Which glob covers them is the workflow's business.
+WORKFLOW_ROUTE = "workflows"
 WORKFLOW_FILTER = ".github/workflows/**"
+LOCAL_ACTION_PATH = %r{\A\./(\.github/actions/[^/\s]+)}
 WORKFLOW_PACKAGE = "edge-worker"
 WORKFLOW_ROUTED_JOB = "agent"
 QUALITY_GATE = File.join(repository_root, "scripts", "local-gates", "quality.sh")
@@ -184,6 +191,37 @@ def assert_workflow_changes_reach_their_tests
                    "pr-verification.yml:#{WORKFLOW_ROUTED_JOB}: must run on a workflow-only change")
 end
 
+# The `workflows` route as the plan job declares it: the paths-filter input is
+# a YAML document of its own, carried as a block scalar.
+def declared_route_globs
+  filters = @ci.steps_of("plan").map { |step| step.dig("with", "filters") }.compact.join("\n")
+  Array(YAML.safe_load(filters)[WORKFLOW_ROUTE])
+end
+
+def local_actions_called
+  @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }
+     .map { |step| step["uses"].to_s[LOCAL_ACTION_PATH, 1] }.compact.uniq
+end
+
+# A glob routes a directory when everything before its first wildcard is a
+# prefix of it: `.github/actions/**` and `.github/actions/setup/**` both route
+# `.github/actions/setup`; `.github/workflows/**` routes neither.
+def routes?(glob, directory)
+  "#{directory}/".start_with?(glob[/\A[^*?\[]*/])
+end
+
+# What the jobs call, not only the file they are written in: an action reached
+# through `uses: ./…` sits where pnpm sees nothing, so this route is the only
+# thing that can carry a change to it into a lane that runs it.
+def assert_called_actions_are_routed
+  @log.unless_true(!local_actions_called.empty?,
+                   "pr-verification.yml: no job calls a repository composite action any more")
+  local_actions_called.each do |path|
+    @log.unless_true(declared_route_globs.any? { |glob| routes?(glob, path) },
+                     "pr-verification.yml: the #{WORKFLOW_ROUTE} route does not cover #{path}")
+  end
+end
+
 # The local gate and CI's `contracts` job are two hand-kept lists of the same
 # thing. A contract wired into only the first would run at pre-push and never
 # block a pull request. `CONTRACT_INVOCATION` is the scope limit documented in
@@ -237,6 +275,7 @@ end
 # CI too. Both failures are silent — the guard exists, and never fires.
 def assert_guards_are_reachable
   assert_workflow_changes_reach_their_tests
+  assert_called_actions_are_routed
   assert_contracts_job_runs_every_local_contract
 end
 

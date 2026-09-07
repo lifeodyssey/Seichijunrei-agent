@@ -296,12 +296,12 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Every stage lists every earlier stage in `needs`, not just its predecessor.
-  # `!failure()` and `!cancelled()` are evaluated over the jobs literally named
-  # in `needs`; a stage whose own `if` turned false because its predecessor
-  # failed has result `skipped`, which would otherwise let the stage after it
-  # run clean. A stage skipped because its unit was not affected is `skipped`
-  # too, and that is the skip this chain must keep allowing.
+  # `!failure()` and `!cancelled()` are evaluated over every ancestor in the
+  # dependency chain, not only the jobs named in `needs` (measured 2026-09-07,
+  # runs 34134624640 / 34134828691) — so this guard, not the `needs` list, is
+  # what stops a red stage here, and it must stay even if `needs` is shortened.
+  # A stage skipped because its unit was not affected is `skipped`, not failed,
+  # and that is the skip this chain must keep allowing.
   stage-foundation:
     name: CD / staging foundation
     needs: [plan, build]
@@ -578,9 +578,10 @@ jobs:
           https://animichi-staging.zhenjiazhou0127.workers.dev
           https://animichi-web-staging.zhenjiazhou0127.workers.dev
 
-  # Every earlier job is listed: depending on `smoke` alone would read an
-  # upstream failure as a skip. There is no build step here — the artifact
-  # downloaded below is byte-identical to the one staging was smoke-checked on.
+  # The guard, not the `needs` list, keeps a red stage out of production:
+  # `failure()` reaches every ancestor (2026-09-07, runs 34134624640 /
+  # 34134828691). There is no build step here — the artifact downloaded below
+  # is byte-identical to the one staging was smoke-checked on.
   promote-production:
     name: CD / promote production
     needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge, stage-web, smoke]

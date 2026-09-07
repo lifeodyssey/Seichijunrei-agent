@@ -11,7 +11,8 @@
 #              `pnpm exec wrangler deploy … --env production` in a staging stage
 #              goes live with no approval and touches no action input
 #   version    every publish pins the workspace Wrangler and tags the version
-#              `sha-<sha>`, so `wrangler versions list` names the commit
+#              `sha-<sha>`, so `wrangler versions list` names the commit — the
+#              shell route included, for the reason the target rule covers it
 #   smoke      the staging gate probes the two real surfaces, and its exit code
 #              is what decides the job — a discarded one promotes a broken
 #              staging, which is the #1198 failure the job exists to prevent
@@ -113,15 +114,24 @@ def shell_publishes(job)
   shell_commands(job).select { |command| command.match?(PUBLISH_COMMAND) && !command.match?(DRY_RUN) }
 end
 
+def assert_shell_publish_obeys(job, environment, command)
+  @log.unless_true(command.include?("--env #{environment}"),
+                   "cd.yml:#{job}: a shell publish here must target --env #{environment}")
+  @log.unless_true(command.include?(DEPLOY_TAG),
+                   "cd.yml:#{job}: a shell publish here must tag its version #{DEPLOY_TAG}")
+end
+
 # A publish through `pnpm exec wrangler deploy` satisfies every assertion above
-# by never touching a wrangler-action step, so the shell gets the same rule.
-def assert_shell_publishes_obey_the_same_target
+# by never touching a wrangler-action step, so the shell gets both of the rules
+# those steps are held to — the environment and the tag. Untagged, a live
+# Worker cannot be traced back to a commit, and which route published it is no
+# part of that.
+def assert_shell_publishes_obey_the_same_rules
   @cd.jobs.each_key do |job|
     environment = DEPLOY_TARGETS[job]
     shell_publishes(job).each do |command|
       @log.unless_true(!environment.nil?, "cd.yml:#{job}: this job must not publish a Worker at all")
-      @log.unless_true(environment.nil? || command.include?("--env #{environment}"),
-                       "cd.yml:#{job}: a shell publish here must target --env #{environment}")
+      assert_shell_publish_obeys(job, environment, command) unless environment.nil?
     end
   end
 end
@@ -181,7 +191,7 @@ def main
   assert_deploys_pin_wrangler
   assert_deploys_tag_the_version
   assert_deploys_name_their_own_environment
-  assert_shell_publishes_obey_the_same_target
+  assert_shell_publishes_obey_the_same_rules
   assert_smoke_probes_the_real_surfaces
   assert_smoke_failure_is_decisive
   assert_production_migration_step
