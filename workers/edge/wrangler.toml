@@ -83,7 +83,7 @@ compatibility_date = "2025-03-01"
 # @cloudflare/containers reaches ctx.exports.ContainerProxy when starting the
 # RuntimeContainer; without the flag the export exists but the API does not,
 # and every container start fails with "ctx.exports is undefined" — staging
-# /healthz 500 on the first real root deploy (run 30795617682).
+# /healthz 500 on the first real edge deploy (run 30795617682).
 compatibility_flags = ["nodejs_compat", "enable_ctx_exports"]
 main = "src/entry.ts"
 
@@ -476,8 +476,8 @@ AGENT_TURN_ROUTE = "edge"
 # from the deployment secret set (an earlier revision did that) would
 # NOT preserve staging's current behavior — there is no wildcard fallback.
 # `workers/edge/src/container/container-env.ts` hardcodes `APP_ENV: "production"` for every
-# environment (confirmed: no APP_ENV var/secret exists anywhere — root,
-# staging, or production), and only forwards CORS_ALLOWED_ORIGIN to the
+# environment (confirmed: no APP_ENV var/secret exists anywhere — the base
+# section, staging, or production), and only forwards CORS_ALLOWED_ORIGIN to the
 # container when it is non-empty. With it absent, the container boots with
 # `app_env=production` and `cors_allowed_origin=""`'s Pydantic-validated
 # default `"*"` — and `settings.py`'s `validate_cors_origin` raises
@@ -493,7 +493,7 @@ AGENT_TURN_ROUTE = "edge"
 # a GH secret nobody would think to look for, and needs no owner action.
 # `buildContainerEnvVars` forwards `vars` and `secrets` identically — this
 # is not a behavior change from the container's point of view. NOTE: the
-# root `animichi-staging` Worker has never successfully deployed yet
+# edge `animichi-staging` Worker has never successfully deployed yet
 # (`wrangler secret list --env staging` -> "Worker ... not found"), so there
 # is no pre-existing manually-set CORS_ALLOWED_ORIGIN secret this could
 # conflict with.

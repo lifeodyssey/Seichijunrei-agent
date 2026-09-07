@@ -1,6 +1,6 @@
 name = "users"
 main = "src/index.ts"
-# No public workers.dev host — reached only via the root Worker USERS service binding.
+# No public workers.dev host — reached only via the edge Worker USERS service binding.
 workers_dev = false
 compatibility_date = "2025-09-23"
 compatibility_flags = ["nodejs_compat"]

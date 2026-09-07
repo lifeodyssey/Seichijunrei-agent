@@ -34,6 +34,7 @@ for ruby_file in \
   "$GS/test_cd_publish_contract.rb" \
   "$GS/test_cd_credential_boundary_contract.rb" \
   "$GS/test_package_test_segments.rb" \
+  "$GS/test_edge_naming_contract.rb" \
   "$GS/test_gitleaks_config_extends_defaults.rb" \
   "$GS/test_gitleaks_config_extends_defaults_mutation.rb"; do
   run ruby -c "$ruby_file"
@@ -48,6 +49,7 @@ run ruby "$GS/test_cd_shape_contract.rb"
 run ruby "$GS/test_cd_publish_contract.rb"
 run ruby "$GS/test_cd_credential_boundary_contract.rb"
 run ruby "$GS/test_package_test_segments.rb"
+run ruby "$GS/test_edge_naming_contract.rb"
 run bash scripts/local-gates/check-agents-refs.test.sh
 run bash scripts/local-gates/check-agents-refs.sh
 run bash scripts/local-gates/check-docs-paths.test.sh
