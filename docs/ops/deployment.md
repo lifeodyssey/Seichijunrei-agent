@@ -351,6 +351,11 @@ bundle serving (#1332): the script polls `GET /healthz` until the `bundleHead` t
 is the sealed head (12 attempts, 5s apart), and retries a bounded number of times if the Worker
 answers `409 stale_bundle` anyway.
 
+The sealed head is also the ceiling of the apply: the Worker applies the carried chain only through
+the head the script asked for, so a run can never leave the database further ahead than the chain it
+sealed. A database already standing past that head is answered `422` with nothing applied — unlike
+the `409`, that refusal is terminal and the script does not re-poll it.
+
 Expand/contract compatibility remains mandatory because schema promotion precedes consumers and a
 Worker rollback does not reverse an applied migration. For provisioning or recovery checks, follow
 [`migrations.md`](./migrations.md) and [`neon-backup-rpo.md`](./neon-backup-rpo.md); do not infer

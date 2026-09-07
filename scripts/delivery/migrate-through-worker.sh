@@ -29,6 +29,12 @@ STALE_ATTEMPTS="${STALE_BUNDLE_ATTEMPTS:-3}"
 fail() { echo "::error title=migration::$*"; exit 1; }
 required() { [ -n "${!1:-}" ] || fail "$1 is required for $TARGET_ENVIRONMENT"; }
 
+# Every call below either carries a credential (the OIDC request token, then the
+# minted token itself) or decides whether the credential-bearing POST happens, so
+# the transport is pinned to TLS. curl refuses a plain-http URL — and a redirect
+# that leaves https — instead of sending the token over it (CWE-319).
+https_only() { curl --proto '=https' --proto-redir '=https' "$@"; }
+
 sealed_head() {
   find "$MIGRATIONS_DIR" -maxdepth 1 -name '*.sql' -print \
     | sort | tail -n 1 | xargs basename | sed 's/\.sql$//'
@@ -39,14 +45,14 @@ sealed_head() {
 oidc_token() {
   required ACTIONS_ID_TOKEN_REQUEST_URL
   required ACTIONS_ID_TOKEN_REQUEST_TOKEN
-  curl -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+  https_only -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
     "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=animichi:github-actions:migrator" | jq -r .value
 }
 
 # The head of the chain the live bundle carries. A Worker mid-rollout, or one
 # that has not been redeployed at all, reports the previous head here.
 served_head() {
-  curl -sS --max-time 15 "$MIGRATOR_URL/healthz" | jq -r '.bundleHead // empty'
+  https_only -sS --max-time 15 "$MIGRATOR_URL/healthz" | jq -r '.bundleHead // empty'
 }
 
 await_bundle() {
@@ -64,7 +70,7 @@ await_bundle() {
 post_migrate() {
   local expected="$1" token="$2" body
   body="$(jq -cn --arg expectedHead "$expected" '{expectedHead:$expectedHead}')"
-  curl -sS -o "$RESPONSE" -w '%{http_code}' -X POST \
+  https_only -sS -o "$RESPONSE" -w '%{http_code}' -X POST \
     "$MIGRATOR_URL/migrate" -H "Authorization: Bearer $token" \
     -H 'content-type: application/json' --max-time 900 -d "$body"
 }

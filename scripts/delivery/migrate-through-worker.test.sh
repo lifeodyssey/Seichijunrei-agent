@@ -12,6 +12,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRIPT="$ROOT/scripts/delivery/migrate-through-worker.sh"
 SEALED_HEAD="20260904000000_platform_usage_scope"
 WORKSPACE=""
+# Resolved before any test puts the stub on PATH, so the stub can still reach the
+# shipped curl. Every URL below is loopback port 1: the real curl either refuses
+# the protocol or is refused the connection, both instantly, and no test call
+# leaves the machine.
+REAL_CURL="$(command -v curl)"
+export REAL_CURL
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -23,6 +29,17 @@ make_curl_stub() {
 #!/usr/bin/env bash
 set -euo pipefail
 args="$*"
+# The transport decision is NOT faked: the real curl is handed this call's own
+# argv and only its verdict is honoured. Exit 1 is "curl refuses this URL's
+# protocol" — the failure the script must not survive — and it is reported with
+# curl's own words. Any other exit means curl was willing to carry the call, so
+# the canned answer is served.
+verdict=0
+refusal="$("${REAL_CURL:?}" "$@" 2>&1 >/dev/null)" || verdict=$?
+if [ "$verdict" = 1 ]; then
+  echo "$refusal" >&2
+  exit 1
+fi
 count_of() { local f="$1" n=0; [ -f "$f" ] && n="$(cat "$f")"; echo $((n + 1)) > "$f"; echo "$n"; }
 pick() { local list="$1" index="$2"; awk -v i="$index" '{ print (i + 1 <= NF) ? $(i + 1) : $NF }' <<< "$list"; }
 case "$args" in
@@ -54,8 +71,8 @@ setup() {
   : > "$WORKSPACE/migrations/$SEALED_HEAD.sql"
   export PATH="$WORKSPACE/bin:$PATH"
   export CALL_LOG="$WORKSPACE/calls" STUB_STATE="$WORKSPACE/state"
-  export RUNNER_TEMP="$WORKSPACE" MIGRATOR_URL="https://migrator.test"
-  export ACTIONS_ID_TOKEN_REQUEST_URL="https://oidc.test/token?a=1"
+  export RUNNER_TEMP="$WORKSPACE" MIGRATOR_URL="https://127.0.0.1:1"
+  export ACTIONS_ID_TOKEN_REQUEST_URL="https://127.0.0.1:1/token?a=1"
   export ACTIONS_ID_TOKEN_REQUEST_TOKEN="request-token"
   export BUNDLE_POLL_ATTEMPTS=3 BUNDLE_POLL_SECONDS=0 STALE_BUNDLE_ATTEMPTS=2
   export STUB_HEADS="$SEALED_HEAD" STUB_CODES="200" STUB_APPLIED="$SEALED_HEAD"
@@ -118,13 +135,37 @@ case_fails_on_any_other_status() {
   teardown
 }
 
+# CWE-319 (CodeRabbit on #1471): the OIDC request token and the minted token
+# both ride on these calls, so a plain-http endpoint must stop the release
+# instead of being dialled. Both cases assert the refusal the SHIPPED curl
+# raises, and that no credential-bearing call follows it.
+case_refuses_a_plaintext_token_endpoint() {
+  setup
+  ACTIONS_ID_TOKEN_REQUEST_URL="http://127.0.0.1:1/token?a=1"
+  run_script > "$WORKSPACE/out" && fail "a plain-http token endpoint must fail the release"
+  grep -q 'Protocol "http"' "$WORKSPACE/out" || fail "wrong refusal: $(cat "$WORKSPACE/out")"
+  [ -z "$(calls)" ] || fail "nothing may be dialled after the refusal: $(calls)"
+  teardown
+}
+
+case_refuses_a_plaintext_migrator_url() {
+  setup
+  MIGRATOR_URL="http://127.0.0.1:1"
+  run_script > "$WORKSPACE/out" && fail "a plain-http migrator must fail the release"
+  grep -q 'Protocol "http"' "$WORKSPACE/out" || fail "wrong refusal: $(cat "$WORKSPACE/out")"
+  grep -q migrate "$CALL_LOG" && fail "must never POST the token over plain http"
+  teardown
+}
+
 for test_case in \
   case_applies_after_the_bundle_is_serving \
   case_waits_for_the_new_bundle_before_posting \
   case_fails_when_the_new_bundle_never_serves \
   case_retries_a_409_stale_bundle \
   case_gives_up_on_an_endless_409 \
-  case_fails_on_any_other_status; do
+  case_fails_on_any_other_status \
+  case_refuses_a_plaintext_token_endpoint \
+  case_refuses_a_plaintext_migrator_url; do
   "$test_case"
 done
 

@@ -438,9 +438,13 @@ jobs:
           MIGRATOR_PRODUCTION_URL: ${{ vars.MIGRATOR_PRODUCTION_URL }}
         run: |
           set -euo pipefail
-          token="$(curl -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          # Both calls carry a bearer credential, so curl refuses any transport
+          # below https — including a redirect off it (CWE-319), matching
+          # scripts/delivery/migrate-through-worker.sh.
+          token="$(curl --proto '=https' --proto-redir '=https' -sSfL \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=animichi:github-actions:migrator" | jq -er .value)"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+          code="$(curl --proto '=https' --proto-redir '=https' -sS -o /dev/null -w '%{http_code}' -X POST \
             "$MIGRATOR_PRODUCTION_URL/migrate" -H "Authorization: Bearer $token" \
             -H 'content-type: application/json' --max-time 60 -d '{}')"
           echo "production migrator answered HTTP $code to a staging token"

@@ -23,10 +23,18 @@ function swallow(): undefined {
 }
 
 interface ApplyStub {
-  run(dsn: string): Promise<ContainerOutcome>;
+  run(dsn: string, expectedHead: string | null): Promise<ContainerOutcome>;
 }
 
-export function productionApply(namespace: DurableObjectNamespace): (dsn: string) => Promise<ContainerOutcome> {
+/**
+ * The head the caller asked for crosses the Durable Object boundary as an
+ * explicit `null` rather than a trailing `undefined`, so the RPC always carries
+ * the same arity and the lock cannot read "no bound" as "apply everything" by
+ * accident.
+ */
+export function productionApply(
+  namespace: DurableObjectNamespace,
+): (dsn: string, expectedHead?: string) => Promise<ContainerOutcome> {
   const stub = namespace.get(namespace.idFromName(APPLY_LOCK_NAME)) as unknown as ApplyStub;
-  return (dsn) => stub.run(dsn);
+  return (dsn, expectedHead) => stub.run(dsn, expectedHead ?? null);
 }

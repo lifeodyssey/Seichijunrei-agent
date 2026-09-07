@@ -31,13 +31,12 @@ export function filesFrom(source: ChainSource): ChainFile[] {
  * bundle carries, never what their bodies say, so no file body is loaded.
  */
 export function headsOf(source: ChainSource): string[] {
-  return parseSum(source.atlasSum()).map((entry) => headOf(entry.filename));
+  return parseSum(source.atlasSum()).map((entry) => headOf(splitFilename(entry.filename)));
 }
 
 /** The head a chain file leaves in the ledger — `ledger.ts`'s `version_description`. */
-function headOf(filename: string): string {
-  const { version, description } = splitFilename(filename);
-  return description.length === 0 ? version : `${version}_${description}`;
+export function headOf(file: { version: string; description: string }): string {
+  return file.description.length === 0 ? file.version : `${file.version}_${file.description}`;
 }
 
 export function parseSum(text: string): { filename: string; hash: string }[] {

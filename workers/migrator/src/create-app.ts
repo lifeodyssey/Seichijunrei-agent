@@ -37,7 +37,7 @@ export interface MigratorDeps {
   verifier?: GitHubOidcVerifier;
   /** JWKS for the env-selected policy; `verifier` overrides the selection. */
   jwks?: JWTVerifyGetKey;
-  runContainer?: (dsn: string) => Promise<ContainerOutcome>;
+  runContainer?: (dsn: string, expectedHead?: string) => Promise<ContainerOutcome>;
   readAppliedHead?: (dsn: string) => Promise<string | null>;
   /** The chain this Worker carries; the handshake answers from it. */
   chain?: ChainSource;
@@ -158,17 +158,31 @@ function failureBody(result: Extract<MigrationRunResult, { kind: "failure" }>): 
   return { success: false, exitCode: result.exitCode, appliedHead: null, error: result.error };
 }
 
+/**
+ * 422, not 409: the 409 of this API is `stale_bundle`, which the deploy script
+ * answers by waiting and re-POSTing (scripts/delivery/migrate-through-worker.sh).
+ * A request this bundle and ledger cannot satisfy never becomes satisfiable by
+ * waiting, so it must not land in that retry loop.
+ */
+function refusedResponse(result: Extract<MigrationRunResult, { kind: "refused" }>): Response {
+  return Response.json({ success: false, appliedHead: null, error: result.reason }, { status: 422 });
+}
+
 function outcomeResponse(result: MigrationRunResult): Response {
   if (result.kind === "failure") return Response.json(failureBody(result), { status: 500 });
+  if (result.kind === "refused") return refusedResponse(result);
   if (result.kind === "timeout") return timeoutResponse(result);
   if (result.kind === "head_mismatch") return mismatchResponse(result);
   return successResponse(result);
 }
 
+/** The bounded apply seam: the head the caller asked for travels with the DSN. */
+type MigrationApply = (dsn: string, expectedHead?: string) => Promise<ContainerOutcome>;
+
 async function runContainerFor(
   env: Env,
   deps: MigratorDeps,
-): Promise<(dsn: string) => Promise<ContainerOutcome>> {
+): Promise<MigrationApply> {
   if (deps.runContainer !== undefined) return deps.runContainer;
   const { productionApply } = await import("./lock");
   return httpApplyBound(env, productionApply);
@@ -176,8 +190,8 @@ async function runContainerFor(
 
 function httpApplyBound(
   env: Env,
-  bind: (ns: DurableObjectNamespace) => (dsn: string) => Promise<ContainerOutcome>,
-): (dsn: string) => Promise<ContainerOutcome> {
+  bind: (ns: DurableObjectNamespace) => MigrationApply,
+): MigrationApply {
   if (env.MIGRATOR_APPLY_LOCK === undefined) throw new Error("migrator apply lock not configured");
   return bind(env.MIGRATOR_APPLY_LOCK);
 }

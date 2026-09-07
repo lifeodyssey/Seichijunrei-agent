@@ -1,6 +1,7 @@
 import { filesFrom, type ChainFile, type ChainSource } from "./chain";
 import type { ApplyLock } from "./lock";
 import type { ContainerOutcome } from "./migration";
+import { requestedChain } from "./requested-chain";
 import { assertDirectDsn, type SqlClient, type SqlFactory, type SqlParam, type SqlStatement } from "./sql";
 import { mixedTxMode, needsTxNone, splitSql } from "./sql-split";
 
@@ -55,6 +56,12 @@ export interface ApplyInput {
   source: ChainSource;
   connect: SqlFactory;
   now: () => Date;
+  /**
+   * The head the caller asked for. The apply STOPS there: an A request against
+   * an A→B bundle applies A and leaves B pending. Omitted means "the whole
+   * carried chain", which is what an `expectedHead`-less POST asks for.
+   */
+  expectedHead?: string;
 }
 
 export interface HttpApplyInput extends ApplyInput {
@@ -101,7 +108,9 @@ async function applyFiles(input: ApplyInput): Promise<ContainerOutcome> {
   const sql = input.connect(input.dsn);
   await sql.query(LEDGER_SQL);
   const ledger = await loadLedger(sql);
-  return applyPending(sql, filesFrom(input.source), ledger, input.now);
+  const requested = requestedChain(filesFrom(input.source), ledger.applied, input.expectedHead);
+  if (requested.kind === "refused") return requested;
+  return applyPending(sql, requested.files, ledger, input.now);
 }
 
 async function applyPending(

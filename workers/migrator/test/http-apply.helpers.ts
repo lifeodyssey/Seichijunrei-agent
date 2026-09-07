@@ -61,9 +61,12 @@ export function applyFixture(db: FakeSql, extra: Partial<HttpApplyInput> = {}): 
   });
 }
 
+// The Worker's own seam: the head the caller asked for reaches the apply, which
+// is what bounds it (src/requested-chain.ts). Dropping `expectedHead` here would
+// leave the apply unbounded exactly as it was before #1471.
 export function workerHttpDeps(db: FakeSql) {
   return {
-    runContainer: (dsn: string) => applyFixture(db, { dsn }),
+    runContainer: (dsn: string, expectedHead?: string) => applyFixture(db, { dsn, expectedHead }),
     readAppliedHead: (): Promise<string | null> => Promise.resolve(db.head()),
   };
 }

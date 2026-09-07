@@ -57,7 +57,16 @@ separate DSN secrets and separate OIDC allowlists. Root guide:
    deployment — and `POST /migrate` answers `409 {error:"stale_bundle",
    bundleHead}` to an `expectedHead` the carried chain cannot reach, before it
    resolves a DSN. `scripts/delivery/migrate-through-worker.sh` polls the first
-   and retries the second, bounded.
+   and retries the second, bounded (over https only — curl refuses any lesser
+   transport, redirects included, for calls that carry the OIDC token).
+   That same `expectedHead` also BOUNDS the apply (`src/requested-chain.ts`):
+   the carried chain is truncated after the file that leaves that head in the
+   ledger, so a request for an earlier head applies up to it and leaves the
+   rest pending — before this, an `A` request against an `A→B` bundle advanced
+   the database to `B` and only then failed the head check. A request the
+   ledger already stands past is refused `422 {error}` with nothing applied:
+   409 is the retryable `stale_bundle`, and no amount of waiting makes this
+   request satisfiable.
 4. **Report**: returns success + applied head from
    `public.atlas_schema_revisions` (`src/ledger.ts`) + `pathVerification`.
    CI fails unless applied head == expected head; it does not gate on
@@ -95,3 +104,6 @@ both allowlists (the cross-replay matrix, plus the control case: an
 actually picks one — without it `policyFor` could be dead code and every claims
 test would still pass. `test/migrate.worker.handshake.test.ts` owns `/healthz`'s
 `bundleHead` and the 409, including that it precedes the DSN.
+`test/migrate.worker.bound.test.ts` owns the apply bound: it drives the real
+apply over the fake neon-http client, so it asserts the SQL that reached the
+database, not the arguments it was called with.
