@@ -11,8 +11,9 @@
 # subtracted for the same reason: its `test` is the full Playwright suite,
 # which needs a served Worker; the `e2e` job owns that lane (B4 folds the two).
 #
-# `agent`, `e2e` and `db` are TRANSITIONAL jobs carried over unchanged so no
-# lane goes dark between B1 and B2 / B4 / B5, which rewrite them in place.
+# `agent` and `e2e` are TRANSITIONAL jobs carried over unchanged so no lane
+# goes dark between B1 and B2 / B4, which rewrite them in place. `db` was one
+# too until B5 (#1363) rewrote it into the schema gate below.
 # `codeql` is transitional too (B3 replaces it with CodeQL default setup); it
 # is deliberately absent from both aggregates — the ruleset's code_scanning
 # rule consumes its results directly, and default setup makes in-flight PRs'
@@ -314,6 +315,21 @@ jobs:
       # into the package's own `test`.
       - uses: ./.github/actions/cross-stack-e2e
 
+  # The schema gate (card B5 / #1363). `migrations/neon/` sits outside every
+  # pnpm project, so the affected matrix cannot see it: without this job a
+  # migration-only PR would be guarded by sqlfluff alone. The three segments
+  # below are three separate steps on purpose — each answers a different
+  # question, and a collapsed `run:` block would hide which one failed.
+  #
+  #   validate       the chain is internally consistent and atlas.sum matches
+  #   fresh-schema   it still applies, in order, to a pristine database
+  #   migrator test  the Worker that ships the chain still agrees with it
+  #                  (workers/migrator/src/bundled-chain.ts imports each .sql
+  #                  by literal path, and pnpm's graph does not see that edge)
+  #
+  # sqlfluff is NOT here: it is its own security job, and the `Security`
+  # aggregate consumes it. Applying happens inside db-fresh-schema.sh, against
+  # a throwaway container — this workflow never runs `atlas migrate apply`.
   db:
     name: CI / schema
     needs: plan
@@ -323,25 +339,25 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # 0.30.0 is the repository's Atlas pin: `.github/actions/install-atlas`
+      # (still the matrix's provisioning step until C1 retires it) and
+      # apps/agent/src/animichi/tests/atlas_helper.py:19 name the same version.
+      # atlasgo.sh interpolates ATLAS_VERSION straight into the release file
+      # name, so it takes the tag form and the `v` stays.
+      - uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
         with:
-          python: "true"
-      - run: uv python install 3.11
-      - uses: ./.github/actions/install-atlas
+          version: "v0.30.0"
+      - name: Validate the migration directory
+        run: atlas migrate validate --dir file://migrations/neon
       # db-fresh-schema.sh fails closed without the offline image.
       - name: Build the hermetic Postgres+PostGIS+pgvector test image
         run: docker build -f apps/agent/docker/test-postgres/Dockerfile -t animichi-test-postgres:18-3.6-pgvector-0.8.5 .
-      - name: Validate the migration directory
-        run: atlas migrate validate --dir file://migrations/neon
-      - name: Prove the migration boundary
-        run: node --test workers/edge/test/migration-boundary.test.ts
-      - name: Lint the migrations
-        working-directory: apps/agent
-        run: uv run sqlfluff lint ../../migrations/neon --dialect postgres --config ../../db/.sqlfluff
       - name: Apply the whole chain to a disposable database
         run: bash scripts/local-gates/db-fresh-schema.sh
+      - name: Prove the migrator still agrees with the chain it bundles
+        run: pnpm --filter migrator test
 
   gitleaks:
     name: CI / security (gitleaks)
