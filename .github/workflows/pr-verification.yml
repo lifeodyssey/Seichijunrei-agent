@@ -152,12 +152,13 @@ jobs:
         with:
           version: "0.11.14"
           prune-cache: "true"
-      # Every binary below is provisioned because one package's own `test`
-      # shells out to it. `test_ci_workflow_contract.rb` pins the pairing, so a
+      # Every binary below is provisioned because one package's own gates shell
+      # out to it. `test_ci_workflow_contract.rb` pins the pairing, so a
       # dropped step fails a test instead of that package's lane.
       #   @animichi/eval -> uv     (test:fixture-drift re-runs the Python exporter)
-      #   catalog        -> atlas  (test:spike boots test-postgres, which applies
-      #                             the migrations/neon chain, atlas-chain.ts:18)
+      #   catalog        -> atlas  (the spike step below boots test-postgres,
+      #                             which applies the migrations/neon chain,
+      #                             atlas-chain.ts:18)
       #   infra          -> pulumi (test:program-load loads the program through
       #                             the real language host, infra-check.sh:83-88)
       - name: Install the pinned Python for the eval fixture export
@@ -188,6 +189,15 @@ jobs:
           for script in lint typecheck test test:integration; do
             pnpm --filter "$PACKAGE" run --if-present "$script"
           done
+      # The catalog spike is the one package suite that boots the Docker
+      # container, so it is deliberately NOT a segment of catalog's `test`
+      # (#1473): `test` is what the pre-push hook runs for every affected
+      # package, and chaining it there started Docker on every catalog push.
+      # It runs here instead, on the same selection as the lane above, and
+      # `test_package_test_segments.rb` is what keeps this step honest.
+      - name: Run the catalog spike against the offline Postgres image
+        if: ${{ matrix.package == 'catalog' }}
+        run: pnpm --filter catalog run test:spike
       - name: Resolve this package's coverage report
         id: coverage
         env:

@@ -10,8 +10,13 @@ definition to drift from, so nothing has to prove local and CI agree (#1371).
 1. **The changed files decide.** pre-commit reads the **staged** diff; pre-push reads
    **merge-base-to-head**. Only what changed is gated.
 2. **A package's gates are its own scripts.** `lint`, `typecheck`, `test`, `test:integration` in that
-   package's `package.json` (#1358). Coverage floors, drift checks and Docker arms live inside them,
-   so the hook never carries a weaker copy.
+   package's `package.json` (#1358). Coverage floors and drift checks live inside them, so the hook
+   never carries a weaker copy. One suite is deliberately kept out: the catalog spike boots a Docker
+   Postgres container, and chaining it into `test` started that container on every catalog push
+   (#1473, the #1322 flake class), so `test:spike` is a script of its own that CI's `catalog` lane
+   and `make check-full` run. `.github/scripts/test_package_test_segments.rb` pins the arrangement
+   from three ends: `test` must not chain it, the workflow and the `Makefile` must each name
+   `pnpm --filter catalog run test:spike`, and that script must still run `vitest.spike.config.ts`.
 3. **Fail closed on the unknown.** A changed path that maps to no package, no bucket and no
    whitelist entry fails the push and is named in the output. Silence is never the answer.
 4. **No suppressions.** Fix the failing gate or triage it explicitly; `--no-verify` is a policy
@@ -154,10 +159,11 @@ make check                                    the Python agent's own gate
 ```
 
 The two suite segments run one package at a time on purpose. pnpm's default is one job per CPU, and
-several packages' `test` claims a fixed resource — the browser suite serves `apps/web` on `:8799`,
-and the container-backed suites each boot test-postgres. In parallel they starve each other: nine
-browser specs failed with `ERR_CONNECTION_REFUSED` while the same suite passed 43/43 on its own
-(2026-09-08).
+several packages' suites claim a fixed resource — the browser suite serves `apps/web` on `:8799`,
+and the agent's `test:integration` boots test-postgres, as does the catalog spike on the line above
+(catalog's own `test` was a third claimant until #1473 moved the spike out of it). In parallel they
+starve each other: nine browser specs failed with `ERR_CONNECTION_REFUSED` while the same suite
+passed 43/43 on its own (2026-09-08).
 
 ## What stays in CI
 
@@ -166,6 +172,10 @@ browser specs failed with `ERR_CONNECTION_REFUSED` while the same suite passed 4
   local option only, and not a CI lane either since #1053.
 - **Model-backed evals** (`make test-eval`) — paid, non-deterministic.
 - **Deploys and cloud commands** — `wrangler deploy`, mutating `pulumi`, codecov upload, `gh pr`.
+- **The catalog spike** (`pnpm --filter catalog run test:spike`) — the Docker Postgres suite of
+  `workers/catalog`. Kept out of that package's `test` so no pre-push starts a container for it
+  (#1473); CI's `catalog` matrix lane runs it as a step of its own, and `make check-full` runs it
+  locally.
 - **The repository contracts** (`.github/scripts/test_*.rb`) and the gate scripts' own behavioral
   tests — CI's `contracts` job runs them unconditionally, on every pull request, so pre-push does
   not need a copy. `test_ci_workflow_contract.rb` asserts that every committed check under
@@ -174,8 +184,9 @@ browser specs failed with `ERR_CONNECTION_REFUSED` while the same suite passed 4
 ## Prerequisites
 
 `git`, `pnpm`, `node` ≥ 24, `jq`, `uv` (agent bucket), `atlas` v0.30.0 (migrations bucket), `docker`
-with the offline `animichi-test-postgres` image (agent bucket and any package whose `test` boots it),
-plus the pre-commit tools: `shellcheck`, `actionlint`, `semgrep` 1.172.0, `ruby` for the contracts.
+with the offline `animichi-test-postgres` image (the agent bucket's integration arm; no package's
+`test` boots it any more, so the rest of pre-push is Docker-free), plus the pre-commit tools:
+`shellcheck`, `actionlint`, `semgrep` 1.172.0, `ruby` for the contracts.
 
 ## Failure handling
 

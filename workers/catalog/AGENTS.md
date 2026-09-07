@@ -7,8 +7,10 @@ Root guide: `../../AGENTS.md`.
 ## Commands (from `workers/catalog/`)
 
 - pnpm. `pnpm run dev` (`wrangler dev`, local) — never `wrangler deploy` (hook `block-local-deploy`).
-- `pnpm test` (`test:worker` + `test:spike`) · `pnpm run typecheck` (TypeScript 7.0.2) ·
-  `pnpm run lint:oxlint` (type-aware, strict, warnings denied). ESLint is gone.
+- `pnpm test` (`test:worker` alone — hermetic, boots no container) · `pnpm run test:spike`
+  (Docker; deliberately not chained into `test`, see Test pools) · `pnpm run typecheck`
+  (TypeScript 7.0.2) · `pnpm run lint:oxlint` (type-aware, strict, warnings denied).
+  ESLint is gone.
 - `pnpm run test:smoke` — boots the real deploy bundle in workerd and asserts
   `/healthz` 200. The worker pool evaluates unbundled modules, so bundle-only
   startup failures (the StringChunk TDZ, 2026-08-05) are invisible to it — this
@@ -67,9 +69,16 @@ Root guide: `../../AGENTS.md`.
   check must never be skippable**. The suite is **hermetic and fail-loudly** (card 1049): its
   `globalSetup` (`test/spike-db-global.ts`) boots a **Docker Postgres+PostGIS** container, applies
   the committed `migrations/neon` Atlas chain to a clean database, and any setup failure throws —
-  there is no silent-skip path and **zero Neon environment variables**. It runs on every
-  `pnpm test:spike`, including the affected catalog lane in `pr-verification.yml`'s
-  `Catalog / spike (Docker Postgres)` job (which builds the `animichi-test-postgres` image first).
+  there is no silent-skip path and **zero Neon environment variables**. That container is why
+  `test` does **not** chain `test:spike` (#1473): `test` is what the pre-push hook runs for every
+  affected package, so chaining it started Docker on every catalog push. The spike runs in CI as
+  its own step of the `catalog` matrix lane (`Run the catalog spike against the offline Postgres
+  image`, `.github/workflows/pr-verification.yml`, right after the step that builds the
+  `animichi-test-postgres` image) and in `make check-full`.
+  `.github/scripts/test_package_test_segments.rb` pins three things about that arrangement: `test`
+  must not chain `test:spike`, those two files must each name `pnpm --filter catalog run test:spike`,
+  and `test:spike` itself must still run `vitest.spike.config.ts` — a lane emptied out from any of
+  the three ends goes red. Whether the container actually boots is `test/spike-db-global.ts`'s job.
   **colima (macOS) local runs**: testcontainers' ryuk reaper bind-mounts the daemon socket, and
   the macOS-side colima socket mounts as a dead file — ryuk panics and the suite dies with
   `Log stream ended and message "/.*Started.*/" was not received`. Export
