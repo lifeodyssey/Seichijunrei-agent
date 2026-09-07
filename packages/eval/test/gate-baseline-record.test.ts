@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
+import { EVALUATOR_VERSION } from '../src/evaluators/agent-evaluator.ts';
 import { baselineRecordText, parseBaselineRecord } from '../src/gate/baseline-record.ts';
 import { baselinePath, writeBaselineRecord } from '../src/gate/baseline-store.ts';
 import {
@@ -46,6 +47,14 @@ void test('a Python-written record survives a TS read and rewrite unchanged', ()
   assert.equal(`${baselineRecordText(record)}\n`, text);
 });
 
+/** The rule `baseline-store.ts` deliberately does NOT make about every record:
+ * an absent version is tolerated there, so the pinned record's own version is
+ * pinned here, where it is a fact about one file (#1303). */
+void test('the committed Python baseline names the vocabulary this runner scores in', () => {
+  const record = parseBaselineRecord(readFileSync(baselineFile, 'utf8'));
+  assert.equal(record?.evaluator_version, EVALUATOR_VERSION);
+});
+
 void test('the committed Python baseline parses to the record Python gates with', () => {
   const record = parseBaselineRecord(readFileSync(baselineFile, 'utf8'));
   assert.deepEqual(record, oracleEntryNamed(oracle.bootstrap_gates, 'real_baseline_subset').baseline);
@@ -67,6 +76,7 @@ void test('a record without the optional fields takes Python\'s defaults', () =>
     model: 'm',
     dataset: 'd',
     tier: 't',
+    evaluator_version: null,
     repeat: 1,
     case_count: 1,
     evaluated_count: 1,

@@ -15,7 +15,7 @@ import type { EvaluatorContext } from 'logfire/evals';
 import type { ExportedAgentExpected, ExportedAgentInput } from '../dataset-roundtrip.ts';
 import type { TranscriptResult } from './transcript-view.ts';
 
-export const EVALUATOR_VERSION = 'official-v1';
+export const EVALUATOR_VERSION = 'official-v2';
 
 /**
  * One evaluator's contribution to a case's scores. Empty means "this metric

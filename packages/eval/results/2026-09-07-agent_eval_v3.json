@@ -1,0 +1,6550 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-07T19:49:46.734Z",
+  "dataset": "agent_eval_v3",
+  "baseline_model": "openai:mimo-v2.5@https://api.xiaomimimo.com/v1",
+  "seed": 309,
+  "iterations": 2000,
+  "confidence": 0.95,
+  "min_effect": 0.01,
+  "proportion_min_effect": 0.02,
+  "min_paired": 10,
+  "case_count": 662,
+  "evaluated_count": 658,
+  "errored_count": 4,
+  "scores": {
+    "argument_correctness": 0.9770554493307839,
+    "tool_correctness": 0.5273556231003039,
+    "trajectory_match": 0.7481472983976124,
+    "max_tool_calls": 0.7887537993920972,
+    "data_keys_present": 0.3617021276595745,
+    "locale_match": 0.7006079027355623,
+    "nonempty_results": 0,
+    "step_efficiency": 0.8362214695042235
+  },
+  "report_only": {
+    "reply_claim_traceability": {
+      "measured_cases": 309,
+      "mean": 0.9935275080906149
+    }
+  },
+  "failure_attribution": {
+    "failed_cases": 523,
+    "errored_cases": 4,
+    "by_category": {
+      "missing_call": 110,
+      "wrong_tool": 88,
+      "extra_call": 113,
+      "reply_unsourced": 2,
+      "wrong_arguments": 12
+    },
+    "unattributed": [
+      "A1_ja_002",
+      "A1_ja_004",
+      "A1_ja_005",
+      "A1_zh_003",
+      "A1_zh_005",
+      "A1_en_001",
+      "A1_en_002",
+      "A1_en_005",
+      "A1_en_004",
+      "A1_en_006",
+      "A1_en_007",
+      "A2_en_002",
+      "A3_ja_003",
+      "A3_zh_003",
+      "A3_en_001",
+      "A3_en_002",
+      "A3_en_003",
+      "A3_en_004",
+      "A3_en_005",
+      "A5_en_002",
+      "A6_ja_001",
+      "A6_ja_002",
+      "A6_en_001",
+      "A7_zh_002",
+      "A7_en_001",
+      "A7_en_002",
+      "A7_en_003",
+      "A7_en_004",
+      "A8_ja_005",
+      "A8_ja_006",
+      "A8_ja_008",
+      "A8_ja_010",
+      "A9_zh_001",
+      "A9_zh_004",
+      "A9_zh_005",
+      "A9_zh_006",
+      "A9_zh_009",
+      "A10_en_001",
+      "A10_en_002",
+      "A10_en_004",
+      "A10_en_006",
+      "A10_en_008",
+      "A10_en_009",
+      "B1_ja_002",
+      "B1_en_002",
+      "B2_ja_002",
+      "B2_ja_003",
+      "B2_zh_002",
+      "B2_zh_004",
+      "B2_en_003",
+      "B2_en_004",
+      "B3_ja_002",
+      "B3_ja_004",
+      "B3_en_001",
+      "B4_ja_001",
+      "B4_ja_002",
+      "B4_zh_002",
+      "B4_en_004",
+      "C1_zh_002",
+      "C1_zh_005",
+      "C2_zh_002",
+      "C2_en_001",
+      "C2_en_002",
+      "C2_en_004",
+      "C3_ja_001",
+      "C3_ja_004",
+      "C3_zh_001",
+      "C3_zh_002",
+      "C3_en_001",
+      "C3_en_004",
+      "C4_ja_001",
+      "C4_en_001",
+      "C4_zh_003",
+      "C4_en_003",
+      "D2_en_002",
+      "D4_ja_001",
+      "D4_ja_002",
+      "D4_zh_001",
+      "D4_en_001",
+      "D4_en_002",
+      "E1_en_004",
+      "E2_en_003",
+      "E2_en_002",
+      "E3_ja_002",
+      "E3_en_001",
+      "E3_en_002",
+      "E4_en_002",
+      "F1_ja_001",
+      "F1_ja_002",
+      "F1_zh_001",
+      "F1_en_004",
+      "F2_ja_001",
+      "F2_ja_003",
+      "F2_en_003",
+      "F3_en_003",
+      "G1_en_003",
+      "G3_ja_001",
+      "G3_zh_001",
+      "G3_zh_004",
+      "G3_en_001",
+      "G3_en_003",
+      "G4_en_002",
+      "H1_ja_002",
+      "H1_ja_003",
+      "H1_en_002",
+      "H2_ja_002",
+      "H2_en_001",
+      "H2_zh_004",
+      "H2_en_002",
+      "H2_en_003",
+      "H3_ja_003",
+      "I1_zh_002",
+      "I1_zh_003",
+      "I2_en_001",
+      "I2_en_003",
+      "I2_en_004",
+      "I2_en_005",
+      "I2_en_007",
+      "I3_en_001",
+      "I3_en_002",
+      "I3_en_003",
+      "I3_en_004",
+      "I3_en_005",
+      "I3_en_006",
+      "I4_ja_001",
+      "I4_ja_002",
+      "I4_zh_001",
+      "I4_zh_002",
+      "I4_en_001",
+      "I4_en_002",
+      "I4_zh_003",
+      "I5_ja_001",
+      "I5_zh_001",
+      "I5_ja_002",
+      "I5_zh_002",
+      "I5_en_001",
+      "I5_en_002",
+      "I6_zh_002",
+      "I6_en_002",
+      "I6_ja_003",
+      "I7_ja_001",
+      "I7_zh_001",
+      "I7_en_001",
+      "I9_en_001",
+      "I9_en_002",
+      "J1_zh_001",
+      "J1_zh_002",
+      "J1_en_002",
+      "J2_ja_002",
+      "J2_zh_001",
+      "J2_zh_002",
+      "J2_en_001",
+      "J2_en_002",
+      "J2_en_003",
+      "J2_en_004",
+      "J3_ja_002",
+      "J3_ja_003",
+      "J3_zh_002",
+      "J3_en_002",
+      "J4_ja_001",
+      "J4_ja_002",
+      "J4_zh_001",
+      "J4_en_002",
+      "J5_zh_001",
+      "J5_en_001",
+      "K3_ja_001",
+      "K3_zh_001",
+      "K3_en_001",
+      "L2_ja_002",
+      "L3_ja_001",
+      "L2_en_003",
+      "L3_en_001",
+      "L3_ja_002",
+      "L3_en_002",
+      "L4_en_002",
+      "L4_en_001",
+      "A3_en_006",
+      "A3_en_007",
+      "I4_ja_003",
+      "A7_en_007",
+      "I2_en_009",
+      "I2_en_010",
+      "C3_ja_005",
+      "C3_zh_005",
+      "A_multisn_zh_001",
+      "B_sameseries_ja_001",
+      "A_sameseries_ja_001",
+      "A_sameseries_zh_001",
+      "A_sameseries_en_001",
+      "GINJ1_ja_004",
+      "GINJ1_zh_010",
+      "GINJ1_en_014",
+      "C1_ja_008",
+      "C1_en_006",
+      "C5_en_001",
+      "Q304_locale_zh_001",
+      "Q304_retrieval_sequel_001",
+      "A1_ja_001"
+    ],
+    "evidence_artifact": "artifacts/attribution/2026-09-07-agent_eval_v3.jsonl",
+    "cases": [
+      {
+        "case_id": "A1_ja_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_zh_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_ja_006",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "A1_zh_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A1_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A1_zh_006",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A2_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "A2_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A2_ja_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A2_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A2_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A2_en_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A2_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.22222222222222224,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "A2_en_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A2_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5714285714285715,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "A3_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_ja_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "A3_ja_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A3_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "A3_zh_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_zh_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A4_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "A4_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A4_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2857142857142857,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.16666666666666666
+        }
+      },
+      {
+        "case_id": "A4_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A4_zh_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A4_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A5_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A5_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2222222222222222,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.125
+        }
+      },
+      {
+        "case_id": "A5_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.19999999999999998,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.1111111111111111
+        }
+      },
+      {
+        "case_id": "A5_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2222222222222222,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.125
+        }
+      },
+      {
+        "case_id": "A5_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A5_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.18181818181818182,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.1
+        }
+      },
+      {
+        "case_id": "A6_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "A7_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A7_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "A7_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3076923076923077,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.18181818181818182
+        }
+      },
+      {
+        "case_id": "A7_zh_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A7_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A7_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A7_en_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A8_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "A8_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A8_ja_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A8_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3636363636363636,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2222222222222222
+        }
+      },
+      {
+        "case_id": "A8_ja_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A8_ja_009",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "A9_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A9_zh_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.2
+        }
+      },
+      {
+        "case_id": "A9_zh_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A9_zh_010",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A9_zh_008",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3076923076923077,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.18181818181818182
+        }
+      },
+      {
+        "case_id": "A10_en_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A10_en_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "A10_en_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A10_en_010",
+        "cause": {
+          "category": "reply_unsourced",
+          "locus": "reply",
+          "step_index": null,
+          "claim_index": 0,
+          "tool_name": null,
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "locale_match": 0,
+          "reply_claim_traceability": 0
+        }
+      },
+      {
+        "case_id": "B1_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "B1_ja_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B1_ja_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.09523809523809523,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.05
+        }
+      },
+      {
+        "case_id": "B1_ja_007",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.2
+        }
+      },
+      {
+        "case_id": "B1_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B1_en_007",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "B1_en_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "B2_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B2_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "B2_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B2_zh_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B2_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B2_en_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "B2_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.25,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.14285714285714285
+        }
+      },
+      {
+        "case_id": "B3_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B3_zh_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B3_en_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "B3_zh_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B3_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B3_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B4_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "B4_en_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B4_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "C1_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.25,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.14285714285714285
+        }
+      },
+      {
+        "case_id": "C1_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C1_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.09523809523809523,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.05
+        }
+      },
+      {
+        "case_id": "C1_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2857142857142857,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.16666666666666666
+        }
+      },
+      {
+        "case_id": "C1_ja_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C1_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C1_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "C1_zh_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2
+        }
+      },
+      {
+        "case_id": "C1_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C1_en_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C1_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "C1_en_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C1_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C2_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2222222222222222,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.125
+        }
+      },
+      {
+        "case_id": "C2_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "C2_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C2_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C2_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C2_ja_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.16666666666666669,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.18181818181818182
+        }
+      },
+      {
+        "case_id": "C2_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2857142857142857,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.16666666666666666
+        }
+      },
+      {
+        "case_id": "C2_zh_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "C2_zh_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C2_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C2_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "C3_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "C3_en_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "C3_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "C3_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.23529411764705882,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.13333333333333333
+        }
+      },
+      {
+        "case_id": "C4_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_ja_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_001",
+        "cause": {
+          "category": "reply_unsourced",
+          "locus": "reply",
+          "step_index": null,
+          "claim_index": 0,
+          "tool_name": null,
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "reply_claim_traceability": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_en_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_en_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_en_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_en_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_en_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_en_007",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.28571428571428575,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.75
+        }
+      },
+      {
+        "case_id": "D2_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D2_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5714285714285715,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.75
+        }
+      },
+      {
+        "case_id": "D2_ja_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_zh_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_ja_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3333333333333333,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_zh_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 3,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8571428571428571,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.75
+        }
+      },
+      {
+        "case_id": "D2_zh_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_en_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D2_en_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D2_en_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D2_zh_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.23529411764705882,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.21428571428571427
+        }
+      },
+      {
+        "case_id": "D3_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_en_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D3_ja_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D3_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3333333333333333,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.75
+        }
+      },
+      {
+        "case_id": "D3_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D3_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D3_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D3_en_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D3_en_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5714285714285715,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6
+        }
+      },
+      {
+        "case_id": "D4_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6
+        }
+      },
+      {
+        "case_id": "D4_zh_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "E2_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "E2_zh_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2857142857142857,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "E2_en_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "F3_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0
+        }
+      },
+      {
+        "case_id": "F3_en_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "locale_match": 0,
+          "step_efficiency": 0
+        }
+      },
+      {
+        "case_id": "G1_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "plan_route",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_ja_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_ja_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_zh_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_zh_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_zh_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G1_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G1_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G1_en_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G1_en_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "plan_route",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_ja_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_ja_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_zh_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_zh_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_en_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_en_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_en_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G2_en_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G3_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G3_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G3_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G3_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G3_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G4_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "G5_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "G5_en_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "G6_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G6_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G6_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G6_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G6_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "G6_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "H2_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H2_ja_003",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H2_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 3,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8571428571428571,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.75
+        }
+      },
+      {
+        "case_id": "H2_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H2_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_zh_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_zh_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_en_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "H3_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "H3_en_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "H4_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "H4_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "H4_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "H4_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "H4_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "H4_en_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "I1_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "I1_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_009",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_010",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_008",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I2_en_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I2_en_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "I2_en_008",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "I4_en_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5714285714285715,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "I6_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "I6_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "I6_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "I6_zh_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I8_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.25,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.14285714285714285
+        }
+      },
+      {
+        "case_id": "I8_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.2222222222222222,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.125
+        }
+      },
+      {
+        "case_id": "I9_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "I9_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5714285714285715,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "J1_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "J1_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "J1_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J1_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J2_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J3_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "J3_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J4_en_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J4_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "J5_ja_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "J5_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "J5_zh_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "K1_ja_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K1_ja_002",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K1_zh_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K1_zh_002",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K1_en_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "J5_en_002",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "K1_en_002",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "K2_zh_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K2_ja_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K2_en_002",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "K2_en_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "K4_ja_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "K4_en_001",
+        "cause": {
+          "category": "wrong_arguments",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "<unknown-tool>",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "argument_correctness": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_zh_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_en_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_ja_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "A3_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A1_ja_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_ja_007",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3333333333333333,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A3_zh_007",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_zh_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A3_en_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "B1_ja_008",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A3_ja_008",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "C2_zh_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "C2_ja_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.19999999999999998,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.1111111111111111
+        }
+      },
+      {
+        "case_id": "D1_ja_008",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D1_en_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "D1_zh_007",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "plan_route"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444444,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "I4_en_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "I4_zh_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4444444444444445,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2857142857142857
+        }
+      },
+      {
+        "case_id": "A7_zh_007",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3333333333333333,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "B4_zh_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "C1_ja_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "B4_ja_004",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.1904761904761905,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.10526315789473684
+        }
+      },
+      {
+        "case_id": "D2_ja_006",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "D2_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_011",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "I1_zh_012",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.28571428571428575,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "A4_ja_004",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A4_zh_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.16666666666666666
+        }
+      },
+      {
+        "case_id": "A2_zh_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "C3_en_005",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3636363636363636,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.2222222222222222
+        }
+      },
+      {
+        "case_id": "B_remake_en_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "A_remake_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "B_remake_ja_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.25,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.14285714285714285
+        }
+      },
+      {
+        "case_id": "A_remake_zh_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "B_multisn_zh_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.25
+        }
+      },
+      {
+        "case_id": "A_multisn_ja_002",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "A_multisn_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.3636363636363636,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.2222222222222222
+        }
+      },
+      {
+        "case_id": "C_multisn_ja_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "C_multisn_zh_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.4
+        }
+      },
+      {
+        "case_id": "GINJ1_ja_003",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "GINJ1_ja_005",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "GINJ1_ja_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "resolve_anime",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0
+        }
+      },
+      {
+        "case_id": "GINJ1_zh_009",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "GINJ1_en_013",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.8,
+          "max_tool_calls": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6666666666666666
+        }
+      },
+      {
+        "case_id": "GINJ1_en_015",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_ja_001",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_ja_003",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_ja_002",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_ja_004",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_zh_005",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_zh_006",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_en_008",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_zh_007",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_en_009",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_en_010",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": "plan_route",
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "locale_match": 0,
+          "step_efficiency": 0.6
+        }
+      },
+      {
+        "case_id": "GINJ2_en_011",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "GINJ2_zh_012",
+        "cause": {
+          "category": "missing_call",
+          "locus": "step",
+          "step_index": 0,
+          "claim_index": null,
+          "tool_name": null,
+          "expected_tool": "resolve_anime"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0,
+          "data_keys_present": 0
+        }
+      },
+      {
+        "case_id": "C1_ja_007",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "web_search",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.19999999999999998,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.1111111111111111
+        }
+      },
+      {
+        "case_id": "C1_zh_006",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.33333333333333337,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.2
+        }
+      },
+      {
+        "case_id": "C2_ja_007",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.4,
+          "max_tool_calls": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "Q304_retrieval_season_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 2,
+          "claim_index": null,
+          "tool_name": "search_bangumi",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.6666666666666666,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "step_efficiency": 0.5
+        }
+      },
+      {
+        "case_id": "Q304_retrieval_place_001",
+        "cause": {
+          "category": "extra_call",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "search_nearby",
+          "expected_tool": null
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "max_tool_calls": 0,
+          "data_keys_present": 0,
+          "nonempty_results": 0,
+          "step_efficiency": 0.3333333333333333
+        }
+      },
+      {
+        "case_id": "Q304_retrieval_alias_001",
+        "cause": {
+          "category": "wrong_tool",
+          "locus": "step",
+          "step_index": 1,
+          "claim_index": null,
+          "tool_name": "translate_anime_title",
+          "expected_tool": "search_bangumi"
+        },
+        "consequences": [],
+        "failed_metrics": {
+          "tool_correctness": 0,
+          "trajectory_match": 0.5,
+          "data_keys_present": 0,
+          "locale_match": 0
+        }
+      }
+    ]
+  },
+  "metrics": [
+    {
+      "metric": "argument_correctness",
+      "verdict": "pass",
+      "mean_delta": 0,
+      "interval": {
+        "lower": 0,
+        "upper": 0
+      },
+      "sample_size": 488,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "data_keys_present",
+      "verdict": "fail",
+      "mean_delta": 0.3981762917933131,
+      "interval": {
+        "lower": 0.3723404255319149,
+        "upper": 0.42249240121580545
+      },
+      "sample_size": 658,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "locale_match",
+      "verdict": "fail",
+      "mean_delta": 0.25987841945288753,
+      "interval": {
+        "lower": 0.22644376899696048,
+        "upper": 0.2948328267477204
+      },
+      "sample_size": 658,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "max_tool_calls",
+      "verdict": "fail",
+      "mean_delta": 0.13221884498480244,
+      "interval": {
+        "lower": 0.10182370820668693,
+        "upper": 0.1641337386018237
+      },
+      "sample_size": 658,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "nonempty_results",
+      "verdict": "fail",
+      "mean_delta": 0.7407407407407407,
+      "interval": {
+        "lower": 0.5555555555555556,
+        "upper": 0.8888888888888888
+      },
+      "sample_size": 27,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "step_efficiency",
+      "verdict": "indeterminate",
+      "mean_delta": -0.0010655900565977334,
+      "interval": {
+        "lower": -0.023340511154581516,
+        "upper": 0.02097315073379605
+      },
+      "sample_size": 597,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "tool_correctness",
+      "verdict": "fail",
+      "mean_delta": 0.2006079027355623,
+      "interval": {
+        "lower": 0.1656534954407295,
+        "upper": 0.23404255319148937
+      },
+      "sample_size": 658,
+      "method": "stratified-paired-bootstrap"
+    },
+    {
+      "metric": "trajectory_match",
+      "verdict": "fail",
+      "mean_delta": 0.08195956704360081,
+      "interval": {
+        "lower": 0.06116188279606838,
+        "upper": 0.10133001075250314
+      },
+      "sample_size": 658,
+      "method": "stratified-paired-bootstrap"
+    }
+  ],
+  "failures": [
+    "data_keys_present: mean_delta=0.3982, ci=[0.3723, 0.4225], n=658, method=stratified-paired-bootstrap",
+    "locale_match: mean_delta=0.2599, ci=[0.2264, 0.2948], n=658, method=stratified-paired-bootstrap",
+    "max_tool_calls: mean_delta=0.1322, ci=[0.1018, 0.1641], n=658, method=stratified-paired-bootstrap",
+    "nonempty_results: mean_delta=0.7407, ci=[0.5556, 0.8889], n=27, method=stratified-paired-bootstrap",
+    "tool_correctness: mean_delta=0.2006, ci=[0.1657, 0.2340], n=658, method=stratified-paired-bootstrap",
+    "trajectory_match: mean_delta=0.0820, ci=[0.0612, 0.1013], n=658, method=stratified-paired-bootstrap"
+  ],
+  "warnings": [
+    "INDETERMINATE step_efficiency: mean_delta=-0.0011, ci=[-0.0233, 0.0210], n=597, method=stratified-paired-bootstrap"
+  ],
+  "breakdown": {
+    "by_intent": {
+      "clarify": {
+        "cases": 261,
+        "scores": {
+          "argument_correctness": {
+            "count": 261,
+            "mean": 1
+          },
+          "tool_correctness": {
+            "count": 261,
+            "mean": 0.34099616858237547
+          },
+          "trajectory_match": {
+            "count": 261,
+            "mean": 0.6590492158781551
+          },
+          "max_tool_calls": {
+            "count": 261,
+            "mean": 0.6973180076628352
+          },
+          "data_keys_present": {
+            "count": 261,
+            "mean": 0.3831417624521073
+          },
+          "locale_match": {
+            "count": 261,
+            "mean": 0.8314176245210728
+          },
+          "step_efficiency": {
+            "count": 261,
+            "mean": 0.8125907404643034
+          },
+          "nonempty_results": {
+            "count": 19,
+            "mean": 0
+          }
+        }
+      },
+      "error": {
+        "cases": 16,
+        "scores": {
+          "argument_correctness": {
+            "count": 11,
+            "mean": 1
+          },
+          "tool_correctness": {
+            "count": 16,
+            "mean": 0.375
+          },
+          "trajectory_match": {
+            "count": 16,
+            "mean": 0.552885064282123
+          },
+          "max_tool_calls": {
+            "count": 16,
+            "mean": 0.5
+          },
+          "data_keys_present": {
+            "count": 16,
+            "mean": 0.125
+          },
+          "locale_match": {
+            "count": 16,
+            "mean": 0
+          },
+          "step_efficiency": {
+            "count": 13,
+            "mean": 0.4581942910890279
+          },
+          "nonempty_results": {
+            "count": 1,
+            "mean": 0
+          }
+        }
+      },
+      "general_qa": {
+        "cases": 298,
+        "scores": {
+          "argument_correctness": {
+            "count": 215,
+            "mean": 1
+          },
+          "tool_correctness": {
+            "count": 298,
+            "mean": 0.610738255033557
+          },
+          "trajectory_match": {
+            "count": 298,
+            "mean": 0.7914159852079313
+          },
+          "max_tool_calls": {
+            "count": 298,
+            "mean": 0.8489932885906041
+          },
+          "data_keys_present": {
+            "count": 298,
+            "mean": 0.2651006711409396
+          },
+          "locale_match": {
+            "count": 298,
+            "mean": 0.6174496644295302
+          },
+          "step_efficiency": {
+            "count": 263,
+            "mean": 0.8436389972511642
+          },
+          "nonempty_results": {
+            "count": 7,
+            "mean": 0
+          }
+        }
+      },
+      "greet_user": {
+        "cases": 47,
+        "scores": {
+          "tool_correctness": {
+            "count": 47,
+            "mean": 0.8723404255319149
+          },
+          "trajectory_match": {
+            "count": 47,
+            "mean": 0.8723404255319149
+          },
+          "max_tool_calls": {
+            "count": 47,
+            "mean": 1
+          },
+          "data_keys_present": {
+            "count": 47,
+            "mean": 0.7446808510638298
+          },
+          "locale_match": {
+            "count": 47,
+            "mean": 0.7446808510638298
+          },
+          "step_efficiency": {
+            "count": 34,
+            "mean": 1
+          }
+        }
+      },
+      "plan_route": {
+        "cases": 8,
+        "scores": {
+          "argument_correctness": {
+            "count": 8,
+            "mean": 1
+          },
+          "tool_correctness": {
+            "count": 8,
+            "mean": 0.75
+          },
+          "trajectory_match": {
+            "count": 8,
+            "mean": 0.9642857142857142
+          },
+          "max_tool_calls": {
+            "count": 8,
+            "mean": 0.75
+          },
+          "data_keys_present": {
+            "count": 8,
+            "mean": 1
+          },
+          "locale_match": {
+            "count": 8,
+            "mean": 0.875
+          },
+          "step_efficiency": {
+            "count": 8,
+            "mean": 0.9375
+          }
+        }
+      },
+      "plan_selected": {
+        "cases": 12,
+        "scores": {
+          "argument_correctness": {
+            "count": 12,
+            "mean": 0
+          },
+          "tool_correctness": {
+            "count": 12,
+            "mean": 1
+          },
+          "trajectory_match": {
+            "count": 12,
+            "mean": 1
+          },
+          "max_tool_calls": {
+            "count": 12,
+            "mean": 1
+          },
+          "data_keys_present": {
+            "count": 12,
+            "mean": 0
+          },
+          "locale_match": {
+            "count": 12,
+            "mean": 0.4166666666666667
+          },
+          "step_efficiency": {
+            "count": 12,
+            "mean": 1
+          }
+        }
+      },
+      "search_bangumi": {
+        "cases": 16,
+        "scores": {
+          "argument_correctness": {
+            "count": 16,
+            "mean": 1
+          },
+          "tool_correctness": {
+            "count": 16,
+            "mean": 0.6875
+          },
+          "trajectory_match": {
+            "count": 16,
+            "mean": 0.9291666666666667
+          },
+          "max_tool_calls": {
+            "count": 16,
+            "mean": 0.6875
+          },
+          "data_keys_present": {
+            "count": 16,
+            "mean": 0.875
+          },
+          "locale_match": {
+            "count": 16,
+            "mean": 0.8125
+          },
+          "step_efficiency": {
+            "count": 16,
+            "mean": 0.8854166666666666
+          }
+        }
+      }
+    },
+    "by_locale": {
+      "en": {
+        "cases": 232,
+        "scores": {
+          "argument_correctness": {
+            "count": 183,
+            "mean": 0.9726775956284153
+          },
+          "tool_correctness": {
+            "count": 232,
+            "mean": 0.625
+          },
+          "trajectory_match": {
+            "count": 232,
+            "mean": 0.813615838184804
+          },
+          "max_tool_calls": {
+            "count": 232,
+            "mean": 0.8232758620689655
+          },
+          "data_keys_present": {
+            "count": 232,
+            "mean": 0.36637931034482757
+          },
+          "locale_match": {
+            "count": 232,
+            "mean": 0.47413793103448276
+          },
+          "step_efficiency": {
+            "count": 213,
+            "mean": 0.8737461807884341
+          },
+          "nonempty_results": {
+            "count": 9,
+            "mean": 0
+          }
+        }
+      },
+      "ja": {
+        "cases": 209,
+        "scores": {
+          "argument_correctness": {
+            "count": 163,
+            "mean": 0.9754601226993865
+          },
+          "tool_correctness": {
+            "count": 209,
+            "mean": 0.48325358851674644
+          },
+          "trajectory_match": {
+            "count": 209,
+            "mean": 0.7050180547788204
+          },
+          "max_tool_calls": {
+            "count": 209,
+            "mean": 0.7751196172248804
+          },
+          "data_keys_present": {
+            "count": 209,
+            "mean": 0.37320574162679426
+          },
+          "locale_match": {
+            "count": 209,
+            "mean": 0.7272727272727273
+          },
+          "step_efficiency": {
+            "count": 192,
+            "mean": 0.80467188528455
+          },
+          "nonempty_results": {
+            "count": 10,
+            "mean": 0
+          }
+        }
+      },
+      "zh": {
+        "cases": 217,
+        "scores": {
+          "argument_correctness": {
+            "count": 177,
+            "mean": 0.9830508474576272
+          },
+          "tool_correctness": {
+            "count": 217,
+            "mean": 0.46543778801843316
+          },
+          "trajectory_match": {
+            "count": 217,
+            "mean": 0.7196925089307854
+          },
+          "max_tool_calls": {
+            "count": 217,
+            "mean": 0.7649769585253456
+          },
+          "data_keys_present": {
+            "count": 217,
+            "mean": 0.3456221198156682
+          },
+          "locale_match": {
+            "count": 217,
+            "mean": 0.9170506912442397
+          },
+          "step_efficiency": {
+            "count": 202,
+            "mean": 0.8266410569628392
+          },
+          "nonempty_results": {
+            "count": 8,
+            "mean": 0
+          }
+        }
+      }
+    }
+  },
+  "spend": {
+    "turns_planned": 665,
+    "task_seconds": null,
+    "task_seconds_note": "see #1476"
+  }
+}

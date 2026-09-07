@@ -33,6 +33,10 @@ export interface BaselineLocation {
 export interface BaselineExpectations {
   readonly caseCount?: number;
   readonly metrics?: readonly string[];
+  /** The evaluator vocabulary this runner scores in. Injected rather than
+   * imported so `gate/` keeps no edge to `evaluators/`; the caller that gates a
+   * real run passes `EVALUATOR_VERSION` (`gate-run/baseline-gated-settings.ts`). */
+  readonly evaluatorVersion?: string;
 }
 
 /**
@@ -72,6 +76,10 @@ export function readBaselineRecord(
   if (record === null) {
     return baselineInvalid(location, path);
   }
+  const mismatch = evaluatorVersionFailure(record, location, expectations.evaluatorVersion);
+  if (mismatch !== null) {
+    return { record: null, failures: [mismatch], warnings: [] };
+  }
   return freshRecord(record, location, expectations);
 }
 
@@ -105,6 +113,33 @@ function baselineInvalid(location: BaselineLocation, path: string): BaselineRead
  */
 function invalidFailure(location: BaselineLocation, path: string): string {
   return `Invalid baseline for ${named(location)} at ${path}: not a schema-v2 baseline record`;
+}
+
+/**
+ * A record scored by a vocabulary this runner does not implement (#1303).
+ *
+ * It is a FAILURE and not a staleness warning, for the reason a damaged record
+ * is: an ungated run reads like a legitimate first run, and comparing
+ * `official-v1` numbers against `official-v2` ones manufactures regressions on
+ * exactly the metrics whose semantics moved. Nobody re-runs their way out of it
+ * either — the record has to be re-created.
+ *
+ * A record that carries NO version is not judged here. That is the shape every
+ * record committed before this field existed has, and Python still writes it
+ * for the translation tier; the pinned record's own version is asserted by
+ * `test/gate-baseline-record.test.ts` instead, where it is a fact about one
+ * file rather than a rule about every file.
+ */
+function evaluatorVersionFailure(
+  record: BaselineRecord,
+  location: BaselineLocation,
+  expected: string | undefined,
+): string | null {
+  const found = record.evaluator_version;
+  if (expected === undefined || found === null || found === expected) {
+    return null;
+  }
+  return `Baseline for ${named(location)} was scored by evaluator ${found}, this runner scores ${expected}`;
 }
 
 function freshRecord(

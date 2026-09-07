@@ -95,7 +95,7 @@ def test_build_results_payload_persists_failures_and_reasons() -> None:
         case_count=2,
         scores={"task_completion": 1.0, "tool_correctness": 0.5},
     )
-    assert payload.evaluator_version == "official-v1"
+    assert payload.evaluator_version == "official-v2"
     assert payload.cases[0].reasons == {"task_completion": "judge passed"}
     assert payload.cases[0].scores == {
         "task_completion": 1.0,

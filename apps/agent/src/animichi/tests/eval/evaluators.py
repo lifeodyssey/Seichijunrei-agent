@@ -19,7 +19,7 @@ from animichi.agents.agent_result import AgentResult
 from animichi.agents.session_state import ItineraryPayloadState, SearchPayloadState
 from animichi.utils.language import resolve_reply_language
 
-EVALUATOR_VERSION = "official-v1"
+EVALUATOR_VERSION = "official-v2"
 
 # ── Case types (shared with the dataset builder) ─────────────────────
 

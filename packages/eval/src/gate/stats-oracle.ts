@@ -110,7 +110,10 @@ export const ORACLE_PATH = fileURLToPath(new URL('../../fixtures/stats-oracle.js
 /** The baseline `agent_l4_trajectory` record, as Python wrote it (662 cases). */
 export const PYTHON_BASELINES_DIR = fileURLToPath(new URL('../../baselines/', import.meta.url));
 export const PYTHON_BASELINE_LAYER = 'agent_l4_trajectory';
-export const PYTHON_BASELINE_MODEL = 'openai:mimo-v2.5@https://opencode.ai/zen/go/v1';
+/** Keep in step with `gate-run/python-baseline.ts` and `baseline_oracle.py`'s
+ * `STALE_MODEL` — the oracle's warning strings interpolate the model name, so
+ * three literals that disagree are three red tests. */
+export const PYTHON_BASELINE_MODEL = 'openai:mimo-v2.5@https://api.xiaomimimo.com/v1';
 
 export function readStatsOracle(): StatsOracle {
   return JSON.parse(readFileSync(ORACLE_PATH, 'utf8')) as StatsOracle;

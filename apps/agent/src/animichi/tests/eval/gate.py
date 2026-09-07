@@ -30,6 +30,11 @@ class BaselineRecord(BaseModel):
     model: str
     dataset: str
     tier: str
+    #: The evaluator vocabulary that produced these numbers. Optional because
+    #: the translation tier writes records with evaluators of its own and every
+    #: record committed before 2026-09-07 predates the field; a reader that
+    #: compares against it treats ``None`` as "this record cannot say" (#1303).
+    evaluator_version: str | None = None
     repeat: int = 1
     case_count: int
     evaluated_count: int

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
+import { EVALUATOR_VERSION } from '../src/evaluators/agent-evaluator.ts';
 import { baselinePath, writeBaselineRecord } from '../src/gate/baseline-store.ts';
 import { canonicalDatasetPath, loadCaseStrata } from '../src/gate/case-strata.ts';
 import {
@@ -91,4 +92,36 @@ void test('a readable baseline is the record the gate decides with', () => {
 
 void test('the baseline the gate names is the one it was located at', () => {
   assert.equal(healthySettings.baselineModel, PYTHON_BASELINE_MODEL);
+});
+
+/**
+ * A record scored by another vocabulary blocks exactly as a damaged one does
+ * (#1303). It is the same kind of damage: the numbers are readable and not
+ * comparable, and warning about it would leave an ungated run that reads like a
+ * legitimate first one — which is how the `official-v1` record survived #1439,
+ * #1454 and #1461 and would have manufactured regressions here.
+ */
+const staleVocabularyDir = mkdtempSync(join(tmpdir(), 'animichi-vocabulary-'));
+const staleVocabularyLocation = {
+  layer: PYTHON_BASELINE_LAYER,
+  modelId: PYTHON_BASELINE_MODEL,
+  baselinesDir: staleVocabularyDir,
+};
+writeBaselineRecord(
+  { ...baseline, evaluator_version: 'official-v1' },
+  staleVocabularyLocation,
+);
+const staleVocabularyResult = gateRunResultOf(
+  report,
+  gateRunSettingsFromBaseline(staleVocabularyLocation, runUnderGate(baseline.case_count)),
+);
+
+void test('a baseline from another evaluator version fails, naming both versions', () => {
+  assert.deepEqual(staleVocabularyResult.failures, [
+    `Baseline for ${PYTHON_BASELINE_LAYER}/${PYTHON_BASELINE_MODEL} was scored by evaluator official-v1, this runner scores ${EVALUATOR_VERSION}`,
+  ]);
+});
+
+void test('a baseline from another evaluator version blocks rather than ungating', () => {
+  assert.equal(gateExitCode(staleVocabularyResult), 1);
 });

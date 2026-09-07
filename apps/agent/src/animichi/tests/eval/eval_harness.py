@@ -76,7 +76,11 @@ def _load_eval_env() -> None:
 
 _load_eval_env()
 
-DEFAULT_MODEL_ID = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
+# The zen/go gateway began refusing every request without an
+# `x-opencode-session` header on 2026-09-07, and nothing here sends one, so
+# the eval runs against the direct MiMo endpoint — the same endpoint
+# staging's own DEFAULT_AGENT_MODEL names (#1303).
+DEFAULT_MODEL_ID = "openai:mimo-v2.5@https://api.xiaomimimo.com/v1"
 EVAL_MODEL_ID = os.environ.get("EVAL_MODEL", DEFAULT_MODEL_ID)
 EVAL_CONCURRENCY = int(os.environ.get("EVAL_CONCURRENCY", "10"))
 EVAL_L3 = os.environ.get("EVAL_L3") == "1"

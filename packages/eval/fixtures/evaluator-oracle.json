@@ -1,6 +1,6 @@
 {
   "generatedBy": "apps/agent/src/animichi/tests/eval/evaluator_oracle.py",
-  "evaluatorVersion": "official-v1",
+  "evaluatorVersion": "official-v2",
   "metricNames": {
     "withNonemptyCases": [
       "argument_correctness",
