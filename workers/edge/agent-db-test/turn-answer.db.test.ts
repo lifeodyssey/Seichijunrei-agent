@@ -21,7 +21,7 @@ import { turnToolbox } from "../src/agent/session/session-turn.ts";
 import { TurnCatalogSession } from "../src/agent/session/turn-catalog-session.ts";
 import { makeScriptedTurnModel, makeSessionTurnParts } from "../test/doubles/make-turn-parts.ts";
 import { makeSequencedToolCallsStreamFn } from "../test/doubles/pi-provider-double.ts";
-import { onlyRow, seedRun, seedSession, type AgentDatabase } from "./agent-rows.ts";
+import { onlyRow, seedRun, seedSession, type AgentArmDatabase } from "./agent-rows.ts";
 import { SETUP_HOOK_TIMEOUT_MS, startAgentDataPlane, type AgentDataPlane } from "./postgres-arm.ts";
 
 const OWNER_ID = "neon-subject-answer";
@@ -33,7 +33,7 @@ before(async () => { plane = await startAgentDataPlane(); }, { timeout: SETUP_HO
 after(() => plane.stop(), { timeout: 60_000 });
 
 /** A running run on a session this identity owns, ready for its alarm. */
-async function seedOwnedRun(database: AgentDatabase, sessionId: string): Promise<string> {
+async function seedOwnedRun(database: AgentArmDatabase, sessionId: string): Promise<string> {
   await seedSession(database, sessionId, OWNER_ID);
   return await seedRun(database, { sessionId, status: "running", leaseExpiresAt: null });
 }

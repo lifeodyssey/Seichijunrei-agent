@@ -11,10 +11,12 @@
  * alarm's own drive (`withAgentDatabase` → `NeonTurnStore` → `DurableTurn`)
  * reaches Neon over the WebSocket driver, which no lane can stand up — the
  * `agent-db-test/` lane proves the turn loop and its statements against
- * node-postgres, not this wiring. The one property that does not need a
- * database is proved below: an alarm that cannot reach one leaves the run
- * QUEUED, which is what makes the platform's retry an at-least-once backstop
- * rather than a lost turn. The rest is staging validation.
+ * node-postgres, not this wiring. What CAN be proved without a database is the
+ * two calls' behaviour when they cannot reach one, and both are below: an
+ * alarm that fails leaves the run QUEUED, which is what makes the platform's
+ * retry an at-least-once backstop rather than a lost turn, and a seeding that
+ * fails reports the missing binding rather than dressing it as a refusal
+ * (#1436). The rest is staging validation.
  *
  * test-type: unit.
  */
@@ -22,7 +24,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { AgentSession, SESSION_STREAM_PATH } from "../src/agent/session/agent-session.ts";
 import { SessionRunQueue } from "../src/agent/session/session-run-queue.ts";
+import { prefixSeedRequest } from "../src/agent/session/session-prefix.ts";
 import { armRequest } from "../src/agent/session/session-wakeup.ts";
+import { makePrefixBody, SEEDING_IDENTITY } from "./doubles/make-trajectory-prefix.ts";
 
 const RUN_ID = "11111111-2222-3333-4444-555555555555";
 
@@ -129,4 +133,19 @@ void test("an alarm that cannot reach the database leaves the run queued", async
   await session.fetch(armRequest(RUN_ID));
   await assert.rejects(() => session.alarm(), /AGENT_SVC_DATABASE_URL is not bound/);
   assert.deepEqual(await new SessionRunQueue(storage).pending(), [RUN_ID]);
+});
+
+/**
+ * The seeding hop's half of the same wiring (#1436). A readable request must
+ * get all the way to the data plane, and the failure it meets there must
+ * arrive as the data plane's own — a session with no binding says so, rather
+ * than being answered as one of `refusalFor`'s four refusals or as a receipt.
+ * That is what makes this a session that seeds through `agentDatabaseIn` and
+ * not through anything a test could have handed it.
+ */
+void test("a seeding on a session that cannot reach the database reports the binding, not a refusal", async () => {
+  const session = makeSession(new MapStorage());
+  const seed = prefixSeedRequest("session-42", SEEDING_IDENTITY, JSON.stringify(makePrefixBody()));
+
+  await assert.rejects(() => session.fetch(seed), /AGENT_SVC_DATABASE_URL is not bound/);
 });

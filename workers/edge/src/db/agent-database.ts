@@ -42,6 +42,22 @@ async function agentDsn(env: Record<string, unknown>): Promise<string> {
   return dsn;
 }
 
+/**
+ * The agent data plane, already bound to the environment that names it: one
+ * unit of work in, its result out.
+ *
+ * A caller that holds this needs to know nothing about pools or DSNs, which is
+ * what lets a lane with a real PostgreSQL but no Neon endpoint drive a
+ * composition end to end — the pool above speaks the Neon WebSocket protocol
+ * and cannot reach a plain container (`agent-db-test/postgres-arm.ts`).
+ */
+export type AgentDatabase = <T>(work: (transactions: AgentTransactions) => Promise<T>) => Promise<T>;
+
+/** The agent data plane this environment names. */
+export function agentDatabaseIn(env: Record<string, unknown>): AgentDatabase {
+  return (work) => withAgentDatabase(env, work);
+}
+
 /** Open the agent data plane for one unit of work, and close it after. */
 export async function withAgentDatabase<T>(
   env: Record<string, unknown>,

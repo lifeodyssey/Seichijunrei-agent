@@ -10,7 +10,17 @@ import type { QuotaReservation } from "../src/agent/intake/quota-reservation.ts"
 import type { TurnSubmission } from "../src/agent/intake/turn-intake.ts";
 import type { RunFailureReason, RunPayer, UsageScope } from "../src/db/schema.ts";
 
-export type AgentDatabase = NodePgDatabase;
+/**
+ * The driver handle this arm's row constructors write through —
+ * `AgentDataPlane.database` (`postgres-arm.ts`), node-postgres because that is
+ * what reaches a container.
+ *
+ * NOT `src/db/agent-database.ts`'s `AgentDatabase`, which it was called until
+ * #1436: that one is the production port, a unit of work on the data plane,
+ * and the two names met when it was introduced. This one exists only in this
+ * lane and only because a seeding statement needs a connection to run on.
+ */
+export type AgentArmDatabase = NodePgDatabase;
 
 /** Far enough out that `runs_lease_within_deadline_check` never gets in a
  * seeded row's way; the sweep reads leases, not deadlines. */
@@ -40,7 +50,7 @@ export function makeSubmission(overrides: Partial<TurnSubmission> = {}): TurnSub
  * `ownerId` is the identity `ConversationRetrieval` checks a reader against;
  * a session left unowned is the anonymous transcript the retrieval refuses. */
 export async function seedSession(
-  database: AgentDatabase,
+  database: AgentArmDatabase,
   sessionId: string,
   ownerId: string | null = null,
 ): Promise<void> {
@@ -71,7 +81,7 @@ function envelopeOf(message: SeededMessage): string | null {
   return envelope === null ? null : JSON.stringify(envelope);
 }
 
-export async function seedMessage(database: AgentDatabase, message: SeededMessage): Promise<void> {
+export async function seedMessage(database: AgentArmDatabase, message: SeededMessage): Promise<void> {
   await database.execute(
     sql`insert into messages (id, session_id, role, content, response_data, created_at)
         values (coalesce(${message.id ?? null}::uuid, uuidv7()), ${message.sessionId},
@@ -98,7 +108,7 @@ export interface SeededRun {
 }
 
 /** A session, its user message and one run in the state the case needs. */
-export async function seedRun(database: AgentDatabase, run: SeededRun): Promise<string> {
+export async function seedRun(database: AgentArmDatabase, run: SeededRun): Promise<string> {
   await seedSession(database, run.sessionId);
   const message = await database.execute(
     sql`insert into messages (session_id, role, content)
@@ -145,7 +155,7 @@ export interface SeededStep {
   readonly input: Record<string, unknown>;
 }
 
-export async function seedStep(database: AgentDatabase, step: SeededStep): Promise<void> {
+export async function seedStep(database: AgentArmDatabase, step: SeededStep): Promise<void> {
   await database.execute(
     sql`insert into run_steps (run_id, step_index, tool_name, input, result, finished_at)
         values (${step.runId}, ${step.stepIndex}, ${step.toolName},
@@ -154,13 +164,13 @@ export async function seedStep(database: AgentDatabase, step: SeededStep): Promi
 }
 
 /** How many rows one table holds right now. */
-export async function countRows(database: AgentDatabase, table: string): Promise<number> {
+export async function countRows(database: AgentArmDatabase, table: string): Promise<number> {
   const counted = await database.execute(sql`select count(*)::int as total from ${sql.identifier(table)}`);
   return Number(onlyRow(counted).total);
 }
 
 /** Today's reserved message count for one anonymous identity. */
-export async function reservedCount(database: AgentDatabase, anonId: string): Promise<number> {
+export async function reservedCount(database: AgentArmDatabase, anonId: string): Promise<number> {
   const counted = await database.execute(
     sql`select coalesce(sum(message_count), 0)::int as total
         from anon_daily_message_count where anon_id = ${anonId}`,
@@ -170,7 +180,7 @@ export async function reservedCount(database: AgentDatabase, anonId: string): Pr
 
 /** The messages one identity has already reserved on one day. */
 export async function seedReservedMessages(
-  database: AgentDatabase,
+  database: AgentArmDatabase,
   reservation: QuotaReservation,
   messageCount: number,
 ): Promise<void> {
@@ -182,7 +192,7 @@ export async function seedReservedMessages(
 
 /** The messages still charged to the exact counter row a run reserved in. */
 export async function reservedOn(
-  database: AgentDatabase,
+  database: AgentArmDatabase,
   reservation: QuotaReservation,
 ): Promise<number> {
   const counted = await database.execute(
@@ -198,7 +208,7 @@ export async function reservedOn(
  * throwing — "this settlement added nothing" is an assertion, not an absence.
  */
 export async function bankedUsage(
-  database: AgentDatabase,
+  database: AgentArmDatabase,
   scope: UsageScope,
   day: string,
 ): Promise<Record<string, unknown>> {
@@ -219,7 +229,7 @@ export async function bankedUsage(
  * was never written comparable as `null`.
  */
 export async function runSettlement(
-  database: AgentDatabase,
+  database: AgentArmDatabase,
   runId: string,
 ): Promise<Record<string, unknown>> {
   return onlyRow(await database.execute(selectSettlement(runId)));
