@@ -36,6 +36,7 @@ ALLOWED_ROOT_ENTRIES=(
   README.zh.md
   apps
   codecov.yml
+  commitlint.config.js
   db
   docker
   docs

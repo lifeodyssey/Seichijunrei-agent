@@ -12,12 +12,10 @@
 # emitted Worker before it runs a browser spec, and the `e2e` job owns that
 # lane, browser binary and all (B4 / #1362).
 #
-# `agent`, `db` and `e2e` were TRANSITIONAL jobs carried over unchanged so no
-# lane went dark between B1 and B2 / B4 / B5, which rewrote them in place.
-# `codeql` is transitional too (B3 replaces it with CodeQL default setup); it
-# is deliberately absent from both aggregates — the ruleset's code_scanning
-# rule consumes its results directly, and default setup makes in-flight PRs'
-# CodeQL uploads fail, which inside an aggregate would lock those PRs red.
+# The transitional `agent` / `db` / `e2e` / `codeql` jobs are all gone: B2,
+# B5, B4 and B3 (#1361) rewrote or replaced each in place — CodeQL analysis
+# is GitHub's default setup now, and the ruleset's code_scanning rule consumes
+# its results directly.
 name: CI
 on:
   pull_request:
@@ -50,11 +48,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      # No `cache: pnpm` here: plan never installs, so on any lockfile-changing
+      # PR the store path never exists and setup-node's save phase fails the
+      # job. The cached installs live in the jobs that actually install.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
       # The paths outside any pnpm project (migrations/, .github/) and the root
       # dependency files, which pnpm answers with the root project alone.
       # base/ref are read only on merge_group: on pull_request the action asks
@@ -510,30 +509,27 @@ jobs:
           uv tool install --no-build "sqlfluff==$SQLFLUFF_VERSION"
           "$HOME/.local/bin/sqlfluff" lint migrations/neon --dialect postgres --config db/.sqlfluff
 
-  codeql:
-    name: CI / codeql (${{ matrix.language }})
+  commits:
+    name: CI / commits
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
-      packages: read
-      actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [actions, javascript-typescript, python]
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: none
-      - uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
-        with:
-          category: /language:${{ matrix.language }}
+      - uses: ./.github/actions/setup
+      - name: Lint the PR's commits
+        run: |
+          set -euo pipefail
+          pnpm exec commitlint --from "$(git merge-base origin/main HEAD)" --to HEAD
+      - name: Lint the PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        if: ${{ env.PR_TITLE != '' }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PR_TITLE" | pnpm exec commitlint
 
   security:
     name: Security
@@ -548,7 +544,7 @@ jobs:
 
   aggregate:
     name: PR Verification
-    needs: [plan, affected, contracts, docs, agent, e2e, db, security]
+    needs: [plan, affected, contracts, docs, agent, e2e, db, commits, security]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -19,9 +19,11 @@
 #   schema      the `db` job is selected by the migrations/deps filters, pins
 #               Atlas and runs its three segments as three ordered steps; and
 #               NO job in the file applies a migration itself (card B5)
+#   commits     the `commits` job runs commitlint (the CI mirror of the
+#               local commit-msg hook) and gates the aggregate; the B1
+#               transitional codeql job is gone — default setup owns CodeQL
 #   aggregates  `Security` and `PR Verification` each name their dependencies,
-#               run `always()`, and fail on a failed or cancelled one; the
-#               transitional codeql job is in neither
+#               run `always()`, and fail on a failed or cancelled one
 #
 # The repository-wide meta-invariants (timeouts, permissions, concurrency,
 # action pinning) are `test_workflow_invariants.rb`; the Python lane's own
@@ -33,7 +35,7 @@ require_relative "workflow_document"
 
 CI_FILE = File.join(repository_root, ".github", "workflows", "pr-verification.yml")
 SECURITY_JOBS = %w[gitleaks trufflehog osv semgrep zizmor sqlfluff].freeze
-LANE_JOBS = %w[plan affected contracts docs agent e2e db security].freeze
+LANE_JOBS = %w[plan affected contracts docs agent e2e db commits security].freeze
 PACKAGE_SCRIPTS = %w[lint typecheck test test:integration].freeze
 # The projects pnpm selects that must never enter the matrix, each because a
 # dedicated job owns it: the root project, the Python agent, the browser suite.
@@ -269,13 +271,18 @@ def assert_aggregate(job, expected_needs)
                    "pr-verification.yml:#{job}: must fail on a failed or cancelled dependency")
 end
 
-# CodeQL's results are consumed by the ruleset's own code_scanning rule. Inside
-# an aggregate, the B3 switch to default setup would lock every in-flight PR.
-def assert_codeql_is_outside_the_aggregates
-  %w[security aggregate].each do |job|
-    @log.unless_true(!Array(@ci.dig("jobs", job, "needs")).include?("codeql"),
-                     "pr-verification.yml:#{job}: the transitional codeql job must stay out of the aggregate")
-  end
+# B3 replaced the transitional codeql job with GitHub's CodeQL default setup:
+# the ruleset's code_scanning rule consumes its results, and a workflow-side
+# upload would fight it. The commits job is the CI mirror of the local
+# commit-msg hook and gates the aggregate like every other lane.
+def assert_commits_gate_replaces_codeql
+  @log.unless_true(@ci.dig("jobs", "codeql").nil?,
+                   "pr-verification.yml: the transitional codeql job must be gone (default setup owns CodeQL)")
+  commits_runs = @ci.steps_of("commits").map { |step| step["run"].to_s }.join("\n")
+  @log.unless_true(commits_runs.include?("commitlint"),
+                   "pr-verification.yml:commits: must lint the PR's commits with commitlint")
+  @log.unless_true(Array(@ci.dig("jobs", "aggregate", "needs")).include?("commits"),
+                   "pr-verification.yml:aggregate: the commits gate must be one of its needs")
 end
 
 def assert_affected_lane
@@ -296,7 +303,7 @@ end
 def assert_aggregates
   assert_aggregate("security", SECURITY_JOBS)
   assert_aggregate("aggregate", LANE_JOBS)
-  assert_codeql_is_outside_the_aggregates
+  assert_commits_gate_replaces_codeql
 end
 
 def assert_schema_gate
