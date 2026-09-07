@@ -11,7 +11,8 @@ what lets `stepCount` mean the same thing on both sides. That is a statement
 about this rebuild, NOT about the runtime: a deterministic bypass publishes a
 `tool-input-start` frame exactly like a model call does and produces no span at
 all (#1454), so the wire cannot tell the two apart and neither can a scenario.
-`candidate_selection_published_step` is that shape written down.
+`candidate_selection_published_step` and `point_selection_published_step`
+are that shape written down, one per bypass stage (#1461).
 
 An `unsettled` call — made, never settled — is given a span status of `error`
 and `is_success=False`: `include_failed=False` must exclude it, since its

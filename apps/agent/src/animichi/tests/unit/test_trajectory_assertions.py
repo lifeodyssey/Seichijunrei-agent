@@ -113,10 +113,11 @@ def test_expectation_is_built_from_a_recorded_trace_and_dataset_stages() -> None
     assert case_assertion_failures(expectation) == []
 
 
-def test_selected_route_cases_accept_only_an_empty_model_trace() -> None:
+def test_point_selection_accepts_the_step_the_wire_publishes() -> None:
+    """#1461: the bypass makes no span in process and one tool part on the wire."""
     chains = accepted_chains_for_case(AgentExpected(["plan_selected"]))
 
-    assert chains == [()]
+    assert chains == [(), ("plan_selected",)]
 
 
 def test_multi_selection_accepts_the_step_the_wire_publishes() -> None:

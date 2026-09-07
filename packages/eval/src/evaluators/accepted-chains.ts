@@ -39,14 +39,18 @@ const GENERAL_QA_CHAINS: readonly ModelCallChain[] = [
  * member that tells the two apart. Measured on staging 2026-09-07: all four
  * seeded `plan_multi` cases of `phase1c_selection_v1` published `plan_multi`
  * and nothing else, so the empty chain scored the two turns that FAILED 1.0 and
- * the two that did the work 0.0. Both chains are listed so each runner's honest
- * observation is accepted and neither is fitted to the other.
+ * the two that did the work 0.0. `plan_selected` is the same shape on the other
+ * bypass (#1461): `K1_ja_001` and `K1_en_002` each published `plan_selected`
+ * and nothing else, and each scored `trajectory_match`, `tool_correctness` and
+ * `max_tool_calls` 0.0 under the empty chain alone. Both chains are listed so
+ * each runner's honest observation is accepted and neither is fitted to the
+ * other.
  */
 const STAGE_MODEL_CALL_CHAINS = new Map<string, readonly ModelCallChain[]>([
   ['search_bangumi', [['resolve_anime', 'search_bangumi']]],
   ['search_nearby', [['search_nearby']]],
   ['plan_route', [['resolve_anime', 'search_bangumi', 'plan_route']]],
-  ['plan_selected', [[]]],
+  ['plan_selected', [[], ['plan_selected']]],
   ['plan_multi', [[], ['plan_multi']]],
   ['clarify', [['resolve_anime'], []]],
   ['clarify_after_nearby', [['search_nearby']]],

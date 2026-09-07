@@ -104,9 +104,15 @@ project's own, ported from `evaluators.py`.
   `max_tool_calls` alike. The empty chain stays listed for port parity, and that has a price: an
   *unseeded* `plan_multi` turn publishes no step at all and still scores `trajectory_match` 1.0
   (measured the same day, 1.0 on all four) — #1303 reads these numbers and must not take that 1.0
-  for something the agent did. `plan_selected` carries the same stale row (now #1461): same shape,
-  same measurement (`plan_selected:ok` on `K1_ja_001` / `K1_en_002`), and NOT fixed here because it
-  moves fifteen cases of the 662-case baseline set, so it is its own card.
+  for something the agent did. `plan_selected` lists both rows for the same reason and on the same
+  measurement (#1461): `K1_ja_001` and `K1_en_002` each published `plan_selected:ok` and nothing
+  else, and each scored `trajectory_match`, `tool_correctness` and `max_tool_calls` 0.0 against the
+  empty chain alone. That row reaches fifteen of the 662 baseline cases, so #1303's comparison is
+  misread on them before this lands and comparable after it — and it carries the same price on all
+  fifteen: the empty chain stays listed for port parity, so a `plan_selected` turn that publishes no
+  step at all still scores `trajectory_match` 1.0. That one follows from the row rather than from a
+  measurement — both turns measured here DID publish the step — and #1303 must not read it as
+  something the agent did either.
 - **`{}` is not `0`.** `NonemptyResults` on an untagged case, `ArgumentCorrectness` on a turn with
   no successful call, and `StepEfficiency` on a turn that took no step when the case's every
   acceptable ideal is at least one (#1439) all emit *no metric*. That last one is a ratio with no
@@ -115,22 +121,22 @@ project's own, ported from `evaluators.py`.
   measures waste, not correctness — has nothing to say. `test/evaluator-parity.test.ts` compares the
   whole score record, so a surplus zero fails there.
   **This costs a real measurement, and the cost is known.** The nineteen bypass cases (fifteen
-  `plan_selected`, four `plan_multi`) are expected to make no model call — their stage's only
-  accepted chain is empty — yet `_STAGE_MIN_STEPS` still gives them an ideal of 1 or more. A turn
+  `plan_selected`, four `plan_multi`) are expected to make no model call — the empty chain is one of
+  the two their stage accepts — yet `_STAGE_MIN_STEPS` still gives them an ideal of 1 or more. A turn
   that correctly bypasses the model and records no step therefore has an ideal ≥1 and an actual of
   0, and now yields `{}` where it used to yield a 1.0 that was, for those cases, the right answer
   for the wrong reason. The narrower rule — an ideal of 0 for any stage whose only chain is empty —
   would keep it, but it rests on a pre-existing mismatch (the ideal counts deterministic steps that
   the stage's own chain vocabulary excludes), so it is filed separately rather than widened into
-  #1439. #1454 answered the `plan_multi` half of that question — its chain is no longer only the
-  empty one — without moving `_STAGE_MIN_STEPS`.
+  #1439. #1454 and #1461 answered the chain half of that question — neither bypass stage's chain is
+  only the empty one any more — without moving `_STAGE_MIN_STEPS`.
 - **`_available_data_keys` is ported once, in W3-2.** `DataKeysPresent` reads `dataKeys`; it does not
   re-derive the rule. The oracle publishes Python's own `_available_data_keys` under that name, so it
   is the tripwire for `dataKeysOf` too.
 - **The oracle, not a re-derivation.** `fixtures/evaluator-oracle.json` is what the *Python*
-  evaluators score for 25 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
-  ties, the two empty-chain selection stages, the bypass step as the wire publishes it (#1454) and
-  the place selection that is not one, the zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
+  evaluators score for 26 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
+  ties, the two empty-chain selection stages, the bypass step as the wire publishes it — one
+  scenario per bypass stage (#1454, #1461) — and the place selection that is not one, the zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
   decision points, and both answers `argument_correctness` can give (a call settled into a coerced
   value and one settled with an optional null dropped, each scored 0.0 by Python itself) — paired
   with the wire transcript the TS side reads for the same turn. Changing an
