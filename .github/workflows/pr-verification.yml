@@ -310,8 +310,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: Restore the Playwright browser cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # The combined action, matching the only other caches here — the pnpm
+      # store and uv, both inside ./.github/actions/setup: restore in the step,
+      # save in the post step. `actions/cache/restore` has no post step, so
+      # nothing ever wrote this key and every runner re-downloaded chromium.
+      - name: Cache the Playwright browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}-chromium
