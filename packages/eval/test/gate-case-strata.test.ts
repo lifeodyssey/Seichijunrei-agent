@@ -70,6 +70,22 @@ void test('a dataset that is not a list of rows is refused', () => {
   assert.throws(() => loadCaseStrata(fixturePath('agent_eval_v3')), /must be a list of rows/);
 });
 
+/** A bare `SyntaxError` names no set, and Python's `JSONDecodeError` words it
+ * differently — neither is traceable nor comparable across the two runners. */
+void test('a dataset that is not JSON is refused by name', () => {
+  assert.throws(() => caseStrataFromText('[{"id": "a", "path": "p"},', 'set'), {
+    message: 'set: invalid JSON',
+  });
+});
+
+void test('the unparseable dataset keeps the parse error as its cause', () => {
+  assert.throws(() => caseStrataFromText('nonsense', 'set'), (error: unknown) => {
+    assert.ok(error instanceof TypeError);
+    assert.ok(error.cause instanceof SyntaxError);
+    return true;
+  });
+});
+
 /** Parity: every answer below is Python's own, via `strata_oracle.py`. */
 for (const entry of oracle.filter((one) => one.strata !== null)) {
   void test(`${entry.name}: the same strata Python loads`, () => {

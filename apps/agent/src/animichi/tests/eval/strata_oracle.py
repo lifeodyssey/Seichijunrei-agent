@@ -32,6 +32,9 @@ SCENARIOS: dict[str, str] = {
     "row_without_id": '[{"id": "a", "path": "p"}, {"path": "q"}]',
     "pooled_row_without_id": '[{"id": "a"}, {}]',
     "not_a_list": '{"id": "a", "path": "p"}',
+    #: Not JSON at all. The two languages' own parse errors share no wording, so
+    #: only a dataset-named refusal can be pinned across both.
+    "invalid_json": '[{"id": "a", "path": "p"},',
     "empty_set": "[]",
 }
 

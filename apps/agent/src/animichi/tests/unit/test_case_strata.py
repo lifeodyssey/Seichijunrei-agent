@@ -1,16 +1,26 @@
-"""What ``load_case_strata`` answers for a dataset with, and without, a path."""
+"""What ``load_case_strata`` answers for a dataset with, and without, a path.
+
+Also where the answer ends up: a pooled set's warning has to survive the log and
+land in the saved result, which is the file anyone reads after the run (#1478).
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pydantic_evals.reporting import EvaluationReport
 
+from animichi.tests.eval import eval_gate_flow
 from animichi.tests.eval.baseline_oracle import EVAL_DIR
+from animichi.tests.eval.eval_gate_flow import finish_cli_report
+from animichi.tests.eval.exec_tiers import EvalTierTarget
 from animichi.tests.eval.stats import (
     UNSTRATIFIED,
+    CaseStrata,
     MalformedEvalDataset,
     case_strata_from_text,
     load_case_strata,
@@ -78,6 +88,12 @@ def test_a_dataset_that_is_not_a_list_is_refused() -> None:
         case_strata_from_text('{"id": "a"}', "set")
 
 
+def test_a_dataset_that_is_not_json_is_refused_by_name() -> None:
+    """A bare ``JSONDecodeError`` names no set and matches nothing TS says."""
+    with pytest.raises(MalformedEvalDataset, match="^set: invalid JSON$"):
+        case_strata_from_text('[{"id": "a", "path": "p"},', "set")
+
+
 async def test_a_malformed_set_refuses_before_a_single_case_runs(
     tmp_path: Path,
 ) -> None:
@@ -124,3 +140,43 @@ async def test_a_pooled_set_still_runs_carrying_its_warning(
 
 async def _one_turn() -> str:
     return "turns taken"
+
+
+def test_a_pooled_run_writes_its_warning_into_the_saved_result(
+    finished_run: Callable[[CaseStrata], object],
+) -> None:
+    """The log is not the artifact: the result file is what is read later."""
+    warning = pooled_stratum_warning("pooled_set")
+
+    saved = finished_run(CaseStrata({}, [warning]))
+
+    assert saved == {"warnings": [warning]}
+
+
+def test_a_stratified_run_saves_no_warning(
+    finished_run: Callable[[CaseStrata], object],
+) -> None:
+    saved = finished_run(CaseStrata({"a": "p"}, []))
+
+    assert saved == {"warnings": []}
+
+
+@pytest.fixture
+def finished_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Callable[[CaseStrata], object]:
+    """Run one capped report to its end and hand back the result file's warnings."""
+    monkeypatch.delenv("EVAL_SMOKE", raising=False)
+    monkeypatch.setattr(eval_gate_flow, "RESULTS_DIR", tmp_path / "results")
+    monkeypatch.setattr(eval_gate_flow, "CASES", [])
+    monkeypatch.setattr(eval_gate_flow, "DATASET_NAME", "pooled_set")
+    monkeypatch.setattr(eval_gate_flow, "CAPPED", True)
+    target = EvalTierTarget(object(), object, "agent_fixture", "trajectory", "fixture")
+
+    def finish(strata: CaseStrata) -> object:
+        empty = EvaluationReport(name="pooled", cases=[], failures=[])
+        finish_cli_report(empty, target, "fixture:model", strata)
+        saved = (tmp_path / "results" / "agent_fixture_fixture-model.json").read_text()
+        return {"warnings": json.loads(saved)["warnings"]}
+
+    return finish

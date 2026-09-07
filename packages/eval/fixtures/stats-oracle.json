@@ -19982,6 +19982,14 @@
       "error": "oracle_set: an eval dataset must be a list of rows"
     },
     {
+      "name": "invalid_json",
+      "dataset": "oracle_set",
+      "text": "[{\"id\": \"a\", \"path\": \"p\"},",
+      "strata": null,
+      "warnings": [],
+      "error": "oracle_set: invalid JSON"
+    },
+    {
       "name": "empty_set",
       "dataset": "oracle_set",
       "text": "[]",

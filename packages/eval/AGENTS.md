@@ -303,10 +303,14 @@ Notes for the rest of W3:
   `translation_v1`); only `agent_eval_v3`, `agent_eval_heldout_v1` and
   `long_context_v1` stratify. Both sides load such a set as every case in
   `UNSTRATIFIED` — the bucket `bootstrap_gate` already puts an unnamed case in —
-  plus one warning naming the dataset and saying the interval is pooled (TS
-  returns it under `GateRunResult.warnings`, Python logs it, the usual split). A
-  set that DOES have a `path` column must carry a string `path` on every row, and
-  every row of every set must carry a string `id`; either hole is a refusal.
+  plus one warning naming the dataset and saying the interval is pooled. **Both
+  sides write that warning into the result file they save**, TS under
+  `GateRunResult.warnings` and Python under `ResultsPayload.warnings`; Python also
+  logs it at preflight, but a log is not an artifact and the file is what is read
+  later. A set that DOES have a `path` column must carry a string `path` on every
+  row, and every row of every set must carry a string `id`; either hole is a
+  refusal, as is a file that is not JSON at all (`<dataset>: invalid JSON` — the
+  native `SyntaxError`/`JSONDecodeError` name no set and agree on no wording).
   Errors and the warning name the DATASET, never the absolute path — the warning
   is written into a committed result file.
 - **The strata load BEFORE the first turn** (`src/gate-run/strata-first-run.ts`,

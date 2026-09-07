@@ -25,7 +25,9 @@ import { UNSTRATIFIED } from './paired-bootstrap.ts';
  *
  * Errors and the warning name the DATASET, never the absolute path: the warning
  * is written into a committed result file, and a machine-specific path there is
- * both a leak and a diff nobody can compare.
+ * both a leak and a diff nobody can compare. EVERY refusal here is prefixed that
+ * way, the unparseable file included — a bare `SyntaxError` from `JSON.parse`
+ * names neither the set nor anything Python's `JSONDecodeError` would agree with.
  */
 
 export const CANONICAL_DATASETS_DIR = fileURLToPath(
@@ -67,11 +69,25 @@ export function pooledStratumWarning(dataset: string): string {
 }
 
 function datasetRows(text: string, dataset: string): readonly unknown[] {
-  const parsed: unknown = JSON.parse(text);
+  const parsed = parsedDataset(text, dataset);
   if (!Array.isArray(parsed)) {
     throw new TypeError(`${dataset}: an eval dataset must be a list of rows`);
   }
   return parsed;
+}
+
+/**
+ * The native parse error names no dataset and reads differently in each
+ * language (`Unexpected end of JSON input` vs `Expecting ',' delimiter`), so it
+ * can be neither compared across the two runners nor traced back to a set. The
+ * cause is kept for whoever has to open the file.
+ */
+function parsedDataset(text: string, dataset: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (cause) {
+    throw new TypeError(`${dataset}: invalid JSON`, { cause });
+  }
 }
 
 function carriesPath(row: unknown): boolean {

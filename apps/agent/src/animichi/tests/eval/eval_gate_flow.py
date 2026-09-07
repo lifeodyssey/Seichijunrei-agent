@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias
@@ -110,8 +111,13 @@ def _scores_for_run(report: AgentReport) -> ScoreMap:
 
 
 def persist_report(
-    report: AgentReport, target: EvalTierTarget, model_id: str, scores: ScoreMap
+    report: AgentReport,
+    target: EvalTierTarget,
+    model_id: str,
+    scores: ScoreMap,
+    warnings: Sequence[str] = (),
 ) -> Path:
+    """Write the run down, warnings included: the log is not the artifact."""
     payload = build_results_payload(
         report,
         model_id=model_id,
@@ -119,6 +125,7 @@ def persist_report(
         tier=target.tier,
         case_count=len(CASES),
         scores=scores,
+        warnings=warnings,
     )
     return save_results(
         results_dir=RESULTS_DIR, layer=target.layer, model_id=model_id, payload=payload
@@ -361,6 +368,6 @@ def finish_cli_report(
     report: AgentReport, target: EvalTierTarget, model_id: str, strata: CaseStrata
 ) -> list[str] | None:
     scores = _scores_for_run(report)
-    persist_report(report, target, model_id, scores)
+    persist_report(report, target, model_id, scores, strata.warnings)
     _print_report_scores(scores, target, model_id)
     return gate_report(report, target, model_id, scores, strata)

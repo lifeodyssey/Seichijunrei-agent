@@ -94,10 +94,24 @@ def pooled_stratum_warning(dataset: str) -> str:
 
 
 def _dataset_rows(text: str, dataset: str) -> list[object]:
-    parsed: object = json.loads(text)
+    parsed = _parsed_dataset(text, dataset)
     if not isinstance(parsed, list):
         raise MalformedEvalDataset(f"{dataset}: an eval dataset must be a list of rows")
     return list(parsed)
+
+
+def _parsed_dataset(text: str, dataset: str) -> object:
+    """A dataset that is not JSON refuses by NAME, like every other refusal here.
+
+    ``JSONDecodeError`` names no dataset and its wording ("Expecting ','
+    delimiter") matches nothing ``JSON.parse`` says, so it can be neither traced
+    back to a set nor compared across the two runners. The cause is chained for
+    whoever has to open the file.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise MalformedEvalDataset(f"{dataset}: invalid JSON") from exc
 
 
 def _carries_path(row: object) -> bool:

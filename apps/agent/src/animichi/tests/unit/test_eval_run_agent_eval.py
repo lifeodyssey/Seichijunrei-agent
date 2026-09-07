@@ -326,7 +326,7 @@ def test_capped_all_error_report_is_report_only(
     monkeypatch.setattr(
         eval_gate_flow,
         "persist_report",
-        lambda report, target, model_id, scores: persisted.append(scores),
+        lambda report, target, model_id, scores, warnings: persisted.append(scores),
     )
 
     failures = finish_cli_report(report, target, "fixture:model", CaseStrata({}, []))
