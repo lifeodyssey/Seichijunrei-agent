@@ -14,6 +14,8 @@
 #                `merge_group`, or the merge queue waits forever
 #   pinning      every third-party `uses:` names a 40-hex commit and every
 #                `docker://` image a sha256 digest
+#   existence    every `./`-prefixed `uses:` names a composite that is actually
+#                in the tree — the one class of reference pinning exempts
 #   suppression  no `continue-on-error`
 #
 # The CI file's own shape is `test_ci_workflow_contract.rb`, not this file.
@@ -29,6 +31,16 @@ CONTEXT_OWNER = "pr-verification.yml"
 PR_CANCEL_EXPRESSION = "${{ github.event_name == 'pull_request' }}"
 PINNED_USES = %r{\A(?:\./|[\w.-]+/[\w.-]+(?:/[\w./-]+)?@[0-9a-f]{40}\z|docker://[^@\s]+@sha256:[0-9a-f]{64}\z)}
 USES_ENTRY = /^\s*-?\s*uses:\s*(\S+)/
+# A `./`-prefixed `uses:` has no SHA to name, so `PINNED_USES` waves it through
+# — and then nothing in the repository notices that the directory it points at
+# is gone. Deleting a composite out from under a live caller is caught by
+# whichever contract owns that caller; *adding* a reference to an
+# already-retired one is caught by nothing at all, and fails only at CI runtime
+# on a missing `action.yml`. C1 (#1364) retired four composites at once, which
+# is what made that a standing assertion rather than a `git ls-files` in a
+# spec's acceptance criteria.
+LOCAL_ACTION = %r{\A\./(.+)\z}
+ACTION_MANIFESTS = %w[action.yml action.yaml].freeze
 
 @log = ViolationLog.new
 
@@ -96,6 +108,18 @@ def assert_pinned(file, text)
   end
 end
 
+def names_a_composite_in_the_tree?(reference)
+  directory = File.join(ROOT, reference[LOCAL_ACTION, 1])
+  ACTION_MANIFESTS.any? { |manifest| File.file?(File.join(directory, manifest)) }
+end
+
+def assert_local_actions_exist(file, text)
+  uses_references(text).grep(LOCAL_ACTION).each do |reference|
+    @log.unless_true(names_a_composite_in_the_tree?(reference),
+                     "#{file}: `uses: #{reference}` names a composite this repository does not have")
+  end
+end
+
 def pinnable_files
   (Dir.glob(File.join(WORKFLOW_DIR, "*.yml")) +
     Dir.glob(File.join(ROOT, ".github", "actions", "**", "*.yml"))).sort
@@ -113,7 +137,12 @@ end
 
 def main
   Dir.glob(File.join(WORKFLOW_DIR, "*.yml")).sort.each { |path| check_workflow(path) }
-  pinnable_files.each { |path| assert_pinned(path.delete_prefix("#{ROOT}/"), File.read(path)) }
+  pinnable_files.each do |path|
+    file = path.delete_prefix("#{ROOT}/")
+    text = File.read(path)
+    assert_pinned(file, text)
+    assert_local_actions_exist(file, text)
+  end
   @log.report("workflow invariants: all assertions hold")
 end
 

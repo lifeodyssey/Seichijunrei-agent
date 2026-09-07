@@ -9,16 +9,20 @@
 #   affected    cannot start on an empty matrix, runs exactly the four package
 #               scripts, and provisions every binary a selected package's own
 #               `test` shells out to
-#   browser     the `e2e` job is selected by the web / e2e / deps filters and
-#               runs the browser package's own scripts, which serve the
-#               emitted Worker themselves — no composite in between
 #   workspace   a job that runs a repository script importing workspace
 #               dependencies installs the workspace first
+#   workflows   a change under `.github/` still reaches the lanes whose tests
+#               read deployment workflow text, and the route covers every
+#               composite action the jobs call
+#   contracts   every repository contract `quality.sh` runs, the `contracts` job
+#               runs too — CI's list is explicit, so a new one added to the local
+#               gate alone would be pre-push-only. SCOPE: this reads only
+#               `run ruby "$GS/test_*.rb"` lines. A contract wired in as
+#               `run bash`, `run python3`, `run node`, or as a Ruby file not
+#               named `test_*` is NOT covered and would still be silent in CI —
+#               widen the pattern rather than assume it caught you.
 #   image       every step building the offline Postgres image resolves the one
 #               declaration in `packages/test-postgres/postgres-image.env`
-#   schema      the `db` job is selected by the migrations/deps filters, pins
-#               Atlas and runs its three segments as three ordered steps; and
-#               NO job in the file applies a migration itself (card B5)
 #   commits     the `commits` job runs commitlint (the CI mirror of the
 #               local commit-msg hook) and gates the aggregate; the B1
 #               transitional codeql job is gone — default setup owns CodeQL
@@ -26,8 +30,12 @@
 #               run `always()`, and fail on a failed or cancelled one
 #
 # The repository-wide meta-invariants (timeouts, permissions, concurrency,
-# action pinning) are `test_workflow_invariants.rb`; the Python lane's own
-# shape and the Makefile gate behind it are `test_agent_lane_contract.rb`.
+# action pinning) are `test_workflow_invariants.rb`. Each job the affected
+# matrix cannot see owns its own contract file, the seam card B2 opened with
+# `test_agent_lane_contract.rb` (the Python lane): `animichi-e2e` is
+# `test_browser_lane_contract.rb`, and `migrations/neon` is
+# `test_schema_lane_contract.rb`. This file is what is left — the matrix
+# itself, the aggregates, and the invariants that hold across every job.
 #
 # Usage: ruby .github/scripts/test_ci_workflow_contract.rb [REPO_ROOT]
 
@@ -45,48 +53,35 @@ MATRIX_EXCLUSIONS = ["animichi-cloudflare-worker", "@animichi/agent", "animichi-
 # has nothing to do with the code under test (#1359 review P1-1 / P1-2).
 MATRIX_TOOLCHAINS = [
   ["@animichi/eval", "uv python install"],
-  ["catalog", "install-atlas"],
+  ["catalog", "ariga/setup-atlas"],
   ["catalog", "docker build -f apps/agent/docker/test-postgres/Dockerfile"],
   ["infra", "pulumi/actions"]
 ].freeze
-# The browser lane (card B4 / #1362). `animichi-e2e` is outside the affected
-# matrix, so these are the only assertions standing between its specs and
-# a silently dark lane: the `plan` filters that select the job, and the package
-# scripts it runs. The retired composite must not come back — the served-Worker
-# half of the lane lives in e2e/playwright.config.ts now.
-BROWSER_FILTERS = %w[web e2e deps].freeze
-BROWSER_SCRIPTS = %w[lint typecheck test].freeze
-RETIRED_BROWSER_COMPOSITE = "cross-stack-e2e"
 AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')"
+# `.github/**` belongs to the root project, which the matrix subtracts, so pnpm
+# answers a change under it with nothing. These two lanes own the tests that
+# read deployment workflow text — several of which extract a shipped shell
+# block and run it — and both have to be reachable from that change alone.
+# The composite actions share that blind spot: `./.github/actions/setup` is how
+# the matrix, the agent lane and the schema lane get a workspace, and while the
+# route named only `workflows/**` a change to it selected no package and
+# skipped the agent lane. Which glob covers them is the workflow's business.
+WORKFLOW_ROUTE = "workflows"
+WORKFLOW_FILTER = ".github/workflows/**"
+LOCAL_ACTION_PATH = %r{\A\./(\.github/actions/[^/\s]+)}
+WORKFLOW_PACKAGE = "edge-worker"
+WORKFLOW_ROUTED_JOB = "agent"
+QUALITY_GATE = File.join(repository_root, "scripts", "local-gates", "quality.sh")
+# Ruby `test_*.rb` only — see the SCOPE note in the header. `run bash`,
+# `run python3`, `run node` and a Ruby file under another name are NOT matched,
+# so this pattern is narrower than "every contract the local gate runs".
+CONTRACT_INVOCATION = %r{\bruby "?\$?\{?GS\}?/?(test_\w+\.rb)"?}
 # A `.github/scripts/*.mjs` resolves its imports against the repository's
 # node_modules, so any job that runs one has to install the workspace. Without
 # it the script dies with ERR_MODULE_NOT_FOUND and the assertion that spawned
 # it reports an ordinary failure (run 34001151283).
 WORKSPACE_SETUP = "./.github/actions/setup"
 NODE_SCRIPT = %r{\bnode \.github/scripts/\S+\.mjs}
-# The schema gate (card B5 / #1363). `migrations/neon/` is outside every pnpm
-# project, so the affected matrix never selects a migration-only change and
-# this job is the whole lane. Each segment is asserted as its own step so a
-# failure names the question it answered, and the order is asserted because a
-# fresh-schema apply after an unvalidated chain proves nothing.
-SCHEMA_JOB = "db"
-SCHEMA_FILTERS = %w[migrations deps].freeze
-SCHEMA_SEGMENTS = [
-  "atlas migrate validate --dir file://migrations/neon",
-  "bash scripts/local-gates/db-fresh-schema.sh",
-  "pnpm --filter migrator test"
-].freeze
-# Applying belongs to db-fresh-schema.sh's throwaway container and to the
-# migrator Worker on main; the PR workflow validates and nothing else. Held
-# over EVERY job, not just the schema gate, because that is the coverage the
-# retired half of migration-boundary.test.ts had — a second job reintroducing
-# a live apply is exactly the regression it existed to catch. Read off the
-# parsed steps rather than the file's text, so the prose above the schema gate
-# can still name what it forbids.
-SCHEMA_FORBIDDEN = ["atlas migrate apply", "supabase db push"].freeze
-ATLAS_ACTION = %r{\Aariga/setup-atlas@[0-9a-f]{40}\z}
-ATLAS_VERSION = "v0.30.0"
-
 # The offline image's tag is declared once. A `run:` reads it by sourcing the
 # declaration; a step that spells the tag out instead is only legal while it
 # still agrees with what the declaration says (packages/test-postgres/AGENTS.md).
@@ -122,10 +117,6 @@ end
 
 # The exact token list, not a substring search: `test` alone would otherwise
 # be satisfied by `test:integration` still being there.
-def looped_scripts(source)
-  source[/^\s*for script in ([^;]+); do/, 1].to_s.split
-end
-
 def matrix_scripts
   looped_scripts(matrix_step_source)
 end
@@ -147,29 +138,6 @@ def assert_matrix_provisions_toolchains
     @log.unless_true(@ci.steps_of("affected").any? { |step| provisions?(step, package, tool) },
                      "pr-verification.yml: `#{package}` needs a matrix step providing #{tool}")
   end
-end
-
-def browser_step_source
-  @ci.steps_of("e2e").map { |step| "#{step['uses']}#{step['run']}" }.join("\n")
-end
-
-def assert_browser_lane_is_selected_by_the_plan
-  condition = @ci.dig("jobs", "e2e", "if").to_s
-  BROWSER_FILTERS.each do |filter|
-    @log.unless_true(condition.include?("needs.plan.outputs.#{filter} == 'true'"),
-                     "pr-verification.yml:e2e: must run when the `#{filter}` filter matched")
-  end
-end
-
-def assert_browser_lane_runs_the_package
-  source = browser_step_source
-  @log.unless_true(source.include?('pnpm --filter animichi-e2e run "$script"'),
-                   "pr-verification.yml:e2e: must run the browser package's own scripts")
-  @log.unless_true(looped_scripts(source) == BROWSER_SCRIPTS,
-                   "pr-verification.yml:e2e: must run exactly #{BROWSER_SCRIPTS.join(', ')} " \
-                   "(got #{looped_scripts(source).join(', ')})")
-  @log.unless_true(!source.include?(RETIRED_BROWSER_COMPOSITE),
-                   "pr-verification.yml:e2e: the retired #{RETIRED_BROWSER_COMPOSITE} composite is back")
 end
 
 def runs_node_script?(job)
@@ -214,52 +182,61 @@ def assert_image_builds_resolve_one_tag
   end
 end
 
-def assert_schema_job_is_paths_filtered
-  condition = @ci.dig("jobs", SCHEMA_JOB, "if").to_s
-  SCHEMA_FILTERS.each do |filter|
-    @log.unless_true(condition.include?("needs.plan.outputs.#{filter} == 'true'"),
-                     "pr-verification.yml:#{SCHEMA_JOB}: must run when the `#{filter}` filter is true")
+def assert_workflow_changes_reach_their_tests
+  @log.unless_true(@source.include?("'#{WORKFLOW_FILTER}'"),
+                   "pr-verification.yml: plan needs a #{WORKFLOW_FILTER} filter")
+  @log.unless_true(@source.include?(%(["#{WORKFLOW_PACKAGE}"] | unique)),
+                   "pr-verification.yml: a workflow-only change must still select #{WORKFLOW_PACKAGE}")
+  @log.unless_true(@ci.dig("jobs", WORKFLOW_ROUTED_JOB, "if").to_s.include?("outputs.workflows == 'true'"),
+                   "pr-verification.yml:#{WORKFLOW_ROUTED_JOB}: must run on a workflow-only change")
+end
+
+# The `workflows` route as the plan job declares it: the paths-filter input is
+# a YAML document of its own, carried as a block scalar.
+def declared_route_globs
+  filters = @ci.steps_of("plan").map { |step| step.dig("with", "filters") }.compact.join("\n")
+  Array(YAML.safe_load(filters)[WORKFLOW_ROUTE])
+end
+
+def local_actions_called
+  @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }
+     .map { |step| step["uses"].to_s[LOCAL_ACTION_PATH, 1] }.compact.uniq
+end
+
+# A glob routes a directory when everything before its first wildcard is a
+# prefix of it: `.github/actions/**` and `.github/actions/setup/**` both route
+# `.github/actions/setup`; `.github/workflows/**` routes neither.
+def routes?(glob, directory)
+  "#{directory}/".start_with?(glob[/\A[^*?\[]*/])
+end
+
+# What the jobs call, not only the file they are written in: an action reached
+# through `uses: ./…` sits where pnpm sees nothing, so this route is the only
+# thing that can carry a change to it into a lane that runs it.
+def assert_called_actions_are_routed
+  @log.unless_true(!local_actions_called.empty?,
+                   "pr-verification.yml: no job calls a repository composite action any more")
+  local_actions_called.each do |path|
+    @log.unless_true(declared_route_globs.any? { |glob| routes?(glob, path) },
+                     "pr-verification.yml: the #{WORKFLOW_ROUTE} route does not cover #{path}")
   end
 end
 
-def schema_step_commands
-  @ci.steps_of(SCHEMA_JOB).map { |step| step["run"].to_s }
+# The local gate and CI's `contracts` job are two hand-kept lists of the same
+# thing. A contract wired into only the first would run at pre-push and never
+# block a pull request. `CONTRACT_INVOCATION` is the scope limit documented in
+# the header: only `run ruby "$GS/test_*.rb"` is matched, so a contract invoked
+# through another interpreter, or a Ruby file under a different name, passes
+# this assertion while remaining absent from CI.
+def quality_gate_contracts
+  File.read(QUALITY_GATE).lines.grep(/^run ruby /).map { |line| line[CONTRACT_INVOCATION, 1] }.compact
 end
 
-# The index of the first step whose `run` carries the segment, or nil.
-def schema_segment_position(segment)
-  schema_step_commands.index { |command| command.include?(segment) }
-end
-
-def assert_schema_segments_are_separate_ordered_steps
-  positions = SCHEMA_SEGMENTS.map { |segment| [segment, schema_segment_position(segment)] }
-  positions.each do |segment, at|
-    @log.unless_true(at, "pr-verification.yml:#{SCHEMA_JOB}: `#{segment}` must be a step of its own")
-  end
-  found = positions.map(&:last).compact
-  @log.unless_true(found == found.uniq && found == found.sort,
-                   "pr-verification.yml:#{SCHEMA_JOB}: the segments must be separate steps in the order " \
-                   "#{SCHEMA_SEGMENTS.join(' -> ')}")
-end
-
-def assert_schema_job_pins_atlas
-  atlas = @ci.steps_of(SCHEMA_JOB).find { |step| step["uses"].to_s.start_with?("ariga/setup-atlas") }
-  @log.unless_true(atlas && atlas["uses"].match?(ATLAS_ACTION),
-                   "pr-verification.yml:#{SCHEMA_JOB}: Atlas must come from ariga/setup-atlas pinned to a commit SHA")
-  @log.unless_true(atlas&.dig("with", "version") == ATLAS_VERSION,
-                   "pr-verification.yml:#{SCHEMA_JOB}: setup-atlas must pin version #{ATLAS_VERSION}")
-end
-
-# Every `run:` in the file, paired with the job that owns it.
-def job_commands
-  @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job).map { |step| [job, step["run"].to_s] } }
-end
-
-def assert_no_job_applies_a_migration
-  job_commands.product(SCHEMA_FORBIDDEN).each do |(job, command), forbidden|
-    @log.unless_true(!command.include?(forbidden),
-                     "pr-verification.yml:#{job}: must never run `#{forbidden}`")
-  end
+def assert_contracts_job_runs_every_local_contract
+  job = @ci.steps_of("contracts").map { |step| step["run"].to_s }.join("\n")
+  missing = quality_gate_contracts.reject { |script| job.include?(script) }
+  @log.unless_true(missing.empty?,
+                   "pr-verification.yml:contracts: quality.sh runs contracts CI does not (#{missing.join(', ')})")
 end
 
 def assert_aggregate(job, expected_needs)
@@ -292,12 +269,14 @@ def assert_affected_lane
   assert_matrix_provisions_toolchains
 end
 
-# Its own group, not part of the affected lane above: `animichi-e2e` is
-# subtracted from that matrix, so the `e2e` job is all that stands between its
-# specs and a dark lane.
-def assert_browser_lane
-  assert_browser_lane_is_selected_by_the_plan
-  assert_browser_lane_runs_the_package
+# Two questions with one shape: is the guard reachable from the change that
+# would break it? A workflow-only pull request has to reach the lanes whose
+# tests read workflow text, and a contract the local gate runs has to be run by
+# CI too. Both failures are silent — the guard exists, and never fires.
+def assert_guards_are_reachable
+  assert_workflow_changes_reach_their_tests
+  assert_called_actions_are_routed
+  assert_contracts_job_runs_every_local_contract
 end
 
 def assert_aggregates
@@ -306,20 +285,12 @@ def assert_aggregates
   assert_commits_gate_replaces_codeql
 end
 
-def assert_schema_gate
-  assert_schema_job_is_paths_filtered
-  assert_schema_segments_are_separate_ordered_steps
-  assert_schema_job_pins_atlas
-end
-
 def main
   assert_affected_lane
-  assert_browser_lane
+  assert_guards_are_reachable
   assert_aggregates
   assert_node_scripts_have_a_workspace
   assert_image_builds_resolve_one_tag
-  assert_schema_gate
-  assert_no_job_applies_a_migration
   @log.report("CI workflow contract: all assertions hold")
 end
 

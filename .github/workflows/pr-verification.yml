@@ -41,6 +41,7 @@ jobs:
       web: ${{ steps.paths.outputs.web }}
       e2e: ${{ steps.paths.outputs.e2e }}
       migrations: ${{ steps.paths.outputs.migrations }}
+      workflows: ${{ steps.paths.outputs.workflows }}
       deps: ${{ steps.paths.outputs.deps }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,6 +75,9 @@ jobs:
               - 'packages/contract/**'
             migrations:
               - 'migrations/neon/**'
+            workflows:
+              - '.github/workflows/**'
+              - '.github/actions/**'
             deps:
               - 'pnpm-lock.yaml'
               - 'package.json'
@@ -84,6 +88,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
           DEPS_CHANGED: ${{ steps.paths.outputs.deps }}
+          WORKFLOWS_CHANGED: ${{ steps.paths.outputs.workflows }}
         run: |
           set -euo pipefail
           # A root dependency change selects the root project and nothing else
@@ -95,6 +100,15 @@ jobs:
             projects="$(pnpm ls -r --depth -1 --json --filter "...[$merge_base]")"
           fi
           packages="$(jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent", "animichi-e2e"]' <<< "$projects")"
+          # `.github/**` lands in the root project, which is subtracted — so a
+          # workflow-only change selects nothing. `edge-worker`'s suite is where
+          # the tests that read deployment workflow text live, and several of them
+          # extract shipped shell blocks and RUN them (the production
+          # STAGING_ONLY_BASELINE guard, the migrator DSN redaction). Add it back
+          # explicitly, or a cd.yml rewrite ships with those guards never run.
+          if [ "$WORKFLOWS_CHANGED" = true ]; then
+            packages="$(jq -c '. + ["edge-worker"] | unique' <<< "$packages")"
+          fi
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
           echo "Affected packages: $packages" >> "$GITHUB_STEP_SUMMARY"
 
@@ -134,8 +148,11 @@ jobs:
       - name: Install the pinned Python for the eval fixture export
         if: ${{ matrix.package == '@animichi/eval' }}
         run: uv python install 3.11
-      - uses: ./.github/actions/install-atlas
+      - name: Install the pinned Atlas CLI for the migration chain
         if: ${{ matrix.package == 'catalog' }}
+        uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
+        with:
+          version: v0.30.0
       - name: Install the pinned Pulumi CLI for the infra program load
         if: ${{ matrix.package == 'infra' }}
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
@@ -186,37 +203,41 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The delivery contracts below spawn `.github/scripts/*.mjs`, which
-      # import workspace dependencies (`jsonc-parser` via
-      # inject-release-web-runtime-config.mjs), so this job needs the installed
-      # workspace exactly like the matrix does — run 34001151283 failed with
-      # ERR_MODULE_NOT_FOUND without it.
-      - uses: ./.github/actions/setup
       - name: Verify the workflow invariants and action pinning
         run: ruby .github/scripts/test_workflow_invariants.rb
       - name: Verify the CI workflow's affected-matrix shape
         run: ruby .github/scripts/test_ci_workflow_contract.rb
       - name: Verify the Python lane and the Makefile gate behind it
         run: ruby .github/scripts/test_agent_lane_contract.rb
+      # The other two lanes the affected matrix cannot see. They were assertion
+      # groups inside test_ci_workflow_contract.rb until #1364's additions took
+      # that file past 300 lines; the seam is B2's — a job outside the matrix
+      # owns its own contract.
+      - name: Verify the browser lane
+        run: ruby .github/scripts/test_browser_lane_contract.rb
+      - name: Verify the schema lane and the migration boundary
+        run: ruby .github/scripts/test_schema_lane_contract.rb
+      # #1364 replaced the seven parked delivery contracts with these three: the
+      # per-unit artifacts, the promotion shell script and the router they
+      # pinned are gone, and what is left to guard is cd.yml's own shape.
+      - name: Verify the CD workflow's one-build-one-artifact shape
+        run: ruby .github/scripts/test_cd_shape_contract.rb
+      - name: Verify how the CD workflow publishes and what gates it
+        run: ruby .github/scripts/test_cd_publish_contract.rb
+      - name: Verify the CD workflow holds no credential it should not
+        run: ruby .github/scripts/test_cd_credential_boundary_contract.rb
       - name: Verify every package's test script chains its segments
         run: ruby .github/scripts/test_package_test_segments.rb
-      # The delivery contracts the retired `security-tool` composite ran. §4.2
-      # deletes them in C1 together with `cd.yml`; until then this is the only
-      # place in CI that still runs them.
-      - name: Verify the delivery contracts cd.yml depends on
+      # The gitleaks *config* contract (#1438) — the scan itself is the
+      # `gitleaks` security job. quality.sh has run these two since #1438 and CI
+      # never did, so a config change that muted a default rule was blocked at
+      # pre-push and green on the pull request. That gap is what the new
+      # `contracts`/quality.sh parity assertion above found.
+      - name: Verify the gitleaks config still loads the default rules
         run: |
           set -euo pipefail
-          ruby .github/scripts/test_secret_provisioning_contract.rb
-          ruby .github/scripts/test_secret_provisioning_mutation.rb
-          ruby .github/scripts/test_production_safety_contract.rb
-          ruby .github/scripts/test_promotion_ac5_contract.rb
-          ruby .github/scripts/test_promotion_ac5_mutation.rb
-          ruby .github/scripts/test_cd_worker_promotion_contract.rb
-          ruby .github/scripts/test_cd_esc_token_source_contract.rb
-          python3 .github/scripts/test_edge_runtime_secrets.py
-          node .github/scripts/release-web-runtime-config.test.mjs
-          node .github/scripts/release-web-runtime-config.mutation.test.mjs
-          bash .github/scripts/test_promote_release_unit.sh
+          ruby .github/scripts/test_gitleaks_config_extends_defaults.rb
+          ruby .github/scripts/test_gitleaks_config_extends_defaults_mutation.rb
 
   docs:
     name: CI / documentation hygiene
@@ -242,7 +263,10 @@ jobs:
   agent:
     name: CI / agent
     needs: plan
-    if: ${{ needs.plan.result == 'success' && (needs.plan.outputs.agent == 'true' || needs.plan.outputs.deps == 'true') }}
+    # `workflows` for the same reason the matrix adds `edge-worker`:
+    # test_deploy_model_env_consistency.py is the only `--no-bundle` / no-secret-
+    # upload guard on cd.yml, and it would otherwise never run on a workflow PR.
+    if: ${{ needs.plan.result == 'success' && (needs.plan.outputs.agent == 'true' || needs.plan.outputs.deps == 'true' || needs.plan.outputs.workflows == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -361,11 +385,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      # 0.30.0 is the repository's Atlas pin: `.github/actions/install-atlas`
-      # (still the matrix's provisioning step until C1 retires it) and
-      # apps/agent/src/animichi/tests/atlas_helper.py:19 name the same version.
-      # atlasgo.sh interpolates ATLAS_VERSION straight into the release file
-      # name, so it takes the tag form and the `v` stays.
+      # 0.30.0 is the repository's Atlas pin. C1 (#1364) retired the
+      # `install-atlas` composite B5 named here: the matrix step above, the
+      # production migration step in cd.yml, and this one all reach it through
+      # `ariga/setup-atlas`, and apps/agent/src/animichi/tests/atlas_helper.py:19
+      # names the same version. atlasgo.sh interpolates ATLAS_VERSION straight
+      # into the release file name, so it takes the tag form and the `v` stays.
       - uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
         with:
           version: "v0.30.0"
@@ -475,9 +500,9 @@ jobs:
       # annotations off: the action turns them into `--format github`, which
       # zizmor 1.5.2 rejects (`invalid value 'github'`, exit 2 — run
       # 34001151283). Today's 1.30.0 does accept it, but its newer
-      # `self-repository` audit reports 16 low findings across our five
-      # workflows, `cd.yml` and `rollback.yml` among them; that bump is its own
-      # change, not a B1 fix. Without annotations the action passes no
+      # `self-repository` audit reports 16 low findings across our committed
+      # workflows, `cd.yml` among them; that bump is its own change (#1425),
+      # not a B1 fix. Without annotations the action passes no
       # `--format` and still propagates zizmor's exit code, so a finding is
       # still a red job.
       - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3

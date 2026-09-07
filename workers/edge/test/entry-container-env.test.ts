@@ -140,22 +140,16 @@ void test("entry.ts routes startAndWaitForPorts through the port-ready budget (#
   assert.match(entrySource, /withPortReadyBudget\(args\)/);
 });
 
-void test("sealed release artifacts never contain model keys", () => {
-  const build = readFileSync(
-    new URL(
-      "../../../.github/actions/build-release-unit/action.yml",
-      import.meta.url,
-    ).pathname,
-    "utf8",
-  );
-  const promotion = readFileSync(
-    new URL("../../../.github/scripts/promote-release-unit.sh", import.meta.url)
-      .pathname,
+// The build-and-promote path names no model key and uploads no Worker secret:
+// the container reads them from its own bindings, and #1364 removed the last
+// step that pushed them (spec §七 #17 — Pulumi and the Secrets Store own them).
+void test("the release pipeline never carries model keys or uploads secrets", () => {
+  const delivery = readFileSync(
+    new URL("../../../.github/workflows/cd.yml", import.meta.url).pathname,
     "utf8",
   );
   for (const key of ["ZEN_GO_API_KEY", "MIMO_API_KEY", "DEEPSEEK_API_KEY"]) {
-    assert.doesNotMatch(build, new RegExp(key));
-    assert.doesNotMatch(promotion, new RegExp(key));
+    assert.doesNotMatch(delivery, new RegExp(key));
   }
-  assert.doesNotMatch(promotion, /secret put|worker_secrets/);
+  assert.doesNotMatch(delivery, /secret put|secret bulk|worker_secrets/);
 });

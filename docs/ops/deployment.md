@@ -20,35 +20,59 @@ plus native review-thread resolution; the merge gate is documented in [`review-g
 
 ### Affected-only PR CI
 
-`.github/ci/components.json` is the source of truth for component paths, dependencies, CI lanes,
-and deploy units. `.github/scripts/change-plan.py` compares a pull request with its merge base,
-then expands direct changes through reverse dependencies. A contract change therefore verifies
-all consumers, a web change includes browser E2E, and a migration includes its schema consumers.
-Only runtime-bearing paths propagate to reverse dependents; a component's tests select that
-component's CI lane without fanning out to its consumers.
-An unknown or unowned path fails closed to the full component set; merge-queue evaluation is also
-fail-closed. Static quality, security, cross-stack, and agent-eval lanes run inside the same `CI`
-workflow when selected. `PR Verification` and the direct `Security` context fail unless every
-required selected job succeeds. Each component also declares `deploy_excludes`: tests, package
-guidance, and component-local reference docs still select CI but cannot trigger a runtime promotion.
-Root READMEs are repository-owned static-quality inputs rather than unknown product changes.
+The affected set is pnpm's, not ours. `plan` runs
+`pnpm ls -r --depth -1 --json --filter "...[<merge-base>]"`, which selects every workspace project
+whose files changed plus every dependent of one, and subtracts the three projects that own a job of
+their own: the root project (no lint/typecheck/test scripts), `@animichi/agent` (its `test` is
+`uv run pytest`), and `animichi-e2e` (its `test` is the browser suite). Every selected package
+becomes one `affected` matrix leg running that package's own `lint`, `typecheck`, `test` and
+`test:integration`. There is no component manifest and no second router: a package's lane is its
+own `package.json`, which is also what `pre-push` runs.
+
+Four paths sit outside the package graph and are routed by `dorny/paths-filter` instead:
+`apps/agent/**` and `packages/contract/**` (the Python `agent` job), `apps/web/**`, `e2e/**` (the
+browser job), `migrations/neon/**` (the schema job), and the root dependency files, whose change
+means "every package" because pnpm answers a root-lockfile change with the root project alone.
+The six security jobs are never path-gated. `PR Verification` and `Security` each aggregate their
+dependencies with `always()` and fail on any failed or cancelled one.
 
 ### Build once, promote the same artifact
 
-On a `main` push, `CD` evaluates the exact `before..sha` range with the same component graph. Its
-`deploy_triggers` selects every release unit for shared delivery controls, only the declared owner
-for unit-specific adapters, and no product unit for other repository-only workflow changes. Every
-affected unit is built once by `build-release-unit`; its sealed payload includes the source SHA,
-manifest, and digest. Staging and production promote those same immutable bytes without rebuilding.
+On a `main` push, `CD` selects the affected set from the exact `github.event.before..github.sha`
+range with the same pnpm filter. Two guards sit in front of it: a zero or unreachable `before`
+(first push, force push, rewritten history) falls back to `HEAD~1`, and `github.sha` must still be
+the head of `origin/main`, so re-running a run that a newer push has overtaken deploys nothing.
 
-The ordered promotion phases are foundation, migration, services, edge, and web. Empty phases are
-skipped without weakening the order. After the full affected cohort reaches staging, one
-`production` environment approval releases that same cohort to production in manifest order.
+One `build` job produces ONE artifact, `release-<sha>`, a tar of everything this push deploys: the
+web output, the four Worker bundles with their deploy-time configs, the migration chain, and the
+sealed Pulumi programs. Container images are built with `docker/build-push-action` and pushed to
+`registry.cloudflare.com` under the single tag `sha-<sha>`; the image reference is written into the
+shipped Wrangler config once, at build time, and never re-tagged. Its `artifact-digest` is recorded
+in the job summary. Staging and production both download that one artifact —
+`promote-production` has no build step at all.
 
-Automated post-deploy smoke is intentionally deferred technical debt because GitHub-hosted runner
-traffic is blocked at the Cloudflare boundary. The owner manually smokes staging before approving
-production and manually smokes production after promotion. A manual smoke result is operational
-evidence, not a synthetic GitHub required check.
+The ordered stages are foundation, migration, services, edge, and web, each publishing with
+`cloudflare/wrangler-action` and `deploy … --tag sha-<sha>` so `wrangler versions list` names the
+commit a running version came from. A stage whose unit was not affected is skipped without
+weakening the order; every stage lists every earlier stage in `needs`, so a real failure cannot
+evaporate into a skip on the way down the chain. `smoke` then probes the two staging surfaces
+(#1198), and one `production` environment approval releases the same artifact.
+
+Three contracts guard this, each owning one question.
+`.github/scripts/test_cd_shape_contract.rb` is the job graph: one build, one artifact, the `needs`
+chains, the concurrency groups, the pairing rules, and push-to-main as the only trigger.
+`test_cd_publish_contract.rb` is how it publishes: the pinned Wrangler, the `sha-<sha>` tag, the
+environment each job may target — through the action **and** through a shell, because
+`pnpm exec wrangler deploy … --env production` in a staging stage would go live with no approval
+and touch no action input — and that the smoke probe's exit code is what decides its job.
+`test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type and
+ESC export list, no retired backend credential, no runtime-secret upload. All three run in CI's
+`contracts` job and in `scripts/local-gates/quality.sh`.
+
+Concurrency is per job, not per workflow: `cd-staging` covers the five stages and the smoke probe,
+`cd-production` covers the promotion. A run parked at the production approval gate no longer holds
+the staging lane (#1204, #1325). Both groups set `cancel-in-progress: false` and `queue: max`, so up
+to 100 pending jobs queue in order instead of cancelling the one already waiting.
 
 ## Edge Topology
 
@@ -308,31 +332,59 @@ construction. The full authoring/apply boundary is [`migrations.md`](./migration
 
 ### Migration promotion
 
-The migration release unit contains the committed `migrations/neon/` chain and `atlas.sum`.
-Promotion verifies the sealed digest before applying it in the migration phase. Expand/contract
-compatibility remains mandatory because schema promotion precedes consumers and Worker rollback
-does not reverse an applied migration. For provisioning or recovery checks, follow
+The artifact carries the committed `migrations/neon/` chain and `atlas.sum` under
+`release/migrations/`. Staging applies it through the **migrator Worker**: `stage-migration` runs
+`scripts/delivery/migrate-through-worker.sh staging`, which reads the sealed head, exchanges the
+job's GitHub OIDC identity for a token scoped to `animichi:github-actions:migrator`, and POSTs
+`/migrate` with that head. CI holds no database credential on this path, not even a short-lived one.
+
+Production is still transitional: `promote-production` installs the pinned Atlas CLI
+(`ariga/setup-atlas`, `v0.30.0`) and runs `atlas migrate validate` then `atlas migrate apply`
+against `secrets.NEON_DATABASE_URL`, refusing outright if the sealed chain carries a
+`STAGING_ONLY_BASELINE` marker. Card #1365 routes production through the migrator too and deletes
+that step together with the last database credential CI holds.
+
+Expand/contract compatibility remains mandatory because schema promotion precedes consumers and a
+Worker rollback does not reverse an applied migration. For provisioning or recovery checks, follow
 [`migrations.md`](./migrations.md) and [`neon-backup-rpo.md`](./neon-backup-rpo.md); do not infer
-database state from a green artifact build.
+database state from a green build.
 
 ### Main-only affected promotion (`.github/workflows/cd.yml`)
 
-A push to `main` is the only deployment trigger. `change-plan.py` evaluates `before..sha` against
-`.github/ci/components.json`, expands reverse dependencies, and `cd-cohort-plan.py` converts the
-result to a deduplicated deploy cohort. Unknown paths select the full cohort.
+A push to `main` is the only deployment trigger. `plan` resolves the range and the affected package
+set (see "Build once, promote the same artifact" above); `build` produces the single
+`release-<sha>` artifact; the five stages publish it to staging in order; `smoke` probes staging;
+`promote-production` publishes the same artifact after the approval.
 
-The workflow builds every affected deploy unit once, seals its payload with the source SHA and
-SHA-256 digest, and uploads it as `release-<sha>-<unit>`. Staging downloads and verifies those
-artifacts, promoting them in this order: foundation, migration, services, edge, web. A failed or
-cancelled phase blocks all later phases.
+Which stage runs is three pairing rules and nothing else:
 
-After the complete cohort reaches staging, `promote-production` requests the single GitHub
-`production` environment approval. Production downloads the same artifacts and promotes them in
-manifest order; it does not check out another revision or rebuild a unit. Empty cohorts end without
-a deployment, and there is no manual or tag-triggered alternative.
+| stage | runs when |
+|---|---|
+| `stage-foundation` | `infra/**` changed |
+| `stage-migration` | the `migrator` package is affected, **or** `migrations/neon/**` changed — the migrator image bakes the chain (`workers/migrator/Dockerfile`), so a migrations-only push rebuilds and redeploys the Worker rather than POSTing a new head to one carrying the old chain |
+| `stage-services` | the `catalog` or `users` package is affected |
+| `stage-edge` | the `edge-worker` package is affected, **or** `apps/agent/**` changed — the edge Worker carries the agent container image, so the two ship together until W4 removes the image |
+| `stage-web` | the `web` package is affected |
 
-Automated post-deploy smoke is deferred technical debt. The owner manually validates staging before
-approval and production after promotion; do not represent that manual evidence as a CI check.
+A push that deploys nothing (documentation, a library package with no deployable dependent) skips
+`build` and every stage, so it never reaches the production approval.
+
+The two `**or**` rows above are the pipeline's only pairing rules, and they exist because those
+units take an input from outside their own pnpm project. Every step that publishes one carries both
+halves of its condition, not just the job — a migrator image built without the migrations half would
+be the old chain under a new tag. `test_cd_shape_contract.rb` fails if either half goes missing.
+
+`smoke` probes `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` and the SSR shell at
+`https://animichi-web-staging.zhenjiazhou0127.workers.dev/`, retrying 8 times at 15s. It probes
+workers.dev rather than the zone hostname because GitHub-runner IPs get a managed challenge at the
+zone front door and Bot Fight Mode cannot be skipped on the Free plan. The container cold-starts on
+roughly every deploy (measured at 24.5s), so the retry window has to outlast cold start plus agent
+boot, not just route propagation. A red smoke blocks `promote-production` (#1198).
+
+`promote-production` requests the single GitHub `production` environment approval, then deploys the
+same artifact. It does not check out another revision, rebuild a unit, or re-tag an image; the
+bytes production starts are the bytes staging was smoke-checked on. Rejecting the approval fails
+that run and nothing else. There is no manual or tag-triggered alternative.
 
 **CF Worker routing** (`workers/edge/src/app.ts`):
 - `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → FastAPI service on port 8080)
@@ -356,11 +408,11 @@ for non enterprise organizations`), so an organization token type cannot be used
 Cloud OIDC issuer policy for this GitHub issuer must therefore carry a **personal** token-type
 policy authorizing that user. The exchanged token is exported as `PULUMI_ACCESS_TOKEN` for the rest
 of that job only. Those two jobs therefore carry
-`id-token: write`, and `promote-release-unit.sh` fails closed when that token is absent. Applies are
-organization-qualified (`pulumi up --stack lifeodyssey/<stack>`) so a token that defaults elsewhere
-cannot land the apply in another organization. `PULUMI_BACKEND_URL`, `PULUMI_CONFIG_PASSPHRASE`, and
-the two R2 state keys are no longer read anywhere on the delivery lane; the contract that keeps them
-out is `.github/scripts/test_cd_infrastructure_safety_contract.rb`.
+`id-token: write`, and `pulumi/actions` fails when that token is absent. Applies are
+organization-qualified (`pulumi up --stack lifeodyssey/<stack>`, the action's `stack-name` input) so
+a token that defaults elsewhere cannot land the apply in another organization. `PULUMI_BACKEND_URL`,
+`PULUMI_CONFIG_PASSPHRASE`, and the two R2 state keys are no longer read anywhere on the delivery
+lane.
 
 Immediately after that login, each of the two jobs opens the matching **Pulumi ESC** environment
 with `pulumi/esc-action` — `lifeodyssey/animichi/staging` for the staging foundation phase,
@@ -369,34 +421,32 @@ credentials come from (#1078):
 
 | ESC key | What reads it |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | the Cloudflare provider in both Pulumi programs. The ESC key already carries the Pulumi-scoped token, so the old `CLOUDFLARE_PULUMI_API_TOKEN` → `CLOUDFLARE_API_TOKEN` rename inside `promote-release-unit.sh` is gone |
+| `CLOUDFLARE_API_TOKEN` | the Cloudflare provider in both Pulumi programs. The ESC key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
 | `NEON_API_KEY` | the Neon provider in `infra/database-access` (`animichi-neon-secrets`) |
 
-Neither is a GitHub secret on the delivery lane any more. Three properties are worth stating
-because they are what the contract test asserts:
+Neither is a GitHub secret on the delivery lane any more. Three properties are worth stating:
 
 - **The export list is an explicit two-name allowlist**, not the action's export-everything
   default. Whatever an ESC environment grows later cannot reach a CI job by accident, so ADR 0003
   ("no runtime DSN or model key in ESC") holds structurally rather than by convention.
-- **Worker publishing never opens ESC and never runs `esc run wrangler`.** The staging Worker
-  phases run through the same composite action but the ESC step is gated to `phase == 'foundation'`;
-  in `promote-production`, which does both jobs in one approval-gated job, each Worker-publishing
-  step sets `CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}` in its own step `env`, and a
-  step-level `env` wins over the job-level value ESC injected. The Pulumi-plane token cannot deploy
-  a Worker, and the Worker deploy token cannot touch Pulumi state.
+- **Worker publishing never opens ESC.** Only `stage-foundation` and the `promote-production` infra
+  steps run `pulumi/esc-action`; every Worker-publishing step passes
+  `apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}` to `cloudflare/wrangler-action` as its own input,
+  which the action uses instead of any ambient environment value. Inside `promote-production`, where
+  both happen in one approval-gated job, that input wins over the job-level value ESC injected. The
+  Pulumi-plane token cannot deploy a Worker, and the Worker deploy token cannot touch Pulumi state.
+  Card #1367 moves the publishing token into ESC too.
 - **The ESC step installs the `.pulumi.version` CLI.** `pulumi/esc-action` installs a Pulumi CLI and
   prepends it to `PATH`; left unpinned it fetches the latest release and would silently shadow the
   version `pulumi/actions` just installed. Given the same version it detects the existing install
   and downloads nothing, so a small step resolves `.pulumi.version` into the action's `version`
   input rather than duplicating the number.
 
-`.github/scripts/test_cd_esc_token_source_contract.rb` is the contract for all of the above.
-
 **Owner step, not done by this change:** the two ESC environments must actually hold the values,
 projected under `environmentVariables` — that is the section `pulumi env open --format detailed`
 reads and the action injects from. `pulumi env set --secret` alone puts a value under `values`; if
 it is not also referenced from `environmentVariables`, the action logs `No value found for …` and
-`promote-release-unit.sh` fails closed on the missing name. Check with
+the Pulumi apply fails on the missing provider credential. Check with
 `pulumi env open lifeodyssey/animichi/staging --format detailed` (and `…/prod`) before the first
 run; never paste the values anywhere. AC3 of #1078 — one staging infra and neon-secrets apply with
 tokens only from ESC — is that first CD run, and it is the owner's to observe.
@@ -487,38 +537,22 @@ Important: this is a documentation target only right now. Before enabling it, th
 
 ## Rollback
 
-Rollback is incident recovery, not a second deployment path. `.github/workflows/rollback.yml` is
-manually dispatched, requires the `production` environment approval, serializes with production
-promotion, and re-promotes one caller-selected sealed artifact from a successful main `CD` run.
-Only `edge`, `web`, `catalog`, and `users` are eligible; schema and infrastructure are not. Supply
-the prior run's numeric `release_run_id`, exact `source_sha`, and the selected unit manifest's
-`artifact_sha256`. The workflow accepts only a successful `push` run of `.github/workflows/cd.yml`
-for this repository and `main`, then independently verifies the downloaded manifest and tarball
-digest before any production credential reaches the promotion adapter. It never asks Cloudflare to
-guess the "previous" version and never rebuilds during recovery.
+Rollback is incident recovery, not a second deployment path. There is no rollback workflow: the
+hand-written one was deleted with #1364 because Cloudflare already keeps every published version.
+Recovery is `wrangler rollback <version-id> --name <worker>`; `wrangler versions list --name
+<worker>` names each version's `sha-<sha>` tag, which is the commit it was built from. Card #1366
+owns the operator runbook and the staging drill for it — until that lands, treat the paragraphs
+below as the standing constraints rather than a step-by-step procedure.
 
-For `edge`, the immutable release unit is the same-run `agent` + `edge` pair. Rollback downloads and
-verifies both artifacts, republishes the exact agent image tar under its deterministic production
-tag, and only then promotes the sealed edge bundle that references it. For `web`, `catalog`, and
-`users`, only the selected artifact is promoted. The run summary records run ID, source SHA, unit,
-and digest without logging payload values.
-
-Release artifacts are retained for 14 days. A missing, duplicate, empty, or expired artifact fails
-closed before promotion. Do not reconstruct or rebuild it in the rollback job: land a reviewed
-revert/fix on `main`, let `CD` build a new sealed cohort, and use the normal production approval.
-After any successful rollback, verify the affected routes manually and revert the bad change on
-`main` so the next affected release restores trunk state.
-
-`CD` and `Rollback` share the `affected-cd-main` concurrency group with cancellation disabled. GitHub
-keeps the active run intact and retains at most one pending run; a newer pending run supersedes the
-older pending run. Do not stack a rollback behind additional main pushes. During an incident, first
-reject or cancel any run waiting at production approval and clear an unrelated pending deployment,
-then dispatch the rollback; do not approve a competing production promotion.
+Release artifacts are retained for 14 days, so a `CD` run older than that cannot be re-run to
+redeploy; land a reviewed revert on `main` and let `CD` build a new artifact instead. After any
+recovery, verify the affected routes manually and revert the bad change on `main` so the next
+release restores trunk state.
 
 Worker rollback changes the running Worker version but does not undo Durable Object migrations,
-reverse a database migration, or restore Pulumi state. Edge recovery does republish the verified
-paired agent image bytes; it does not rebuild them. Use expand/contract migrations so one-version
-code rollback remains schema-compatible. For Pulumi, inspect the failed update in Pulumi Cloud's
+reverse a database migration, or restore Pulumi state. A rolled-back edge Worker still references the container image its
+config named, so the agent tier follows the Worker version. Use expand/contract migrations so
+one-version code rollback remains schema-compatible. For Pulumi, inspect the failed update in Pulumi Cloud's
 stack history and roll back from there: read the last-good version number out of `pulumi stack
 history`, then `pulumi stack export --version <version> --file state.json` and `pulumi stack import
 --file state.json`. A bare `pulumi stack export` writes the *latest* checkpoint, which after a
@@ -526,17 +560,18 @@ failed update is the broken one, so the version is not optional. Follow the impo
 reconciliation — the pre-apply R2 export is retired (#1077). Never place a state export in a public
 GitHub artifact.
 
-Automated rollback smoke is part of the same deferred smoke debt as forward promotion. The owner
-must manually check health and the affected user journey after recovery.
+`CD`'s own `smoke` job does not run on a recovery, so the owner must manually check health and the
+affected user journey after one.
 
 ## Known Limitations
 
 - default session storage is in-memory unless a distributed backend is introduced later
 - OpenTelemetry exporters are opt-in and disabled by default
 - AI Gateway is documented but not yet wired in backend provider configuration
-- Release identity is the sealed artifact manifest's `source_sha` plus `artifact_sha256`; staging
-  and production promotion reject a payload whose identity or digest does not match the main-SHA
-  cohort. Runtime health metadata is useful diagnosis but is not the artifact authority.
+- Release identity is the artifact name `release-<sha>` plus the `artifact-digest` that
+  `actions/upload-artifact` reports; artifacts are immutable, so staging and production download
+  the same bytes by construction rather than by re-verifying a manifest. Runtime health metadata is
+  useful diagnosis but is not the artifact authority.
 
 ## HISTORICAL (pre-2026-07): feat/ssr-cloudflare Post-deploy Notes
 

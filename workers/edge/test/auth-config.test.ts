@@ -95,11 +95,7 @@ void test("CORS_ALLOWED_ORIGIN is a wrangler var for staging and production (iss
 });
 
 void test("deploy workflows carry neither value as a GitHub secret (issue #1047)", () => {
-  const paths = [
-    ".github/workflows/cd.yml",
-    ".github/actions/build-release-unit/action.yml",
-    ".github/actions/promote-release-phase/action.yml",
-  ];
+  const paths = [".github/workflows/cd.yml"];
   for (const path of paths) {
     const text = deploymentFile(path);
     assert.equal(text.includes("secrets.NEON_AUTH_JWKS_URL"), false, `${path} must not reference secrets.NEON_AUTH_JWKS_URL`);
@@ -108,11 +104,7 @@ void test("deploy workflows carry neither value as a GitHub secret (issue #1047)
 });
 
 void test("NEON_AUTH_ENABLED and NEON_AUTH_ISSUER remain absent from deploy workflows", () => {
-  const paths = [
-    ".github/workflows/cd.yml",
-    ".github/actions/build-release-unit/action.yml",
-    ".github/actions/promote-release-phase/action.yml",
-  ];
+  const paths = [".github/workflows/cd.yml"];
   for (const path of paths) {
     const text = deploymentFile(path);
     assert.equal(text.includes("NEON_AUTH_ENABLED"), false, `${path} must not turn the disabled public var into a secret`);

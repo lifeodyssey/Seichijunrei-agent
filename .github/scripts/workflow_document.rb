@@ -2,8 +2,9 @@
 
 # One parsed GitHub Actions workflow, and the violation list its readers append
 # to. Shared by `test_workflow_invariants.rb` (meta-invariants over every
-# workflow) and `test_ci_workflow_contract.rb` (the CI file's own shape) so
-# neither owns the other's YAML quirks.
+# workflow), `test_ci_workflow_contract.rb` (the CI file's own shape), the
+# per-lane contracts beside it and the three `test_cd_*_contract.rb`, so no one
+# of them owns the others' YAML quirks.
 
 require "yaml"
 
@@ -68,4 +69,12 @@ end
 
 def repository_root
   ARGV.fetch(0, `git rev-parse --show-toplevel`.strip)
+end
+
+# The scripts a step's `for script in …; do pnpm --filter X run "$script"; done`
+# loop runs, as an exact token list: a substring search for `test` would be
+# satisfied by `test:integration` still being there. Shared because the affected
+# matrix and the browser lane are read by two different contracts (#1364).
+def looped_scripts(source)
+  source[/^\s*for script in ([^;]+); do/, 1].to_s.split
 end

@@ -30,6 +30,9 @@
 # allowed-noise case: a rendered plan line plus credential/provider noise,
 # exiting nonzero.
 #
+# A `pnpm exec wrangler deploy --dry-run --outdir <dir>` invocation also emits
+# the bundle that dry run would have written; see emit_wrangler_bundle below.
+#
 # `node -v` and `atlas version` are SILENT probes: check_prereqs runs them on
 # every gate run, and the invocation log must stay the record of GATES that
 # ran (tests assert_lacks "atlas"/"pulumi" on it). They exit 0, printing the
@@ -38,6 +41,33 @@
 set -u
 
 log() { printf '%s :: %s %s\n' "$PWD" "$(basename "$0")" "$*" >> "${GATE_TEST_LOG:?}"; }
+
+flag_value() {
+  local flag="$1"; shift
+  while [ "$#" -gt 1 ]; do
+    [ "$1" = "$flag" ] && { printf '%s\n' "$2"; return 0; }
+    shift
+  done
+}
+
+# Emit what `wrangler deploy --dry-run --outdir <dir>` leaves behind: the entry
+# esbuild names after the config's `main`, plus Wrangler's own README.
+#
+# `<dir>` is honoured EXACTLY as given, and must stay that way. Real Wrangler
+# resolves a *relative* outdir against the config's directory (esbuild
+# `absWorkingDir`), which is the bug .github/scripts/bundle-release-worker.sh
+# was sealed against; teaching this stub that quirk would hide it again.
+emit_wrangler_bundle() {
+  local config outdir main
+  config="$(flag_value -c "$@")"
+  outdir="$(flag_value --outdir "$@")"
+  [ -n "$config" ] && [ -n "$outdir" ] || return 0
+  main="$(sed -n 's/^main = "\(.*\)"$/\1/p' "$config")"
+  [ -n "$main" ] || return 0
+  mkdir -p "$outdir"
+  printf 'bundled\n' > "$outdir/$(basename "${main%.ts}").js"
+  printf 'built output assets stub\n' > "$outdir/README.md"
+}
 
 tool="$(basename "$0")"
 case "$tool:$*" in
@@ -61,7 +91,11 @@ esac
 
 log "$@"
 case "$tool:$*" in
-  pnpm:*) printf 'env VITE_SHOWCASE_MODE=%s\n' "${VITE_SHOWCASE_MODE:-}" >> "${GATE_TEST_LOG:?}" ;;
+  pnpm:*)
+    printf 'env VITE_SHOWCASE_MODE=%s\n' "${VITE_SHOWCASE_MODE:-}" >> "${GATE_TEST_LOG:?}"
+    case "$*" in
+      "exec wrangler deploy"*--dry-run*--outdir*) emit_wrangler_bundle "$@" ;;
+    esac ;;
   pulumi:stack\ init*) [ "${GATE_PULUMI_INIT_FAIL:-}" = "1" ] && exit 1 ;;
   pulumi:preview*)
     if [ "${GATE_PULUMI_CLEAN:-}" = "1" ]; then

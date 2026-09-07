@@ -54,6 +54,9 @@ coverage-*.xml
 # Project specific
 output/
 outputs/
+# The release tree bundle-release-worker.sh seals into (CD uploads it as the
+# build artifact; its behavioural test builds one at the repository root).
+/release/
 # Raw source files documented in docs/data-sources.md
 data/raw/
 *.log

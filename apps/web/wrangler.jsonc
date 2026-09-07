@@ -53,16 +53,17 @@
       // would bypass the staging WAF gate (workers.dev is not on the zone).
       // `preview_urls` is off for the same reason: per-version preview URLs
       // bypass the WAF the same way.
-      // Main-only CD injects environment runtime config into the sealed web
-      // artifact and promotes it with this explicit environment block.
+      // Main-only CD promotes the one built artifact with this explicit
+      // environment block; it no longer rewrites anything inside it.
       // workers_dev on for STAGING ONLY (owner 2026-08-27, mirrors the edge worker):
       // the CD smoke probes the SSR shell here because the zone front door
       // bot-challenges GitHub-runner IPs. Production stays closed.
       "workers_dev": true,
       "preview_urls": false,
-      // Public staging RUNTIME_CONFIG is committed: Cloudflare Builds does not
-      // receive GitHub environment VITE_* vars, and an empty inject overwrote
-      // the Worker binding (login showed "Sign-in isn't configured").
+      // Public staging RUNTIME_CONFIG is committed: Cloudflare Builds never
+      // received the GitHub environment build variables, and an empty inject
+      // overwrote the Worker binding (login showed "Sign-in isn't configured").
+      // #1364 deleted the injector outright — this block is now the only source.
       "vars": {
         "APP_ENV": "staging",
         "RUNTIME_CONFIG": "{\"schemaVersion\":1,\"api\":{},\"neonAuthBaseUrl\":\"https://ep-broad-frost-aopp3uqq.neonauth.c-2.ap-southeast-1.aws.neon.tech/neondb/auth\",\"turnstileSiteKey\":\"0x4AAAAAAD-SYZJEDljOH-SB\",\"showcaseMode\":\"false\",\"featureFlags\":{}}"
@@ -70,7 +71,26 @@
     },
     "production": {
       "name": "animichi-web",
-      "vars": { "APP_ENV": "production" }
+      // Public production RUNTIME_CONFIG, committed for the same reason as
+      // staging's: CD builds the web output ONCE and promotes the same bytes to
+      // both environments, so nothing environment-varying may exist at build
+      // time (spec §七 #18; the build-variable injector was deleted in #1364).
+      //
+      // `neonAuthBaseUrl` and `turnstileSiteKey` are deliberately absent, not
+      // forgotten. Both are optional in the schema
+      // (src/lib/runtime-config/runtime-config.ts) and fail closed when unset —
+      // sign-in reports itself unconfigured rather than pointing at another
+      // environment's identity provider. Production's Neon Auth branch is not
+      // provisioned (the edge keeps NEON_AUTH_JWKS_URL unset for the same
+      // reason, AUTH-2 #950, workers/edge/wrangler.toml `[env.production.vars]`)
+      // and no production Turnstile site key exists: `gh variable list --env
+      // production` was empty on 2026-09-06, which is also why the deleted
+      // injector — it required a Neon Auth base URL — could not have published
+      // this Worker. Add each value here when its environment is provisioned.
+      "vars": {
+        "APP_ENV": "production",
+        "RUNTIME_CONFIG": "{\"schemaVersion\":1,\"api\":{},\"showcaseMode\":\"false\",\"featureFlags\":{}}"
+      }
     }
   }
 }

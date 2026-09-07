@@ -336,9 +336,10 @@ AUTH_RATE_LIMIT_WINDOW_SECONDS = "60"
 #
 # This is provisioning only: AGENT_TURN_ROUTE above stays "container", so the
 # binding changes where the CONTAINER's DSN comes from and nothing else. The
-# transitional SUPABASE_DB_URL worker secret stays in the core bulk payload
-# (.github/scripts/edge-runtime-secrets.py) until the cutover's later step
-# retires it (docs/ops/prod-dsn-cutover.md).
+# transitional SUPABASE_DB_URL worker secret stays set on the Worker until the
+# cutover's later step retires it (docs/ops/prod-dsn-cutover.md). CD stopped
+# uploading it, and the other seven runtime secrets, with #1364; #1370 moves all
+# eight into this same Secrets Store.
 [[env.production.secrets_store_secrets]]
 binding = "AGENT_SVC_DATABASE_URL"
 store_id = "66c9bb0faef644b4a0671bb7d90d98bd"

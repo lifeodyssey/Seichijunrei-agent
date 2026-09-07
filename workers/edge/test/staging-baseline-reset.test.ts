@@ -82,16 +82,16 @@ void test("the reset SQL runs as a single transaction", () => {
 });
 
 // audit §2.6: the shared reset script fired on every foundation promotion regardless of
-// whether the push touched the schema. It must now be conditioned on the cd.yml-supplied
-// RESET_STAGING_DB flag, itself derived from whether `db` is in the route's migration cohort.
-void test("the reset trigger is narrowed to pushes whose cohort includes db", () => {
-  const promotion = read(".github/scripts/promote-release-unit.sh");
-  assert.match(promotion, /\[ "\$\{RESET_STAGING_DB:-\}" = "true" \] \|\| return 0/);
-  const action = read(".github/actions/promote-release-phase/action.yml");
-  assert.match(action, /reset_staging_db:/);
-  assert.match(action, /RESET_STAGING_DB: \$\{\{ inputs\.reset_staging_db \}\}/);
+// whether the push touched the schema. #1364 moved that narrowing out of the retired
+// promotion script and into the step's own `if:` — the reset runs only when this push
+// carries a migrations/neon change, and only against staging.
+void test("the reset trigger is narrowed to pushes that change the schema", () => {
   const cd = read(".github/workflows/cd.yml");
-  assert.match(cd, /reset_staging_db: \$\{\{ contains\(fromJSON\(needs\.route\.outputs\.migration\), 'db'\) \}\}/);
+  assert.match(
+    cd,
+    /Reset the staging schema baseline\n\s*if: \$\{\{ needs\.plan\.outputs\.migrations == 'true' \}\}/,
+  );
+  assert.doesNotMatch(cd, /promote-production:[\s\S]*reset-staging-baseline\.sh/);
 });
 
 void test("reset SQL has one exact destructive target", () => {
@@ -103,38 +103,41 @@ void test("reset SQL has one exact destructive target", () => {
 });
 
 void test("CD resets only staging and blocks production baseline SQL", () => {
-  const promotion = read(".github/scripts/promote-release-unit.sh");
-  assert.match(promotion, /reset_staging_baseline\(\)/);
-  assert.match(promotion, /\[ "\$TARGET_ENVIRONMENT" = staging \] \|\| return 0/);
-  assert.match(promotion, /reset-staging-baseline\.sh/);
-  assert.match(promotion, /STAGING_ONLY_BASELINE/);
-  assert.match(promotion, /staging-only baseline requires a separately approved production cutover/);
+  const cd = read(".github/workflows/cd.yml");
+  const production = cd.slice(cd.indexOf("promote-production:"));
+  assert.match(cd, /reset-staging-baseline\.sh/);
+  assert.doesNotMatch(production, /reset-staging-baseline\.sh/);
+  assert.match(production, /STAGING_ONLY_BASELINE/);
+  assert.match(production, /staging-only baseline requires a separately approved production cutover/);
 });
 
 // The assertions above only prove the message is present in the file. A stray
 // `+` shipped on this branch left them all green while turning the guard into
 // `+: command not found`, so these run the shipped lines against a real payload.
 const productionGuard = (): string => {
-  const lines = read(".github/scripts/promote-release-unit.sh").split("\n");
-  const at = lines.findIndex((line) => line.includes('migrations/STAGING_ONLY_BASELINE"'));
-  assert.notEqual(at, -1, "promotion script must guard on the staging-only marker");
-  return lines.slice(at, at + 2).join("\n");
+  const lines = read(".github/workflows/cd.yml").split("\n");
+  const at = lines.findIndex((line) => line.includes("release/migrations/STAGING_ONLY_BASELINE"));
+  assert.notEqual(at, -1, "CD must guard production on the staging-only marker");
+  const end = lines.findIndex((line, index) => index > at && line.trim() === "fi");
+  assert.notEqual(end, -1, "the marker guard must be a closed if-block");
+  return lines.slice(at, end + 1).map((line) => line.trimStart()).join("\n");
 };
 
 const runProductionGuard = (marked: boolean): { status: number | null; stdout: string } => {
   const payload = mkdtempSync(join(tmpdir(), "promote-guard-"));
-  mkdirSync(join(payload, "migrations"), { recursive: true });
-  if (marked) writeFileSync(join(payload, "migrations", "STAGING_ONLY_BASELINE"), "");
-  const source = `set -euo pipefail\nfail() { echo "BLOCKED:$*"; exit 1; }\n${productionGuard()}\necho PROCEEDED`;
-  const result = spawnSync("bash", ["-c", source], { encoding: "utf8", env: { ...process.env, PAYLOAD_DIR: payload } });
+  mkdirSync(join(payload, "release", "migrations"), { recursive: true });
+  if (marked) writeFileSync(join(payload, "release", "migrations", "STAGING_ONLY_BASELINE"), "");
+  const source = `set -euo pipefail\n${productionGuard()}\necho PROCEEDED`;
+  const result = spawnSync("bash", ["-c", source], { cwd: payload, encoding: "utf8" });
   rmSync(payload, { force: true, recursive: true });
-  return { status: result.status, stdout: result.stdout };
+  return { status: result.status, stdout: `${result.stdout}${result.stderr}` };
 };
 
 void test("the shipped guard blocks production when the staging-only marker is present", () => {
   const blocked = runProductionGuard(true);
-  assert.equal(blocked.status, 1, "guard must exit 1 through fail, not a shell error");
-  assert.match(blocked.stdout, /BLOCKED:staging-only baseline requires a separately approved production cutover/);
+  assert.equal(blocked.status, 1, "guard must exit 1, not fall through a shell error");
+  assert.match(blocked.stdout, /staging-only baseline requires a separately approved production cutover/);
+  assert.doesNotMatch(blocked.stdout, /PROCEEDED/);
 });
 
 void test("the shipped guard lets a payload without the marker through", () => {
@@ -165,9 +168,9 @@ void test("atlas.sum SHA-256 pins the hard-cut payload", () => {
 // a reset staging database failed as a bare "HTTP 500". This repository is
 // public: the body is logged, and any DSN in it must lose its password first.
 const shellFunction = (name: string): string => {
-  const lines = read(".github/scripts/promote-release-unit.sh").split("\n");
+  const lines = read("scripts/delivery/migrate-through-worker.sh").split("\n");
   const at = lines.findIndex((line) => line.startsWith(`${name}() {`));
-  assert.notEqual(at, -1, `${name} must exist in the promotion script`);
+  assert.notEqual(at, -1, `${name} must exist in the migration handshake`);
   const end = lines.findIndex((line, index) => index > at && line === "}");
   return lines.slice(at, end + 1).join("\n");
 };
@@ -181,10 +184,11 @@ const DSN_FORMS: readonly (readonly [string, string])[] = [
 
 const reportFailure = (body: string): { status: number | null; stdout: string } => {
   const dir = mkdtempSync(join(tmpdir(), "migrate-body-"));
-  writeFileSync(join(dir, "migrate.json"), body);
-  const shipped = [shellFunction("report_migrator_failure"), shellFunction("redact_dsn_passwords")].join("\n");
-  const source = `set -euo pipefail\nfail() { echo "FAILED:$*"; exit 1; }\n${shipped}\nreport_migrator_failure "migrator returned HTTP 500"`;
-  const result = spawnSync("bash", ["-c", source], { encoding: "utf8", env: { ...process.env, RUNNER_TEMP: dir } });
+  const response = join(dir, "migrate.json");
+  writeFileSync(response, body);
+  const shipped = [shellFunction("report_failure"), shellFunction("redact_dsn_passwords")].join("\n");
+  const source = `set -euo pipefail\nRESPONSE="${response}"\nfail() { echo "FAILED:$*"; exit 1; }\n${shipped}\nreport_failure "migrator returned HTTP 500"`;
+  const result = spawnSync("bash", ["-c", source], { encoding: "utf8" });
   rmSync(dir, { force: true, recursive: true });
   return { status: result.status, stdout: result.stdout };
 };
