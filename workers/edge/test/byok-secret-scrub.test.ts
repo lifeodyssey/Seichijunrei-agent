@@ -7,12 +7,37 @@ import { REDACTED, SecretScrub } from "../src/agent/egress/secret-scrub.ts";
 // provider families actually issue, plus the raw literal for the shapes none
 // of the patterns can know about.
 //
+// The prefixes are real — they are the whole of what `SecretScrub` matches on
+// — but the bodies are a repeating `0Aa` cycle on purpose (#1435). gitleaks'
+// default rules gate on Shannon entropy once a shape matches: measured on
+// 8.24.3, the version CI pins, `generic-api-key` fires above 3.5 and
+// `gcp-api-key` above 3, and a body that looks issued clears both. A git-range
+// scan reads only added lines, so an unrelated edit here stays clean — what
+// fires is any commit that re-adds one of these lines, a trap for whoever next
+// moves them. The cycle scores under 2.9 and keeps the length each provider
+// issues; it is a digit, an upper- and a lower-case letter, not everything
+// `[A-Za-z0-9_-]` admits, because each extra distinct character costs margin
+// and margin is the point. `OPAQUE_KEY` stays 32 hex characters, matching
+// nothing by shape, which is its whole job.
+//
+// The alternatives are suppressions: `gitleaks:allow` and a `.gitleaksignore`
+// fingerprint hide the line, an allowlist path hides the file, all three need
+// owner approval under AGENTS.md, and none of them makes the line honest.
+//
+// `ANTHROPIC_KEY` is allowlisted whatever its entropy: `generic-api-key`'s
+// stopword list carries `ant-`, which `sk-ant-api03-` contains — the same body
+// fires behind `sk-xyz-api03-`. That is an accident of the default ruleset any
+// gitleaks bump can take away, so it gets the same body as its siblings rather
+// than an exemption.
+//
+// Do not "fix" any of them back into something that looks issued.
+//
 // test-type: unit (pure string work, no network, no clock).
 
-const OPENAI_KEY = "sk-proj-Aa0Bb1Cc2Dd3Ee4Ff5Gg6Hh7";
-const ANTHROPIC_KEY = "sk-ant-api03-Zz9Yy8Xx7Ww6Vv5Uu4";
-const GOOGLE_KEY = "AIzaSyA0b1C2d3E4f5G6h7I8j9K0l1M2n3O4p5Q";
-const OPAQUE_KEY = "8f14e45fceea167a5a36dedd4bea2543";
+const OPENAI_KEY = "sk-proj-0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa";
+const ANTHROPIC_KEY = "sk-ant-api03-0Aa0Aa0Aa0Aa0Aa0Aa";
+const GOOGLE_KEY = "AIza0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa0A";
+const OPAQUE_KEY = "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a";
 
 const shapes = new SecretScrub();
 

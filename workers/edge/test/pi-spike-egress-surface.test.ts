@@ -19,7 +19,11 @@ import { ScriptedEgressFetch } from "./doubles/scripted-egress-fetch.ts";
 //
 // test-type: unit (scripted fetch double, no network, no clock, no bindings).
 
-const KEY = "sk-proj-Aa0Bb1Cc2Dd3Ee4Ff5Gg6Hh7";
+// A repeating body, for the reason `byok-secret-scrub.test.ts` spells out:
+// `sk-proj-` is the half `SecretScrub` matches on, and a body that looks issued
+// clears gitleaks' entropy floor, which makes any commit that re-adds this line
+// a finding (#1435). Do not "fix" it back.
+const KEY = "sk-proj-0Aa0Aa0Aa0Aa0Aa0Aa0Aa0Aa";
 
 void test("S5 adds two routes and leaves the earlier ones alone", () => {
   assert.equal(routeOf("POST", "/egress"), "egress");
