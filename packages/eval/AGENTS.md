@@ -432,6 +432,12 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   `POST /v1/chat` submissions the cases call for (`caseSubmissionsOf` is pure,
   so history replays are counted exactly), and `task_seconds`. A double run's
   dollar figure comes from the provider dashboard.
+  **`task_seconds` is the turns' own seconds, and cannot be `task_duration`
+  (#1476).** The driver takes that difference around the whole task call, which
+  this task enters `InFlightTurns` inside, so every case reported its queue wait
+  too — the 2026-09-07 run walled 8,795 s and summed 3,043,667. The task times
+  itself from inside the slot and writes `turn_seconds` on the case instead. The
+  three committed 2026-09-07 files keep the `null` they were written with.
 - **Not ported: the direct thrash gate.** `direct_gates.py` counts requests and
   repeats per case out of `AgentResult`; neither number crosses the wire. It is
   report-only in Python too (`DIRECT_GATE_ENFORCE`), so nothing that blocked
