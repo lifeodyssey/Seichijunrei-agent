@@ -539,26 +539,155 @@ Important: this is a documentation target only right now. Before enabling it, th
 
 Rollback is incident recovery, not a second deployment path. There is no rollback workflow: the
 hand-written one was deleted with #1364 because Cloudflare already keeps every published version.
-Recovery is `wrangler rollback <version-id> --name <worker>`; `wrangler versions list --name
-<worker>` names each version's `sha-<sha>` tag, which is the commit it was built from. Card #1366
-owns the operator runbook and the staging drill for it — until that lands, treat the paragraphs
-below as the standing constraints rather than a step-by-step procedure.
+Recovery is `wrangler rollback`, run by the owner from a laptop, against one Worker at a time. No
+workflow and no agent runs it — `CD` only ever moves forward (spec §二).
+
+### The five Workers, by environment
+
+| unit | staging Worker | production Worker |
+|---|---|---|
+| catalog | `catalog-staging` | `catalog` |
+| users | `users-staging` | `users` |
+| migrator | `migrator-staging` | added by #1365 (`workers/migrator/wrangler.toml` has no `[env.production]` before it) |
+| edge (carries the agent container image) | `animichi-staging` | `animichi` |
+| web (SSR) | `animichi-web-staging` | `animichi-web` |
+
+The names are `[env.<stage>].name` in `workers/catalog/wrangler.toml`, `workers/users/wrangler.toml`,
+`workers/migrator/wrangler.toml`, `workers/edge/wrangler.toml` and `apps/web/wrangler.jsonc`.
+`wrangler rollback` addresses the deployed Worker by name, so always pass `--name` rather than
+relying on a config file and `--env`.
+
+### 1. Find the version
+
+```sh
+pnpm exec wrangler versions list --name <worker>
+```
+
+It prints the **10 most recent** versions with their `Version ID`, `Created`, and `Tag`. From #1364
+on, every `CD` deploy tags the version it publishes `sha-<sha>`, so the tag is the commit the
+version was built from: pick the last version whose tag is a commit you trust. Versions published
+before that card carry `Tag: -` and are only identifiable by timestamp.
+
+The rollback window is wider than the listing. Cloudflare: "You can only roll back to the 100 most
+recently published versions", and "When using Wrangler in interactive mode, you can select from up
+to 100 recent versions"
+([rollbacks](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/)).
+So for anything older than the 10 the CLI prints, run `wrangler rollback --name <worker>` with no
+version id and pick from the interactive list, or read the ids off **Workers & Pages → your Worker →
+Deployments** in the dashboard. The listing window slides with every deploy — measured on
+`catalog-staging` on 2026-09-07, one new deploy moved the earliest listable version from
+`2026-09-06T15:40:27Z` to `2026-09-06T18:54:36Z` — so "not in `versions list`" does not mean "cannot
+roll back to".
+
+### 2. Roll back
+
+```sh
+pnpm exec wrangler rollback <version-id> --name <worker> -y --message "<why>"
+```
+
+`--message` is the incident record; wrangler's prompt caps it at 120 characters ("Please provide an
+optional message for this rollback (120 characters max)"). The Cloudflare docs say that specifying it
+skips both the confirmation and the message prompt, and they do not list `-y` among `rollback`'s
+options at all — wrangler 4.114.0 nonetheless accepts `-y, --yes` (`wrangler rollback --help`). What
+the drill below actually captured, with `-y --message` on both runs: the message prompt still printed
+once, on the roll-back run, and resolved itself ("Using default value in non-interactive context:
+…"); the confirmation prompt still printed once, on the roll-forward run, and the command completed
+without waiting. Pass both flags — between the two of them nothing in either run needed a terminal.
+Omitting `<version-id>` rolls back to "the version uploaded before the latest version"
+([wrangler](https://developers.cloudflare.com/workers/wrangler/commands/workers/#rollback)), which is
+the usual incident case, but naming the id is what makes the step reviewable afterwards.
+
+### 3. Verify
+
+```sh
+pnpm exec wrangler deployments list --name <worker>
+```
+
+The newest entry is last: it carries your `--message` and `(100%) <version-id>`. A rollback creates a
+new **deployment**, not a new version — `versions list` is byte-for-byte unchanged after one, so
+never verify a rollback with `versions list` alone.
+
+Then check health on a route that actually exists for that Worker:
+
+- edge: `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` — the same URL `CD`'s `smoke`
+  job probes.
+- web: `https://animichi-web-staging.zhenjiazhou0127.workers.dev/` — the SSR shell, `smoke`'s second
+  probe.
+- migrator: `GET $MIGRATOR_STAGING_URL/healthz` (the workflow variable of that name). Today it
+  answers `{status, service, env}` (`workers/migrator/src/create-app.ts`) — it does not yet say which
+  migration chain the Worker carries; #1365 adds `bundleHead` to that response.
+- catalog and users: **no public host** — both configs set `workers_dev = false` and are reached only
+  through the edge's service bindings. Verify them with `deployments list` plus a request through the
+  edge (`/catalog/public/anime-overview/:id` for catalog, an authenticated `/v1/users/*` call for
+  users). A probe of `catalog-staging.<subdomain>.workers.dev/healthz` returns 404 no matter which
+  version is deployed; that 404 is the absent host, not a failed rollback.
+
+### 4. Roll forward
+
+The same command with the newer version id. There is no separate "undo": rolling forward is a
+rollback to a later version, and it appends another deployment with its own message.
+
+### What a rollback does and does not restore
+
+A version "captures the complete state of your Worker at a point in time: its bundled code, static
+assets, bindings, and compatibility settings"
+([versions & deployments](https://developers.cloudflare.com/workers/versions-and-deployments/)), so
+the target version's binding declarations return with its code. What does not return is the state
+behind them: "Resources connected to your Worker will not be changed during a rollback", and "State
+changes for associated storage resources such as KV, R2, Durable Objects, and D1 are not tracked with
+versions". Concretely, a rollback does not:
+
+- reverse an applied Neon migration — schema promotion precedes consumers, which is why
+  expand/contract is mandatory (see "Migration promotion" above);
+- undo a Durable Object class lifecycle change. Cloudflare **refuses** the rollback outright when a
+  DO class lifecycle change (via exports or the legacy `migrations` array) happened between the
+  active version and the target, or when the target has a binding to an R2 bucket, KV namespace, or
+  queue that no longer exists. Plan a code fix forward for those, not a rollback;
+- restore Pulumi state (see the Pulumi paragraph below);
+- change the container image on its own: a rolled-back edge Worker references the image its version's
+  config named, so the agent tier follows the Worker version;
+- rewind a secret. Values behind Secrets Store bindings are read live, and the version records only
+  the binding. "`wrangler secret put` creates a new version of the Worker and deploys it immediately"
+  ([secrets](https://developers.cloudflare.com/workers/configuration/secrets/)), so a rotation is
+  itself a version; what a rollback across one does to the value is not documented and has not been
+  exercised here.
+
+Honest limit on the binding claim: it is Cloudflare's documentation, not our measurement. On
+2026-09-07 the two most recent `catalog-staging` versions bound the same two Secrets Store entries
+(`CATALOG_ADMIN_TOKEN`, `CATALOG_DATABASE_URL`) and the same two R2 buckets, and the last three
+`animichi-web-staging` versions carried identical `APP_ENV` / `RUNTIME_CONFIG` vars — no deploy in
+the window changed a binding, so a rollback *across* a binding change is still unexercised here
+(spec §七 #15).
+
+### Drill: 2026-09-07, `catalog-staging`
+
+`catalog-staging` was serving `33fe9323-2261-466f-be22-2a66efa2ce57` (published 12:55:52Z by `CD`).
+
+1. `wrangler rollback d4e2e9d7-2d2e-4dd7-9b26-90d0877dcfbf --name catalog-staging -y --message "C4
+   drill: roll back one version"` → deployment at 14:36:35Z, `(100%) d4e2e9d7…`, message recorded.
+2. `wrangler deployments list --name catalog-staging` → newest entry is that deployment;
+   `versions list` still returned the same 10 versions.
+3. Roll forward with the same command and `33fe9323-2261-466f-be22-2a66efa2ce57` → `SUCCESS Worker
+   Version 33fe9323… has been deployed to 100% of traffic`, deployment at 14:37:02Z with message
+   "C4 drill: roll forward".
+
+Elapsed: 27 seconds from rollback to roll-forward. The drill also produced the 404 caveat above — the
+health probe used, `catalog-staging.zhenjiazhou0127.workers.dev/healthz`, 404s in both states because
+catalog has no public host, which is why this runbook names the edge and web URLs instead.
+
+### After any recovery
 
 Release artifacts are retained for 14 days, so a `CD` run older than that cannot be re-run to
-redeploy; land a reviewed revert on `main` and let `CD` build a new artifact instead. After any
-recovery, verify the affected routes manually and revert the bad change on `main` so the next
-release restores trunk state.
+redeploy; land a reviewed revert on `main` and let `CD` build a new artifact instead. Revert the bad
+change on `main` so the next release restores trunk state — a rolled-back Worker is behind `main`
+until you do.
 
-Worker rollback changes the running Worker version but does not undo Durable Object migrations,
-reverse a database migration, or restore Pulumi state. A rolled-back edge Worker still references the container image its
-config named, so the agent tier follows the Worker version. Use expand/contract migrations so
-one-version code rollback remains schema-compatible. For Pulumi, inspect the failed update in Pulumi Cloud's
-stack history and roll back from there: read the last-good version number out of `pulumi stack
-history`, then `pulumi stack export --version <version> --file state.json` and `pulumi stack import
---file state.json`. A bare `pulumi stack export` writes the *latest* checkpoint, which after a
-failed update is the broken one, so the version is not optional. Follow the import with a reviewed
-reconciliation — the pre-apply R2 export is retired (#1077). Never place a state export in a public
-GitHub artifact.
+For Pulumi, inspect the failed update in Pulumi Cloud's stack history and roll back from there: read
+the last-good version number out of `pulumi stack history`, then `pulumi stack export --version
+<version> --file state.json` and `pulumi stack import --file state.json`. A bare `pulumi stack
+export` writes the *latest* checkpoint, which after a failed update is the broken one, so the version
+is not optional. Follow the import with a reviewed reconciliation — the pre-apply R2 export is
+retired (#1077). Never place a state export in a public GitHub artifact.
 
 `CD`'s own `smoke` job does not run on a recovery, so the owner must manually check health and the
 affected user journey after one.
