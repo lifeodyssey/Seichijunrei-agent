@@ -21,7 +21,12 @@ import {
 
 /** Twelve, because the gate skips a metric with fewer than ten paired cases. */
 const PAIRED_CASES = 12;
-const ALL_METRICS = metricNames({ hasNonemptyCases: true, hasParamsRecorded: true, l3Enabled: false });
+const ALL_METRICS = metricNames({
+  hasNonemptyCases: true,
+  hasParamsRecorded: true,
+  hasMeasuredSteps: true,
+  l3Enabled: false,
+});
 const parity = baselineParityScores(PAIRED_CASES);
 const regressed = withRegressedMetric(parity, 'tool_correctness');
 

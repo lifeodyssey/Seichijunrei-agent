@@ -114,7 +114,6 @@ def test_trajectory_match_scores_ordered_chains(
             ["search_bangumi"],
             0.4,
         ),
-        (steps(), ["search_bangumi"], 1.0),
         (
             steps("geocode", "search_nearby", "clarify"),
             ["clarify_after_nearby"],
@@ -137,8 +136,15 @@ def test_step_efficiency_scores_best_acceptable_minimum(
 
 
 def test_step_efficiency_scores_direct_general_qa_as_ideal() -> None:
+    """Zero steps IS the ideal here, so the turn keeps the ceiling."""
     evaluator_ctx = ctx(JA, result(steps()), AgentExpected(["general_qa"]))
     assert dict(StepEfficiency().evaluate(evaluator_ctx)) == {"step_efficiency": 1.0}
+
+
+def test_step_efficiency_is_unmeasured_when_a_required_step_never_happened() -> None:
+    """#1439: no step and no zero-step ideal leaves nothing to divide."""
+    evaluator_ctx = ctx(JA, result(steps()), AgentExpected(["search_bangumi"]))
+    assert dict(StepEfficiency().evaluate(evaluator_ctx)) == {}
 
 
 def test_plan_multi_trajectory_scales_with_unique_candidates() -> None:

@@ -1,8 +1,10 @@
 """The transcripts the evaluator oracle scores (#1301).
 
 Each scenario pins one branch the TypeScript port has to reproduce: the ANY-of-N
-chain disjunction and its ties, the two selection branches that accept the empty
-chain, every branch of `_acceptable_min_steps`, the `{}` (no metric) returns, the
+chain disjunction and its ties, the two selection stages that accept the empty
+chain and the place selection that does not, every branch of
+`_acceptable_min_steps`, the `{}` (no metric) returns — including the zero-step
+turn on a case that required a step (#1439) — the
 `resolve_reply_language` decision points, and — since #1381 — both answers
 `argument_correctness` can give: every call whose params equal its arguments
 scores 1.0, and the two calls the runtime settled differently score 0.0.
@@ -284,6 +286,34 @@ SCENARIOS: list[OracleScenario] = [
         ],
         data_keys=["results"],
         search_row_count=2,
+    ),
+    OracleScenario(
+        case_id="place_selection_calls_the_stage_it_names",
+        query="Use Uji",
+        locale="ja",
+        intent="search_nearby",
+        message=_EN_REPLY,
+        acceptable_stages=["search_nearby"],
+        steps=[OracleStep(tool="search_nearby", args={"place": "\u5b87\u6cbb"})],
+        data_keys=["results"],
+        expect_nonempty=True,
+        selected_candidate_ids=["seed:uji"],
+        seeded_pending={"reason": "place_ambiguity"},
+        clarification_id=6,
+        search_row_count=4,
+    ),
+    OracleScenario(
+        case_id="place_selection_refused_to_act",
+        query="Use Uji",
+        locale="ja",
+        intent="search_nearby",
+        message=_EN_REPLY,
+        acceptable_stages=["search_nearby"],
+        data_keys=["results"],
+        expect_nonempty=True,
+        selected_candidate_ids=["seed:uji"],
+        seeded_pending={"reason": "place_ambiguity"},
+        clarification_id=6,
     ),
     OracleScenario(
         case_id="clarify_without_pending",

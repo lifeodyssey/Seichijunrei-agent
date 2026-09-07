@@ -79,19 +79,40 @@ project's own, ported from `evaluators.py`.
   `len(AgentResult.steps)` for every turn the wire can describe. `status` has three states:
   `"unsettled"` (made, never settled) is excluded wherever `include_failed=False` applies and counted
   by `MaxToolCalls`, which counts every attempt.
-- **ANY-of-N lives in `accepted-chains.ts`.** A case names acceptable *stages*, each contributing
-  chains; the tool and trajectory evaluators score once per chain and keep the best, and both
-  selection turns accept only the empty chain. `bestOverChains` returns 1.0 for a case with no
-  accepted chain — `_best(..., empty=1.0)`.
-- **`{}` is not `0`.** `NonemptyResults` on an untagged case and `ArgumentCorrectness` on a turn with
-  no successful call emit *no metric*. `test/evaluator-parity.test.ts` compares the whole score
-  record, so a surplus zero fails there.
+- **ANY-of-N lives in `accepted-chains.ts`, and the stage decides it alone.** A case names
+  acceptable *stages*, each contributing chains; the tool and trajectory evaluators score once per
+  chain and keep the best. `plan_selected` and `plan_multi` accept only the empty chain because
+  those stages bypass the model — not because the inputs carry a selection. An input-level
+  short-circuit used to say the second thing. Counted over the six exported sets, **twenty** cases
+  carry a selection (fifteen `plan_selected`, four `plan_multi`, one `search_nearby`) — count on
+  `!== null`, not on truthiness, because three of the fifteen select an empty list and the
+  short-circuit fired on them too. It was a no-op on nineteen of the twenty and wrong on the
+  place selection, whose stage is `search_nearby`: it accepted the empty chain, so a turn that
+  called nothing scored 1.0 and the turn that made the call scored 0.0 (#1439).
+  `bestOverChains` returns 1.0 for a case with no accepted chain — `_best(..., empty=1.0)`.
+- **`{}` is not `0`.** `NonemptyResults` on an untagged case, `ArgumentCorrectness` on a turn with
+  no successful call, and `StepEfficiency` on a turn that took no step when the case's every
+  acceptable ideal is at least one (#1439) all emit *no metric*. That last one is a ratio with no
+  denominator: when a zero-step ideal is acceptable (`greet_user`, `general_qa`) taking no step IS
+  ideal and scores 1.0, but otherwise the turn did not attempt the task and this metric — which
+  measures waste, not correctness — has nothing to say. `test/evaluator-parity.test.ts` compares the
+  whole score record, so a surplus zero fails there.
+  **This costs a real measurement, and the cost is known.** The nineteen bypass cases (fifteen
+  `plan_selected`, four `plan_multi`) are expected to make no model call — their stage's only
+  accepted chain is empty — yet `_STAGE_MIN_STEPS` still gives them an ideal of 1 or more. A turn
+  that correctly bypasses the model and records no step therefore has an ideal ≥1 and an actual of
+  0, and now yields `{}` where it used to yield a 1.0 that was, for those cases, the right answer
+  for the wrong reason. The narrower rule — an ideal of 0 for any stage whose only chain is empty —
+  would keep it, but it rests on a pre-existing mismatch (the ideal counts deterministic steps that
+  the stage's own chain vocabulary excludes) and on the unresolved `plan_multi` chain question, so
+  it is filed separately rather than widened into #1439.
 - **`_available_data_keys` is ported once, in W3-2.** `DataKeysPresent` reads `dataKeys`; it does not
   re-derive the rule. The oracle publishes Python's own `_available_data_keys` under that name, so it
   is the tripwire for `dataKeysOf` too.
 - **The oracle, not a re-derivation.** `fixtures/evaluator-oracle.json` is what the *Python*
-  evaluators score for 22 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
-  ties, both empty-chain selections, the three call outcomes, the `resolve_reply_language`
+  evaluators score for 24 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
+  ties, the two empty-chain selection stages and the place selection that is not one, the
+  zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
   decision points, and both answers `argument_correctness` can give (a call settled into a coerced
   value and one settled with an optional null dropped, each scored 0.0 by Python itself) — paired
   with the wire transcript the TS side reads for the same turn. Changing an
@@ -128,11 +149,13 @@ able to score 1.0, and "unmeasured" must not look like "every call was wrong".
 
 `src/metric-names.ts` ports `eval_harness.metric_names` — same names, same order, checked against the
 oracle's committed dump. Order is load-bearing: baselines and report tables are keyed positionally.
-Two columns are conditional: `nonempty_results` on the DATASET (no tagged case, no column) and
-`argument_correctness` on the RUN (`src/gate-run/run-metric-names.ts` — no case was offered the
-settled params, so nothing computed it). Both exist because `aggregateScores` is strict, as Python's
-`_scores` is: a metric the list names and the run does not report throws, which would let one
-unavailable measurement take the other seven down with it.
+Three columns are conditional: `nonempty_results` on the DATASET (no tagged case, no column), and
+two on the RUN (`src/gate-run/run-metric-names.ts`) — `argument_correctness` when no case was
+offered the settled params, and `step_efficiency` when no case scored it at all, which an unseeded
+`phase1c_selection_v1` arm reaches exactly (every turn refuses, so no turn has a denominator). All
+three exist because `aggregateScores` is strict, as Python's `_scores` is: a metric the list names
+and the run does not report throws, which would let one unavailable measurement take the other
+seven down with it.
 
 ## Version pin
 

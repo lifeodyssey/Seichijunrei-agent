@@ -18,7 +18,7 @@ export class OfficialToolCorrectness extends AgentTurnEvaluator {
 
   override evaluate(ctx: AgentTurnContext): MetricRecord {
     const actual = toolNames(completedCalls(ctx.output));
-    const chains = acceptedChainsForCase(ctx.inputs, ctx.metadata);
+    const chains = acceptedChainsForCase(ctx.metadata);
     return {
       tool_correctness: bestOverChains(chains, (chain) => multisetMatch(actual, chain)),
     };
