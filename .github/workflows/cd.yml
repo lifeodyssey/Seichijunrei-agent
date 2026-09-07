@@ -429,6 +429,22 @@ jobs:
         env:
           MIGRATOR_URL: ${{ vars.MIGRATOR_STAGING_URL }}
         run: bash scripts/delivery/migrate-through-worker.sh staging
+      # C3 one-time verification, delete after the first green run (#1365).
+      # Proves the production door refuses this job's staging token in the live
+      # deployment, not only in workers/migrator/test/policy.test.ts.
+      - name: Verify the production migrator refuses a staging token
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        env:
+          MIGRATOR_PRODUCTION_URL: ${{ vars.MIGRATOR_PRODUCTION_URL }}
+        run: |
+          set -euo pipefail
+          token="$(curl -sSfL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=animichi:github-actions:migrator" | jq -er .value)"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+            "$MIGRATOR_PRODUCTION_URL/migrate" -H "Authorization: Bearer $token" \
+            -H 'content-type: application/json' --max-time 60 -d '{}')"
+          echo "production migrator answered HTTP $code to a staging token"
+          [ "$code" = 403 ] || { echo "::error::expected 403, got $code"; exit 1; }
 
   stage-services:
     name: CD / staging services
@@ -669,32 +685,35 @@ jobs:
           command: up
           stack-name: lifeodyssey/prod
           work-dir: release/foundation/infra
-      # Transitional (spec §五 C1 → C3 / #1365): production still applies the
-      # sealed Atlas chain directly, while staging already migrates through the
-      # migrator Worker. C3 deletes these two steps and the last database
-      # credential CI holds.
-      - name: Install the pinned Atlas CLI
+      # C3 (#1365) retired the transitional Atlas step and the last database
+      # credential CI held: production now migrates the same way staging does —
+      # the job proves who it is with its own OIDC token and the migrator Worker,
+      # which holds the DSN, decides. The production Worker is a separate
+      # deployment with a separate DSN and a separate OIDC allowlist
+      # (workers/migrator/src/policy.ts); a staging token cannot open it.
+      - name: Refuse a staging-only baseline before production migrates
         if: ${{ needs.plan.outputs.migrations == 'true' }}
-        uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
-        with:
-          version: v0.30.0
-      - name: Apply the sealed migration chain to production
-        if: ${{ needs.plan.outputs.migrations == 'true' }}
-        env:
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           set -euo pipefail
           if [ -f release/migrations/STAGING_ONLY_BASELINE ]; then
             echo "::error::staging-only baseline requires a separately approved production cutover"
             exit 1
           fi
-          scoped_url="$NEON_DATABASE_URL"
-          case "$scoped_url" in
-            *\?*) scoped_url="${scoped_url}&search_path=public" ;;
-            *) scoped_url="${scoped_url}?search_path=public" ;;
-          esac
-          atlas migrate validate --dir "file://release/migrations"
-          atlas migrate apply --dir "file://release/migrations" --url "$scoped_url" --revisions-schema public
+      - name: Deploy the migrator Worker
+        if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.114.0"
+          packageManager: npm
+          workingDirectory: release
+          command: deploy migrator/bundle/index.js --no-bundle --config migrator/wrangler.toml --env production --tag sha-${{ github.sha }}
+      - name: Migrate production through the migrator Worker
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        env:
+          MIGRATOR_URL: ${{ vars.MIGRATOR_PRODUCTION_URL }}
+        run: bash scripts/delivery/migrate-through-worker.sh production
       - name: Deploy the catalog Worker
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'catalog') }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0

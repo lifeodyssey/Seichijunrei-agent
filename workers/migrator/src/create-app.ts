@@ -1,14 +1,16 @@
-import { createRemoteJWKSet } from "jose";
+import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 import { Hono, type Context } from "hono";
 import {
   createGitHubOidcVerifier,
   type GitHubOidcVerifier,
 } from "@animichi/contract/oidc-github";
+import { productionChain } from "./bundled-chain";
+import { headsOf, type ChainSource } from "./chain";
 import { NeonMigrationsLedger } from "./ledger";
 import { runMigration, type ContainerOutcome, type MigrationRunResult } from "./migration";
 import {
   GITHUB_OIDC_JWKS_URL,
-  STAGING_OIDC_POLICY,
+  policyFor,
 } from "./policy";
 
 /**
@@ -26,13 +28,42 @@ export interface Env {
   MIGRATOR_APPLY_LOCK?: DurableObjectNamespace;
   /** Optional per-deploy cap on the one-shot container run, in ms. */
   CONTAINER_TIMEOUT_MS?: string;
+  /** Selects the OIDC claims allowlist; only "production" opens that door. */
+  MIGRATOR_OIDC_POLICY?: string;
 }
 
 /** Injectable boundaries used by the worker HTTP-seam tests. */
 export interface MigratorDeps {
   verifier?: GitHubOidcVerifier;
+  /** JWKS for the env-selected policy; `verifier` overrides the selection. */
+  jwks?: JWTVerifyGetKey;
   runContainer?: (dsn: string) => Promise<ContainerOutcome>;
   readAppliedHead?: (dsn: string) => Promise<string | null>;
+  /** The chain this Worker carries; the handshake answers from it. */
+  chain?: ChainSource;
+}
+
+/**
+ * #1365 / #1332 — `wrangler deploy` returning is not the new bundle serving.
+ * The Worker publishes the chain it actually carries on `/healthz`, and
+ * refuses a head that chain cannot reach before it touches the database.
+ */
+class BundleHandshake {
+  private readonly heads: readonly string[];
+
+  constructor(source: ChainSource) {
+    this.heads = headsOf(source);
+  }
+
+  /** The last head of the carried chain — what a caller must wait for. */
+  get head(): string | null {
+    return this.heads[this.heads.length - 1] ?? null;
+  }
+
+  /** An expected head this bundle cannot reach means the caller is ahead of it. */
+  stale(expectedHead: string | undefined): boolean {
+    return expectedHead !== undefined && !this.heads.includes(expectedHead);
+  }
 }
 
 const REMOTE_JWKS = createRemoteJWKSet(new URL(GITHUB_OIDC_JWKS_URL));
@@ -51,8 +82,13 @@ function bearerToken(request: Request): string | null {
   return token.length > 0 ? token : null;
 }
 
-function healthz(c: Context<{ Bindings: Env }>): Response {
-  return c.json({ status: "ok", service: "migrator", env: c.env.ENVIRONMENT ?? "unknown" });
+function healthz(c: Context<{ Bindings: Env }>, bundle: BundleHandshake): Response {
+  return c.json({
+    status: "ok",
+    service: "migrator",
+    env: c.env.ENVIRONMENT ?? "unknown",
+    bundleHead: bundle.head,
+  });
 }
 
 /** JSON.parse returns `any`; narrow to `unknown` at the only parse site. */
@@ -146,24 +182,50 @@ function httpApplyBound(
   return bind(env.MIGRATOR_APPLY_LOCK);
 }
 
+/** The allowlist this deployment enforces; `verifier` short-circuits the pick. */
+function verifierFor(env: Env, deps: MigratorDeps): GitHubOidcVerifier {
+  if (deps.verifier !== undefined) return deps.verifier;
+  return createGitHubOidcVerifier(policyFor(env.MIGRATOR_OIDC_POLICY), deps.jwks ?? REMOTE_JWKS);
+}
+
+type Guarded =
+  | { ok: true; expectedHead: string | undefined }
+  | { ok: false; response: Response };
+
+/** Identity, then body shape, then the bundle handshake — all before any DSN. */
+async function guardRequest(
+  c: Context<{ Bindings: Env }>,
+  deps: MigratorDeps,
+  bundle: BundleHandshake,
+): Promise<Guarded> {
+  const token = bearerToken(c.req.raw);
+  if (token === null) return { ok: false, response: c.json({ error: "unauthorized" }, 401) };
+  const verified = await verifierFor(c.env, deps).verify(token);
+  if (!verified.ok) {
+    return { ok: false, response: c.json({ error: "forbidden", message: verified.reason }, 403) };
+  }
+  const body = await parseBody(c.req.raw);
+  if (!body.ok) return { ok: false, response: c.json({ error: "invalid request body" }, 400) };
+  if (bundle.stale(body.expectedHead)) {
+    return { ok: false, response: c.json({ error: "stale_bundle", bundleHead: bundle.head }, 409) };
+  }
+  return { ok: true, expectedHead: body.expectedHead };
+}
+
 async function handleMigrate(
   c: Context<{ Bindings: Env }>,
   deps: MigratorDeps,
+  bundle: BundleHandshake,
 ): Promise<Response> {
-  const token = bearerToken(c.req.raw);
-  if (token === null) return c.json({ error: "unauthorized" }, 401);
-  const verifier = deps.verifier ?? createGitHubOidcVerifier(STAGING_OIDC_POLICY, REMOTE_JWKS);
-  const verified = await verifier.verify(token);
-  if (!verified.ok) return c.json({ error: "forbidden", message: verified.reason }, 403);
-  const body = await parseBody(c.req.raw);
-  if (!body.ok) return c.json({ error: "invalid request body" }, 400);
+  const guard = await guardRequest(c, deps, bundle);
+  if (!guard.ok) return guard.response;
   const dsn = await resolveDsn(c.env);
   if (dsn === undefined) return c.json({ error: "migrator database not configured" }, 503);
   try {
     const runContainer = await runContainerFor(c.env, deps);
     const readAppliedHead = deps.readAppliedHead ??
       ((value: string) => new NeonMigrationsLedger().readAppliedHead(value));
-    const result = await runMigration(dsn, { runContainer, readAppliedHead }, body.expectedHead);
+    const result = await runMigration(dsn, { runContainer, readAppliedHead }, guard.expectedHead);
     return outcomeResponse(result);
   } catch (error) {
     // #1091 (US-27): an unexpected orchestration throw must be observable —
@@ -177,7 +239,8 @@ async function handleMigrate(
 /** Create an independently injectable migrator Hono application. */
 export function createMigratorApp(deps: MigratorDeps = {}): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
-  app.get("/healthz", healthz);
-  app.post("/migrate", (c) => handleMigrate(c, deps));
+  const bundle = new BundleHandshake(deps.chain ?? productionChain);
+  app.get("/healthz", (c) => healthz(c, bundle));
+  app.post("/migrate", (c) => handleMigrate(c, deps, bundle));
   return app;
 }

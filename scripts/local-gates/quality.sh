@@ -61,13 +61,14 @@ run bash "$GS/check-e2e-promotion.test.sh"
 run bash "$GS/check-e2e-promotion.sh"
 run bash "$GS/staging-smoke-check.test.sh"
 run bash "$GS/bundle-release-worker.test.sh"
+run bash scripts/delivery/migrate-through-worker.test.sh
 run bash scripts/local-gates/commit-message.test.sh
 run bash scripts/local-gates/shebang-exec-bit.test.sh
 run bash scripts/local-gates/shebang-exec-bit.sh
 run ruby "$GS/test_gitleaks_config_extends_defaults.rb"
 run ruby "$GS/test_gitleaks_config_extends_defaults_mutation.rb"
 run shellcheck "$GS/bundle-release-worker.sh" "$GS/bundle-release-worker.test.sh"
-run shellcheck "scripts/delivery/migrate-through-worker.sh"
+run shellcheck "scripts/delivery/migrate-through-worker.sh" "scripts/delivery/migrate-through-worker.test.sh"
 run shellcheck "$GS/staging-smoke-check.sh" "$GS/staging-smoke-check.test.sh"
 run shellcheck "infra/database-access/reset-staging-baseline.sh"
 run bash scripts/semgrep-raw-sql-test.sh

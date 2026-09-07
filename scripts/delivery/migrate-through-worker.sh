@@ -7,8 +7,12 @@
 # is the last file of the migration chain inside the release artifact, so the
 # Worker applies exactly what this run packaged.
 #
-# C3 (#1365) adds the `bundleHead` poll that closes #1332 ("deploy returned" is
-# not "the new bundle is serving") and the bounded 409 retry around it.
+# C3 (#1365) adds the `bundleHead` handshake that closes #1332: `wrangler
+# deploy` returning is not the new bundle serving, and the old bundle answering
+# a POST would apply a chain this release never packaged. So the head the
+# Worker reports on /healthz is polled until it matches, and the Worker's own
+# `409 stale_bundle` — the same fact from the other side — is retried rather
+# than failing the release.
 #
 # Usage: MIGRATOR_URL=… migrate-through-worker.sh <environment> [migrations-dir]
 set -euo pipefail
@@ -16,6 +20,11 @@ set -euo pipefail
 TARGET_ENVIRONMENT="${1:?target environment required}"
 MIGRATIONS_DIR="${2:-release/migrations}"
 RESPONSE="${RUNNER_TEMP:-/tmp}/migrate-$TARGET_ENVIRONMENT.json"
+# The propagation window: 12 × 5s covers the observed Cloudflare rollout, and
+# the tests shrink both so they assert the behaviour, not the wall clock.
+BUNDLE_ATTEMPTS="${BUNDLE_POLL_ATTEMPTS:-12}"
+BUNDLE_SLEEP="${BUNDLE_POLL_SECONDS:-5}"
+STALE_ATTEMPTS="${STALE_BUNDLE_ATTEMPTS:-3}"
 
 fail() { echo "::error title=migration::$*"; exit 1; }
 required() { [ -n "${!1:-}" ] || fail "$1 is required for $TARGET_ENVIRONMENT"; }
@@ -34,13 +43,47 @@ oidc_token() {
     "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=animichi:github-actions:migrator" | jq -r .value
 }
 
-trigger() {
-  local expected="$1" token="$2" body code
+# The head of the chain the live bundle carries. A Worker mid-rollout, or one
+# that has not been redeployed at all, reports the previous head here.
+served_head() {
+  curl -sS --max-time 15 "$MIGRATOR_URL/healthz" | jq -r '.bundleHead // empty'
+}
+
+await_bundle() {
+  local expected="$1" attempt=1 head
+  while :; do
+    head="$(served_head || true)"
+    [ "$head" = "$expected" ] && return 0
+    [ "$attempt" -ge "$BUNDLE_ATTEMPTS" ] && return 1
+    echo "migrator serves bundle ${head:-unknown}, waiting for $expected ($attempt/$BUNDLE_ATTEMPTS)"
+    attempt=$((attempt + 1))
+    sleep "$BUNDLE_SLEEP"
+  done
+}
+
+post_migrate() {
+  local expected="$1" token="$2" body
   body="$(jq -cn --arg expectedHead "$expected" '{expectedHead:$expectedHead}')"
-  code="$(curl -sS -o "$RESPONSE" -w '%{http_code}' -X POST \
+  curl -sS -o "$RESPONSE" -w '%{http_code}' -X POST \
     "$MIGRATOR_URL/migrate" -H "Authorization: Bearer $token" \
-    -H 'content-type: application/json' --max-time 900 -d "$body")"
-  [ "$code" = 200 ] || report_failure "migrator returned HTTP $code"
+    -H 'content-type: application/json' --max-time 900 -d "$body"
+}
+
+# Wait for the head, then POST. A 409 means the Worker answered from a bundle
+# that cannot reach this head after all — the poll raced the rollout — so wait
+# again and re-POST, bounded.
+trigger() {
+  local expected="$1" token="$2" attempt=1 code
+  while [ "$attempt" -le "$STALE_ATTEMPTS" ]; do
+    await_bundle "$expected" || fail "migrator never served bundle head $expected"
+    code="$(post_migrate "$expected" "$token")"
+    [ "$code" = 200 ] && return 0
+    [ "$code" = 409 ] || report_failure "migrator returned HTTP $code"
+    echo "migrator answered 409 stale_bundle; re-polling ($attempt/$STALE_ATTEMPTS)"
+    attempt=$((attempt + 1))
+    sleep "$BUNDLE_SLEEP"
+  done
+  report_failure "migrator still served a stale bundle after $STALE_ATTEMPTS attempts"
 }
 
 verify() {

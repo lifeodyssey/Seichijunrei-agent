@@ -97,15 +97,15 @@ approved, it would follow its own owner/runbook and must not add or alter Neon d
 ## CI and deployment order
 
 - Pull requests that affect the database dependency closure run the static Atlas checksum/SQL
-  validation in the single `CI` workflow. The migration-boundary tests assert that staging uses
-  the OIDC-authenticated migrator and never receives `NEON_DATABASE_URL`, while the production
-  database step receives only its environment-scoped DSN. Neither path may reintroduce
-  `supabase db push` or a Drizzle migration command.
+  validation in the single `CI` workflow. The migration-boundary tests assert that BOTH
+  environments reach the database only through the OIDC-authenticated migrator and that `cd.yml`
+  names no database credential at all (#1365). Neither path may reintroduce `supabase db push` or
+  a Drizzle migration command.
 - `.github/workflows/cd.yml` selects the affected set for each main SHA, builds one artifact, and
-  applies the migration chain in `stage-migration` — before services, edge, and web. Staging goes
-  through the migrator Worker (`scripts/delivery/migrate-through-worker.sh`); production still
-  applies the sealed chain with Atlas until #1365. There is no manual or tag-triggered alternate
-  deploy path.
+  applies the migration chain in `stage-migration` — before services, edge, and web. Both
+  environments run `scripts/delivery/migrate-through-worker.sh <env>` against their own migrator
+  Worker, each with its own DSN and its own OIDC allowlist. There is no manual or tag-triggered
+  alternate deploy path.
 - **Expand/contract is a rule (US25/#1052)**: every schema change must be **compatible with the
   currently deployed consumers one version back**. Schema and component deploys are never
   atomic, so both deploy-order windows must stay safe by rule, not by luck:

@@ -10,6 +10,7 @@ import {
   MIGRATOR_OIDC_AUDIENCE,
   TRUSTED_CD_WORKFLOW,
 } from "../src/policy";
+import { fixtureChain } from "./http-apply.helpers";
 
 // #1051 — shared HTTP-seam fixtures for the migrator worker tests: faked
 // container binding + injected JWKS (spec §Testing Decisions 1). jose resolves
@@ -31,6 +32,17 @@ export const policy: GitHubOidcPolicy = {
 
 export function testEnv(): MigratorEnv {
   return { ENVIRONMENT: "staging", MIGRATOR_DATABASE_URL: DSN } as MigratorEnv;
+}
+
+// #1365 — the production deployment differs from staging by exactly this var
+// (workers/migrator/wrangler.toml `[env.production]`); it is what makes the
+// Worker enforce PRODUCTION_OIDC_POLICY instead of the staging allowlist.
+export function productionEnv(): MigratorEnv {
+  return {
+    ENVIRONMENT: "production",
+    MIGRATOR_OIDC_POLICY: "production",
+    MIGRATOR_DATABASE_URL: DSN,
+  } as MigratorEnv;
 }
 
 export async function issuedToken(overrides: Record<string, unknown> = {}): Promise<{
@@ -60,9 +72,14 @@ export function joseEnv(jwk: JWK) {
   return createLocalJWKSet({ keys: [jwk] });
 }
 
+// The app under test carries the fixture chain (`http-apply.helpers`), not the
+// repository's own `migrations/neon` bundle: these tests are about the HTTP
+// seam, and the #1365 handshake answers `/healthz` and the 409 from whichever
+// chain the Worker carries. Its head is HEAD_B — the head `post()` expects.
 export async function makeApp(overrides: Partial<MigratorDeps> = {}) {
   const { token, jwk } = await issuedToken();
   const deps: MigratorDeps = {
+    chain: fixtureChain,
     verifier: createGitHubOidcVerifier(policy, joseEnv(jwk)),
     runContainer: (): Promise<ContainerOutcome> => Promise.resolve({ kind: "success", exitCode: 0 }),
     readAppliedHead: (): Promise<string | null> => Promise.resolve("20260814191301_turn_idempotency_outbox"),

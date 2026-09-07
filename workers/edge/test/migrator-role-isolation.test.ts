@@ -53,6 +53,23 @@ void test("no deploy workflow ferries the migrator DSN as a worker secret", () =
   }
 });
 
+// #1365 — the negative assertion above only means something while the DSN
+// actually arrives the other way. Every deployed migrator environment must bind
+// it from the Secrets Store, and the two environments must bind DIFFERENT store
+// secrets: staging and production share the account's single store, so one
+// shared name would point the production Worker at the staging database.
+void test("every migrator environment binds its own Secrets Store DSN", () => {
+  const toml = read("workers/migrator/wrangler.toml");
+  const bindings = [...toml.matchAll(/\[\[env\.(\w+)\.secrets_store_secrets]]\n([^[]*)/g)];
+  const named = new Map<string, string>(bindings.map((match) => [match[1] ?? "", match[2] ?? ""]));
+  assert.deepEqual([...named.keys()].sort(), ["production", "staging"]);
+  for (const [env, body] of named) {
+    assert.match(body, /binding = "MIGRATOR_DATABASE_URL"/, `${env} must bind the migrator DSN`);
+  }
+  const secretNames = [...named.values()].map((body) => /secret_name = "(\w+)"/.exec(body)?.[1] ?? "(none)");
+  assert.equal(new Set(secretNames).size, 2, `staging and production must name different store secrets, saw ${secretNames.join(", ")}`);
+});
+
 void test("database-access IaC DOES provision the migrator role + MIGRATOR_DATABASE_URL store secret", () => {
   // The isolation assertions above are only meaningful while the migrator is
   // actually provisioned through the same IaC path as the runtime roles —

@@ -119,10 +119,12 @@ const roleDefs: { name: string; secretName?: string; comment: string }[] = [
   // available on every branch (production `main` compute included); GRANTs and
   // ownership are branch-scoped and shipped as Atlas migrations
   // (migrations/neon/*). The DSN here composes against THIS branch's
-  // read-write endpoint; the production stack (Pulumi.prod.yaml, landed
-  // by #1048 on the same branch of this program) writes the same secret name
-  // against the main-branch endpoint. Until #1048's prod stack lands, the
-  // production DSN is not yet written to the store.
+  // read-write endpoint, so each stack writes its own: staging publishes
+  // MIGRATOR_DATABASE_URL against the staging branch and the prod stack
+  // (Pulumi.prod.yaml, #1048) publishes MIGRATOR_DATABASE_URL_PROD against the
+  // main-branch endpoint — the two names workers/migrator/wrangler.toml binds
+  // per environment (#1365). Both come from this one roleDefs entry; there is
+  // no production-only path that could drift from the staging one.
   {
     name: "migrator",
     secretName: "MIGRATOR_DATABASE_URL",

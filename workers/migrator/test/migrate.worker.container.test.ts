@@ -6,6 +6,7 @@ import {
   testEnv,
   type ContainerOutcome,
 } from "./migrate.worker.helpers";
+import { HEAD_B } from "./http-apply.helpers";
 
 // #1051 — migrator HTTP-seam container-outcome tests: exit-code mapping, the
 // hung-container 504, the empty-ledger null head, and the health probe.
@@ -150,4 +151,19 @@ it("exposes /healthz", async () => {
   const { app } = await makeApp();
   const res = await app.request("https://migrator.test/healthz", {}, testEnv());
   expect(res.status).toBe(200);
+});
+
+// #1365 — the other side of the handshake: an expectedHead the carried bundle
+// DOES reach runs the apply through and reports that same head back, which is
+// what `migrate-through-worker.sh` verifies before the release moves on.
+it("applies and reports the expected head when the bundle carries it", async () => {
+  const { app, token } = await makeApp();
+  const res = await app.request(post({ expectedHead: HEAD_B }, token), {}, testEnv());
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({
+    success: true,
+    exitCode: 0,
+    appliedHead: HEAD_B,
+    pathVerification: "verified",
+  });
 });
