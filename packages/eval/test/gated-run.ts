@@ -141,6 +141,7 @@ export function makeTranscriptResult(
     paramsRecorded,
     stepCount: 0,
     trajectory: [],
+    priorTrajectory: [],
     response: null,
     runStatus: 'succeeded',
   };

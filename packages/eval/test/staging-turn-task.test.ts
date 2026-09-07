@@ -94,6 +94,22 @@ void test("a case's recorded history is replayed on the same session as its quer
   assert.deepEqual(sent.map((call) => call.headers.get("x-session-id")), [null, SESSION_ID, SESSION_ID]);
 });
 
+/**
+ * The earlier turns are not scaffolding to be discarded (E-3 #1382): #1377 puts
+ * their tool returns back in front of the model on the measured turn, so a
+ * reply sourced from one of them is sourced. Mutation: drop `priorStreams` and
+ * this goes red.
+ */
+void test("an earlier turn's tool returns come back with the measured turn", async () => {
+  const context = { message_history: [{ user: "前のターン" }] };
+  const { task } = taskOver({});
+  const result = await task.run(agentInput({ context }));
+  assert.deepEqual(
+    result.priorTrajectory.map((step) => [step.toolName, step.output]),
+    [["resolve_anime", { bangumi_id: 1 }]],
+  );
+});
+
 void test("every submission carries its own dedupe key", async () => {
   const context = { message_history: [{ user: "先の話" }] };
   const { fake, task } = taskOver({});

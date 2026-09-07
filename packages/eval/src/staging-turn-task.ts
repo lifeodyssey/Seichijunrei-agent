@@ -28,6 +28,7 @@ import { caseSubmissionsOf, type ChatSubmission } from "./case-submissions.ts";
 import type { SeededSessions } from "./seeded-sessions.ts";
 import type { ExportedAgentInput } from "./dataset-roundtrip.ts";
 import { InFlightTurns } from "./in-flight-turns.ts";
+import { priorTurnReturns } from "./prior-turn-returns.ts";
 import type { StagingBearer } from "./staging-bearer.ts";
 import { transcriptResultOf, turnFramesOf, type TranscriptResult } from "./turn-transcript.ts";
 
@@ -64,10 +65,20 @@ export const PREFIX_SEEDED_ATTRIBUTE = "prefix_seeded";
 
 /** What one case's submissions left behind: the turn that is being measured
  * (the LAST one — its predecessors only exist to put history in the session),
- * and the session they all ran on. */
+ * the session they all ran on, and those predecessors' streams. */
 export interface SubmittedCase {
   readonly turn: Response | null;
   readonly sessionId: string | null;
+  /**
+   * The bodies of the submissions BEFORE the measured one, oldest first (E-3
+   * #1382). They were dropped unread until now, and #1377 is why they are not
+   * discardable any more: the edge replays every run of a session as structured
+   * `toolResult` messages, so what those turns' tools returned is in front of
+   * the model on the measured turn and a reply quoting one of them is quoting a
+   * SOURCE. Read here rather than in the shaper because a `Response` body can
+   * be consumed once, and this is where the responses are.
+   */
+  readonly priorStreams: readonly string[];
 }
 
 export interface StagingTurnSettings {
@@ -125,13 +136,15 @@ export class StagingTurnTask {
    * than N strangers — to be got wrong.
    */
   async submitCase(inputs: ExportedAgentInput): Promise<SubmittedCase> {
+    const priorStreams: string[] = [];
     let sessionId: string | null = this.#seededSession(inputs);
     let turn: Response | null = null;
     for (const submission of caseSubmissionsOf(inputs)) {
+      if (turn !== null) priorStreams.push(await turn.text());
       turn = await this.#submit(submission, inputs.locale, sessionId);
       sessionId = turn.headers.get(SESSION_ID_HEADER) ?? sessionId;
     }
-    return { turn, sessionId };
+    return { turn, sessionId, priorStreams };
   }
 
   /** The session this case's prefix was seeded into, marked on the report so a
@@ -148,9 +161,10 @@ export class StagingTurnTask {
   }
 
   async #shape(submitted: SubmittedCase, locale: string): Promise<TranscriptResult> {
-    const { turn, sessionId } = submitted;
+    const { turn, sessionId, priorStreams } = submitted;
     return transcriptResultOf({
       frames: turnFramesOf(turn === null ? "" : await turn.text()),
+      priorTrajectory: priorTurnReturns(priorStreams.map((stream) => turnFramesOf(stream))),
       history: sessionId === null ? null : await this.readTranscript(sessionId),
       locale,
     });
