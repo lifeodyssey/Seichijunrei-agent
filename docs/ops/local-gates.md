@@ -51,24 +51,34 @@ Dependabot co-authors survive, and `Merge …` / `Revert "…"` subjects are exe
 
 ## pre-push (`scripts/local-gates/pre-push-affected.sh`)
 
-One hook, 66 lines — over the ≤40 the card asked for, and the reason is written into the script:
+One hook, 68 lines — over the ≤40 the card asked for, and the reason is written into the script:
 reading the pushed refs (below) and checking every path for an owner both take real code, and
 shrinking them back would mean deleting a guard rather than tightening one.
 
-It gates **what is being pushed, not what is checked out**. git hands a pre-push hook one
-`<local ref> <local sha> <remote ref> <remote sha>` record per ref on stdin, so
-`git push origin other:other` from a worktree sitting on some other branch has to gate `other`.
-The script reads those records, skips deletions (a zero local sha), and for each one diffs against
-its merge base with `origin/main` — or against the remote sha when that is already an ancestor,
-which narrows the diff to what the remote has not seen. The changed paths of every pushed ref are
-unioned before routing.
+**What is gated is `HEAD`'s diff, and the pushed refs are read to prove that is the right thing to
+gate.** git hands a pre-push hook one `<local ref> <local sha> <remote ref> <remote sha>` record per
+ref on stdin. The script reads those records, skips deletions (a zero local sha), and refuses any
+whose local sha is not `HEAD`:
 
-One wrinkle worth knowing: pre-commit's pre-push wrapper consumes that stdin itself and re-exports
-only the **first** pushable record as `PRE_COMMIT_TO_REF` / `PRE_COMMIT_FROM_REF`
-(`pre_commit/commands/hook_impl.py`, `_pre_push_ns`). The script therefore reads stdin when it is
-given any, falls back to those variables, and falls back again to `HEAD` for a by-hand run. Under
-the pre-commit wrapper a single `git push a:a b:b` gates only `a`; run as a bare git hook, it gates
-both.
+```text
+pre-push: refs must be pushed from their own worktree (HEAD is <sha>, pushing <ref>@<sha>)
+```
+
+Gating such a push would be theatre: the changed paths would come from the pushed ref while
+`pnpm ls` and every package script ran against the checked-out tree, so a broken change could pass
+on another branch's green. Running the pushed ref's own suites would mean checking it out, which a
+push hook has no business doing. This repository is one worktree per card, so `git push` from the
+worktree that owns the branch — which is the only way anyone works here — never meets the rule.
+Push `other` by checking `other` out.
+
+`HEAD`'s diff is taken against its merge base with `origin/main`, or against the remote sha when
+that is already an ancestor of `HEAD`, which narrows it to what the remote has not seen.
+
+pre-commit's pre-push wrapper consumes that stdin itself and re-exports the first pushable record
+as `PRE_COMMIT_TO_REF` / `PRE_COMMIT_FROM_REF` (`pre_commit/commands/hook_impl.py`,
+`_pre_push_ns`), so the script reads stdin when it is given any and falls back to those variables —
+which is what keeps the refusal working under the wrapper too. For an ordinary push both name
+`HEAD` and nothing is refused.
 
 `pnpm ls -r --depth -1 --json` lists the workspace project directories; a prefix join against the
 changed paths gives the package set. The root project and `@animichi/agent` are dropped — the first

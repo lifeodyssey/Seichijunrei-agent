@@ -11,26 +11,28 @@ NO_PACKAGE='^(docs/|\.claude/|\.github/|\.semgrep|scripts/|codecov\.yml$|\.pre-c
 ROOT_MANIFEST='^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml|\.npmrc)$'
 ZERO=0000000000000000000000000000000000000000
 
-# Gate what is being pushed, not what is checked out: `git push origin other:other`
-# from this worktree must gate `other`. git feeds the hook one
-# `<local ref> <local sha> <remote ref> <remote sha>` record per ref. pre-commit's
-# wrapper consumes that stdin and re-exports only the FIRST pushable record as
-# PRE_COMMIT_{TO,FROM}_REF, so read stdin when it is there and fall back to the
-# variables, then to HEAD for a by-hand run (`[ -t 0 ]` keeps a terminal run from
-# blocking on a read that will never arrive).
+# What is gated is HEAD's diff, and the pushed refs are read to prove that is
+# the right thing to gate. git feeds the hook one
+# `<local ref> <local sha> <remote ref> <remote sha>` record per ref; pre-commit's
+# wrapper eats that stdin and re-exports the first pushable one as
+# PRE_COMMIT_{TO,FROM}_REF, so read stdin when there is any and fall back to the
+# variables (`[ -t 0 ]` keeps a by-hand terminal run from blocking on a read that
+# never arrives). Pushing a ref that is not HEAD is refused rather than gated:
+# the paths would come from that ref while `pnpm ls` and every package script ran
+# against the checked-out tree, so a broken change could pass on someone else's
+# green. This repository is one worktree per card, so the rule costs nothing.
+head_sha="$(git rev-parse HEAD)"
+base="$(git merge-base origin/main HEAD)"
 records=""
 [ -t 0 ] || records="$(cat)"
-[ -n "$records" ] || records="_ ${PRE_COMMIT_TO_REF:-HEAD} _ ${PRE_COMMIT_FROM_REF:-$ZERO}"
-changed=""
-while read -r _ local_sha _ remote_sha; do
+[ -n "$records" ] || records="PRE_COMMIT_TO_REF ${PRE_COMMIT_TO_REF:-$head_sha} _ ${PRE_COMMIT_FROM_REF:-$ZERO}"
+while read -r local_ref local_sha _ remote_sha; do
   { [ -n "$local_sha" ] && [ "$local_sha" != "$ZERO" ]; } || continue  # a deletion pushes no content
-  base="$(git merge-base origin/main "$local_sha")"
+  [ "$local_sha" = "$head_sha" ] || { printf 'pre-push: refs must be pushed from their own worktree (HEAD is %s, pushing %s@%s)\n' "$head_sha" "$local_ref" "$local_sha" >&2; exit 1; }
   # A remote sha already in this history is the tighter base: only what is new.
-  ! git merge-base --is-ancestor "${remote_sha:-$ZERO}" "$local_sha" 2>/dev/null || base="$remote_sha"
-  changed="$changed$(git diff --name-only --no-renames "$base...$local_sha")
-"
+  ! git merge-base --is-ancestor "${remote_sha:-$ZERO}" HEAD 2>/dev/null || base="$remote_sha"
 done <<<"$records"
-changed="$(sort -u <<<"$changed" | grep -v '^$' || true)"
+changed="$(git diff --name-only --no-renames "$base"...HEAD)"
 [ -n "$changed" ] || exit 0
 
 deps=$(grep -cE "$ROOT_MANIFEST" <<<"$changed" || true)

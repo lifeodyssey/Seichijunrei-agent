@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 # Behavioral tests for pre-push-affected.sh (#1371).
 #
-# Hermetic: every case builds a throwaway git repository under one temp root,
-# gives it its own `origin/main`, puts a fake `pnpm` / `make` / `atlas` on PATH
-# and stubs the three documentation checks. Nothing here runs a real suite, a
-# container or a network call — what is under test is the routing, and the fake
-# pnpm both answers `ls -r --depth -1 --json` and records every `run` it is
-# asked for, which is how the closure prefix and the selected set are asserted.
-#
-# GATE_UNDER_TEST points the suite at a mutant, which is how the mutations in
-# the commit body were run.
+# Hermetic: every case builds a throwaway git repository under one temp root
+# with its own `origin/main`, a fake `pnpm` / `make` / `atlas` on PATH and the
+# three documentation checks stubbed. No real suite, container or network call.
+# The fake pnpm does double duty — it answers `ls -r --depth -1 --json` and
+# records every `run` asked of it, which is how the selected set and the absence
+# of the `...` closure are asserted. GATE_UNDER_TEST points at a mutant.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 GATE="${GATE_UNDER_TEST:-$PWD/scripts/local-gates/pre-push-affected.sh}"
-# The shape `pnpm ls` answers with: the root project and the Python agent are
-# in it precisely so the cases can prove the gate subtracts them.
+# The root project and the Python agent are in the list so the cases can prove
+# the gate subtracts them.
 PROJECTS='.:animichi-cloudflare-worker apps/agent:@animichi/agent apps/web:web workers/catalog:catalog workers/users:users'
 ZERO=0000000000000000000000000000000000000000
 TMPROOT="$(mktemp -d)"
@@ -23,9 +20,8 @@ failures=0
 reported=0
 
 fail() { printf 'FAIL %s: %s\n' "$1" "$2" >&2; failures=$((failures + 1)); }
-# Reports the case just closed, not a wish: a case whose assertions added
-# failures since the last report prints `not ok`, so a mutant's output cannot
-# read as green anywhere.
+# Reports the case just closed: one whose assertions added failures since the
+# last report prints `not ok`, so a mutant cannot read as green anywhere.
 ok() {
   if [ "$failures" = "$reported" ]; then printf 'ok: %s\n' "$1"; else printf 'not ok: %s\n' "$1"; fi
   reported="$failures"
@@ -42,8 +38,8 @@ new_repo() {
   export PNPM_PROJECTS="$PROJECTS"
   mkdir -p "$BIN" "$REPO/scripts/local-gates"
   : > "$INVOCATIONS"
-  # `ls` answers the project list built from $PWD, which the gate has already
-  # cd'd to its toplevel — so the paths it strips are the ones it computed.
+  # `ls` builds the list from $PWD, which the gate has already cd'd to its
+  # toplevel, so the paths it strips are the ones it computed.
   cat > "$BIN/pnpm" <<'STUB'
 #!/usr/bin/env bash
 if [ "${1:-}" = ls ]; then
@@ -90,8 +86,7 @@ commit_change() { # <branch> <path>...
 
 run_gate() { # stdin is the caller's; GATE_ENV carries any extra environment
   set +e
-  OUT="$(cd "$REPO" && PATH="$BIN:$PATH" env "${GATE_ENV[@]}" \
-    bash scripts/local-gates/pre-push-affected.sh 2>&1)"
+  OUT="$(cd "$REPO" && PATH="$BIN:$PATH" env "${GATE_ENV[@]}" bash scripts/local-gates/pre-push-affected.sh 2>&1)"
   STATUS=$?
   set -e
   RECORDED="$(cat "$INVOCATIONS")"
@@ -108,7 +103,7 @@ expect "mixed diff" "new-root.txt" "$OUT"
 refute "mixed diff" "workers/catalog/src/x.ts" "$OUT"
 ok "a package change does not carry an unowned root file through"
 
-# 2. Same, for a bucket rather than a package — and the bucket must not run.
+# 2. Same for a bucket, which must also not have run.
 new_repo
 commit_change feature apps/agent/x.py tools/y.sh
 run_gate < /dev/null
@@ -144,25 +139,29 @@ done
 refute "docs" "--filter" "$RECORDED"
 ok "a docs and workflow change runs the documentation checks and no package"
 
-# 5. git's pre-push record routes the ref being pushed, not the checked-out one.
+# 5. A ref that is not HEAD is refused: its paths would be gated against the
+#    checked-out tree, so a broken change could pass on another branch's green.
 new_repo
 commit_change other workers/users/src/u.ts
 other_sha="$(cd "$REPO" && git rev-parse other)"
 commit_change feature workers/catalog/src/c.ts
+head_sha="$(cd "$REPO" && git rev-parse HEAD)"
 run_gate <<< "refs/heads/other $other_sha refs/heads/other $ZERO"
-expect_status "pushed ref" 0 "$STATUS"
-expect "pushed ref" "packages: users" "$OUT"
-refute "pushed ref" "catalog" "$OUT"
-ok "a stdin record routes the pushed ref rather than HEAD"
+expect_status "non-HEAD ref" 1 "$STATUS"
+expect "non-HEAD ref" "refs must be pushed from their own worktree" "$OUT"
+expect "non-HEAD ref" "HEAD is $head_sha" "$OUT"
+expect "non-HEAD ref" "refs/heads/other@$other_sha" "$OUT"
+refute "non-HEAD ref" "packages:" "$OUT"
+ok "a record for a ref other than HEAD is refused, naming both shas"
 
-# 6. pre-commit's wrapper eats that stdin and re-exports the record instead.
-GATE_ENV=(PRE_COMMIT_TO_REF="$other_sha" PRE_COMMIT_FROM_REF="$ZERO")
+# 6. The common wrapper case: pre-commit re-exports HEAD's own sha.
+GATE_ENV=(PRE_COMMIT_TO_REF="$head_sha" PRE_COMMIT_FROM_REF="$ZERO")
 run_gate < /dev/null
 expect_status "PRE_COMMIT_TO_REF" 0 "$STATUS"
-expect "PRE_COMMIT_TO_REF" "packages: users" "$OUT"
-refute "PRE_COMMIT_TO_REF" "catalog" "$OUT"
+expect "PRE_COMMIT_TO_REF" "packages: catalog" "$OUT"
+refute "PRE_COMMIT_TO_REF" "refs must be pushed" "$OUT"
 GATE_ENV=(GATE_PROBE=1)
-ok "PRE_COMMIT_TO_REF routes the same ref when stdin carries no record"
+ok "PRE_COMMIT_TO_REF equal to HEAD is gated normally"
 
 # 7. An empty project list must fail closed, not select everything or nothing.
 new_repo
@@ -181,6 +180,21 @@ commit_change feature workers/catalog/src/x.ts
 run_gate < /dev/null
 [ "$STATUS" != 0 ] || fail "no origin/main" "expected a non-zero exit, got 0"
 ok "a missing origin/main fails the push rather than gating nothing"
+
+# 9. The package prefix is a directory, not a string.
+new_repo
+commit_change feature workers/catalog-extra/x.ts
+run_gate < /dev/null
+expect_status "sibling dir" 1 "$STATUS"
+expect "sibling dir" "no gate covers" "$OUT"
+expect "sibling dir" "workers/catalog-extra/x.ts" "$OUT"
+expect "sibling dir" "packages: (none)" "$OUT"
+new_repo
+commit_change feature workers/catalog/x.ts
+run_gate < /dev/null
+expect_status "sibling dir" 0 "$STATUS"
+expect "sibling dir" "packages: catalog" "$OUT"
+ok "a sibling directory sharing a package's name prefix selects no package"
 
 [ "$failures" = 0 ] || { printf '%s case(s) failed\n' "$failures" >&2; exit 1; }
 printf 'pre-push-affected.test.sh: all green\n'
