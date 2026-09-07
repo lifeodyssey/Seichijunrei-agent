@@ -48,11 +48,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      # No `cache: pnpm` here: plan never installs, so on any lockfile-changing
+      # PR the store path never exists and setup-node's save phase fails the
+      # job. The cached installs live in the jobs that actually install.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
       # The paths outside any pnpm project (migrations/, .github/) and the root
       # dependency files, which pnpm answers with the root project alone.
       # base/ref are read only on merge_group: on pull_request the action asks
