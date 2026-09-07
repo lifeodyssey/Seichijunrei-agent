@@ -129,6 +129,15 @@ function invalidFailure(location: BaselineLocation, path: string): string {
  * for the translation tier; the pinned record's own version is asserted by
  * `test/gate-baseline-record.test.ts` instead, where it is a fact about one
  * file rather than a rule about every file.
+ *
+ * Python reaches the same verdict on the same record and reports it in its own
+ * voice (#1483): `gate.py::_scored_by_another_evaluator` logs `Invalid baseline
+ * for …: scored by evaluator X, this runner scores Y` and drops the record,
+ * the class it already uses for a baseline it cannot read, rather than failing.
+ * It stays out of `baseline_staleness` in the shared oracle for the reason the
+ * other invalid-baseline lines do — the message interpolates the path — and
+ * because the two sides answer in different halves of this result; the Python
+ * half is pinned by `tests/unit/test_eval_gate_evaluator_version.py`.
  */
 function evaluatorVersionFailure(
   record: BaselineRecord,

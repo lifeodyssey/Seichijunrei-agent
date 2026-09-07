@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from animichi.tests.eval.evaluator_version import EVALUATOR_VERSION
 from animichi.tests.eval.stats import (
     Comparison,
     PairedScore,
@@ -32,8 +33,10 @@ class BaselineRecord(BaseModel):
     tier: str
     #: The evaluator vocabulary that produced these numbers. Optional because
     #: the translation tier writes records with evaluators of its own and every
-    #: record committed before 2026-09-07 predates the field; a reader that
-    #: compares against it treats ``None`` as "this record cannot say" (#1303).
+    #: record committed before 2026-09-07 predates the field, so
+    #: ``read_baseline_record`` — which refuses a record naming any other
+    #: vocabulary, at the cost of one ungated run that re-stamps this field —
+    #: reads ``None`` as "this record cannot say" (#1303).
     evaluator_version: str | None = None
     repeat: int = 1
     case_count: int
@@ -79,9 +82,9 @@ def read_baseline_record(
         _warn_missing(layer, model_id, path)
         return None
     record = _load_record(path, layer, model_id)
-    if record is None or _is_stale(
-        record, expected_case_count, expected_metrics, layer, model_id
-    ):
+    if record is None or _scored_by_another_evaluator(record, path, layer, model_id):
+        return None
+    if _is_stale(record, expected_case_count, expected_metrics, layer, model_id):
         return None
     return record
 
@@ -174,6 +177,44 @@ def _warn_invalid_baseline(
     path: Path, layer: str, model_id: str, exc: ValidationError
 ) -> None:
     logger.warning("Invalid baseline for %s/%s at %s: %s", layer, model_id, path, exc)
+
+
+def _scored_by_another_evaluator(
+    record: BaselineRecord, path: Path, layer: str, model_id: str
+) -> bool:
+    """Refuse a record scored by a vocabulary this runner does not implement.
+
+    Damage, not staleness: comparing ``official-v1`` numbers against
+    ``official-v2`` ones manufactures regressions on exactly the metrics whose
+    semantics moved. A record carrying no version is not judged — that is the
+    shape of every record committed before the field existed, and of the
+    translation tier's (#1303). ``baseline-store.ts`` decides the same and
+    fails the run; this side warns and drops the record, its own convention
+    for a baseline it cannot use.
+
+    What the drop costs is one ungated run: a dropped record leaves
+    ``_run_uncapped_gate`` with no baseline, so it compares nothing and writes
+    the run it just finished back to the same path, stamped with this
+    vocabulary (``eval_gate_flow.py::_write_baseline``). A version bump is
+    therefore paid for once, by the next successful uncapped run.
+    """
+    found = record.evaluator_version
+    if found is None or found == EVALUATOR_VERSION:
+        return False
+    _warn_foreign_evaluator(path, layer, model_id, found)
+    return True
+
+
+def _warn_foreign_evaluator(path: Path, layer: str, model_id: str, found: str) -> None:
+    logger.warning(
+        "Invalid baseline for %s/%s at %s: scored by evaluator %s, "
+        "this runner scores %s",
+        layer,
+        model_id,
+        path,
+        found,
+        EVALUATOR_VERSION,
+    )
 
 
 def _warn_missing(layer: str, model_id: str, path: Path) -> None:
