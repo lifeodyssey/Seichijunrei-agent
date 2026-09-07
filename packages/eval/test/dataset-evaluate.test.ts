@@ -72,7 +72,14 @@ void test('a fixture case scored by the real evaluators reports the eight metric
 
   assert.deepEqual(
     Object.keys(scored.scores).sort(),
-    [...metricNames({ hasNonemptyCases: true, hasParamsRecorded: true, l3Enabled: false })].sort(),
+    [
+      ...metricNames({
+        hasNonemptyCases: true,
+        hasParamsRecorded: true,
+        hasMeasuredSteps: true,
+        l3Enabled: false,
+      }),
+    ].sort(),
   );
 });
 

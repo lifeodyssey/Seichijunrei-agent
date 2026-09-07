@@ -9,7 +9,6 @@ from __future__ import annotations
 from animichi.tests.eval.direct_gates import RecordedToolCall, TrajectoryCase
 from animichi.tests.eval.evaluators import (
     AgentExpected,
-    AgentInput,
     accepted_chains_for_case,
 )
 from animichi.tests.eval.trajectory_assertions import (
@@ -103,12 +102,11 @@ def test_failures_aggregate_across_cases() -> None:
 
 
 def test_expectation_is_built_from_a_recorded_trace_and_dataset_stages() -> None:
-    inputs = AgentInput(query="君の名は。の聖地", locale="ja")
     metadata = AgentExpected(acceptable_stages=["search_bangumi"])
 
     expectation = TrajectoryExpectation.from_case(
         _case(("resolve_anime", "search_bangumi")),
-        accepted_chains_for_case(inputs, metadata),
+        accepted_chains_for_case(metadata),
     )
 
     assert expectation.observed == ("resolve_anime", "search_bangumi")
@@ -116,8 +114,13 @@ def test_expectation_is_built_from_a_recorded_trace_and_dataset_stages() -> None
 
 
 def test_selected_route_cases_accept_only_an_empty_model_trace() -> None:
-    inputs = AgentInput(query="", locale="ja", selected_point_ids=["p1"])
-
-    chains = accepted_chains_for_case(inputs, AgentExpected(["plan_selected"]))
+    chains = accepted_chains_for_case(AgentExpected(["plan_selected"]))
 
     assert chains == [()]
+
+
+def test_place_selection_still_expects_the_call_its_stage_names() -> None:
+    """#1439: a selection whose stage names a tool must not accept nothing."""
+    chains = accepted_chains_for_case(AgentExpected(["search_nearby"]))
+
+    assert chains == [("search_nearby",)]

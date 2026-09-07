@@ -16,7 +16,7 @@ export class OfficialMaxToolCalls extends AgentTurnEvaluator {
   static override readonly evaluatorName = 'OfficialMaxToolCalls';
 
   override evaluate(ctx: AgentTurnContext): MetricRecord {
-    const chains = acceptedChainsForCase(ctx.inputs, ctx.metadata);
+    const chains = acceptedChainsForCase(ctx.metadata);
     const budget = Math.max(0, ...chains.map((chain) => chain.length));
     return { max_tool_calls: ctx.output.trajectory.length <= budget ? 1 : 0 };
   }

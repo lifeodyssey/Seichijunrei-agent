@@ -54,22 +54,29 @@ const STAGE_MIN_STEPS = new Map<string, number>([
 /** An unknown stage accepts the empty chain and costs two ideal steps. */
 const UNKNOWN_STAGE_CHAINS: readonly ModelCallChain[] = [[]];
 const UNKNOWN_STAGE_MIN_STEPS = 2;
-const SELECTION_CHAINS: readonly ModelCallChain[] = [[]];
 
 /**
- * The chains that would accept this case. Both selection turns bypass the
- * model entirely, so they accept only the empty chain regardless of stage.
+ * The chains that would accept this case. The stage decides, and only the
+ * stage.
+ *
+ * This used to short-circuit to the empty chain whenever the inputs carried a
+ * selection, on the theory that every selection turn bypasses the model.
+ * `plan_selected` and `plan_multi` do, and their own entries in
+ * `STAGE_MODEL_CALL_CHAINS` already say so. Counted over the six exported sets,
+ * TWENTY cases carry a selection — fifteen `plan_selected` in `agent_eval_v3`,
+ * four `plan_multi` and one `search_nearby` in `phase1c_selection_v1`. Count it
+ * on `!== null`, not on truthiness: three of the fifteen (`K3_ja_001`,
+ * `K3_zh_001`, `K3_en_001`) select an EMPTY list, and the short-circuit fired
+ * on them too. So it changed the answer for none of the nineteen bypass cases.
+ * The twentieth is a *place* selection, which does not bypass the model: it
+ * re-runs `search_nearby` against the chosen place, and its stage says so, but
+ * the short-circuit overrode the stage and accepted the empty chain — so
+ * `D3_place_selection_radius` scored 1.0 for calling nothing and 0.0 for making
+ * the call it was asked for (#1439).
  */
 export function acceptedChainsForCase(
-  inputs: ExportedAgentInput,
   metadata: ExportedAgentExpected | undefined,
 ): readonly ModelCallChain[] {
-  if (inputs.selected_point_ids !== null) {
-    return SELECTION_CHAINS;
-  }
-  if (inputs.selected_candidate_ids !== null) {
-    return SELECTION_CHAINS;
-  }
   return chainsForStages(metadata?.acceptable_stages ?? []);
 }
 

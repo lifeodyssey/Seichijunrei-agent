@@ -57,7 +57,12 @@ export function pythonBaseline(): BaselineRecord {
  */
 export function baselineParityScores(count: number): CaseScoreMap {
   const baseline = pythonBaseline();
-  const width = metricNames({ hasNonemptyCases: true, hasParamsRecorded: true, l3Enabled: false }).length;
+  const width = metricNames({
+    hasNonemptyCases: true,
+    hasParamsRecorded: true,
+    hasMeasuredSteps: true,
+    l3Enabled: false,
+  }).length;
   const complete = Object.entries(baseline.cases).filter(
     ([, scores]) => Object.keys(scores).length === width,
   );
@@ -171,7 +176,12 @@ export function makeGateRunSettings(scores: CaseScoreMap): GateRunSettings {
   return {
     dataset: GATED_DATASET,
     caseCount: Object.keys(scores).length,
-    metricNames: metricNames({ hasNonemptyCases: true, hasParamsRecorded: true, l3Enabled: false }),
+    metricNames: metricNames({
+      hasNonemptyCases: true,
+      hasParamsRecorded: true,
+      hasMeasuredSteps: true,
+      l3Enabled: false,
+    }),
     baseline: pythonBaseline(),
     baselineModel: PYTHON_BASELINE_MODEL,
     baselineFailures: [],
@@ -198,6 +208,17 @@ export async function makeUnwitnessedRun(scores: CaseScoreMap): Promise<GatedRun
     report: await makeReport(cases, unwitnessed, false),
     settings: makeGateRunSettings(unwitnessed),
   };
+}
+
+/**
+ * The same run in which every turn took no step on a case that required one
+ * (#1439): `StepEfficiency` has no denominator for any of them, so nobody
+ * emits `step_efficiency` and the column is not the run's to report.
+ */
+export async function makeSteplessRun(scores: CaseScoreMap): Promise<GatedRun> {
+  const stepless = withoutMetric(scores, 'step_efficiency');
+  const cases = Object.keys(stepless).map((name) => makeAgentCase(name));
+  return { report: await makeReport(cases, stepless), settings: makeGateRunSettings(stepless) };
 }
 
 /** The same scores with one metric emitted by nobody. */

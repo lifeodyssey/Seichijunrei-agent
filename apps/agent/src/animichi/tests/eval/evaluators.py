@@ -88,19 +88,30 @@ def _actual_tools(output: AgentResult) -> list[str]:
     return [step.tool for step in output.steps]
 
 
-def accepted_chains_for_case(
-    inputs: AgentInput, metadata: AgentExpected | None
-) -> list[tuple[str, ...]]:
-    """The model-call chains that would accept this case's trajectory."""
-    if inputs.selected_point_ids is not None:
-        return [()]
-    if inputs.selected_candidate_ids is not None:
-        return [()]
+def accepted_chains_for_case(metadata: AgentExpected | None) -> list[tuple[str, ...]]:
+    """The model-call chains that would accept this case's trajectory.
+
+    The stage decides, and only the stage. This used to short-circuit to the
+    empty chain whenever the inputs carried a selection, on the theory that
+    every selection turn bypasses the model. ``plan_selected`` and
+    ``plan_multi`` do, and their own entries in ``_STAGE_MODEL_CALL_CHAINS``
+    already say so. Counted over the six exported sets, TWENTY cases carry a
+    selection — fifteen ``plan_selected`` in ``agent_eval_v3``, four
+    ``plan_multi`` and one ``search_nearby`` in ``phase1c_selection_v1``. Count
+    it on ``is not None``, not on truthiness: three of the fifteen
+    (``K3_ja_001``, ``K3_zh_001``, ``K3_en_001``) select an EMPTY list, and the
+    short-circuit fired on them too. So it changed the answer for none of the
+    nineteen bypass cases. The twentieth is a *place* selection, which does not
+    bypass the model: it re-runs ``search_nearby`` against the chosen place,
+    and its stage says so, but the short-circuit overrode the stage and
+    accepted the empty chain — so the one turn that made the call it was asked
+    for scored 0.0 while a turn that called nothing scored 1.0 (#1439).
+    """
     return _model_call_chains_for_stages(metadata.acceptable_stages if metadata else [])
 
 
 def _model_call_chains(ctx: _Ctx) -> list[tuple[str, ...]]:
-    return accepted_chains_for_case(ctx.inputs, ctx.metadata)
+    return accepted_chains_for_case(ctx.metadata)
 
 
 def _seeded_reason(inputs: AgentInput) -> object:
@@ -209,14 +220,26 @@ class LocaleMatch(Evaluator[AgentInput, AgentResult, AgentExpected]):
 
 @dataclass
 class StepEfficiency(Evaluator[AgentInput, AgentResult, AgentExpected]):
-    """L2: ideal-steps / actual-steps, capped at 1.0 — measures wasted steps."""
+    """L2: ideal-steps / actual-steps, capped at 1.0 — measures wasted steps.
+
+    A turn with no steps has no denominator, and which answer that deserves
+    depends on what the case asked for. When one of the acceptable ideals is
+    zero — ``greet_user``, ``general_qa`` — taking no step IS the ideal, so the
+    turn scores 1.0. When every acceptable ideal is at least one, the turn did
+    not attempt the task, and this metric has nothing to say about it: it
+    measures waste, not correctness, and the turn's actual failure is reported
+    by ``trajectory_match`` and ``data_keys_present``, which own it. So it
+    emits NO metric, the same ``{}`` ``NonemptyResults`` and
+    ``OfficialArgumentCorrectness`` emit for a case they cannot measure.
+    Returning 1.0 there put a refusal on the ceiling (#1439).
+    """
 
     def evaluate(self, ctx: _Ctx) -> Mapping[str, float]:
+        minima = _acceptable_min_steps(ctx)
         actual = len(ctx.output.steps)
         if actual == 0:
-            return {"step_efficiency": 1.0}
-        best = max(min(m / actual, 1.0) for m in _acceptable_min_steps(ctx))
-        return {"step_efficiency": best}
+            return {} if min(minima) > 0 else {"step_efficiency": 1.0}
+        return {"step_efficiency": max(min(m / actual, 1.0) for m in minima)}
 
 
 # ── L3 outcome judges (LLM, opt-in via EVAL_L3) ──────────────────────

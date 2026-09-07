@@ -316,7 +316,7 @@ def _expectations(report: AgentReport) -> tuple[TrajectoryExpectation, ...]:
     return tuple(
         TrajectoryExpectation.from_case(
             TrajectoryCase.from_result(str(case.name), case.output),
-            accepted_chains_for_case(case.inputs, case.metadata),
+            accepted_chains_for_case(case.metadata),
         )
         for case in report.cases
         if isinstance(case.output, AgentResult)

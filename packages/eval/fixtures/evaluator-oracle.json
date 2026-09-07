@@ -292,8 +292,7 @@
         "max_tool_calls": 1.0,
         "data_keys_present": 1.0,
         "locale_match": 1.0,
-        "nonempty_results": 1.0,
-        "step_efficiency": 1.0
+        "nonempty_results": 1.0
       }
     },
     {
@@ -1403,6 +1402,125 @@
         "data_keys_present": 1.0,
         "locale_match": 1.0,
         "step_efficiency": 1.0
+      }
+    },
+    {
+      "caseId": "place_selection_calls_the_stage_it_names",
+      "inputs": {
+        "clarification_id": 6,
+        "context": null,
+        "locale": "ja",
+        "query": "Use Uji",
+        "seeded_pending": {
+          "reason": "place_ambiguity"
+        },
+        "selected_candidate_ids": [
+          "seed:uji"
+        ],
+        "selected_point_ids": null
+      },
+      "metadata": {
+        "acceptable_stages": [
+          "search_nearby"
+        ],
+        "data_keys": [
+          "results"
+        ],
+        "expect_nonempty": true
+      },
+      "transcript": {
+        "intent": "search_nearby",
+        "success": true,
+        "message": "The spots are in Nishinomiya.",
+        "locale": "ja",
+        "dataKeys": [
+          "results"
+        ],
+        "stepCount": 1,
+        "paramsRecorded": true,
+        "trajectory": [
+          {
+            "toolName": "search_nearby",
+            "args": {
+              "place": "宇治"
+            },
+            "params": {
+              "place": "宇治"
+            },
+            "status": "ok"
+          }
+        ],
+        "response": {
+          "intent": "search_nearby",
+          "success": true,
+          "message": "The spots are in Nishinomiya.",
+          "data": {
+            "results": {
+              "row_count": 4
+            }
+          }
+        },
+        "runStatus": "succeeded"
+      },
+      "scores": {
+        "argument_correctness": 1.0,
+        "tool_correctness": 1.0,
+        "trajectory_match": 1.0,
+        "max_tool_calls": 1.0,
+        "data_keys_present": 1.0,
+        "locale_match": 1.0,
+        "nonempty_results": 1.0,
+        "step_efficiency": 1.0
+      }
+    },
+    {
+      "caseId": "place_selection_refused_to_act",
+      "inputs": {
+        "clarification_id": 6,
+        "context": null,
+        "locale": "ja",
+        "query": "Use Uji",
+        "seeded_pending": {
+          "reason": "place_ambiguity"
+        },
+        "selected_candidate_ids": [
+          "seed:uji"
+        ],
+        "selected_point_ids": null
+      },
+      "metadata": {
+        "acceptable_stages": [
+          "search_nearby"
+        ],
+        "data_keys": [
+          "results"
+        ],
+        "expect_nonempty": true
+      },
+      "transcript": {
+        "intent": "search_nearby",
+        "success": true,
+        "message": "The spots are in Nishinomiya.",
+        "locale": "ja",
+        "dataKeys": [],
+        "stepCount": 0,
+        "paramsRecorded": true,
+        "trajectory": [],
+        "response": {
+          "intent": "search_nearby",
+          "success": true,
+          "message": "The spots are in Nishinomiya.",
+          "data": {}
+        },
+        "runStatus": "succeeded"
+      },
+      "scores": {
+        "tool_correctness": 0.0,
+        "trajectory_match": 0.0,
+        "max_tool_calls": 1.0,
+        "data_keys_present": 0.0,
+        "locale_match": 1.0,
+        "nonempty_results": 0.0
       }
     },
     {

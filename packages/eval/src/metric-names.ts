@@ -18,6 +18,14 @@
  * seven down with it, reporting a whole run as broken because one measurement
  * was unavailable. It is a per-RUN toggle, not a per-dataset one: nothing in
  * the cases decides it.
+ *
+ * `step_efficiency` drops out on the same per-RUN terms since #1439. It is no
+ * longer scored for a turn that took no step on a case whose every acceptable
+ * ideal is at least one — there is no denominator there — so a run in which
+ * every turn refused to act (an unseeded `phase1c_selection_v1` arm is exactly
+ * that) computes it for nobody. Python can reach the same state and raises;
+ * dropping the column keeps the other seven metrics reportable, which is the
+ * whole point of the toggle above.
  */
 
 const OFFICIAL_METRIC_NAMES: readonly string[] = [
@@ -43,6 +51,9 @@ export interface MetricNameOptions {
    * (`TranscriptResult.paramsRecorded`). Python's runner always recorded them,
    * so its own list is this list with the flag true. */
   readonly hasParamsRecorded: boolean;
+  /** Whether any case in the run scored `step_efficiency` at all. False means
+   * every turn took no step on a case that required one (#1439). */
+  readonly hasMeasuredSteps: boolean;
   readonly l3Enabled: boolean;
 }
 
@@ -50,9 +61,14 @@ export function metricNames(options: MetricNameOptions): string[] {
   const official = OFFICIAL_METRIC_NAMES.filter(
     (name) => name !== 'argument_correctness' || options.hasParamsRecorded,
   );
-  const kept = KEPT_METRIC_NAMES.filter(
-    (name) => name !== 'nonempty_results' || options.hasNonemptyCases,
-  );
+  const kept = KEPT_METRIC_NAMES.filter((name) => keptName(name, options));
   const names = [...official, ...kept];
   return options.l3Enabled ? [...names, ...L3_METRIC_NAMES] : names;
+}
+
+function keptName(name: string, options: MetricNameOptions): boolean {
+  if (name === 'nonempty_results') {
+    return options.hasNonemptyCases;
+  }
+  return name !== 'step_efficiency' || options.hasMeasuredSteps;
 }

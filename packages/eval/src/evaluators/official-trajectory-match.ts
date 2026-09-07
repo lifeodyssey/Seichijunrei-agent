@@ -19,7 +19,7 @@ export class OfficialTrajectoryMatch extends AgentTurnEvaluator {
 
   override evaluate(ctx: AgentTurnContext): MetricRecord {
     const actual = toolNames(completedCalls(ctx.output));
-    const chains = acceptedChainsForCase(ctx.inputs, ctx.metadata);
+    const chains = acceptedChainsForCase(ctx.metadata);
     return {
       trajectory_match: bestOverChains(chains, (chain) => inOrderF1(actual, chain)),
     };

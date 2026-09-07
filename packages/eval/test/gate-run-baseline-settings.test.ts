@@ -25,7 +25,12 @@ import {
 
 /** Twelve, because the gate skips a metric with fewer than ten paired cases. */
 const PAIRED_CASES = 12;
-const METRICS = metricNames({ hasNonemptyCases: true, hasParamsRecorded: true, l3Enabled: false });
+const METRICS = metricNames({
+  hasNonemptyCases: true,
+  hasParamsRecorded: true,
+  hasMeasuredSteps: true,
+  l3Enabled: false,
+});
 const scores = baselineParityScores(PAIRED_CASES);
 const report = await makeReport(
   Object.keys(scores).map((name) => makeAgentCase(name)),
