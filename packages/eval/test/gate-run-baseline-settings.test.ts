@@ -44,7 +44,8 @@ function runUnderGate(caseCount: number): RunUnderGate {
     dataset: GATED_DATASET,
     caseCount,
     metricNames: METRICS,
-    strata: loadCaseStrata(canonicalDatasetPath(GATED_DATASET)),
+    strata: loadCaseStrata(canonicalDatasetPath(GATED_DATASET)).byCase,
+    strataWarnings: [],
     now: () => GENERATED_AT,
   };
 }

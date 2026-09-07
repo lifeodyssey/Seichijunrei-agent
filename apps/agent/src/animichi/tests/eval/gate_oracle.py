@@ -74,7 +74,7 @@ def _subset_current(record: BaselineRecord) -> dict[str, dict[str, float]]:
 def _real_gate_case() -> dict[str, object]:
     record = real_baseline()
     current = _subset_current(record)
-    strata = load_case_strata(DATASET_PATH)
+    strata = load_case_strata(DATASET_PATH).by_case
     subset = {case_id: strata[case_id] for case_id in current}
     return _gate_case("real_baseline_subset", current, record, subset)
 

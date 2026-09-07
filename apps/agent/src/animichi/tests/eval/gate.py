@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from animichi.tests.eval.evaluator_version import EVALUATOR_VERSION
 from animichi.tests.eval.stats import (
+    UNSTRATIFIED,
     Comparison,
     PairedScore,
     proportion_comparison,
@@ -320,7 +321,7 @@ def _paired_score(ctx: _GateContext, metric: str, case_id: str) -> PairedScore:
     return PairedScore(
         ctx.baseline.cases[case_id][metric],
         ctx.current_cases[case_id][metric],
-        ctx.strata.get(case_id, "unstratified"),
+        ctx.strata.get(case_id, UNSTRATIFIED),
     )
 
 

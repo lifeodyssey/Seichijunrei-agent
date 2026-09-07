@@ -45,6 +45,7 @@ from animichi.tests.eval.run_agent_eval import (
     _main,
     _parse_args,
 )
+from animichi.tests.eval.stats import CaseStrata
 
 
 def test_fullstack_db_url_prefers_secret_test_database_url(
@@ -328,7 +329,7 @@ def test_capped_all_error_report_is_report_only(
         lambda report, target, model_id, scores: persisted.append(scores),
     )
 
-    failures = finish_cli_report(report, target, "fixture:model")
+    failures = finish_cli_report(report, target, "fixture:model", CaseStrata({}, []))
 
     assert failures == []
     assert persisted == [{}]

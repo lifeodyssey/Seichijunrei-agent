@@ -297,6 +297,31 @@ Notes for the rest of W3:
   reads `apps/agent/…/datasets/<set>.json`, exactly as `load_case_strata` does. A
   gate driven off the exported fixture alone would silently degrade to
   `unstratified`.
+- **A canonical set with no `path` column is ONE stratum, and says so (#1478).**
+  Five of the eight canonical sets carry no `path` at all (`injection_g1_v1`,
+  `input_guard_v1`, `phase1c_selection_v1`, `runtime_journey_v1`,
+  `translation_v1`); only `agent_eval_v3`, `agent_eval_heldout_v1` and
+  `long_context_v1` stratify. Both sides load such a set as every case in
+  `UNSTRATIFIED` — the bucket `bootstrap_gate` already puts an unnamed case in —
+  plus one warning naming the dataset and saying the interval is pooled (TS
+  returns it under `GateRunResult.warnings`, Python logs it, the usual split). A
+  set that DOES have a `path` column must carry a string `path` on every row, and
+  every row of every set must carry a string `id`; either hole is a refusal.
+  Errors and the warning name the DATASET, never the absolute path — the warning
+  is written into a committed result file.
+- **The strata load BEFORE the first turn** (`src/gate-run/strata-first-run.ts`,
+  `strata_first_run.py`). This was a defect worth a module: `loadCaseStrata` ran
+  inside the result-building step, so a set the gate could not stratify threw
+  after every staging turn had been paid for and wrote no result file at all.
+  `evaluateAfterStrata` / `evaluate_after_strata` is the one place that order
+  lives, and its tests assert the run was never called.
+- **`strata_oracle.py` pins the loading.** The mappings, the warning text and each
+  refusal message are Python's own answers under `case_strata` in
+  `stats-oracle.json`; `test/gate-case-strata.test.ts` replays them through
+  `caseStrataFromText`. Change one side only and the parity test or the drift gate
+  goes red. The Python-side tests live in `apps/agent/src/animichi/tests/unit/test_case_strata.py`, not
+  under `tests/eval/`: that directory is in no gate — `make test` is
+  `tests/unit/` alone and its collection needs `ZEN_GO_API_KEY`.
 - **Assertions are folded into the case scores as 1/0.** Python's evaluators all
   return floats; a TS evaluator that returns a boolean lands in
   `report.assertions`, and dropping it would remove a metric the baseline expects.

@@ -44,7 +44,7 @@ import {
   type ExportedAgentInput,
   type ExportedDatasetHandle,
 } from "../src/dataset-roundtrip.ts";
-import { canonicalDatasetPath, loadCaseStrata } from "../src/gate/case-strata.ts";
+import { canonicalDatasetPath, type CaseStrata } from "../src/gate/case-strata.ts";
 import { writeAttributionEvidence } from "../src/gate-run/attribution-evidence.ts";
 import { analyseFailures } from "../src/gate-run/failure-attribution.ts";
 import { gateRunSettingsFromBaseline } from "../src/gate-run/baseline-gated-settings.ts";
@@ -53,6 +53,7 @@ import { gateRunResultOf, type AgentEvalReport, type GateRunResult } from "../sr
 import { pythonBaselineLocation } from "../src/gate-run/python-baseline.ts";
 import { writeGateRunResult } from "../src/gate-run/result-file.ts";
 import { runMetricNames } from "../src/gate-run/run-metric-names.ts";
+import { evaluateAfterStrata } from "../src/gate-run/strata-first-run.ts";
 import { neonAuthBearer, qaSignInFrom } from "../src/neon-auth-bearer.ts";
 import { StagingBearer } from "../src/staging-bearer.ts";
 import { seededPrefixLifecycle } from "../src/prefix-seeding-lifecycle.ts";
@@ -138,14 +139,21 @@ function gatedMetricNames(
   return runMetricNames({ report, hasNonemptyCases, l3Enabled: L3_ENABLED });
 }
 
-function gatedResult(report: AgentEvalReport, args: GateRunArgs, caseCount: number, metrics: string[]): GateRunResult {
+function gatedResult(
+  report: AgentEvalReport,
+  args: GateRunArgs,
+  caseCount: number,
+  metrics: string[],
+  strata: CaseStrata,
+): GateRunResult {
   return gateRunResultOf(
     report,
     gateRunSettingsFromBaseline(pythonBaselineLocation(), {
       dataset: args.dataset,
       caseCount,
       metricNames: metrics,
-      strata: loadCaseStrata(canonicalDatasetPath(args.dataset)),
+      strata: strata.byCase,
+      strataWarnings: strata.warnings,
       now: () => new Date(),
     }),
   );
@@ -185,11 +193,14 @@ async function main(): Promise<void> {
   // Python caps the same way (`exec_tiers.cap_cases` under `EVAL_MAX_CASES`).
   if (args.limit !== null) dataset.cases = dataset.cases.slice(0, args.limit);
   const { task, lifecycle } = stagingRun(args.concurrency);
-  const report = await dataset.evaluate(task.asTask(), {
-    name: `gate_${args.dataset}`, progress: true, lifecycle,
-  });
+  // The strata load FIRST (#1478): a set the gate cannot stratify must refuse
+  // before the first turn is paid for, not after the last one.
+  const { strata, report } = await evaluateAfterStrata(canonicalDatasetPath(args.dataset), () =>
+    dataset.evaluate(task.asTask(), { name: `gate_${args.dataset}`, progress: true, lifecycle }),
+  );
   process.stdout.write(`${renderReport(report)}\n`);
-  const result = gatedResult(report, args, dataset.cases.length, gatedMetricNames(dataset, report));
+  const metrics = gatedMetricNames(dataset, report);
+  const result = gatedResult(report, args, dataset.cases.length, metrics, strata);
   announceEvidence(report, result);
   announce(result, writeGateRunResult(result));
   process.exitCode = gateExitCode(result);

@@ -90,6 +90,9 @@ export interface GateRunSettings {
   readonly baselineWarnings: readonly string[];
   /** Case id → behaviour path, from the canonical dataset (`case-strata.ts`). */
   readonly strata: Readonly<Record<string, string>>;
+  /** What the strata load had to say — a dataset with no `path` column pools
+   * into one stratum, and the result file must carry that line (#1478). */
+  readonly strataWarnings: readonly string[];
   /** Injected so a test can pin the date the result file is named for. */
   readonly now: () => Date;
 }
@@ -215,6 +218,7 @@ function gateOutcome(
       ...errors.failures,
     ],
     warnings: [
+      ...settings.strataWarnings,
       ...settings.baselineWarnings,
       ...metrics.flatMap((row) => row.outcome.warnings),
       ...errors.warnings,

@@ -53,7 +53,7 @@ from animichi.tests.eval.official_evaluators import (
     OfficialToolCorrectness,
     OfficialTrajectoryMatch,
 )
-from animichi.tests.eval.stats import load_case_strata
+from animichi.tests.eval.stats import UNSTRATIFIED, load_case_strata
 
 Row: TypeAlias = Mapping[str, object]
 TaskFn: TypeAlias = Callable[[AgentInput], Awaitable[AgentResult]]
@@ -227,14 +227,14 @@ AgentCase: TypeAlias = Case[AgentInput, AgentResult, AgentExpected]
 
 def _l0_view(case: AgentCase, strata: Mapping[str, str]) -> L0Case:
     name = str(case.name)
-    return L0Case(name, strata.get(name, "unstratified"), case.inputs.locale)
+    return L0Case(name, strata.get(name, UNSTRATIFIED), case.inputs.locale)
 
 
 def select_cases(cases: list[AgentCase], cap: int | None) -> list[AgentCase]:
     """L0 smoke composes an explicit set; every other tier caps by even spread."""
     if cap is None or os.environ.get("EVAL_SMOKE") != "1":
         return cap_cases(cases, cap)
-    strata = load_case_strata(DATASET_PATH)
+    strata = load_case_strata(DATASET_PATH).by_case
     return select_l0_cases(cases, lambda case: _l0_view(case, strata), cap)
 
 

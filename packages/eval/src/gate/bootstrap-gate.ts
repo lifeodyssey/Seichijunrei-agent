@@ -8,6 +8,7 @@ import {
   DEFAULT_ITERATIONS,
   DEFAULT_PAIRED_MIN_EFFECT,
   DEFAULT_SEED,
+  UNSTRATIFIED,
   stratifiedPairedComparison,
   type Comparison,
   type PairedScore,
@@ -50,7 +51,6 @@ export interface ErrorRateGateOptions {
 export const DEFAULT_MIN_PAIRED = 10;
 /** Above this share of errored cases the run is broken, baseline or not. */
 export const ERROR_RATE_CEILING = 0.2;
-const UNSTRATIFIED = 'unstratified';
 
 /**
  * One metric's place in the gate: the comparison it produced, and the strings

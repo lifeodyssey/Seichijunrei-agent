@@ -16,6 +16,9 @@ import { pythonSum } from './python-sum.ts';
 
 export type Verdict = 'pass' | 'fail' | 'indeterminate';
 
+/** The stratum a case falls into when its dataset does not name one. */
+export const UNSTRATIFIED = 'unstratified';
+
 /** A closed confidence interval. */
 export interface Interval {
   readonly lower: number;

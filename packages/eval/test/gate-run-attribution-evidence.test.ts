@@ -62,6 +62,7 @@ const result = gateRunResultOf(report, {
   baselineFailures: [],
   baselineWarnings: [],
   strata: {},
+  strataWarnings: [],
   now: () => GENERATED_AT,
 });
 

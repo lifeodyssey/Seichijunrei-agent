@@ -19,7 +19,6 @@ from animichi.tests.eval.eval_harness import (
     CAPPED,
     CASES,
     DATASET_NAME,
-    DATASET_PATH,
     EVAL_L3,
     METRIC_NAMES,
     RESULTS_DIR,
@@ -51,7 +50,7 @@ from animichi.tests.eval.smoke_errors import (
     smoke_error_failures,
     summarize_errors,
 )
-from animichi.tests.eval.stats import load_case_strata
+from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.trajectory_assertions import (
     TrajectoryExpectation,
     print_trajectory_assertions,
@@ -175,9 +174,13 @@ def _capped_notice(case_count: int, *, is_smoke: bool) -> None:
 
 
 def gate_report(
-    report: AgentReport, target: EvalTierTarget, model_id: str, scores: ScoreMap
+    report: AgentReport,
+    target: EvalTierTarget,
+    model_id: str,
+    scores: ScoreMap,
+    strata: CaseStrata,
 ) -> list[str] | None:
-    gate_input = _report_gate_input(report, target, model_id, scores)
+    gate_input = _report_gate_input(report, target, model_id, scores, strata)
     return _run_gate(gate_input, target.layer, BASELINES_DIR, is_capped=CAPPED)
 
 
@@ -299,7 +302,11 @@ def _direct_gate_enforced() -> bool:
 
 
 def _report_gate_input(
-    report: AgentReport, target: EvalTierTarget, model_id: str, scores: ScoreMap
+    report: AgentReport,
+    target: EvalTierTarget,
+    model_id: str,
+    scores: ScoreMap,
+    strata: CaseStrata,
 ) -> GateInput:
     return GateInput(
         model_id,
@@ -312,7 +319,7 @@ def _report_gate_input(
         errors=_classified_errors(report),
         trajectories=_trajectory_cases(report),
         expectations=_expectations(report),
-        strata=load_case_strata(DATASET_PATH) if not CAPPED else None,
+        strata=None if CAPPED else strata.by_case,
     )
 
 
@@ -351,9 +358,9 @@ def _print_report_scores(
 
 
 def finish_cli_report(
-    report: AgentReport, target: EvalTierTarget, model_id: str
+    report: AgentReport, target: EvalTierTarget, model_id: str, strata: CaseStrata
 ) -> list[str] | None:
     scores = _scores_for_run(report)
     persist_report(report, target, model_id, scores)
     _print_report_scores(scores, target, model_id)
-    return gate_report(report, target, model_id, scores)
+    return gate_report(report, target, model_id, scores, strata)
