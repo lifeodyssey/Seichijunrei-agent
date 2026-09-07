@@ -21,12 +21,26 @@ import type { ExportedAgentInput } from '../dataset-roundtrip.ts';
  * the cases alone — history replays included, which is why it is not the case
  * count. It is `turns_planned` rather than `turns_sent` because a case that
  * errored may have got some of its turns away before it did.
+ *
+ * `task_seconds` IS NOT (#1476). It used to be the sum of `ReportCase
+ * .task_duration`, which `logfire/evals` measures as `performance.now()` across
+ * the whole task call. `StagingTurnTask.run` enters `InFlightTurns` INSIDE that
+ * call, so a case's measured duration is its queue wait plus its turn, and at
+ * the documented bound of two the queue wait is most of it: the 662-case run of
+ * 2026-09-07 walled 8,795 s and summed 3,043,667 "seconds", with the last case
+ * alone reporting 8,793 — the whole run, spent waiting. Neither `ReportCase`
+ * nor `ReportCaseFailure` carries a start or an end to difference instead, so
+ * the field is `null` rather than a number nobody can read.
  */
+/** What the field says instead of a number, so a reader is sent somewhere. */
+export const TASK_SECONDS_NOTE = 'see #1476';
+
 export interface RunSpend {
   /** `POST /v1/chat` submissions the run's cases call for, history included. */
   readonly turns_planned: number;
-  /** Wall clock inside the task, summed over evaluated cases, in seconds. */
-  readonly task_seconds: number;
+  /** Not measurable from this report (#1476) — see the note above the type. */
+  readonly task_seconds: null;
+  readonly task_seconds_note: string;
 }
 
 type AttemptedCase =
@@ -39,19 +53,11 @@ export function runSpendOf(
   const attempted: AttemptedCase[] = [...report.cases, ...report.failures];
   return {
     turns_planned: attempted.reduce((total, entry) => total + turnsOf(entry), 0),
-    task_seconds: millisecondPrecision(report.cases),
+    task_seconds: null,
+    task_seconds_note: TASK_SECONDS_NOTE,
   };
 }
 
 function turnsOf(entry: AttemptedCase): number {
   return caseSubmissionsOf(entry.inputs).length;
-}
-
-/** Rounded to the millisecond: the runner cannot see finer, and a committed
- * result file should not diff on the sixteenth decimal of a float sum. */
-function millisecondPrecision(
-  cases: readonly ReportCase<ExportedAgentInput>[],
-): number {
-  const seconds = cases.reduce((total, entry) => total + entry.task_duration, 0);
-  return Math.round(seconds * 1000) / 1000;
 }

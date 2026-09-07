@@ -89,5 +89,5 @@ void test('each reported score carries its evaluator spec and version', async ()
   const scored = await reportOneCase();
   const versions = Object.values(scored.scores).map((result) => result.evaluator_version);
 
-  assert.deepEqual(versions, new Array(versions.length).fill('official-v1'));
+  assert.deepEqual(versions, new Array(versions.length).fill('official-v2'));
 });

@@ -30,10 +30,10 @@ from animichi.tests.eval.gate import (
 
 EVAL_DIR = Path(__file__).parent
 BASELINE_FILE = (
-    "agent_l4_trajectory_openai-mimo-v2.5-https---opencode.ai-zen-go-v1.json"
+    "agent_l4_trajectory_openai-mimo-v2.5-https---api.xiaomimimo.com-v1.json"
 )
 STALE_LAYER = "agent_l4_trajectory"
-STALE_MODEL = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
+STALE_MODEL = "openai:mimo-v2.5@https://api.xiaomimimo.com/v1"
 
 
 class _MessageCollector(logging.Handler):

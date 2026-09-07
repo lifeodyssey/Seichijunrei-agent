@@ -26,10 +26,10 @@ def test_eval_default_model_is_mimo() -> None:
     from animichi.config.model_aliases import CredentialRef, model_alias_from_spec
     from animichi.tests.eval.eval_harness import DEFAULT_MODEL_ID
 
-    assert DEFAULT_MODEL_ID == "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
+    assert DEFAULT_MODEL_ID == "openai:mimo-v2.5@https://api.xiaomimimo.com/v1"
     assert (
         model_alias_from_spec(DEFAULT_MODEL_ID).credential_ref
-        is CredentialRef.ZEN_GO_API_KEY
+        is CredentialRef.MIMO_API_KEY
     )
 
 

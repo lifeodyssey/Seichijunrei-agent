@@ -26,7 +26,10 @@ from animichi.tests.eval.eval_harness import (
     AgentReport,
 )
 from animichi.tests.eval.eval_report import collect_scores, print_scores
-from animichi.tests.eval.evaluators import accepted_chains_for_case
+from animichi.tests.eval.evaluators import (
+    EVALUATOR_VERSION,
+    accepted_chains_for_case,
+)
 from animichi.tests.eval.exec_tiers import (
     EvalTierTarget,
     build_results_payload,
@@ -128,6 +131,7 @@ def _new_baseline(gate_input: GateInput) -> BaselineRecord:
         model=gate_input.model,
         dataset=gate_input.dataset,
         tier=gate_input.tier,
+        evaluator_version=EVALUATOR_VERSION,
         case_count=gate_input.case_count,
         evaluated_count=gate_input.evaluated_count,
         errored_count=gate_input.errored_count,

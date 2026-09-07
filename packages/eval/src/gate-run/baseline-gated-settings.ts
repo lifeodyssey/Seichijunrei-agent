@@ -1,3 +1,4 @@
+import { EVALUATOR_VERSION } from '../evaluators/agent-evaluator.ts';
 import { readBaselineRecord, type BaselineExpectations, type BaselineLocation } from '../gate/baseline-store.ts';
 import type { GateRunSettings } from './gate-run-result.ts';
 
@@ -9,7 +10,11 @@ export type RunUnderGate = Omit<
 
 /** What the run expects of a baseline before it will compare with it. */
 function baselineExpectations(run: RunUnderGate): BaselineExpectations {
-  return { caseCount: run.caseCount, metrics: run.metricNames };
+  return {
+    caseCount: run.caseCount,
+    metrics: run.metricNames,
+    evaluatorVersion: EVALUATOR_VERSION,
+  };
 }
 
 /**

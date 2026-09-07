@@ -142,7 +142,7 @@ project's own, ported from `evaluators.py`.
   with the wire transcript the TS side reads for the same turn. Changing an
   evaluator on either side means re-running `export-fixtures.sh` and re-proving the numbers in the
   same change; the drift gate is what forces it.
-- `EVALUATOR_VERSION = 'official-v1'` mirrors `evaluators.py` and rides on every instance as
+- `EVALUATOR_VERSION = 'official-v2'` mirrors `evaluators.py` and rides on every instance as
   `evaluatorVersion`. Bump both sides together or the two runners' baselines stop being comparable.
 
 ### The two witnesses `argument_correctness` scores (#1381)
@@ -388,12 +388,17 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   the evidence for a wave exit. Same date, same set, same filename — a re-run
   overwrites rather than accumulating near-identical files.
 - **The baseline is pinned in `python-baseline.ts`, and never written.** Layer
-  `agent_l4_trajectory` and model `openai:mimo-v2.5@https://opencode.ai/zen/go/v1`
+  `agent_l4_trajectory` and model `openai:mimo-v2.5@https://api.xiaomimimo.com/v1`
   are constants, not flags: a gate whose baseline can be pointed elsewhere on the
   command line can always be made to pass by pointing it somewhere easier.
   Python's uncapped run *creates* a record when it finds none
   (`_run_uncapped_gate`); this runner never does, because the run being judged
   must not be able to write what judges it.
+  **The 2026-09-07 refresh (#1303) moved two variables at once** — the evaluator
+  vocabulary to `official-v2` and the endpoint off `https://opencode.ai/zen/go/v1`,
+  which began refusing every request without an `x-opencode-session` header — so
+  the Python-versus-Python deltas across that record are not attributable to
+  either change alone.
 - **A limited run cannot be gated, and says so.** `readBaselineRecord` is given
   the run's own case count, so `--limit 3` makes the 662-case record stale, the
   gate compares nothing, and the warning explains — the same place Python's

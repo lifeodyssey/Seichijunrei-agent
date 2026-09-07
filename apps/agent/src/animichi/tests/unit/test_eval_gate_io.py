@@ -69,8 +69,9 @@ def test_rejects_unknown_schema_version() -> None:
 def test_committed_baselines_validate() -> None:
     paths = sorted(_BASELINES_DIR.glob("*.json"))
 
-    # zen/go gateway migration: the xiaomimimo-direct baselines were replaced
-    # by the opencode.ai/zen/go trajectory baseline.
+    # The trajectory baseline moved back to the direct MiMo endpoint on
+    # 2026-09-07 (#1303): the zen/go gateway now refuses every request that
+    # carries no `x-opencode-session`, so no run can be made against it.
     assert len(paths) == 2
     for path in paths:
         BaselineRecord.model_validate_json(path.read_text())
@@ -93,10 +94,10 @@ def test_l4_trajectory_baseline_is_current_for_the_live_dataset() -> None:
 
     assert record is not None
     assert record.case_count == len(ALL_CASES)
-    # errored_count is part of the baseline (the L3 empty-input family
-    # errors in the current agent boundary); "current" means dataset + metric
-    # vocabulary match, not zero errors.
-    assert record.errored_count == 5
+    # errored_count is part of the baseline; "current" means dataset + metric
+    # vocabulary match, not any particular error count. The 2026-09-07 run
+    # errored on none of the 662 (#1303); the 2026-08 one errored on five.
+    assert record.errored_count == 0
     assert record.evaluated_count + record.errored_count == record.case_count
     assert set(record.scores) == set(METRIC_NAMES)
 

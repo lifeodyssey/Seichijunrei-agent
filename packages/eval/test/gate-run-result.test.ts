@@ -97,11 +97,20 @@ void test('a failing metric flips the exit code', () => {
   assert.equal(gateExitCode(regressedResult), 1);
 });
 
+/** `baseline - current` for the metric this run drove to zero: the mean of the
+ * baseline's own `tool_correctness` over the paired cases. Read off the record
+ * rather than written down, because the record is refreshed whenever the
+ * evaluators change (#1303) and a literal would then be pinning last quarter's
+ * run instead of the arithmetic. */
+const REGRESSED_MEAN_DELTA =
+  Object.values(parity).reduce((total, scores) => total + (scores.tool_correctness ?? NaN), 0) /
+  PAIRED_CASES;
+
 void test('the interval and the estimate ride along with the verdict', () => {
   const row = regressedResult.metrics.find((one) => one.metric === 'tool_correctness');
   assert.deepEqual(
     { delta: row?.mean_delta, n: row?.sample_size, method: row?.method },
-    { delta: 1, n: PAIRED_CASES, method: 'stratified-paired-bootstrap' },
+    { delta: REGRESSED_MEAN_DELTA, n: PAIRED_CASES, method: 'stratified-paired-bootstrap' },
   );
 });
 

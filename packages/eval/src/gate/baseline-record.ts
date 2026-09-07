@@ -21,6 +21,10 @@ export interface BaselineRecord {
   readonly model: string;
   readonly dataset: string;
   readonly tier: string;
+  /** The evaluator vocabulary that produced these numbers, or `null` for a
+   * record that predates the field (#1303). `baseline-store.ts` decides what a
+   * disagreement means; this type only carries the answer. */
+  readonly evaluator_version: string | null;
   readonly repeat: number;
   readonly case_count: number;
   readonly evaluated_count: number;
@@ -37,6 +41,7 @@ export function baselineRecordText(record: BaselineRecord): string {
     `  "model": ${JSON.stringify(record.model)}`,
     `  "dataset": ${JSON.stringify(record.dataset)}`,
     `  "tier": ${JSON.stringify(record.tier)}`,
+    `  "evaluator_version": ${JSON.stringify(record.evaluator_version)}`,
     `  "repeat": ${String(record.repeat)}`,
     `  "case_count": ${String(record.case_count)}`,
     `  "evaluated_count": ${String(record.evaluated_count)}`,
@@ -106,10 +111,22 @@ function validated(raw: Record<string, unknown>): BaselineRecord | null {
   }
   const identity = identityFields(raw);
   const counts = countFields(raw);
-  if (identity === null || counts === null || !isNote(raw.note)) {
+  const texts = optionalTexts(raw);
+  if (identity === null || counts === null || texts === null) {
     return null;
   }
-  return { schema_version: 2, ...identity, ...counts, scores, cases, note: raw.note ?? null };
+  return { schema_version: 2, ...identity, ...texts, ...counts, scores, cases };
+}
+
+/** The record's two free-text fields, which Python both defaults to `None`. */
+function optionalTexts(
+  raw: Record<string, unknown>,
+): Pick<BaselineRecord, 'evaluator_version' | 'note'> | null {
+  const { evaluator_version: version, note } = raw;
+  if (!isOptionalText(version) || !isOptionalText(note)) {
+    return null;
+  }
+  return { evaluator_version: version ?? null, note: note ?? null };
 }
 
 function identityFields(
@@ -142,7 +159,8 @@ function integerOr(value: unknown, fallback: number | null): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
-function isNote(value: unknown): value is string | null | undefined {
+/** Both optional string fields read the same way: absent, null, or a string. */
+function isOptionalText(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string';
 }
 

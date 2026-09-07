@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { runSpendOf } from '../src/gate-run/run-spend.ts';
+import { runSpendOf, TASK_SECONDS_NOTE } from '../src/gate-run/run-spend.ts';
 import { scoreBreakdownOf } from '../src/gate-run/score-breakdown.ts';
 import { makeCannedReport } from './canned-report.ts';
 
@@ -65,12 +65,21 @@ void test('the run counts the chat submissions its cases call for', () => {
   assert.equal(spent.turns_planned, 4);
 });
 
-/** 0.1 + 0.2 on purpose: the float sum is 0.30000000000000004, and a committed
- * result file should not diff on the sixteenth decimal. */
-void test('the run records the seconds its task spent, to the millisecond', () => {
-  assert.equal(spent.task_seconds, 0.3);
+/** The cases here spend 0.1 s and 0.2 s, and the field still refuses to say so:
+ * `task_duration` is the whole task call, and `StagingTurnTask` queues on
+ * `InFlightTurns` inside it, so on a real run the number is queue wait (#1476).
+ * A committed result must not carry a figure that reads as machine time. */
+void test('the seconds the task spent are not claimed, and say where to look', () => {
+  assert.deepEqual(
+    { seconds: spent.task_seconds, note: spent.task_seconds_note },
+    { seconds: null, note: TASK_SECONDS_NOTE },
+  );
 });
 
 void test('a run of nothing spent nothing', () => {
-  assert.deepEqual(runSpendOf(makeCannedReport([])), { turns_planned: 0, task_seconds: 0 });
+  assert.deepEqual(runSpendOf(makeCannedReport([])), {
+    turns_planned: 0,
+    task_seconds: null,
+    task_seconds_note: TASK_SECONDS_NOTE,
+  });
 });
