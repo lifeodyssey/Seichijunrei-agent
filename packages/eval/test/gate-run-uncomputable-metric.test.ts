@@ -43,6 +43,19 @@ function namesFor(run: { report: Parameters<typeof gateRunResultOf>[0] }): strin
   return runMetricNames({ report: run.report, hasNonemptyCases: true, l3Enabled: false });
 }
 
+/**
+ * The settings each run is handed must name the columns that run actually
+ * reports. Overriding `metricNames` at the call site used to hide a builder
+ * that pinned both per-run flags true regardless of the scores it was given —
+ * a double lying about its own state, and the one thing these tests must not
+ * be doing while they measure a strict aggregation.
+ */
+void test('the builder hands back settings that agree with the run it built', () => {
+  assert.deepEqual(witnessed.settings.metricNames, namesFor(witnessed));
+  assert.deepEqual(unwitnessed.settings.metricNames, namesFor(unwitnessed));
+  assert.deepEqual(stepless.settings.metricNames, namesFor(stepless));
+});
+
 void test('a run whose reads published no params does not report the metric at all', () => {
   assert.ok(!namesFor(unwitnessed).includes('argument_correctness'));
 });
@@ -52,10 +65,8 @@ void test('one case with a published record is enough to keep the column', () =>
 });
 
 void test('such a run still aggregates, and still reports its other metrics', () => {
-  const result = gateRunResultOf(unwitnessed.report, {
-    ...unwitnessed.settings,
-    metricNames: namesFor(unwitnessed),
-  });
+  const result = gateRunResultOf(unwitnessed.report, unwitnessed.settings);
+
   assert.ok(!('argument_correctness' in result.scores));
   assert.deepEqual(Object.keys(result.scores).sort(), [
     'data_keys_present',
@@ -72,10 +83,8 @@ void test('such a run still aggregates, and still reports its other metrics', ()
  * it — and finds no pair to compare. `skipped` is a warning and exits 0, which
  * is the same answer the gate gives any metric with too few pairs. */
 void test('the uncomparable metric is skipped with a warning, and fails nothing', () => {
-  const result = gateRunResultOf(unwitnessed.report, {
-    ...unwitnessed.settings,
-    metricNames: namesFor(unwitnessed),
-  });
+  const result = gateRunResultOf(unwitnessed.report, unwitnessed.settings);
+
   const row = result.metrics.find((metric) => metric.metric === 'argument_correctness');
   assert.equal(row?.verdict, 'skipped');
   assert.deepEqual(result.failures, []);
@@ -90,10 +99,8 @@ void test('one case that did step is enough to keep that column', () => {
 });
 
 void test('such a run still aggregates, and step efficiency is skipped not failed', () => {
-  const result = gateRunResultOf(stepless.report, {
-    ...stepless.settings,
-    metricNames: namesFor(stepless),
-  });
+  const result = gateRunResultOf(stepless.report, stepless.settings);
+
   const row = result.metrics.find((metric) => metric.metric === 'step_efficiency');
   assert.ok(!('step_efficiency' in result.scores));
   assert.equal(row?.verdict, 'skipped');

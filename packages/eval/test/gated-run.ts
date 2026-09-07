@@ -172,14 +172,24 @@ export async function makeReport(
   );
 }
 
+/**
+ * The settings a run of THESE scores is judged with.
+ *
+ * The two per-run columns are DERIVED from the scores rather than pinned on.
+ * Pinning them made this builder hand back a `metricNames` naming a column its
+ * own cases do not carry — a double that lies about its own state — and the
+ * only way to use the pair was to override `metricNames` at the call site,
+ * which is a thing no real runner does. `runMetricNames` reads the finished
+ * report for the same two facts; this reads the canned scores it is given.
+ */
 export function makeGateRunSettings(scores: CaseScoreMap): GateRunSettings {
   return {
     dataset: GATED_DATASET,
     caseCount: Object.keys(scores).length,
     metricNames: metricNames({
       hasNonemptyCases: true,
-      hasParamsRecorded: true,
-      hasMeasuredSteps: true,
+      hasParamsRecorded: someCaseScored(scores, 'argument_correctness'),
+      hasMeasuredSteps: someCaseScored(scores, 'step_efficiency'),
       l3Enabled: false,
     }),
     baseline: pythonBaseline(),
@@ -219,6 +229,12 @@ export async function makeSteplessRun(scores: CaseScoreMap): Promise<GatedRun> {
   const stepless = withoutMetric(scores, 'step_efficiency');
   const cases = Object.keys(stepless).map((name) => makeAgentCase(name));
   return { report: await makeReport(cases, stepless), settings: makeGateRunSettings(stepless) };
+}
+
+/** `runMetricNames`' rule, read off the canned scores: one case carrying the
+ * metric is enough for the column to be the run's to report. */
+function someCaseScored(scores: CaseScoreMap, metric: string): boolean {
+  return Object.values(scores).some((record) => metric in record);
 }
 
 /** The same scores with one metric emitted by nobody. */
