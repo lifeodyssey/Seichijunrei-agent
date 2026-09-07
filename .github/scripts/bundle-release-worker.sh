@@ -34,8 +34,20 @@ seal_config() {
 }
 
 # The dry run reads a config outside the Worker's directory, so its `main` has
-# to be absolute. The sealed config keeps the repository-relative one: the stage
-# jobs name the entry file positionally, which overrides it.
+# to be absolute: Wrangler resolves `main` against the config's directory
+# (`resolveEntryWithMain`). The sealed config keeps the repository-relative one,
+# and that is safe because the stage jobs name the entry file positionally —
+# a positional script is resolved against the *working* directory instead
+# (`resolveEntryWithScript`).
+#
+# The paths Wrangler derives from the config share `main`'s rule, and `--outdir`
+# is one of them: it reaches esbuild as `outdir` under `absWorkingDir =
+# entry.projectRoot`, the config's directory. A relative outdir therefore landed
+# under the `mktemp -d` scratch config and the entry check failed, so the outdir
+# in `main()` below is absolute. (Wrangler's own README is the exception that
+# made the symptom confusing: it is written with node `fs` at the raw `--outdir`
+# string, so the relative form still dropped that one file — and nothing else —
+# into `release/<unit>/bundle`.)
 build_config() {
   local main="$1" scratch
   scratch="$(mktemp -d)"
@@ -52,7 +64,7 @@ main() {
   mkdir -p "$OUT_DIR/bundle"
   seal_config
   config="$(build_config "$main_module")"
-  pnpm exec wrangler deploy -c "$config" --dry-run -e "$BUILD_ENV" --outdir "$OUT_DIR/bundle"
+  pnpm exec wrangler deploy -c "$config" --dry-run -e "$BUILD_ENV" --outdir "$PWD/$OUT_DIR/bundle"
   [ -f "$OUT_DIR/bundle/$entry" ] || fail "$UNIT bundle has no $entry entry point"
 }
 

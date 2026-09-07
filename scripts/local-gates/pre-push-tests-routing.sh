@@ -20,11 +20,16 @@ test_all_selects_every_package_gate() {
   echo "ok: all selects every package gate (lint/typecheck/unit/coverage/build/contract/quality)"
 }
 
-# normalize_gate_log: the gate's owned scratch dir is unique per run
-# (GATE_OUTDIR is never inherited), so the --outdir path differs between
-# otherwise identical runs — normalize it before comparing gate sets.
+# normalize_gate_log: two logged paths are unique per run, so they differ
+# between otherwise identical runs — the gate's owned scratch dir behind
+# `--outdir` (GATE_OUTDIR is never inherited), and the `mktemp -d` config that
+# .github/scripts/bundle-release-worker.sh hands to its dry run, which the
+# Quality gate's behavioural test drives through the stubbed `pnpm`. Normalize
+# both before comparing gate sets; every other config path stays literal,
+# because which config a gate was pointed at IS the gate set.
 normalize_gate_log() {
-  sed 's/--outdir [^ ]*/--outdir OUT/' "$1" | sort
+  sed -e 's/--outdir [^ ]*/--outdir OUT/' \
+      -e 's#-c [^ ]*/tmp\.[^ /]*/wrangler\.toml#-c SCRATCH/wrangler.toml#' "$1" | sort
 }
 
 test_arguments_do_not_route() {

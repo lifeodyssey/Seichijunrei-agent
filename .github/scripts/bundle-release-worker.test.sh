@@ -11,8 +11,10 @@
 set -euo pipefail
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle-release-worker.sh"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 IMAGE="registry.cloudflare.com/acct/animichi-agent:sha-deadbeef"
 WORKSPACE=""
+DRY_RUN_LOG=""
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -123,9 +125,39 @@ test_config_without_main_fails_closed() {
   echo "ok: a config with no main fails closed"
 }
 
+# Everything above stubs `pnpm`, and a stub honours `--outdir` against its own
+# working directory. Real Wrangler does not: it resolves the flag against the
+# directory holding the config file, which `build_config` puts in `mktemp -d` —
+# so a relative outdir wrote the bundle under the scratch directory and left only
+# Wrangler's own README under `release/<unit>`, and every stubbed case above
+# stayed green while CD failed the entry check. Only the real dry run can see
+# that, so this case runs it: catalog, at the repository root, no network.
+#
+# It is last, and its cleanup is an EXIT trap, because it is the only case that
+# writes outside a `mktemp -d` workspace: it builds into `release/` at the
+# repository root, and refuses to start if that directory already exists. So two
+# runs of this file in one worktree collide, and every pre-push pays for one real
+# Wrangler build.
+test_the_real_dry_run_writes_its_entry_into_the_release_tree() {
+  [ -e "$REPO_ROOT/release" ] && fail "release/ already exists; refusing to run over it"
+  DRY_RUN_LOG="$(mktemp)"
+  trap 'rm -rf "$REPO_ROOT/release" "$DRY_RUN_LOG"' EXIT
+  local rc=0
+  ( cd "$REPO_ROOT" && bash "$SCRIPT" catalog production ) >"$DRY_RUN_LOG" 2>&1 || rc=$?
+  # Checked before the entry file, so a Wrangler or node crash reports itself
+  # rather than surfacing as the missing-entry defect this case exists to catch.
+  [ "$rc" = 0 ] || fail "the bundler exited $rc -- $(tail -n 1 "$DRY_RUN_LOG")"
+  [ -s "$REPO_ROOT/release/catalog/bundle/index.js" ] ||
+    fail "release/catalog/bundle/index.js is missing or empty -- $(tail -n 1 "$DRY_RUN_LOG")"
+  [ -f "$REPO_ROOT/release/catalog/wrangler.toml" ] ||
+    fail "the sealed config must ship beside the bundle it deploys"
+  echo "ok: the real wrangler dry run writes its entry into the release tree"
+}
+
 test_image_reference_replaces_every_declaration
 test_no_image_reference_leaves_the_config_untouched
 test_build_config_is_absolute_and_the_sealed_one_is_not
 test_missing_entry_point_fails_closed
 test_config_without_main_fails_closed
+test_the_real_dry_run_writes_its_entry_into_the_release_tree
 echo "All bundle-release-worker.sh behavioural tests passed."
