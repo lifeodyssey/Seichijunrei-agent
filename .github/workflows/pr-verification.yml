@@ -77,7 +77,6 @@ jobs:
               - 'migrations/neon/**'
             workflows:
               - '.github/workflows/**'
-              - '.github/actions/**'
             deps:
               - 'pnpm-lock.yaml'
               - 'package.json'
@@ -134,9 +133,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      # pnpm, Node 24 and a frozen install: what `./.github/actions/setup` did
+      # until #1367 removed the last composite action in this repository. Five
+      # jobs repeat these three steps; a composite hid them from `actionlint`,
+      # from `zizmor` and from the paths filter that decides whether a change to
+      # them runs anything at all.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          python: ${{ matrix.package == '@animichi/eval' }}
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # `uv` only for the package whose own `test` re-runs the Python fixture
+      # exporter — the `python: true` half of the retired composite.
+      - if: ${{ matrix.package == '@animichi/eval' }}
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.14"
+          prune-cache: "true"
       # Every binary below is provisioned because one package's own `test`
       # shells out to it. `test_ci_workflow_contract.rb` pins the pairing, so a
       # dropped step fails a test instead of that package's lane.
@@ -204,8 +219,15 @@ jobs:
         with:
           persist-credentials: false
       # bundle-release-worker.test.sh drives a real `wrangler deploy --dry-run`,
-      # so this job needs the workspace like the ones that run a .mjs do.
-      - uses: ./.github/actions/setup
+      # so this job needs the workspace. These are the three steps every other
+      # lane spells out since #1367 removed the last composite action.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Verify the workflow invariants and action pinning
         run: ruby .github/scripts/test_workflow_invariants.rb
       - name: Verify the CI workflow's affected-matrix shape
@@ -314,9 +336,17 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          python: "true"
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.14"
+          prune-cache: "true"
       - run: uv python install 3.11
       # The tag has one declaration (packages/test-postgres/postgres-image.env);
       # a `run:` reads it by sourcing it, so the builder keeps no copy either.
@@ -369,11 +399,17 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
-      # The combined action, matching the only other caches here — the pnpm
-      # store and uv, both inside ./.github/actions/setup: restore in the step,
-      # save in the post step. `actions/cache/restore` has no post step, so
-      # nothing ever wrote this key and every runner re-downloaded chromium.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # The combined action, matching the only other cache here — setup-node's
+      # pnpm store: restore in the step, save in the post step.
+      # `actions/cache/restore` has no post step, so nothing ever wrote this key
+      # and every runner re-downloaded chromium.
       - name: Cache the Playwright browser
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -421,7 +457,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       # 0.30.0 is the repository's Atlas pin. C1 (#1364) retired the
       # `install-atlas` composite B5 named here: the matrix step above, the
       # production migration step in cd.yml, and this one all reach it through
@@ -580,7 +622,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Lint the PR's commits
         run: |
           set -euo pipefail

@@ -611,14 +611,16 @@ workspace project whose files changed plus every dependent, and each selected pa
 `PR Verification` blocks merge unless every lane succeeds; the direct `Security` context separately
 fail-closes the six always-on security jobs.
 
-Prompt, model-config, guardrail, and eval-source changes also select `CI / agent eval (L0 smoke)`.
-That job preserves the existing provider-backed contract: at most 80 trajectories, MiMo through
-`https://opencode.ai/zen/go/v1`, and the existing repository `ZEN_GO_API_KEY`. It runs only on
-same-repository pull requests, never on Dependabot or forks, and receives no broader token
-permissions or data. The result remains visible and report-only: it runs independently from
-`PR Verification`, so provider availability cannot become a merge blocker. The uncapped L1 trajectory
-suite stays in `agent-eval-nightly.yml` and uses the same local `.github/actions/agent-eval`
-implementation; merge-queue evaluation never receives the provider secret.
+**No pull request runs a model-backed eval.** The `CI / agent eval (L0 smoke)` lane — 80 capped
+trajectories against MiMo through `https://opencode.ai/zen/go/v1` — was deleted with the
+affected-matrix rewrite, so no pull-request or merge-queue job holds a provider credential of any
+kind. `EVAL_SMOKE=1` is a local recipe now (`apps/agent/AGENTS.md`); the capped run was always
+report-only, and removing it changed no merge verdict.
+
+The uncapped L1 trajectory suite is the only model-backed lane left. It runs nightly and on
+`workflow_dispatch` in `agent-eval-nightly.yml`, which spells its own steps out since the shared
+`.github/actions/agent-eval` composite was deleted (#1367) and opens `ZEN_GO_API_KEY` from Pulumi
+ESC with the job's own OIDC identity rather than reading a GitHub secret.
 
 Deployment is not a CI job. A successful merge creates a `main` push; only then does
 `.github/workflows/cd.yml` build and promote the affected release cohort.

@@ -8,9 +8,23 @@
 #
 #   identity   the Pulumi Cloud login is the personal-token exchange an
 #              individual-edition organization can actually mint, scoped to one
-#              user; ESC exports exactly the two Pulumi-plane names rather than
-#              the action's export-everything default, which is what keeps
-#              ADR 0003 ("no runtime DSN or model key in ESC") structural
+#              user. That every such job declares the `environment:` its OIDC
+#              subject needs is a repository-wide rule, so it lives in
+#              `test_workflow_invariants.rb` with the other meta-invariants
+#   esc        each stage opens its own environment and exports only the names
+#              it publishes with, never the action's export-everything default.
+#              That each opened name is then checked for emptiness is a
+#              repository-wide rule in `test_workflow_invariants.rb`;
+#              `NEON_API_KEY` reaches the two jobs that run a Pulumi stack and
+#              no other. What the list cannot promise is that a value stays out
+#              of the job: `pulumi/esc-action` publishes every
+#              `environmentVariables` entry as a step output whatever the list
+#              says, so ADR 0003 rests on the runtime secrets living under
+#              `pulumiConfig` instead (card D4), not on this allowlist
+#   publish    every Wrangler deploy authenticates with the token ESC just
+#              opened. wrangler-action assigns
+#              `process.env.CLOUDFLARE_API_TOKEN = getInput("apiToken")`
+#              unconditionally, so an omitted input blanks the exported value
 #   retired    nothing the Pulumi Cloud migration removed comes back
 #   runtime    CI uploads no Worker secret by any of the three routes that
 #              exist — `wrangler secret bulk`, wrangler-action's `secrets:`
@@ -29,7 +43,14 @@ CD_FILE = File.join(repository_root, ".github", "workflows", "cd.yml")
 WRANGLER_ACTION = "cloudflare/wrangler-action"
 AUTH_ACTION = "pulumi/auth-actions"
 ESC_ACTION = "pulumi/esc-action"
-ESC_EXPORTS = "CLOUDFLARE_API_TOKEN,NEON_API_KEY"
+PULUMI_ACTION = "pulumi/actions"
+# The publish token every stage needs, and the Neon control-plane key only the
+# jobs that run a Pulumi stack do. Together they are the whole Pulumi plane —
+# an ESC export naming anything else is a value this file has no business in.
+PUBLISH_TOKEN = "CLOUDFLARE_API_TOKEN"
+NEON_CONTROL_PLANE = "NEON_API_KEY"
+PULUMI_PLANE = [PUBLISH_TOKEN, NEON_CONTROL_PLANE].freeze
+WRANGLER_API_TOKEN = "${{ env.CLOUDFLARE_API_TOKEN }}"
 # An individual-edition organization cannot mint organization or team tokens —
 # the 2026-09-05 probe answered `401 … Org tokens are not supported for non
 # enterprise organizations`. The issuer policy is written against this pair.
@@ -45,11 +66,13 @@ RETIRED_CREDENTIALS = %w[PULUMI_BACKEND_URL PULUMI_CONFIG_PASSPHRASE R2_ACCESS_K
 # (spec §七 #17, card D4); CI must not name them at all.
 RUNTIME_SECRETS = %w[DEEPSEEK_API_KEY MIMO_API_KEY ZEN_GO_API_KEY SUPABASE_DB_URL
                      GOOGLE_MAPS_API_KEY LOGFIRE_TOKEN TURNSTILE_SECRET ANON_ID_SECRET].freeze
-# Any secret whose name says "database" — NEON_DATABASE_URL was the last one,
-# and MIGRATOR_DATABASE_URL arriving through GitHub instead of the Secrets Store
-# would be the same mistake under a newer name. A pattern, not a list: the point
-# is that no such secret exists here, whatever it is called next.
-DATABASE_CREDENTIAL = /secrets\.[A-Z_]*DATABASE[A-Z_]*/
+# Any credential whose name says "database" — NEON_DATABASE_URL was the last
+# one, and MIGRATOR_DATABASE_URL arriving through an ESC export instead of the
+# Secrets Store would be the same mistake under a newer name. A pattern, not a
+# list, and deliberately blind to where the value would come from: since #1367
+# there is no `secrets.` context left to anchor on, so the name itself is the
+# only thing worth matching.
+DATABASE_CREDENTIAL = /\b[A-Z][A-Z0-9_]*DATABASE[A-Z0-9_]*\b/
 
 @log = ViolationLog.new
 @cd = WorkflowDocument.load(CD_FILE)
@@ -70,10 +93,28 @@ def assert_pulumi_login_is_the_only_token_type_this_org_can_mint
   end
 end
 
-def assert_esc_exports_exactly_the_pulumi_plane
+def assert_esc_exports_only_what_its_stage_publishes_with
+  pulumi_jobs = steps_using(PULUMI_ACTION).map(&:first)
   steps_using(ESC_ACTION).each do |job, step|
-    @log.unless_true(step.dig("with", "export-environment-variables") == ESC_EXPORTS,
-                     "cd.yml:#{job}: ESC must export exactly #{ESC_EXPORTS}, never the default (ADR 0003)")
+    exports = esc_exported_names(step)
+    @log.unless_true(!exports.empty? && (exports - PULUMI_PLANE).empty?,
+                     "cd.yml:#{job}: ESC must export a non-empty subset of #{PULUMI_PLANE.join(', ')}, " \
+                     "never the export-everything default (got #{exports.join(', ')})")
+    next unless exports.include?(NEON_CONTROL_PLANE)
+
+    @log.unless_true(pulumi_jobs.include?(job),
+                     "cd.yml:#{job}: #{NEON_CONTROL_PLANE} belongs to the jobs that run a Pulumi stack")
+  end
+end
+
+# The one place a publishing job could quietly fall back to something other
+# than the token it just opened.
+def assert_wrangler_publishes_on_the_opened_token
+  steps_using(WRANGLER_ACTION).each do |job, step|
+    @log.unless_true(step.dig("with", "apiToken") == WRANGLER_API_TOKEN,
+                     "cd.yml:#{job}: Wrangler must authenticate with #{WRANGLER_API_TOKEN}")
+    @log.unless_true(steps_using(ESC_ACTION).any? { |esc_job, esc| esc_job == job && esc_exported_names(esc).include?(PUBLISH_TOKEN) },
+                     "cd.yml:#{job}: publishes without opening #{PUBLISH_TOKEN} from ESC")
   end
 end
 
@@ -98,7 +139,8 @@ end
 
 def main
   assert_pulumi_login_is_the_only_token_type_this_org_can_mint
-  assert_esc_exports_exactly_the_pulumi_plane
+  assert_esc_exports_only_what_its_stage_publishes_with
+  assert_wrangler_publishes_on_the_opened_token
   assert_retired_credentials_stay_retired
   assert_no_runtime_secret_upload
   assert_ci_holds_no_database_credential

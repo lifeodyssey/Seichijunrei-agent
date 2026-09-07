@@ -3,7 +3,7 @@
 
 # A gitleaks config file REPLACES the built-in rule set unless it extends it.
 # `.gitleaks.toml` sits at the repo root, so every consumer auto-discovers it:
-# the digest-pinned scanner in .github/actions/secret-scan (job `security-diff`)
+# the pinned `gitleaks/gitleaks-action` in pr-verification.yml's `gitleaks` job
 # and the gitleaks pre-commit hook. Drop `[extend] useDefault = true` and both
 # keep exiting 0 on real secrets — a silent, total loss of secret scanning that
 # no other check would notice. Narrower edits buy the same silence while

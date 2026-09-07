@@ -1,15 +1,14 @@
-# Secrets inventory (GitHub repo + environment)
+# Secrets inventory (Pulumi ESC + the Worker)
 
-What every GitHub secret (repository-level and environment-level) and every credential-shaped
-container env var is for, who consumes it, and what breaks if it is rotated. Started
-2026-07-29 after setting `ANON_ID_SECRET` blind — the value went in with no record anywhere
-of what it does.
+What every credential the delivery lane and the runtime depend on is for, who consumes it, and
+what breaks if it is rotated. Started 2026-07-29 after setting `ANON_ID_SECRET` blind — the value
+went in with no record anywhere of what it does.
 
-The scope snapshot was checked read-only on 2026-08-01 with `gh secret list` for the repository,
-`staging`, and `production` environments. Only secret names were requested; no secret value was
-read. Re-run those three commands before any rotation because GitHub secret presence and scope
-are provisioning state, while the source-consistency test below only sees names used by this
-repository.
+Since #1367 no workflow reads a GitHub secret. The three GitHub secret stores — repository,
+`staging`, `production` — still hold their values: emptying them is the owner's last step in that
+card, taken only after one green staging deploy and one green nightly have run on the ESC path, so
+that a wrong ESC value is recoverable. Until then this file describes two homes at once: the one
+every consumer reads from (below), and a GitHub copy nothing reads.
 
 Companion to [`deployment.md`](./deployment.md), which covers non-secret runtime config
 (`LOG_LEVEL`, `CACHE_TTL_SECONDS`, and the rest of `CONTAINER_ENV_KEYS` that never touch a
@@ -26,11 +25,11 @@ trade. Instead,
 [`apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py`](../../apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py)
 does it with zero credentials, by grepping source instead of asking GitHub:
 
-- **A** = every name used as `${{ secrets.X }}` anywhere under `.github/workflows/**`, plus
-  every credential-shaped name in `workers/edge/src/container/container-env.ts`'s `CONTAINER_ENV_KEYS`
-  (`_API_KEY` / `_TOKEN` / `_SECRET` suffix) — the rest of that list
-  is plain runtime config with no GitHub secret behind it, and stays out of scope here (see
-  `deployment.md`).
+- **A** = every credential-shaped name in `workers/edge/src/container/container-env.ts`'s
+  `CONTAINER_ENV_KEYS` (`_API_KEY` / `_TOKEN` / `_SECRET` suffix), plus every name used as
+  `${{ secrets.X }}` anywhere under `.github/workflows/**` — a set that has been empty since #1367
+  and that `test_workflow_invariants.rb` keeps empty. The rest of `CONTAINER_ENV_KEYS` is plain
+  runtime config with no credential behind it and stays out of scope here (see `deployment.md`).
 - **B** = every name in this file's two tables (Live + Referenced by nothing).
 - `test_every_workflow_secret_and_credential_container_key_is_documented`: **A ⊆ B**. Code
   reaches for a secret this file has never heard of → red.
@@ -41,20 +40,27 @@ does it with zero credentials, by grepping source instead of asking GitHub:
 Follows the shape of `apps/agent/src/animichi/tests/unit/test_anonymous_docs_consistency.py`, which
 does the same job for `ARCHITECTURE.md` against `workers/edge/src/identity/auth.ts`.
 
-## Same-name override rule
+## Nothing in GitHub is read any more (#1367)
 
-`cd.yml` runs each ordered staging job under `environment: staging`, and runs the one production
-promotion under `environment: production`.
-GitHub resolves an environment secret over a same-named repository secret for any job that
-declares that environment — **so when a name exists at both scopes, only the environment-level
-value is ever live for a staging/production deploy; rotating the repository-level one there
-does nothing.** The table below marks scope explicitly per name instead of assuming repo-level.
+`grep -c 'secrets\.' .github/workflows/*.yml` is 0, and `test_workflow_invariants.rb` keeps it
+there. The same-name override rule this section used to explain — an environment secret shadowing a
+same-named repository secret — still describes how GitHub would resolve a name, but nothing asks it
+to resolve one. The stores themselves are emptied at the end of #1367, after the two green runs.
 
-There is no PR-preview, manual, or tag-triggered deploy workflow in the current tree. Consequently,
-the repository-level copies of `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and
-`LOGFIRE_TOKEN` are referenced inside environment-scoped jobs, so the matching
-staging/production environment value wins. The repository copy is not a separate deploy
-path.
+Where the two kinds of credential live now:
+
+| Kind | Home | Reached by |
+|---|---|---|
+| CI-plane (`CLOUDFLARE_API_TOKEN`, `NEON_API_KEY`, `ZEN_GO_API_KEY`) | Pulumi ESC, under `environmentVariables` in `lifeodyssey/animichi/staging` and `…/prod` | the job's own GitHub OIDC identity → `pulumi/auth-actions` → `pulumi/esc-action`. The job's `environment:` is what makes its OIDC subject one the Pulumi Cloud issuer policy accepts (`deployment.md`, "Pulumi state, encryption, and CI identity") |
+| Edge runtime (the eight names in chain 1 below) | Pulumi ESC, under `pulumiConfig` as `fn::secret`, and on the Worker itself | Pulumi, never CI. `pulumi/esc-action` exports `environmentVariables` and `files` only, so a value under `pulumiConfig` cannot reach a publishing job at all |
+
+`CLOUDFLARE_ACCOUNT_ID` left this file entirely: it is an account identifier, not a credential. The
+repository variable `vars.CLOUDFLARE_ACCOUNT_ID` was created 2026-09-08 and is what the workflows
+read; the GitHub *secret* of the same name is one of the copies awaiting deletion.
+
+`ZEN_GO_API_KEY` is deliberately in both ESC sections — the nightly eval reads it as a job
+environment variable, and the edge runtime reads it through the Secrets Store. They are the same
+value with two consumers, not a duplicate to deduplicate.
 
 ## Three consumption chains
 
@@ -92,19 +98,19 @@ so it no longer has a Live row here — see its "Referenced by nothing" row belo
 
 | Secret | Scope | What it is | Value lives in / read by | Rotation |
 |---|---|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | repo + `staging` + `production` (environment value wins for current deploys) | Deploys Workers; needs `Workers Scripts:Edit` | `cd.yml` staging and production promotion | Rotating the environment-level value breaks that environment's promotion. Create the replacement first, update the intended scope, then revoke the old one |
-| `CLOUDFLARE_ACCOUNT_ID` | repo + `staging` + `production` (same override rule as above) | Account identifier (not a credential, stored as a secret for convenience) | All current deploy and rollback workflows | Rotating an environment value breaks that environment's URL resolution/deploy; the repo-level copy is shadowed in environment-scoped CD jobs |
-| `ZEN_GO_API_KEY` | repo (no env override) | **Production LLM gateway.** MiMo `mimo-v2.5` is routed through the zen/go gateway (`https://opencode.ai/zen/go/v1`) | Exact edge core payload → Worker binding → agent container; also the affected `CI / agent eval` lane and `agent-eval-nightly.yml`, both through `.github/actions/agent-eval` | Missing or blank blocks edge staging, production, and rollback at preflight. Eval lanes 401/403 the provider and the user sees the agent's generic failure response, never the raw provider error (SD-19) |
-| `MIMO_API_KEY` | repo (no env override) | Retired direct-gateway credential retained as an explicit rollback-capable runtime binding | Exact edge core payload → Worker binding → agent container | It is required even while zen/go is the default; missing or blank blocks edge staging, production, and rollback at preflight |
-| `DEEPSEEK_API_KEY` | repo (no env override) | Fallback model — **wired but disabled** (no balance) | Exact edge core payload → Worker binding → agent container | It remains an exact required binding; missing or blank blocks edge staging, production, and rollback at preflight |
-| `GOOGLE_MAPS_API_KEY` | repo (no env override) | Geocoding (`apps/agent/src/animichi/infrastructure/gateways/geocoding.py`) | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight; an invalid value surfaces later as place-resolution failure |
-| `LOGFIRE_TOKEN` | repo (**unreachable** — no non-environment-scoped caller) + `staging` + `production`, each a **different** Logfire project (`animichi-staging` / `animichi-prod`) as of 2026-07-29, replacing one shared `LOGFIRE_TOKEN_PROD`/`LOGFIRE_TOKEN_STAGING` pair that lived less than eight hours (wiring was #498) | Write token for the environment's Logfire project | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight. A wrong-but-present value only stops traces for that environment |
+| `ZEN_GO_API_KEY` | ESC `environmentVariables` (nightly eval) + ESC `pulumiConfig` (edge runtime) | **Production LLM gateway.** MiMo `mimo-v2.5` is routed through the zen/go gateway (`https://opencode.ai/zen/go/v1`) | Exact edge core payload → Worker binding → agent container; and `agent-eval-nightly.yml`, which opens it from ESC | Missing or blank blocks edge staging, production, and rollback at preflight. The nightly eval 401/403s the provider and the user sees the agent's generic failure response, never the raw provider error (SD-19) |
+| `MIMO_API_KEY` | ESC `pulumiConfig` | Retired direct-gateway credential retained as an explicit rollback-capable runtime binding | Exact edge core payload → Worker binding → agent container | It is required even while zen/go is the default; missing or blank blocks edge staging, production, and rollback at preflight |
+| `DEEPSEEK_API_KEY` | ESC `pulumiConfig` | Fallback model — **wired but disabled** (no balance) | Exact edge core payload → Worker binding → agent container | It remains an exact required binding; missing or blank blocks edge staging, production, and rollback at preflight |
+| `GOOGLE_MAPS_API_KEY` | ESC `pulumiConfig` | Geocoding (`apps/agent/src/animichi/infrastructure/gateways/geocoding.py`) | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight; an invalid value surfaces later as place-resolution failure |
+| `LOGFIRE_TOKEN` | ESC `pulumiConfig`, one project per environment (`animichi-staging` / `animichi-prod`) as of 2026-07-29, replacing one shared `LOGFIRE_TOKEN_PROD`/`LOGFIRE_TOKEN_STAGING` pair that lived less than eight hours (wiring was #498) | Write token for the environment's Logfire project | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight. A wrong-but-present value only stops traces for that environment |
 
 ## Referenced by nothing
 
-Found by grepping every secret name across `.github/workflows/` and `CONTAINER_ENV_KEYS`
-against every source tree in the repo, plus the read-only GitHub name snapshot above. **These are
-not one kind of finding** — read the action column before batching a decision:
+Found by grepping every secret name across `.github/workflows/` and `CONTAINER_ENV_KEYS` against
+every source tree in the repo, against a read-only `gh secret list` name snapshot taken 2026-08-01.
+#1367's final owner step deletes every GitHub secret at once, these rows included, so the action
+column is now the record of *why* each is safe to delete rather than a per-row backlog.
+**They were never one kind of finding** — read it before treating them as one:
 
 | Secret | Finding | Owner action |
 |---|---|---|

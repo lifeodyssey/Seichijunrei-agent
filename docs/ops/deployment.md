@@ -65,8 +65,11 @@ chains, the concurrency groups, the pairing rules, and push-to-main as the only 
 environment each job may target — through the action **and** through a shell, because
 `pnpm exec wrangler deploy … --env production` in a staging stage would go live with no approval
 and touch no action input — and that the smoke probe's exit code is what decides its job.
-`test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type and
-ESC export list, no retired backend credential, no runtime-secret upload. All three run in CI's
+`test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type,
+each stage's ESC export list, that every Wrangler deploy authenticates with the token ESC just
+opened, no retired backend credential, no runtime-secret upload. That no workflow reads a GitHub
+secret at all, and that every job asking Pulumi Cloud for a token declares an `environment:`, are
+repository-wide rules and live in `test_workflow_invariants.rb`. All of them run in CI's
 `contracts` job, which is unconditional — no path filter selects it.
 
 Concurrency is per job, not per workflow: `cd-staging` covers the five stages and the smoke probe,
@@ -409,63 +412,83 @@ that run and nothing else. There is no manual or tag-triggered alternative.
 - `/img/*` → image proxy + cache
 - Everything else → JSON `404 not_found` (no asset/page fallback since #537)
 
-### Pulumi state, encryption, and CI identity (#1077, #1078)
+### Pulumi state, encryption, and CI identity (#1077, #1078, #1367)
 
 Both Pulumi projects — `seichijunrei-infra` (`infra/`) and `animichi-neon-secrets`
 (`infra/database-access/`) — keep their state and their `secure:` encryption in **Pulumi Cloud**,
 organization `lifeodyssey`. `backend.url` in each `Pulumi.yaml` is the source of truth for that.
 
-No long-lived Pulumi access token is stored in GitHub secrets. `stage-foundation` and the
-`promote-production` infra step run `pulumi/auth-actions`, which exchanges the job's GitHub OIDC
-identity for a short-lived Pulumi Cloud **personal** token scoped to user `lifeodyssey` (the action
-input `scope: user:lifeodyssey`). `lifeodyssey` is an individual-edition organization, and Pulumi
-Cloud rejects organization tokens for non-enterprise organizations (`Org tokens are not supported
-for non enterprise organizations`), so an organization token type cannot be used here. The Pulumi
-Cloud OIDC issuer policy for this GitHub issuer must therefore carry a **personal** token-type
-policy authorizing that user. The exchanged token is exported as `PULUMI_ACCESS_TOKEN` for the rest
-of that job only. Those two jobs therefore carry
-`id-token: write`, and `pulumi/actions` fails when that token is absent. Applies are
-organization-qualified (`pulumi up --stack lifeodyssey/<stack>`, the action's `stack-name` input) so
-a token that defaults elsewhere cannot land the apply in another organization. `PULUMI_BACKEND_URL`,
-`PULUMI_CONFIG_PASSPHRASE`, and the two R2 state keys are no longer read anywhere on the delivery
-lane.
+**CI holds no credential at all.** Since #1367 there is no `${{ secrets.X }}` anywhere under
+`.github/workflows/`. The three GitHub secret stores (repository, `staging`, `production`) still
+hold their values and nothing reads them; emptying them is the owner's last step in that card, taken
+after one green staging deploy and one green nightly on the ESC path (`secrets.md` says the same).
+Every job that needs a credential proves who it is instead, in the same three steps:
 
-Immediately after that login, each of the two jobs opens the matching **Pulumi ESC** environment
-with `pulumi/esc-action` — `lifeodyssey/animichi/staging` for the staging foundation phase,
-`lifeodyssey/animichi/prod` for the production infra step — and that is where the two Pulumi-plane
-credentials come from (#1078):
+1. `environment:` — `staging` for `build`, the five staging stages, `smoke` and the nightly eval;
+   `production` for `promote-production`. This is not decoration: GitHub sets the OIDC subject to
+   `repo:lifeodyssey/animichi:environment:<name>` only when the job declares one, and to
+   `repo:lifeodyssey/animichi:ref:refs/heads/<branch>` otherwise. The issuer policy lists only the
+   two environment subjects, so a job without an `environment:` cannot get a token at all.
+2. `pulumi/auth-actions` — exchanges that OIDC token for a short-lived Pulumi Cloud **personal**
+   token scoped to user `lifeodyssey` (`scope: user:lifeodyssey`), exported as `PULUMI_ACCESS_TOKEN`
+   for the rest of that job only. `lifeodyssey` is an individual-edition organization and Pulumi
+   Cloud rejects organization tokens for non-enterprise organizations (`Org tokens are not supported
+   for non enterprise organizations`), so the issuer policy has to carry a **personal** token-type
+   policy authorizing that user. Every such job carries `id-token: write`.
+3. `pulumi/esc-action` — opens that stage's ESC environment (`lifeodyssey/animichi/staging` or
+   `lifeodyssey/animichi/prod`) and exports the names that stage publishes with.
 
-| ESC key | What reads it |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | the Cloudflare provider in both Pulumi programs. The ESC key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
-| `NEON_API_KEY` | the Neon provider in `infra/database-access` (`animichi-neon-secrets`) |
+Applies stay organization-qualified (`pulumi up --stack lifeodyssey/<stack>`, the action's
+`stack-name` input) so a token that defaults elsewhere cannot land the apply in another
+organization. `PULUMI_BACKEND_URL`, `PULUMI_CONFIG_PASSPHRASE`, and the two R2 state keys are no
+longer read anywhere on the delivery lane.
 
-Neither is a GitHub secret on the delivery lane any more. Three properties are worth stating:
+| ESC key | Exported into | What reads it |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | every job that publishes: `build` (the container-registry push), the five staging stages, `promote-production` | the Cloudflare provider in both Pulumi programs, and `cloudflare/wrangler-action` for every Worker deploy. The key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
+| `NEON_API_KEY` | `stage-foundation` and `promote-production` only | the Neon provider in `infra/database-access` (`animichi-neon-secrets`) |
+| `ZEN_GO_API_KEY` | `agent-eval-nightly.yml` | the nightly L1 eval's model gateway |
 
-- **The export list is an explicit two-name allowlist**, not the action's export-everything
-  default. Whatever an ESC environment grows later cannot reach a CI job by accident, so ADR 0003
-  ("no runtime DSN or model key in ESC") holds structurally rather than by convention.
-- **Worker publishing never opens ESC.** Only `stage-foundation` and the `promote-production` infra
-  steps run `pulumi/esc-action`; every Worker-publishing step passes
-  `apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}` to `cloudflare/wrangler-action` as its own input,
-  which the action uses instead of any ambient environment value. Inside `promote-production`, where
-  both happen in one approval-gated job, that input wins over the job-level value ESC injected. The
-  Pulumi-plane token cannot deploy a Worker, and the Worker deploy token cannot touch Pulumi state.
-  Card #1367 moves the publishing token into ESC too.
+`CLOUDFLARE_ACCOUNT_ID` is not in that table and is not a secret: it is an account identifier. The
+repository variable `vars.CLOUDFLARE_ACCOUNT_ID` was created 2026-09-08 and is what the steps that
+need it read. Five properties are worth stating:
+
+- **The export list is an allowlist, and only over the job's environment.** `pulumi/esc-action`
+  takes `export-environment-variables` as a comma-separated mapping list, so a stage that names one
+  key gets one key. But the action publishes *every* `environmentVariables` entry as a step output
+  regardless of that list — so the allowlist is not the trust boundary. ADR 0003 ("no runtime DSN or
+  model key in ESC") holds because the eight edge runtime secrets live under `pulumiConfig` as
+  `fn::secret` instead, read by Pulumi and never by a publishing job (card #1370).
+- **Wrangler is handed the token explicitly.** `cloudflare/wrangler-action` v4 assigns
+  `process.env.CLOUDFLARE_API_TOKEN = getInput("apiToken")` unconditionally, so omitting the input
+  overwrites the value ESC exported with the empty string. Every deploy step therefore passes
+  `apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}` — the ESC-opened value, named explicitly.
+- **A missing ESC value is a warning, not a failure.** When a name in the export list has no value
+  in the environment, `pulumi/esc-action` logs `No value found for …` and exits 0 (v3.2.0,
+  `src/index.ts:327`). The job would then run Wrangler with an empty token and fail somewhere less
+  legible. Every ESC step is therefore followed by a one-line guard that checks each name it asked
+  for is non-empty and fails the job with `::error::` if not.
 - **The ESC step installs the `.pulumi.version` CLI.** `pulumi/esc-action` installs a Pulumi CLI and
   prepends it to `PATH`; left unpinned it fetches the latest release and would silently shadow the
   version `pulumi/actions` just installed. Given the same version it detects the existing install
   and downloads nothing, so a small step resolves `.pulumi.version` into the action's `version`
   input rather than duplicating the number.
+- **`smoke` opens no environment.** It exchanges a token and stops there: the probe is two
+  unauthenticated requests today, and the exchange is what proves the `environment:staging` subject
+  works. Card #1369 gives that step its ESC keys when the staging surfaces move behind Cloudflare
+  Access.
 
-**Owner step, not done by this change:** the two ESC environments must actually hold the values,
-projected under `environmentVariables` — that is the section `pulumi env open --format detailed`
-reads and the action injects from. `pulumi env set --secret` alone puts a value under `values`; if
-it is not also referenced from `environmentVariables`, the action logs `No value found for …` and
-the Pulumi apply fails on the missing provider credential. Check with
-`pulumi env open lifeodyssey/animichi/staging --format detailed` (and `…/prod`) before the first
-run; never paste the values anywhere. AC3 of #1078 — one staging infra and neon-secrets apply with
-tokens only from ESC — is that first CD run, and it is the owner's to observe.
+**Provisioning state, and what is still owed.** `CLOUDFLARE_API_TOKEN` and `NEON_API_KEY` are in
+both ESC environments under `environmentVariables`, and staging's have been in use by the
+foundation job since 2026-09-07. `ZEN_GO_API_KEY` is being added for the nightly. A value has to be
+projected under `environmentVariables` to be reachable: that is the section
+`pulumi env open --format detailed` reads and the action injects from, and `pulumi env set --secret`
+alone puts a value under `values` only. Still owed, all outside the repository: the Pulumi Cloud
+issuer policy pinned to the two environment subjects (no `repo:lifeodyssey/animichi:*`); deployment
+branch policies of `main` on both GitHub environments — an `environment:` subject only means "from
+main" once that rule exists; and, after the two green runs, deleting the GitHub secrets. Check with
+`pulumi env open lifeodyssey/animichi/staging --format detailed` (and `…/prod`); never paste the
+values anywhere.
 
 The pre-apply `pulumi stack export` copied into the R2 state bucket is retired: Pulumi Cloud's own
 update history is the rollback record, and it does not require writing a state snapshot into the
@@ -524,7 +547,9 @@ reviewed change. `infra/database-access/Pulumi.prod.yaml` has no encrypted mater
 
 Until every stack is imported, the rollback path is the old one: re-point `PULUMI_BACKEND_URL` at
 R2 and restore the export taken in step 1. After the cutover, rollback is Pulumi Cloud history.
-Deleting the GitHub secrets themselves is #1081, not this step.
+Deleting the GitHub secrets themselves is the owner's step in #1367 (#1081), taken after one green
+staging deploy and one green nightly on the ESC path — deleting `R2_ACCESS_KEY_ID` /
+`R2_SECRET_ACCESS_KEY` is what closes this rollback window for good.
 
 ## WAF and Edge Hardening
 

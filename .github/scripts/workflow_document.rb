@@ -71,6 +71,14 @@ def repository_root
   ARGV.fetch(0, `git rev-parse --show-toplevel`.strip)
 end
 
+# The names a `pulumi/esc-action` step asks its environment for. Shared because
+# two contracts read the same list: the repository-wide rule that every opened
+# name is checked for emptiness, and the CD boundary rule about which stage may
+# open which name (#1367).
+def esc_exported_names(step)
+  step.dig("with", "export-environment-variables").to_s.split(",").map(&:strip).reject(&:empty?)
+end
+
 # The scripts a step's `for script in …; do pnpm --filter X run "$script"; done`
 # loop runs, as an exact token list: a substring search for `test` would be
 # satisfied by `test:integration` still being there. Shared because the affected

@@ -488,7 +488,7 @@ no gate. It gets a field of its own only because `report_only` is typed as metri
 - **Raw evidence never enters git.** The committed record carries ids, indices, declared tool names
   and numbers plus an `evidence_artifact` reference; the query, the reply and the tool returns go to
   `artifacts/attribution/<date>-<dataset>.jsonl`, gitignored. **No CI lane runs `eval:gate` today** —
-  `agent-eval-nightly.yml` runs the Python suite through `.github/actions/agent-eval`, and the TS
+  `agent-eval-nightly.yml` runs the Python suite with steps of its own, and the TS
   gate is a hand-run from a worktree until W3-5 (#1303) gives it one; `attribution-evidence.ts`
   states what the upload step must do when it exists. `results/` is committable because
   「Nothing here is a secret」; `run_steps` is not granted even to `readonly` because it carries the
