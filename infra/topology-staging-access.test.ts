@@ -12,7 +12,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as pulumi from "@pulumi/pulumi";
-import { buildStack, only, ofType, type Built } from "./testing/harness.ts";
+import { ACCOUNT_ONE_TIME_PIN, buildStack, only, ofType, type Built } from "./testing/harness.ts";
 
 const built: Built[] = await buildStack("staging", {
   cloudflareAccountId: "acct",
@@ -94,23 +94,22 @@ test("no destination reaches Access through the deprecated selfHostedDomains", (
   assert.equal(only(built, APPLICATION).inputs.selfHostedDomains, undefined);
 });
 
-test("the human half has an identity provider to sign in with", () => {
-  // `GET /accounts/{id}/access/identity_providers` answered `[]` on 2026-09-08,
-  // and `allowedIdps` defaults to every IdP the account has — none. Without this
-  // resource the owner reaches a login page offering nothing to log in with,
-  // while the service token keeps working and every automated check stays green.
-  const provider = only(built, IDENTITY_PROVIDER);
-  assert.equal(provider.name, "staging-onetimepin");
-  assert.equal(provider.inputs.type, "onetimepin");
-  assert.equal(provider.inputs.name, "One-time PIN");
-  assert.equal(provider.inputs.accountId, "acct");
-  assert.deepEqual(provider.inputs.config, {});
+test("the account's One-time PIN provider is read, never declared here", () => {
+  // The landing defect. Cloudflare allows one `onetimepin` provider per account
+  // and this account already has one, made for another project's Access
+  // application, so declaring it answered `stage-foundation` with `POST
+  // /accounts/{id}/access/identity_providers 409 Conflict`. The presence
+  // assertions above are what keep this absence from passing on a short read.
+  assert.deepEqual(ofType(built, IDENTITY_PROVIDER), []);
 });
 
 test("the application offers that provider, and only that provider", () => {
-  // Named rather than defaulted, so adding a second IdP to the account later is
-  // a deliberate edit here instead of a silent widening of who sees a login box.
-  assert.deepEqual(only(built, APPLICATION).inputs.allowedIdps, ["staging-onetimepin-id"]);
+  // Named rather than defaulted: `allowedIdps` left empty means every IdP the
+  // account has, so a provider added for some other application would silently
+  // become a login box on staging. The account fixture carries a Google entry
+  // ahead of the One-time PIN one, so naming the first provider instead of the
+  // OTP one fails here rather than in production.
+  assert.deepEqual(only(built, APPLICATION).inputs.allowedIdps, [ACCOUNT_ONE_TIME_PIN.id]);
 });
 
 test("automation is admitted by the service token, under Service Auth", () => {

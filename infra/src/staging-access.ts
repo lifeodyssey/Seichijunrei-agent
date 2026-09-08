@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as cloudflare from "@pulumi/cloudflare";
 import { accountId, config, stack } from "./config.ts"
+import { oneTimePinIdentityProviderId } from "./access-identity-provider.ts"
 
 // ── Staging: the Cloudflare Access front door (D3 #1369) ─────────────────────
 // Staging runs the same app as production *with anonymous access on*
@@ -37,9 +38,6 @@ const APPLICATION_NAME = "animichi staging";
 
 /** How long a human's Access session lasts before Cloudflare asks again. */
 const SESSION_DURATION = "24h";
-
-/** What the login page calls the identity provider below. */
-const OTP_PROVIDER_NAME = "One-time PIN";
 
 /**
  * A whole address, which is all this needs to decide.
@@ -166,38 +164,19 @@ function allowedEmails(): string[] {
 }
 
 /**
- * The identity provider the human half of this door signs in with.
+ * The identity provider the human half of this door signs in with — READ from
+ * the account, never created here.
  *
- * Without one there is no human half at all: `allowedIdps` defaults to "all IdPs
- * configured in your account" (`zeroTrustAccessApplication.d.ts`), and a
- * read-only `GET /accounts/{id}/access/identity_providers` on 2026-09-08
- * answered `[]`. So an owner opening `staging.animichi.com` would have reached a
- * login page offering nothing to log in WITH, while the service token kept
- * working and every automated check stayed green.
- *
- * `onetimepin` because it needs no secret and no third-party app registration:
- * Cloudflare emails a code to the address, and the address is the identity the
- * `allow` policy already matches on. `type` is the provider's own enum value
- * (`ZeroTrustAccessIdentityProviderArgs.type`, "Available values: `onetimepin`,
- * `azureAD`, …"), and `config` is required but every one of its 30 members is
- * optional (`ZeroTrustAccessIdentityProviderConfig`, `types/input.d.ts`), which
- * is what makes the empty object the correct shape for a provider that takes no
- * parameters.
- *
- * **This is an ACCOUNT-level resource, not a staging one.** It lives on the
- * staging stack because staging is the only Access consumer this account has —
- * production has a real login and `topology-prod.test.ts` pins that it builds
- * nothing here. The day anything else in this account grows an Access
- * application, this belongs in a shared program, and leaving it here would mean
- * two stacks fighting over one account resource on every `pulumi up`.
+ * `allowedIdps` has to name something: left to default it means "all IdPs
+ * configured in your account" (`zeroTrustAccessApplication.d.ts`), which widens
+ * who is offered a login box the day the account grows a provider, with no edit
+ * here. Why the name is read rather than declared, and why ≠1 is refused, are
+ * the whole subject of `access-identity-provider.ts`.
  */
-function oneTimePinProvider(): cloudflare.ZeroTrustAccessIdentityProvider {
-  return new cloudflare.ZeroTrustAccessIdentityProvider("staging-onetimepin", {
-    accountId,
-    name: OTP_PROVIDER_NAME,
-    type: "onetimepin",
-    config: {},
-  });
+function accountOneTimePinId(): pulumi.Output<string> {
+  return cloudflare
+    .getZeroTrustAccessIdentityProvidersOutput({ accountId })
+    .apply((account) => oneTimePinIdentityProviderId(account.results));
 }
 
 /**
@@ -250,7 +229,6 @@ function attachedPolicies(token: cloudflare.ZeroTrustAccessServiceToken) {
 }
 
 function publishAccessApplication(token: cloudflare.ZeroTrustAccessServiceToken): void {
-  const identityProvider = oneTimePinProvider();
   new cloudflare.ZeroTrustAccessApplication("staging", {
     accountId,
     name: APPLICATION_NAME,
@@ -262,7 +240,7 @@ function publishAccessApplication(token: cloudflare.ZeroTrustAccessServiceToken)
     // policy-level equivalent, an `includes[].loginMethod` rule, would be wrong
     // here anyway: include rules are OR'd, so adding one beside the email rules
     // would admit anyone who completed an OTP, whatever their address.
-    allowedIdps: [identityProvider.id],
+    allowedIdps: [accountOneTimePinId()],
     sessionDuration: SESSION_DURATION,
     // Nothing to advertise: every caller of staging knows the hostname it
     // wants, and an App Launcher tile only invites a click that ends in a deny.

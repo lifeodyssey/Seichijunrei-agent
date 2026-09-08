@@ -20,6 +20,7 @@ import {
 
 export { validateLegacyRedirectZones } from "./src/web-routes.ts"
 export { validateAccessAllowedEmails } from "./src/staging-access.ts"
+export { oneTimePinIdentityProviderId } from "./src/access-identity-provider.ts"
 export {
   catalogBucketName,
   tilesBucketName,

@@ -607,7 +607,8 @@ its own keeping strangers out. Cloudflare Access is that login: humans sign in a
 identity policy, automation presents a **service token**, and both are decided by Cloudflare
 before a request reaches the Worker.
 
-`infra/src/staging-access.ts` declares all of it on the staging stack:
+`infra/src/staging-access.ts` declares the token, the application and both policies on the
+staging stack, and reads — never declares — the account's identity provider:
 
 - one `ZeroTrustAccessApplication` (`type: "self_hosted"`, `sessionDuration: "24h"`,
   `appLauncherVisible: false`) whose `destinations` are the three hostnames staging answers on:
@@ -621,17 +622,23 @@ before a request reaches the Worker.
 - an `allow` policy with one include rule per address in the `stagingAccessAllowedEmails` stack
   config (`infra/Pulumi.staging.yaml`) — plain config, because it says who may sign in, not how.
   An empty list is refused at build time: it would be a door no human can open;
-- a `onetimepin` `ZeroTrustAccessIdentityProvider`, named on the application as its only
-  `allowedIdps` entry. **The human login path is therefore an emailed one-time PIN** to an
-  address in that allowlist — no password, no third-party app registration. It exists because
-  the account had no identity provider at all (`GET /accounts/{id}/access/identity_providers`
-  answered `[]` on 2026-09-08) and `allowedIdps` defaults to "all IdPs configured in your
-  account": the owner would have reached a login page with nothing to log in with, while the
-  service token kept working and every automated check stayed green.
-  **It is an ACCOUNT-level resource that the staging stack owns only because staging is this
-  account's sole Access consumer.** If production or anything else ever grows an Access
-  application, move it to a shared program first — two stacks declaring one account object fight
-  over it on every apply;
+- the account's `onetimepin` identity provider, **read and named** on the application as its
+  only `allowedIdps` entry — `infra/src/access-identity-provider.ts` looks it up with the
+  `getZeroTrustAccessIdentityProviders` data source and refuses to build unless the account
+  reports exactly one. **The human login path is therefore an emailed one-time PIN** to an
+  address in the allowlist — no password, no third-party app registration. It is named rather
+  than defaulted because `allowedIdps` left out means "all IdPs configured in your account",
+  which would widen who is offered a login box the day the account grows a provider.
+  **It is an ACCOUNT-level object that this stack references and does not own.** Cloudflare
+  allows exactly one One-time PIN provider per account and this account already had one, made
+  for another project's Access application: the earlier revision that declared it here was
+  answered `POST /accounts/{id}/access/identity_providers 409 Conflict` in `stage-foundation`.
+  What justified that declaration was a read answering `[]` on 2026-09-08 — the response
+  Cloudflare gives (`200`, never `403`) to a token lacking *Access: Organizations, Identity
+  Providers, and Groups Read*, indistinguishable from an account with no login methods. **If the
+  apply now fails saying the account reports no `onetimepin` provider, check that permission on
+  the Cloudflare API token before creating anything**; if it genuinely has none, create the
+  One-time PIN login method once under Zero Trust → Settings → Authentication;
 - the `animichi-staging-ci` `ZeroTrustAccessServiceToken` (duration `8760h`) and two stack
   outputs:
 
