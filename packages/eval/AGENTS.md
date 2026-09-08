@@ -308,8 +308,13 @@ Notes for the rest of W3:
   turn that came back as the edge's error envelope publishes no answer part, reads as the crashed
   intent, and files an EVALUATED case — one `errorRateGate` cannot count, since its numerator is
   `report.failures`. `src/gate-run/provider-outage.ts` gates on the share of those (ceiling 20%,
-  `provider_outage.PROVIDER_OUTAGE_CEILING`'s, itself `smoke_errors`') and leads
-  `GateRunResult.failures` with one sentence naming the share and the party to blame. That party is
+  `provider_outage.CAPPED_LANE_CEILING`'s, itself `smoke_errors`') and leads
+  `GateRunResult.failures` with one sentence naming the share and the party to blame. Python has a
+  second, far lower ceiling for the lane that MINTS a baseline (#1499); this runner has one because
+  it never writes the record it is judged by (`src/gate-run/gate-exit-code.ts`), so the oracle rows
+  publish the ceiling each was written with and both lanes' sentences replay here. Under the
+  ceiling, `src/gate/metric-gate.ts` FAILS a metric whose pairs starvation emptied instead of
+  logging the small-sample skip — `metric_gate.py`'s twin. That party is
   `DEPLOYED_AGENT_TIER`, not a model: the deploy publishes nothing about what answered, and
   `PYTHON_BASELINE_MODEL` is the baseline record's identity (`python-baseline.ts`), so a sentence
   interpolating it would be a claim the wire never made. Python names its own `model_id`, which its
@@ -492,8 +497,9 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
 - **`metricGateResults` is why the file can name a verdict.** `bootstrapGate`
   returns only strings; the result file needs the interval and the verdict per
   metric. Rather than a second comparison off the same pairs — a second seed, a
-  second interval, eventually a second answer — `bootstrap-gate.ts` exposes the
-  per-metric rows and `bootstrapGate` became the fold of them. `skipped` is the
+  second interval, eventually a second answer — `metric-gate.ts` exposes the
+  per-metric rows and `bootstrapGate` became the fold of them (that split is why
+  `bootstrap-gate.ts` is two gates and `metric-gate.ts` is one metric's verdict). `skipped` is the
   fourth answer a metric can get: fewer than ten paired cases, no comparison.
 - **Only a `fail` exits 1.** `gate_exit_code` exactly: `indeterminate` and
   `skipped` are warnings and exit 0, because a gate that blocked on "not enough

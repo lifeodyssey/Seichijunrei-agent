@@ -159,12 +159,19 @@ EVAL_MAX_CASES=50 uv run python -m animichi.tests.eval.run_agent_eval ...  # cap
 Direct thrash gates (req≤12 / tool≤10 / repeat=0 / p95≤8 — `src/animichi/tests/eval/direct_gates.py`) are
 **report-only** until `DIRECT_GATE_ENFORCE=1` (owner calibrates first). Capped runs never read/write baselines.
 
-**A starved run is refused before it is scored (#1496).** `error_boundary` answers an unclassified
-agent-loop failure with a clean `ErrorResponseModel`, so those cases are *evaluated*, not failed, and
-`error_rate_gate` never sees them. `src/animichi/tests/eval/provider_outage.py` gates on their share
-(ceiling 20%, `smoke_errors.TRANSPORT_RATE_CEILING`'s) and raises `ProviderOutage` naming the model.
-Under it, `run_metric_names.py` derives the run's columns from what the report actually scored, so a
-column no case could compute is dropped rather than reported as `Missing metric(s)`.
+**A starved run is refused before it is scored (#1496), and never becomes the baseline (#1499).**
+`error_boundary` answers an unclassified agent-loop failure with a clean `ErrorResponseModel`, so
+those cases are *evaluated*, not failed, and `error_rate_gate` never sees them.
+`src/animichi/tests/eval/provider_outage.py` gates on their share and raises `ProviderOutage` naming
+the model. Two ceilings, picked by run mode: a capped PR-lane run keeps `CAPPED_LANE_CEILING` (0.20,
+`smoke_errors.TRANSPORT_RATE_CEILING`'s) because it reads and writes no baseline; the uncapped run
+gets `BASELINE_LANE_CEILING` (0.02), since at 0.20 a 662-case nightly admits 132 starved cases into
+the record every later run is judged against. Under that ceiling, two more guards:
+`src/animichi/tests/eval/baseline_mint.py` refuses to write a baseline from a run with ANY starved
+case, and `src/animichi/tests/eval/metric_gate.py` FAILS a metric whose pairs starvation emptied
+instead of logging the small-sample skip. `run_metric_names.py` derives the run's columns from what
+the report actually scored, so a column no case could compute is dropped rather than reported as
+`Missing metric(s)`.
 
 **CI tiering (SD-30, #228/#227).** `EVAL_SMOKE=1` makes a capped run enforce its own
 zero-error/direct-thrash assertions, without reading or writing the baseline. It has no CI lane:

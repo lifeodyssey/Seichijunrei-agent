@@ -102,8 +102,9 @@ def make_report(starved: int, answered: int) -> AgentReport:
 
 
 def test_a_wholly_starved_run_is_refused_by_name() -> None:
+    """Judged on the more forgiving of the two lanes, and refused even there."""
     with pytest.raises(ProviderOutage) as raised:
-        reported_scores(make_report(starved=10, answered=0), _MODEL)
+        reported_scores(make_report(starved=10, answered=0), _MODEL, is_capped=True)
 
     message = str(raised.value)
     assert "10/10 evaluated cases" in message
@@ -130,14 +131,32 @@ def _scores_without_the_gate(report: AgentReport) -> dict[str, float]:
     }
 
 
-def test_a_run_with_one_starved_case_in_ten_is_still_judged() -> None:
+def test_a_capped_run_with_one_starved_case_in_ten_is_still_judged() -> None:
     report = make_report(starved=1, answered=9)
 
-    refuse_starved_run(report, model_id=_MODEL)
-    scores = reported_scores(report, _MODEL)
+    refuse_starved_run(report, model_id=_MODEL, is_capped=True)
+    scores = reported_scores(report, _MODEL, is_capped=True)
 
     assert "argument_correctness" in scores
     assert sorted(scores) == sorted([*_SCORED_BY_EVERY_TURN, "argument_correctness"])
+
+
+def test_the_two_lanes_disagree_about_three_starved_in_a_hundred() -> None:
+    """The PR lane judges the run; the lane that may mint a baseline will not.
+
+    0.20 is a catastrophic backstop — at 662 cases it admits 132 starved ones —
+    and the record an uncapped run writes is the floor every later run is
+    compared against (#1499).
+    """
+    report = make_report(starved=3, answered=97)
+
+    assert "argument_correctness" in reported_scores(report, _MODEL, is_capped=True)
+
+    with pytest.raises(ProviderOutage) as raised:
+        reported_scores(report, _MODEL, is_capped=False)
+
+    assert "3/100 evaluated cases" in str(raised.value)
+    assert "3% > 2%" in str(raised.value)
 
 
 def test_a_column_nobody_scored_is_not_a_column_this_run_reports() -> None:

@@ -1,68 +1,41 @@
-"""Statistical baseline gate for eval reports."""
+"""Statistical baseline gate for eval reports.
+
+The record itself is ``baseline_record.py`` and one metric's comparison against
+it is ``metric_gate.py`` (#1499); what stays here is the record's lifecycle —
+where it lives, whether it is still usable, what it looks like on disk — plus
+the two gates a caller runs over a finished report.
+"""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import ValidationError
 
+from animichi.tests.eval.baseline_record import BaselineRecord
 from animichi.tests.eval.evaluator_version import EVALUATOR_VERSION
-from animichi.tests.eval.stats import (
-    UNSTRATIFIED,
-    Comparison,
-    PairedScore,
-    proportion_comparison,
-    stratified_paired_comparison,
+from animichi.tests.eval.metric_gate import (
+    CaseScores,
+    GateContext,
+    GateOptions,
+    comparison_failure,
+    metric_failures,
 )
+from animichi.tests.eval.stats import proportion_comparison
 
 logger = logging.getLogger(__name__)
-CaseScores = Mapping[str, Mapping[str, float]]
 
-
-class BaselineRecord(BaseModel):
-    """Schema-v2 baseline with aggregate and per-case scores."""
-
-    model_config = ConfigDict(frozen=True)
-
-    schema_version: Literal[2] = 2
-    model: str
-    dataset: str
-    tier: str
-    #: The evaluator vocabulary that produced these numbers. Optional because
-    #: the translation tier writes records with evaluators of its own and every
-    #: record committed before 2026-09-07 predates the field, so
-    #: ``read_baseline_record`` — which refuses a record naming any other
-    #: vocabulary, at the cost of one ungated run that re-stamps this field —
-    #: reads ``None`` as "this record cannot say" (#1303).
-    evaluator_version: str | None = None
-    repeat: int = 1
-    case_count: int
-    evaluated_count: int
-    errored_count: int = 0
-    scores: dict[str, float]
-    cases: dict[str, dict[str, float]]
-    note: str | None = None
-
-
-@dataclass(frozen=True)
-class _GateOptions:
-    iterations: int
-    confidence: float
-    min_effect: float
-    min_paired: int
-    seed: int
-
-
-@dataclass(frozen=True)
-class _GateContext:
-    current_cases: CaseScores
-    baseline: BaselineRecord
-    strata: Mapping[str, str]
-    options: _GateOptions
+__all__ = [
+    "BaselineRecord",
+    "CaseScores",
+    "baseline_path",
+    "bootstrap_gate",
+    "error_rate_gate",
+    "read_baseline_record",
+    "write_baseline_record",
+]
 
 
 def baseline_path(layer: str, model_id: str, baselines_dir: Path) -> Path:
@@ -113,11 +86,12 @@ def bootstrap_gate(
     min_effect: float = 0.01,
     min_paired: int = 10,
     strata: Mapping[str, str] | None = None,
+    starved: frozenset[str] = frozenset(),
 ) -> list[str]:
-    options = _GateOptions(iterations, confidence, min_effect, min_paired, seed)
-    ctx = _GateContext(current_cases, baseline, strata or {}, options)
-    failures = _metric_failures(ctx)
-    return [failure for failure in failures if failure is not None]
+    options = GateOptions(iterations, confidence, min_effect, min_paired, seed)
+    return metric_failures(
+        GateContext(current_cases, baseline, strata or {}, starved, options)
+    )
 
 
 def error_rate_gate(
@@ -147,7 +121,7 @@ def error_rate_gate(
         confidence=confidence,
         min_effect=min_effect,
     )
-    failure = _comparison_failure("error_rate", comparison)
+    failure = comparison_failure("error_rate", comparison)
     return [] if failure is None else [failure]
 
 
@@ -160,10 +134,6 @@ def _absolute_error_rate_failure(errored: int, total: int) -> str | None:
         f"{errored}/{total} cases errored ({error_rate:.0%}). "
         "Check API key and model endpoint."
     )
-
-
-def _metric_failures(ctx: _GateContext) -> list[str | None]:
-    return [_metric_failure(metric, ctx) for metric in _baseline_metrics(ctx.baseline)]
 
 
 def _load_record(path: Path, layer: str, model_id: str) -> BaselineRecord | None:
@@ -194,10 +164,10 @@ def _scored_by_another_evaluator(
     for a baseline it cannot use.
 
     What the drop costs is one ungated run: a dropped record leaves
-    ``_run_uncapped_gate`` with no baseline, so it compares nothing and writes
-    the run it just finished back to the same path, stamped with this
-    vocabulary (``eval_gate_flow.py::_write_baseline``). A version bump is
-    therefore paid for once, by the next successful uncapped run.
+    ``_run_uncapped_gate`` with no baseline, so it compares nothing and offers
+    the run it just finished to ``baseline_mint.mint_baseline``, stamped with
+    this vocabulary. A version bump is therefore paid for once, by the next
+    successful uncapped run — and only by a run with no starved case in it.
     """
     found = record.evaluator_version
     if found is None or found == EVALUATOR_VERSION:
@@ -246,7 +216,7 @@ def _metric_vocabulary_stale(
         return False
     expected_set = set(expected)
     aggregate_current = set(record.scores) == expected_set
-    cases_current = _case_metrics(record) == expected_set
+    cases_current = record.case_metrics == expected_set
     if aggregate_current and cases_current:
         return False
     logger.warning("Stale baseline for %s/%s: metric vocabulary changed", layer, model)
@@ -291,81 +261,6 @@ def _warn_low_evaluated(layer: str, model: str, actual: int, expected: int) -> N
     )
 
 
-def _baseline_metrics(baseline: BaselineRecord) -> list[str]:
-    return sorted(_case_metrics(baseline).union(baseline.scores))
-
-
-def _case_metrics(baseline: BaselineRecord) -> set[str]:
-    return {metric for scores in baseline.cases.values() for metric in scores}
-
-
-def _metric_failure(metric: str, ctx: _GateContext) -> str | None:
-    pairs = _paired_scores(ctx, metric)
-    if len(pairs) < ctx.options.min_paired:
-        _warn_few_pairs(metric, len(pairs), ctx.options.min_paired)
-        return None
-    comparison = _paired_comparison(pairs, ctx.options)
-    return _comparison_failure(metric, comparison)
-
-
-def _paired_scores(ctx: _GateContext, metric: str) -> list[PairedScore]:
-    case_ids = sorted(set(ctx.baseline.cases).intersection(ctx.current_cases))
-    return [
-        _paired_score(ctx, metric, case_id)
-        for case_id in case_ids
-        if _has_metric(ctx, metric, case_id)
-    ]
-
-
-def _paired_score(ctx: _GateContext, metric: str, case_id: str) -> PairedScore:
-    return PairedScore(
-        ctx.baseline.cases[case_id][metric],
-        ctx.current_cases[case_id][metric],
-        ctx.strata.get(case_id, UNSTRATIFIED),
-    )
-
-
-def _paired_comparison(pairs: list[PairedScore], options: _GateOptions) -> Comparison:
-    return stratified_paired_comparison(
-        pairs,
-        iterations=options.iterations,
-        confidence=options.confidence,
-        seed=options.seed,
-        min_effect=options.min_effect,
-    )
-
-
-def _has_metric(ctx: _GateContext, metric: str, case_id: str) -> bool:
-    return (
-        metric in ctx.baseline.cases[case_id] and metric in ctx.current_cases[case_id]
-    )
-
-
 def _has_zero_error_total(current_total: int, baseline: BaselineRecord) -> bool:
     baseline_total = baseline.evaluated_count + baseline.errored_count
     return current_total <= 0 or baseline_total <= 0
-
-
-def _comparison_failure(metric: str, comparison: Comparison) -> str | None:
-    message = _format_comparison(metric, comparison)
-    if comparison.verdict == "pass":
-        return None
-    if comparison.verdict == "indeterminate":
-        logger.warning("INDETERMINATE %s", message)
-        return None
-    return message
-
-
-def _format_comparison(metric: str, comparison: Comparison) -> str:
-    interval = comparison.interval
-    return (
-        f"{metric}: mean_delta={comparison.estimate:.4f}, "
-        f"ci=[{interval.lower:.4f}, {interval.upper:.4f}], "
-        f"n={comparison.sample_size}, method={comparison.method}"
-    )
-
-
-def _warn_few_pairs(metric: str, paired: int, min_paired: int) -> None:
-    logger.warning(
-        "Skipping %s: only %d paired cases, need %d", metric, paired, min_paired
-    )

@@ -84,7 +84,7 @@ export const STATS_ORACLE_SCENARIOS: Readonly<Record<StatsOracleList, readonly s
     'evaluated_count_low',
     'metric_vocabulary_changed',
   ],
-  bootstrap_gates: ['indeterminate', 'few_pairs', 'real_baseline_subset'],
+  bootstrap_gates: ['indeterminate', 'few_pairs', 'starved_pairs', 'real_baseline_subset'],
   // One id set for both `gate-case-strata.test.ts` loops: the entries Python
   // loaded (`strata !== null`) and the ones it refused (`strata === null`) are
   // partitions of this list, so a drop from either goes red here (#1488).
@@ -107,7 +107,16 @@ export const STATS_ORACLE_SCENARIOS: Readonly<Record<StatsOracleList, readonly s
     'empty_baseline',
     'steady',
   ],
-  provider_outage_gates: ['total_outage', 'over_ceiling', 'at_ceiling', 'empty_run'],
+  // The first four are the capped lane's 0.20; the last two are the ceiling
+  // the baseline-writing lane needs (`provider_outage.py`, #1499).
+  provider_outage_gates: [
+    'total_outage',
+    'over_ceiling',
+    'at_ceiling',
+    'empty_run',
+    'baseline_lane_over_ceiling',
+    'baseline_lane_at_ceiling',
+  ],
   paired_comparisons: [
     'clear_regression',
     'clear_improvement',
@@ -130,7 +139,7 @@ export const STATS_ORACLE_ROW_COUNTS: Readonly<Record<StatsOracleRowList, number
   baseline_paths: 2,
   clopper_pearson_intervals: 7,
   'number_text.fixed_4': 14,
-  'number_text.percent_0': 9,
+  'number_text.percent_0': 11,
   'number_text.repr': 13,
   proportion_comparisons: 4,
   'random_stream.choice_of_five': 16,

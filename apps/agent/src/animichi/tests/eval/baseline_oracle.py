@@ -50,7 +50,9 @@ class _MessageCollector(logging.Handler):
 @contextmanager
 def collected_warnings() -> Iterator[list[str]]:
     messages: list[str] = []
-    logger = logging.getLogger("animichi.tests.eval.gate")
+    # The package logger, not ``…eval.gate``: the metric loop's warnings come
+    # from ``…eval.metric_gate`` since #1499 and must still be pinned.
+    logger = logging.getLogger("animichi.tests.eval")
     handler = _MessageCollector(messages)
     logger.addHandler(handler)
     try:

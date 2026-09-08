@@ -2,9 +2,18 @@
 
 ``bootstrap_gate``, ``error_rate_gate`` and ``provider_outage_failure`` run here
 for real — over a synthetic
-record, over a five-case record that trips the ``min_paired`` short circuit, and
+record, over a five-case record that trips the ``min_paired`` short circuit, over
+a twenty-case one whose pairs an outage emptied, and
 over the committed 662-case baseline with its behaviour strata — so the TS gate
 is measured against Python's failures and warnings verbatim.
+
+The ceiling is a column of the outage rows rather than a constant either side
+reads, because Python has two of them (``provider_outage``: the capped PR lane's
+0.20 and the baseline-writing lane's 0.02) and the TS runner has one — it never
+writes the record it is judged by (``gate-exit-code.ts:10``), so the lower
+ceiling has nothing on that side to guard. Publishing the ceiling per row keeps
+both runners replaying the same sentences without pretending they run the same
+lanes (#1499).
 
 Written through ``stats_oracle.py``, the module that owns the output file.
 """
@@ -27,7 +36,11 @@ from animichi.tests.eval.gate import (
     bootstrap_gate,
     error_rate_gate,
 )
-from animichi.tests.eval.provider_outage import provider_outage_failure
+from animichi.tests.eval.provider_outage import (
+    BASELINE_LANE_CEILING,
+    CAPPED_LANE_CEILING,
+    provider_outage_failure,
+)
 from animichi.tests.eval.stats import load_case_strata
 
 DATASET_PATH = EVAL_DIR / "datasets" / "agent_eval_v3.json"
@@ -47,16 +60,22 @@ def _gate_case(
     current: CaseScores,
     baseline: BaselineRecord,
     strata: Mapping[str, str],
+    starved: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
     with collected_warnings() as warnings:
         failures = bootstrap_gate(
-            current, baseline, iterations=ORACLE_ITERATIONS, strata=strata
+            current,
+            baseline,
+            iterations=ORACLE_ITERATIONS,
+            strata=strata,
+            starved=starved,
         )
     return {
         "name": name,
         "current_cases": current,
         "baseline": record_json(baseline),
         "strata": dict(strata),
+        "starved": sorted(starved),
         "iterations": ORACLE_ITERATIONS,
         "min_paired": 10,
         "failures": failures,
@@ -81,6 +100,27 @@ def _real_gate_case() -> dict[str, object]:
     return _gate_case("real_baseline_subset", current, record, subset)
 
 
+#: How many of the twenty cases below the outage answered for. Eight pairs are
+#: left, under ``min_paired``, and the shortfall is starvation rather than a
+#: small sample — which is the whole distinction ``metric_gate`` draws.
+STARVED_OF_TWENTY = 12
+#: A column every turn scores, starved ones included: what a starved case
+#: carries INSTEAD of the metric the baseline is pairing on.
+SURVIVING_METRIC = "tool_correctness"
+
+
+def _starved_gate_case() -> dict[str, object]:
+    """Twelve of twenty cases answered by the boundary, so eight pairs remain."""
+    record = synthetic_record([1.0] * 20)
+    case_ids = sorted(record.cases)
+    starved = frozenset(case_ids[:STARVED_OF_TWENTY])
+    current = {
+        case_id: {SURVIVING_METRIC: 1.0} if case_id in starved else {"metric": 0.0}
+        for case_id in case_ids
+    }
+    return _gate_case("starved_pairs", current, record, {}, starved)
+
+
 def _gate_cases() -> list[dict[str, object]]:
     overlap = [1.0] * 10 + [-1.0] * 10
     indeterminate = synthetic_record(overlap)
@@ -93,6 +133,7 @@ def _gate_cases() -> list[dict[str, object]]:
             {f"case-{index}": f"path-{index % 2}" for index in range(20)},
         ),
         _gate_case("few_pairs", _zeroed_cases(few), few, {}),
+        _starved_gate_case(),
         _real_gate_case(),
     ]
 
@@ -132,23 +173,38 @@ def _error_rate_cases() -> list[dict[str, object]]:
 OUTAGE_BLAMED = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
 
 
-def _provider_outage_case(name: str, starved: int, evaluated: int) -> dict[str, object]:
+def _provider_outage_case(
+    name: str, starved: int, evaluated: int, ceiling: float
+) -> dict[str, object]:
     return {
         "name": name,
         "starved": starved,
         "evaluated": evaluated,
         "answered_by": OUTAGE_BLAMED,
-        "failure": provider_outage_failure(starved, evaluated, OUTAGE_BLAMED),
+        "ceiling": ceiling,
+        "failure": provider_outage_failure(starved, evaluated, OUTAGE_BLAMED, ceiling),
     }
 
 
 def _provider_outage_cases() -> list[dict[str, object]]:
-    """The four answers the ceiling gives, the two boundary ones included."""
+    """Each ceiling's answers, both of its boundary cases included.
+
+    The capped lane's four came first (#1496). The baseline lane's two are the
+    counts that lane exists for: three starved cases in a hundred is a judgeable
+    run at 0.20 and an outage at 0.02, which is the difference between minting a
+    floor off an outage and re-running the suite (#1499).
+    """
     return [
-        _provider_outage_case("total_outage", 662, 662),
-        _provider_outage_case("over_ceiling", 21, 100),
-        _provider_outage_case("at_ceiling", 20, 100),
-        _provider_outage_case("empty_run", 0, 0),
+        _provider_outage_case("total_outage", 662, 662, CAPPED_LANE_CEILING),
+        _provider_outage_case("over_ceiling", 21, 100, CAPPED_LANE_CEILING),
+        _provider_outage_case("at_ceiling", 20, 100, CAPPED_LANE_CEILING),
+        _provider_outage_case("empty_run", 0, 0, CAPPED_LANE_CEILING),
+        _provider_outage_case(
+            "baseline_lane_over_ceiling", 3, 100, BASELINE_LANE_CEILING
+        ),
+        _provider_outage_case(
+            "baseline_lane_at_ceiling", 2, 100, BASELINE_LANE_CEILING
+        ),
     ]
 
 

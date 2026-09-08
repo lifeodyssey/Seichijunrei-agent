@@ -5,12 +5,12 @@
  * decision with a name, not a line ordering inside a constructor — the same
  * reason `run_scores.py` is its own module on the Python side.
  */
+import { errorRateGate } from '../gate/bootstrap-gate.ts';
 import {
-  errorRateGate,
   metricGateResults,
   type GateOutcome,
   type MetricGateResult,
-} from '../gate/bootstrap-gate.ts';
+} from '../gate/metric-gate.ts';
 import { aggregateScores, type ReportGateInput } from '../gate/report-gate-input.ts';
 import type {
   AgentEvalReport,
@@ -18,7 +18,7 @@ import type {
   GateRunSettings,
   MetricVerdictRow,
 } from './gate-run-result.ts';
-import { providerOutageGate } from './provider-outage.ts';
+import { providerOutageGate, starvedCaseIdsOf } from './provider-outage.ts';
 
 /** The four members a starved run and a judged one answer differently. */
 type Judgement = Pick<GateRunResult, 'scores' | 'metrics' | 'failures' | 'warnings'>;
@@ -67,20 +67,28 @@ function comparedJudgement(
   input: ReportGateInput,
 ): Judgement {
   const scores = aggregateScores(report, settings.metricNames);
-  const metrics = comparedMetrics(input.cases, settings);
+  const metrics = comparedMetrics(input.cases, settings, starvedCaseIdsOf(report));
   const errors = errorRateGate(input.erroredCount, input.total, settings.baseline);
   return { scores, metrics: metrics.map(verdictRow), ...gateOutcome(metrics, errors, settings) };
 }
 
-/** No baseline is no comparison — never an empty one that would read as "pass". */
+/**
+ * No baseline is no comparison — never an empty one that would read as "pass".
+ *
+ * The starved ids ride along even though the run reached here, which means it
+ * was under the outage ceiling: a run with a few boundary answers is judgeable
+ * as a whole and can still have emptied one metric's pairs, and that shortfall
+ * is a failure rather than a skip (`metric-gate.ts`, #1499).
+ */
 function comparedMetrics(
   cases: ReportGateInput['cases'],
   settings: GateRunSettings,
+  starved: ReadonlySet<string>,
 ): readonly MetricGateResult[] {
   if (settings.baseline === null) {
     return [];
   }
-  return metricGateResults(cases, settings.baseline, { strata: settings.strata });
+  return metricGateResults(cases, settings.baseline, { strata: settings.strata, starved });
 }
 
 /**

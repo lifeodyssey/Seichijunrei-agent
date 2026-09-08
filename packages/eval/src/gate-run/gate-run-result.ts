@@ -2,7 +2,7 @@ import type { EvaluationReport } from 'logfire/evals';
 
 import type { ExportedAgentExpected, ExportedAgentInput } from '../dataset-roundtrip.ts';
 import type { BaselineRecord } from '../gate/baseline-record.ts';
-import { DEFAULT_MIN_PAIRED } from '../gate/bootstrap-gate.ts';
+import { DEFAULT_MIN_PAIRED } from '../gate/metric-gate.ts';
 import { DEFAULT_PROPORTION_MIN_EFFECT } from '../gate/clopper-pearson.ts';
 import {
   DEFAULT_CONFIDENCE,

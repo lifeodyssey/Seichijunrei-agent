@@ -94,6 +94,14 @@
       {
         "value": 0.0,
         "text": "0%"
+      },
+      {
+        "value": 0.03,
+        "text": "3%"
+      },
+      {
+        "value": 0.02,
+        "text": "2%"
       }
     ],
     "repr": [
@@ -1225,6 +1233,7 @@
         "case-18": "path-0",
         "case-19": "path-1"
       },
+      "starved": [],
       "iterations": 500,
       "min_paired": 10,
       "failures": [],
@@ -1284,12 +1293,176 @@
         "note": null
       },
       "strata": {},
+      "starved": [],
       "iterations": 500,
       "min_paired": 10,
       "failures": [],
       "warnings": [
         "Skipping metric: only 5 paired cases, need 10"
       ]
+    },
+    {
+      "name": "starved_pairs",
+      "current_cases": {
+        "case-0": {
+          "tool_correctness": 1.0
+        },
+        "case-1": {
+          "tool_correctness": 1.0
+        },
+        "case-10": {
+          "tool_correctness": 1.0
+        },
+        "case-11": {
+          "tool_correctness": 1.0
+        },
+        "case-12": {
+          "tool_correctness": 1.0
+        },
+        "case-13": {
+          "tool_correctness": 1.0
+        },
+        "case-14": {
+          "tool_correctness": 1.0
+        },
+        "case-15": {
+          "tool_correctness": 1.0
+        },
+        "case-16": {
+          "tool_correctness": 1.0
+        },
+        "case-17": {
+          "tool_correctness": 1.0
+        },
+        "case-18": {
+          "tool_correctness": 1.0
+        },
+        "case-19": {
+          "tool_correctness": 1.0
+        },
+        "case-2": {
+          "metric": 0.0
+        },
+        "case-3": {
+          "metric": 0.0
+        },
+        "case-4": {
+          "metric": 0.0
+        },
+        "case-5": {
+          "metric": 0.0
+        },
+        "case-6": {
+          "metric": 0.0
+        },
+        "case-7": {
+          "metric": 0.0
+        },
+        "case-8": {
+          "metric": 0.0
+        },
+        "case-9": {
+          "metric": 0.0
+        }
+      },
+      "baseline": {
+        "schema_version": 2,
+        "model": "test",
+        "dataset": "agent_eval_v3",
+        "tier": "trajectory",
+        "evaluator_version": null,
+        "repeat": 1,
+        "case_count": 20,
+        "evaluated_count": 20,
+        "errored_count": 0,
+        "scores": {
+          "metric": 0.0
+        },
+        "cases": {
+          "case-0": {
+            "metric": 1.0
+          },
+          "case-1": {
+            "metric": 1.0
+          },
+          "case-2": {
+            "metric": 1.0
+          },
+          "case-3": {
+            "metric": 1.0
+          },
+          "case-4": {
+            "metric": 1.0
+          },
+          "case-5": {
+            "metric": 1.0
+          },
+          "case-6": {
+            "metric": 1.0
+          },
+          "case-7": {
+            "metric": 1.0
+          },
+          "case-8": {
+            "metric": 1.0
+          },
+          "case-9": {
+            "metric": 1.0
+          },
+          "case-10": {
+            "metric": 1.0
+          },
+          "case-11": {
+            "metric": 1.0
+          },
+          "case-12": {
+            "metric": 1.0
+          },
+          "case-13": {
+            "metric": 1.0
+          },
+          "case-14": {
+            "metric": 1.0
+          },
+          "case-15": {
+            "metric": 1.0
+          },
+          "case-16": {
+            "metric": 1.0
+          },
+          "case-17": {
+            "metric": 1.0
+          },
+          "case-18": {
+            "metric": 1.0
+          },
+          "case-19": {
+            "metric": 1.0
+          }
+        },
+        "note": null
+      },
+      "strata": {},
+      "starved": [
+        "case-0",
+        "case-1",
+        "case-10",
+        "case-11",
+        "case-12",
+        "case-13",
+        "case-14",
+        "case-15",
+        "case-16",
+        "case-17",
+        "case-18",
+        "case-19"
+      ],
+      "iterations": 500,
+      "min_paired": 10,
+      "failures": [
+        "metric: only 8 paired cases, need 10 — 12 of the missing pairs came back as the agent's error payload. Starvation, not a small sample: this metric is unproven, not skipped."
+      ],
+      "warnings": []
     },
     {
       "name": "real_baseline_subset",
@@ -7525,6 +7698,7 @@
         "A2_ja_003": "exact_db_sparse",
         "A2_ja_004": "exact_db_sparse"
       },
+      "starved": [],
       "iterations": 500,
       "min_paired": 10,
       "failures": [
@@ -13492,6 +13666,7 @@
       "starved": 662,
       "evaluated": 662,
       "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.2,
       "failure": "662/662 evaluated cases came back as the agent's error payload (100% > 20%): openai:mimo-v2.5@https://opencode.ai/zen/go/v1 answered nothing the evaluators could score. This run is a provider outage, not a result — re-run it."
     },
     {
@@ -13499,6 +13674,7 @@
       "starved": 21,
       "evaluated": 100,
       "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.2,
       "failure": "21/100 evaluated cases came back as the agent's error payload (21% > 20%): openai:mimo-v2.5@https://opencode.ai/zen/go/v1 answered nothing the evaluators could score. This run is a provider outage, not a result — re-run it."
     },
     {
@@ -13506,6 +13682,7 @@
       "starved": 20,
       "evaluated": 100,
       "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.2,
       "failure": null
     },
     {
@@ -13513,6 +13690,23 @@
       "starved": 0,
       "evaluated": 0,
       "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.2,
+      "failure": null
+    },
+    {
+      "name": "baseline_lane_over_ceiling",
+      "starved": 3,
+      "evaluated": 100,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.02,
+      "failure": "3/100 evaluated cases came back as the agent's error payload (3% > 2%): openai:mimo-v2.5@https://opencode.ai/zen/go/v1 answered nothing the evaluators could score. This run is a provider outage, not a result — re-run it."
+    },
+    {
+      "name": "baseline_lane_at_ceiling",
+      "starved": 2,
+      "evaluated": 100,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "ceiling": 0.02,
       "failure": null
     }
   ],
