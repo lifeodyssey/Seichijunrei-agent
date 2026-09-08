@@ -15,8 +15,8 @@
 #              it publishes with, never the action's export-everything default.
 #              That each opened name is then checked for emptiness is a
 #              repository-wide rule in `test_workflow_invariants.rb`;
-#              `NEON_API_KEY` reaches the two jobs that run a Pulumi stack and
-#              no other. What the list cannot promise is that a value stays out
+#              `NEON_API_KEY` reaches the jobs that hold a reader for it and no
+#              other. What the list cannot promise is that a value stays out
 #              of the job: `pulumi/esc-action` publishes every
 #              `environmentVariables` entry as a step output whatever the list
 #              says, so ADR 0003 rests on the runtime secrets living under
@@ -44,6 +44,13 @@ WRANGLER_ACTION = "cloudflare/wrangler-action"
 AUTH_ACTION = "pulumi/auth-actions"
 ESC_ACTION = "pulumi/esc-action"
 PULUMI_ACTION = "pulumi/actions"
+# What reads Neon's control plane. `neonctl` takes the key from the environment,
+# so the job running the staging baseline reset needs it; a `pulumi up` does not
+# (the provider is constructed from the `neonApiKey` stack config), but the
+# production promotion still opens it alongside the publish token, so a stack
+# apply stays a legal reason to hold it. Anything else asking for the key is a
+# stage widening itself.
+NEON_CLI = /neonctl|reset-staging-baseline\.sh/
 # The publish token every stage needs, and the Neon control-plane key only the
 # jobs that run a Pulumi stack do. Together they are the whole Pulumi plane —
 # an ESC export naming anything else is a value this file has no business in.
@@ -93,8 +100,15 @@ def assert_pulumi_login_is_the_only_token_type_this_org_can_mint
   end
 end
 
+def neon_control_plane_jobs
+  cli_jobs = @cd.jobs.each_key.select do |job|
+    @cd.steps_of(job).any? { |step| step["run"].to_s.match?(NEON_CLI) }
+  end
+  (steps_using(PULUMI_ACTION).map(&:first) + cli_jobs).uniq
+end
+
 def assert_esc_exports_only_what_its_stage_publishes_with
-  pulumi_jobs = steps_using(PULUMI_ACTION).map(&:first)
+  neon_jobs = neon_control_plane_jobs
   steps_using(ESC_ACTION).each do |job, step|
     exports = esc_exported_names(step)
     @log.unless_true(!exports.empty? && (exports - PULUMI_PLANE).empty?,
@@ -102,8 +116,8 @@ def assert_esc_exports_only_what_its_stage_publishes_with
                      "never the export-everything default (got #{exports.join(', ')})")
     next unless exports.include?(NEON_CONTROL_PLANE)
 
-    @log.unless_true(pulumi_jobs.include?(job),
-                     "cd.yml:#{job}: #{NEON_CONTROL_PLANE} belongs to the jobs that run a Pulumi stack")
+    @log.unless_true(neon_jobs.include?(job),
+                     "cd.yml:#{job}: #{NEON_CONTROL_PLANE} belongs to the jobs that hold a reader for it")
   end
 end
 
