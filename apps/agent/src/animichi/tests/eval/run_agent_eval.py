@@ -51,6 +51,8 @@ from animichi.tests.eval.exec_tiers import (
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.tests.eval.stats import CaseStrata
+from animichi.tests.eval.strata_first_run import evaluate_after_strata
 
 AgentCase = Case[AgentInput, AgentResult, AgentExpected]
 
@@ -227,9 +229,11 @@ def _finish(failures: list[str] | None) -> int:
     return gate_exit_code(failures)
 
 
-def _finish_report(report: AgentReport, target: EvalTierTarget, model_id: str) -> int:
+def _finish_report(
+    report: AgentReport, target: EvalTierTarget, model_id: str, strata: CaseStrata
+) -> int:
     try:
-        failures = finish_cli_report(report, target, model_id)
+        failures = finish_cli_report(report, target, model_id, strata)
     except NoEvaluatedCases as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -250,11 +254,18 @@ async def _main(args: CliArgs | None = None) -> int:
         print(f"Tier: {target.tier}")
         print(target.source)
         progress = StreamingProgress(len(CASES))
-        report = await evaluate_target(
-            target, make_model(model_id), model_id, lifecycle=progress, progress=False
+        strata, report = await evaluate_after_strata(
+            DATASET_PATH,
+            lambda: evaluate_target(
+                target,
+                make_model(model_id),
+                model_id,
+                lifecycle=progress,
+                progress=False,
+            ),
         )
         report.print(include_input=True, include_output=True)
-        return _finish_report(report, target, model_id)
+        return _finish_report(report, target, model_id, strata)
     finally:
         await _close_target(target)
 

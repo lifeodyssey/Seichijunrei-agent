@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
@@ -61,6 +61,12 @@ class ResultsPayload(BaseModel):
     evaluated_count: int
     errored_count: int
     scores: dict[str, float]
+    #: What the run has to say about the numbers above — today, the pooled-stratum
+    #: line a dataset with no ``path`` column earns (#1478). It sits IN THE FILE
+    #: rather than only in the log because the result file is what is committed and
+    #: compared later, and an unstratified interval nobody is told about is the
+    #: defect in a quieter form. `GateRunResult.warnings` is the TS side of it.
+    warnings: list[str] = []
     cases: list[CaseRow]
     usage: UsageSummary = UsageSummary()
 
@@ -124,6 +130,7 @@ def build_results_payload(
     tier: str,
     case_count: int,
     scores: dict[str, float],
+    warnings: Sequence[str] = (),
 ) -> ResultsPayload:
     return ResultsPayload(
         model=model_id,
@@ -134,6 +141,7 @@ def build_results_payload(
         evaluated_count=len(report.cases),
         errored_count=len(report.failures),
         scores=scores,
+        warnings=list(warnings),
         cases=_case_rows(report),
         usage=_aggregate_usage(report),
     )

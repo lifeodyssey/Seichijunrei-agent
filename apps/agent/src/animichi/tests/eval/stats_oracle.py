@@ -7,7 +7,8 @@ bootstrap intervals, exact binomial bounds, gate failures and the warnings the
 gate logs — into a JSON fixture the TS tests assert against.
 
 This module owns the ``stats.py`` half and the file itself; ``gate_oracle.py``
-owns the baseline, gate and staleness half.
+owns the baseline, gate and staleness half, and ``strata_oracle.py`` owns what
+``load_case_strata`` answers for a dataset with or without a ``path`` column.
 
 The numbers depend on the interpreter: CPython 3.12 gave the builtin ``sum()``
 Neumaier's correction (gh-100425), and ``stats.py`` means every bootstrap sample
@@ -35,6 +36,7 @@ from animichi.tests.eval.stats import (
     proportion_comparison,
     stratified_paired_comparison,
 )
+from animichi.tests.eval.strata_oracle import strata_sections
 
 #: The interpreter the oracle is defined against — the one apps/agent ships on.
 ORACLE_PYTHON = (3, 11)
@@ -216,6 +218,7 @@ def build_oracle() -> dict[str, object]:
         "proportion_comparisons": _proportion_cases(),
         **gate_sections(),
         **baseline_sections(),
+        **strata_sections(),
     }
 
 

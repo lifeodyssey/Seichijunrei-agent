@@ -197,7 +197,8 @@ export function makeGateRunSettings(scores: CaseScoreMap): GateRunSettings {
     baselineModel: PYTHON_BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
-    strata: loadCaseStrata(canonicalDatasetPath(GATED_DATASET)),
+    strata: loadCaseStrata(canonicalDatasetPath(GATED_DATASET)).byCase,
+    strataWarnings: [],
     now: () => GENERATED_AT,
   };
 }

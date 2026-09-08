@@ -36,6 +36,7 @@ function resultOf(specs: readonly CannedCaseSpec[]): GateRunResult {
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},
+    strataWarnings: [],
     now: () => GENERATED_AT,
   });
 }

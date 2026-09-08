@@ -77,6 +77,17 @@ export interface OracleStalenessCase {
   readonly warnings: readonly string[];
 }
 
+/** One `load_case_strata` answer: the mapping and warning, or the refusal. */
+export interface OracleCaseStrata {
+  readonly name: string;
+  readonly dataset: string;
+  readonly text: string;
+  /** `null` when Python refused the dataset; `error` then carries the message. */
+  readonly strata: Readonly<Record<string, string>> | null;
+  readonly warnings: readonly string[];
+  readonly error: string | null;
+}
+
 export interface OracleNumberText {
   readonly value: number;
   readonly text: string;
@@ -101,6 +112,7 @@ export interface StatsOracle {
   readonly bootstrap_gates: readonly OracleGateCase[];
   readonly error_rate_gates: readonly OracleErrorRateCase[];
   readonly baseline_staleness: readonly OracleStalenessCase[];
+  readonly case_strata: readonly OracleCaseStrata[];
   readonly baseline_paths: readonly { layer: string; model_id: string; filename: string }[];
   readonly written_records: readonly { readonly record: BaselineRecord; readonly text: string }[];
 }

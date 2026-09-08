@@ -12,6 +12,7 @@ from animichi.tests.eval.eval_gate_flow import (
     finish_cli_report,
 )
 from animichi.tests.eval.eval_harness import (
+    DATASET_PATH,
     EVAL_MODEL_ID,
     AgentInput,
     AgentReport,
@@ -24,6 +25,8 @@ from animichi.tests.eval.exec_tiers import (
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.tests.eval.stats import CaseStrata
+from animichi.tests.eval.strata_first_run import evaluate_after_strata
 
 __all__ = ["AgentInput", "make_agent_task"]
 
@@ -31,10 +34,13 @@ __all__ = ["AgentInput", "make_agent_task"]
 # This compatibility pytest alias shares finish_cli_report with the CLI runner.
 # Uncapped all-error reports deliberately fail here instead of being skipped.
 def _assert_report(
-    report: AgentReport, target: EvalTierTarget, model_id: str = EVAL_MODEL_ID
+    report: AgentReport,
+    target: EvalTierTarget,
+    strata: CaseStrata,
+    model_id: str = EVAL_MODEL_ID,
 ) -> None:
     try:
-        failures = finish_cli_report(report, target, model_id)
+        failures = finish_cli_report(report, target, model_id, strata)
     except NoEvaluatedCases as exc:
         pytest.fail(str(exc))
     if failures is None:
@@ -43,9 +49,11 @@ def _assert_report(
 
 
 async def _run_pytest_tier(target: EvalTierTarget) -> None:
-    report = await evaluate_target(target)
+    strata, report = await evaluate_after_strata(
+        DATASET_PATH, lambda: evaluate_target(target)
+    )
     report.print(include_input=True, include_output=True)
-    _assert_report(report, target)
+    _assert_report(report, target, strata)
 
 
 @pytest.mark.integration

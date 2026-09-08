@@ -78,6 +78,7 @@ function ungatedResultOf(report: AgentEvalReport) {
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},
+    strataWarnings: [],
     now: () => GENERATED_AT,
   });
 }
