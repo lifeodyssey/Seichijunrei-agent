@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from uuid import uuid4
 
 import httpx
 from openai import AsyncOpenAI
@@ -20,13 +21,21 @@ from animichi.config.model_aliases import (
     ProviderKind,
     credential_value,
     model_alias_from_spec,
+    routes_by_opencode_session,
 )
 from animichi.config.settings import Settings, _is_local_base_url
 
 _DEFAULT_MODEL_SPEC = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
 _MODEL_ALIAS_PATTERN = re.compile(r"[a-z0-9_-]+")
 _APP_CLIENT_HEADER = "X-App-Client"
+_OPENCODE_SESSION_HEADER = "x-opencode-session"
 _LOCAL_DEV_API_KEY = "local-dev-placeholder"
+
+# The floor the zen/go gateway requires: one unchanging id for the lifetime of
+# this agent process, carried by every request. A turn that knows its
+# conversation overrides it per request via `conversation_routing_settings`,
+# which is what actually keeps one conversation on one upstream cache.
+_OPENCODE_SESSION_ID = str(uuid4())
 
 
 def build_model_http_client(settings: Settings | None = None) -> httpx.AsyncClient:
@@ -66,6 +75,13 @@ def _model_api_key(alias: ModelAlias) -> str | None:
     return api_key
 
 
+def _default_headers(alias: ModelAlias) -> dict[str, str]:
+    headers = {_APP_CLIENT_HEADER: _app_client_name()}
+    if routes_by_opencode_session(alias.fixed_base_url):
+        headers[_OPENCODE_SESSION_HEADER] = _OPENCODE_SESSION_ID
+    return headers
+
+
 def _sdk_client(
     alias: ModelAlias, client: httpx.AsyncClient, *, max_retries: int
 ) -> AsyncOpenAI:
@@ -74,7 +90,7 @@ def _sdk_client(
         api_key=_model_api_key(alias),
         http_client=client,
         max_retries=max_retries,
-        default_headers={_APP_CLIENT_HEADER: _app_client_name()},
+        default_headers=_default_headers(alias),
     )
 
 
@@ -88,6 +104,30 @@ def _provider(
     if alias.provider_kind is ProviderKind.DEEPSEEK:
         return DeepSeekProvider(openai_client=sdk_client)
     return OpenAIProvider(openai_client=sdk_client)
+
+
+def _chain_members(model: Model) -> tuple[Model, ...]:
+    return tuple(model.models) if isinstance(model, FallbackModel) else (model,)
+
+
+def conversation_routing_settings(
+    model: Model | None, conversation_id: str | None
+) -> ModelSettings | None:
+    """Pin one conversation to one zen/go upstream for the whole conversation.
+
+    Applied only when every model the run could reach is a zen/go host, so a
+    fallback to another provider never carries our session id off-gateway. A
+    run without a conversation id keeps the per-process `default_headers` id,
+    which is all the gateway itself requires.
+    """
+    if model is None or not conversation_id:
+        return None
+    if not all(
+        routes_by_opencode_session(member.base_url or "")
+        for member in _chain_members(model)
+    ):
+        return None
+    return ModelSettings(extra_headers={_OPENCODE_SESSION_HEADER: conversation_id})
 
 
 def _parse_model_alias(

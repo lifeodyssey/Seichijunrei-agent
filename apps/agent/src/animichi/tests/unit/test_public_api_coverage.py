@@ -3,7 +3,7 @@
 Pins the handle-level branches the route tests never reach: oversized-text
 rejection, the injection-gate blocked outcome, a route-granted rejection
 verdict, non-owned session 404, the anon-quota settlement failure, and the
-existing-context origin merge.
+existing-context origin merge, and the per-conversation zen/go session header.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from animichi.agents.base import parse_model_spec
 from animichi.application.turn_admission import (
     AdmissionRejection,
     AdmissionVerdict,
@@ -151,3 +152,22 @@ async def test_origin_coords_merge_into_an_existing_context() -> None:
     assert isinstance(ctx, dict)
     assert ctx["origin_lat"] == 34.9
     assert ctx["origin_lng"] == 135.8
+
+
+async def test_a_text_turn_hands_its_conversation_id_to_the_model_run() -> None:
+    """#1477: the zen/go gateway keeps one conversation on one upstream only if
+    the run carries that conversation's id, not just the per-process one."""
+    captured: dict[str, object] = {}
+    stub = make_run_agent_stub(
+        make=lambda locale: make_result(locale=locale), capture=captured
+    )
+
+    with patch("animichi.interfaces.public_api.run_animichi_agent", side_effect=stub):
+        await _api(_db()).handle(
+            PublicAPIRequest(text="京吹", session_id="s-1"),
+            model=parse_model_spec("openai:mimo-v2.5@https://opencode.ai/zen/go/v1"),
+        )
+
+    assert captured["model_settings"] == {
+        "extra_headers": {"x-opencode-session": "s-1"}
+    }

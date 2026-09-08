@@ -123,7 +123,7 @@ Anitabi (`api.anitabi.cn`) + Bangumi (`api.bgm.tv`) share Bangumi.tv subject IDs
 
 - Unit tests are hermetic: the autouse fixture sets `pydantic_ai.models.ALLOW_MODEL_REQUESTS=False`
   and installs test models/keys. `.env` is not needed for `make test`; it is needed for live evals.
-- `MIMO_API_KEY` is selected by `_resolve_api_key()` in `src/animichi/agents/base.py` only for
+- `MIMO_API_KEY` is selected by `_model_api_key()` in `src/animichi/agents/base.py` only for
   `xiaomimimo.com` model endpoints; do not reuse a generic key by accident.
 - Official eval entry: `src/animichi/tests/eval/run_agent_eval.py`. It streams one status line per case,
   persists reports, creates/enforces statistical baselines, and exits nonzero on gate regression or
