@@ -29,9 +29,13 @@ _PROCESSORS: tuple[Processor, ...] = (
 def configure_structlog() -> None:
     """Install the process-wide processor chain, once per process.
 
-    Called from the FastAPI app factory (the container's process start) and
-    from the test-session conftest. Later calls are no-ops so that neither a
-    second `create_fastapi_app()` nor `structlog.testing.capture_logs` has its
+    Every process start calls this: `create_fastapi_app()` (the container),
+    the test-session conftest, `tests.eval.run_agent_eval._main` (the eval
+    CLI), and `spikes.codemode.rematch.main`. Any new entry point owes the
+    same call — none of the four reaches another.
+
+    First configure wins. A later call is a no-op so that neither a second
+    `create_fastapi_app()` nor `structlog.testing.capture_logs` has its
     configuration clobbered.
     """
     if structlog.is_configured():

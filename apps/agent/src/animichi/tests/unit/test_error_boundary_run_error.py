@@ -72,18 +72,41 @@ async def make_deep_agent_run_error() -> RuntimeError:
 
 @contextmanager
 def fail_fast_after(seconds: float) -> Iterator[None]:
-    """Interrupt the block once *seconds* of wall clock have passed."""
+    """Interrupt the block once *seconds* of wall clock have passed.
+
+    `ITIMER_REAL` and `SIGALRM` are process-wide, so both are handed back on
+    the way out: the timer restarts from whatever the caller had left, and the
+    handler is restored first so an immediate expiry reaches the right one.
+    """
 
     def on_alarm(_signum: int, _frame: FrameType | None) -> None:
         raise TimeoutError(f"the logged traceback took longer than {seconds}s")
 
-    previous = signal.signal(signal.SIGALRM, on_alarm)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
+    previous_handler = signal.signal(signal.SIGALRM, on_alarm)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, seconds)
     try:
         yield
     finally:
+        signal.signal(signal.SIGALRM, previous_handler)
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+
+
+def test_fail_fast_after_hands_back_the_timer_the_caller_had_armed() -> None:
+    """`ITIMER_REAL` and `SIGALRM` are process-wide: a caller that already
+    armed a real-time timer must get it back, not have it cancelled."""
+    outer_handler = signal.signal(signal.SIGALRM, signal.SIG_IGN)
+    signal.setitimer(signal.ITIMER_REAL, 30.0)
+    try:
+        with fail_fast_after(_LOG_ALARM_SECONDS):
+            pass
+        remaining, _interval = signal.getitimer(signal.ITIMER_REAL)
+        restored_handler = signal.getsignal(signal.SIGALRM)
+    finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous)
+        signal.signal(signal.SIGALRM, outer_handler)
+
+    assert remaining > 0
+    assert restored_handler is signal.SIG_IGN
 
 
 async def test_unclassified_run_error_is_logged_before_conversion() -> None:
