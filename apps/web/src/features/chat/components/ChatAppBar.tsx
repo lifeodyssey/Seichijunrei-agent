@@ -25,9 +25,9 @@ const FOCUS_RING = "focus-visible:outline-[3px] focus-visible:outline-offset-2 f
  * flips with the theme; the quiet login pill is the `default` grammar. */
 const PAPER_PRESS = "[--animal-bg-color:var(--color-paper)] [--animal-text-color:var(--color-ground-ink)] [--animal-shadow-press:0_3px_0_0_var(--shadow-3d)] [--animal-shadow-press-hover:0_4px_0_0_var(--shadow-3d)] [--animal-shadow-press-active:0_1px_0_0_var(--shadow-3d)]";
 const PAPER_QUIET = "[--animal-bg-color:var(--color-paper)] [--animal-text-color:var(--color-ground-ink)] [--animal-border-color:var(--color-ground-ink)]";
-const PLUS_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none border-[3px] border-ground-ink text-lg font-black no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
-const LOGIN_CLASS = `animal-btn animal-btn-default min-h-[38px] border-[3px] px-3 text-sm font-black ${FOCUS_RING} ${PAPER_QUIET}`;
-const GEAR_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none border-[3px] border-ground-ink no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
+const PLUS_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none [--animal-border-width:3px] border-ground-ink text-lg font-black no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
+const LOGIN_CLASS = `animal-btn animal-btn-default min-h-[38px] [--animal-border-width:3px] px-3 text-sm font-black ${FOCUS_RING} ${PAPER_QUIET}`;
+const GEAR_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none [--animal-border-width:3px] border-ground-ink no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
 
 function MobileLockup({ dict }: Readonly<{ dict: ChatDict }>) {
   return (

@@ -197,7 +197,7 @@ function HeroGrid({ dict }: Readonly<{ dict: Dict }>) {
   );
 }
 
-const MAIN_CLASS = "grid min-h-dvh grid-rows-[auto_1fr_auto] justify-items-center overflow-x-clip px-6 pb-6 text-ground-ink [background-color:var(--color-ground)] [background-image:var(--leaf-tile-image)] [background-size:clamp(90px,18vw,260px)] night:[--animal-bg-color-content:#2b2318] night:[--animal-text-color-body:#f3ece0]";
+const MAIN_CLASS = "grid min-h-dvh grid-rows-[auto_1fr_auto] justify-items-center overflow-x-clip px-6 pb-6 text-ground-ink [background-color:var(--color-ground)] [background-image:var(--leaf-tile-image)] [background-size:clamp(90px,18vw,260px)] night:[--animal-bg-color-content:var(--color-card)] night:[--animal-text-color-body:var(--color-fg)]";
 
 function LandingSections({ dict }: Readonly<{ dict: Dict }>) {
   return (

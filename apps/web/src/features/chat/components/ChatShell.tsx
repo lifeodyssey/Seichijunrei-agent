@@ -36,16 +36,19 @@ export type ChatShellProps = Readonly<{
  * cream panel. Mobile drops the padding and stacks the bar over the panel.
  * `lg:h-dvh` pins the desktop frame to the viewport, so a long conversation
  * scrolls the panel's body — never the page, the composer, or the sidebar. */
-const SHELL_CLASS = "chat-page grid min-h-dvh gap-[22px] p-[22px] text-ground-ink [background-color:var(--color-ground)] [background-image:var(--leaf-tile-image)] [background-size:clamp(90px,18vw,260px)] max-lg:[grid-template-columns:1fr] max-lg:gap-0 max-lg:p-0 lg:h-dvh lg:[grid-template-columns:292px_1fr]";
+const SHELL_CLASS = "chat-page grid min-h-dvh gap-[var(--chat-gutter)] p-[var(--chat-gutter)] text-ground-ink [background-color:var(--color-ground)] [background-image:var(--leaf-tile-image)] [background-size:clamp(90px,18vw,260px)] max-lg:[grid-template-columns:1fr] max-lg:gap-0 max-lg:p-0 lg:h-dvh lg:[grid-template-columns:292px_1fr]";
 
 /** Mockup `.main`: the cream panel with the ink outline and the hard ledge.
  * Flex column, not grid: the notices slot may render zero elements, and a
  * `1fr` grid row would hand the free space to the dock instead of the body. */
-const PANEL_CLASS = "flex min-h-0 flex-col overflow-hidden rounded-3xl border-[3px] border-ground-ink bg-paper shadow-[0_6px_0_var(--shadow-3d)] max-lg:min-h-[calc(100dvh-62px)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none";
+const PANEL_CLASS = "flex min-h-0 flex-col overflow-hidden rounded-3xl border-[3px] border-ground-ink bg-paper shadow-[var(--shadow-press-lg)] max-lg:min-h-[calc(100dvh-62px)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none";
 
 /** The conversation scroll region between the header and the dock; `flex-1`
  * makes the body — never the dock — absorb the panel's free space. */
 const BODY_CLASS = "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-7 py-6 max-lg:px-5 max-lg:py-4";
+/* The history-loading note: the quiet small-text language of the waiting
+ * ritual's subtitle (`.chat-waiting__subtitle`), spoken in utilities. */
+const HISTORY_LOADING_CLASS = "text-[13px] text-muted-fg";
 const DOCK_CLASS = "min-h-0 overflow-y-auto";
 
 function useScrollAnchor(itemCount: number) {
@@ -89,7 +92,7 @@ function showColdStart(chat: ChatSession, history: ConversationHistory, entry: C
 export function ChatIntro({ entry, chat, history, dict, onSend }: ChatIntroProps) {
   return (
     <>
-      {history.status === "loading" ? <p className="chat-history-loading" role="status" aria-busy="true">{dict.preparing}</p> : null}
+      {history.status === "loading" ? <p className={HISTORY_LOADING_CLASS} role="status" aria-busy="true">{dict.preparing}</p> : null}
       <HistoryList entries={history.entries} dict={dict} />
       {showColdStart(chat, history, entry) ? <ColdStart dict={dict} onChip={onSend} disabled={entry === "A5"} /> : null}
     </>

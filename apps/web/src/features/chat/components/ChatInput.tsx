@@ -25,7 +25,7 @@ type Submittable = Readonly<{ preventDefault: () => void }>;
  * the ink edge for teal and keeps the hard ledge — no glow stack. The deep
  * teal reads 4.1:1 on the day card; at night the bright teal takes over
  * (7.4:1) because the deep one falls under WCAG 1.4.11's 3:1 state floor. */
-const PILL_CLASS = "flex w-full items-center gap-1.5 rounded-full border-[3px] border-ground-ink bg-card py-2 pe-2.5 ps-2 text-ground-ink shadow-[0_5px_0_var(--shadow-3d)] transition-[border-color,box-shadow,opacity] duration-150 focus-within:border-primary-strong night:focus-within:border-primary";
+const PILL_CLASS = "flex w-full items-center gap-1.5 rounded-full border-[3px] border-ground-ink bg-card py-2 pe-2.5 ps-2 text-ground-ink shadow-[var(--shadow-press)] transition-[border-color,box-shadow,opacity] duration-150 focus-within:border-primary-strong night:focus-within:border-primary";
 
 function useDraftPersistence(text: string): void {
   useEffect(() => { writeChatDraft(text); }, [text]);
@@ -99,10 +99,14 @@ function SendGlyph() {
 /* The send disc is the library's 3D-press `primary` button rethemed onto our
  * tokens: `bg-gold` stays on the element (the composer test pins it) and beats
  * the package's components-layer fill, while the ledge vars ride `--shadow-3d`
- * so the press depth flips with the theme. The muted disabled face stays ours —
- * the package's disabled fade (opacity only) cannot speak it. */
+ * so the press depth flips with the theme. The border width rides
+ * `--animal-border-width`; the colour stays a utility (the `primary` grammar
+ * has no border-colour variable — its `border-color` follows
+ * `--animal-bg-color`). The muted disabled face stays ours — the package's
+ * disabled fade (opacity only) cannot speak it; its `:disabled` rule already
+ * drops the box-shadow, so no `disabled:shadow-none` is needed. */
 const SEND_PRESS = "[--animal-shadow-press:0_3px_0_0_var(--shadow-3d)] [--animal-shadow-press-hover:0_4px_0_0_var(--shadow-3d)] [--animal-shadow-press-active:0_1px_0_0_var(--shadow-3d)]";
-const SEND_CLASS = `animal-btn animal-btn-primary size-[46px] flex-none border-[3px] border-ground-ink bg-gold focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-ground-ink disabled:border-ground-ink/40 disabled:bg-muted disabled:shadow-none ${SEND_PRESS}`;
+const SEND_CLASS = `animal-btn animal-btn-primary size-[46px] flex-none [--animal-border-width:3px] border-ground-ink bg-gold focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-ground-ink disabled:border-ground-ink/40 disabled:bg-muted ${SEND_PRESS}`;
 
 /** G3: the round gold key goes flat and muted when there is nothing to send. */
 function SendKey({ dict, withheld }: Readonly<{ dict: ChatDict; withheld: boolean }>) {

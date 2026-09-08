@@ -7,7 +7,7 @@ type Props = Readonly<{
 }>;
 
 /** Mockup `.start`: the cold-start region owns the panel's empty middle. */
-const START_CLASS = "flex flex-1 flex-col items-center justify-center gap-[18px] px-8 py-6 text-center text-ground-ink max-lg:justify-start max-lg:gap-3.5 max-lg:px-5 max-lg:py-2.5";
+const START_CLASS = "flex flex-1 flex-col items-center justify-center gap-[var(--chat-rhythm)] px-8 py-6 text-center text-ground-ink max-lg:justify-start max-lg:gap-3.5 max-lg:px-5 max-lg:py-2.5";
 /* A plain 44px display heading — the library `Title` is a folded-ribbon banner
  * graphic (white on green), which cannot carry this look. */
 const HEADING_CLASS = "m-0 max-w-[22ch] text-[44px] font-black leading-[1.15] max-lg:text-3xl";
@@ -24,7 +24,7 @@ const FOCUS_RING = "focus-visible:outline-[3px] focus-visible:outline-offset-2 f
  * `Card`: its color variants are hardcoded day-only hexes that cannot flip at
  * night, its hover lifts where this grammar presses, and it renders a div —
  * the doors must stay real buttons for the keyboard and the disabled state. */
-const ENTRY_CLASS = `grid cursor-pointer gap-[30px] rounded-[18px] border-[3px] px-[18px] pb-4 pt-[18px] text-left text-ground-ink shadow-[0_4px_0_var(--shadow-3d)] transition-transform duration-100 active:translate-y-0.5 active:shadow-[0_1px_0_var(--shadow-3d)] disabled:cursor-not-allowed disabled:opacity-55 max-lg:gap-0 max-lg:px-4 max-lg:py-3.5 ${FOCUS_RING}`;
+const ENTRY_CLASS = `grid cursor-pointer gap-[30px] rounded-[18px] border-[3px] px-[var(--chat-rhythm)] pb-4 pt-[var(--chat-rhythm)] text-left text-ground-ink shadow-[var(--shadow-press-sm)] transition-transform duration-100 active:translate-y-0.5 active:shadow-[0_1px_0_var(--shadow-3d)] disabled:cursor-not-allowed disabled:opacity-55 max-lg:gap-0 max-lg:px-4 max-lg:py-3.5 ${FOCUS_RING}`;
 /* Per-door accent pairs. The gold and leaf tokens flip at night by theme, so
  * only the teal door carries night classes (primary-strong is theme-invariant
  * and falls to 2.34:1 on the night soft-teal card — under AA for a 16px

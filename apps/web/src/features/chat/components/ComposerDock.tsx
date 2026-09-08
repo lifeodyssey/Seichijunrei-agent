@@ -20,7 +20,7 @@ type Props = Readonly<{
 
 /** Mockup `.dock`: the composer region at the panel's foot — the pill, then
  * the two-sided hint line. */
-const DOCK_CLASS = "px-7 pb-[22px] max-lg:px-4 max-lg:pb-4";
+const DOCK_CLASS = "px-7 pb-[var(--chat-gutter)] max-lg:px-4 max-lg:pb-4";
 /** Mockup caps the composer at 860px and centers it inside the panel, like
  * the cold-start column above it. */
 const STACK_CLASS = "mx-auto grid w-full max-w-[860px] gap-2.5";

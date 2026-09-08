@@ -837,10 +837,6 @@
   box-shadow: 0 1px 0 var(--shadow-3d);
 }
 
-.chat-settled--recompute {
-  margin: 0;
-}
-
 /* Persistent polite live region: keeps announcing the recompute after the
    tray unmounts on fire (a11y focus handoff, #461 review). */
 .chat-live-note {

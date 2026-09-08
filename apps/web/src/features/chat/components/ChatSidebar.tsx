@@ -18,7 +18,7 @@ type Props = Readonly<{
 /** Mockup `.side`: the cream sidebar card, desktop only. No `self-start` —
  * the aside stretches to the shell row's full height so the identity card can
  * anchor at its foot even when RECENT renders no rows. */
-const SIDEBAR_CLASS = "[display:none] lg:[display:flex] w-[292px] flex-col gap-[18px] rounded-3xl border-[3px] border-ground-ink bg-card p-[22px_18px] text-ground-ink shadow-[0_6px_0_var(--shadow-3d)]";
+const SIDEBAR_CLASS = "[display:none] lg:[display:flex] w-[292px] flex-col gap-[var(--chat-rhythm)] rounded-3xl border-[3px] border-ground-ink bg-card p-[var(--chat-gutter)_var(--chat-rhythm)] text-ground-ink shadow-[var(--shadow-press-lg)]";
 const BRAND_CLASS = "flex items-center gap-2.5";
 const BRAND_NAME_CLASS = "text-[21px] font-black leading-[1.1]";
 const BRAND_TAG_CLASS = "text-[11px] font-bold opacity-70";
@@ -29,12 +29,19 @@ const BRAND_TAG_CLASS = "text-[11px] font-bold opacity-70";
 const FOCUS_RING = "focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-ground-ink";
 /* The chrome's buttons are the library's 3D-press `animal-btn`, rethemed onto
  * our tokens through its `--animal-*` surface (the LoginForm idiom): the press
- * ledge rides `--shadow-3d` so the depth flips with the theme. Utilities on the
- * same element pin only the mockup's geometry (border, padding, ring) — the
- * utilities layer beats the package's components layer, so they never fight. */
+ * ledge rides `--shadow-3d` so the depth flips with the theme. The border width
+ * rides `--animal-border-width` (the component's own `border` shorthand
+ * consumes it); the colour stays a utility because the `primary` grammar's
+ * `border-color` follows `--animal-bg-color` — no variable channel exists for
+ * it, and a utility is the only honest override. Remaining utilities pin only
+ * the mockup's geometry (padding, ring). */
+/* The gold ledge stays `--shadow-3d` rather than the gold family's own
+ * `--color-gold-deep` (globals.css): one shared ledge tone keeps the whole
+ * chrome's depth cue uniform and theme-flipping. Re-pointing the gold CTA to
+ * the deeper gold ledge is a design call, not a fix. */
 const GOLD_PRESS = "[--animal-bg-color:var(--color-gold)] [--animal-text-color:var(--color-gold-ink)] [--animal-shadow-press:0_4px_0_0_var(--shadow-3d)] [--animal-shadow-press-hover:0_5px_0_0_var(--shadow-3d)] [--animal-shadow-press-active:0_1px_0_0_var(--shadow-3d)]";
 const PAPER_QUIET = "[--animal-bg-color:var(--color-paper)] [--animal-text-color:var(--color-ground-ink)] [--animal-border-color:var(--color-ground-ink)]";
-const NEW_CLASS = `animal-btn animal-btn-primary animal-btn-block border-[3px] border-ground-ink px-[18px] py-[11px] text-[14.5px] font-black no-underline ${FOCUS_RING} ${GOLD_PRESS}`;
+const NEW_CLASS = `animal-btn animal-btn-primary animal-btn-block [--animal-border-width:3px] border-ground-ink px-[var(--chat-rhythm)] py-[11px] text-[14.5px] font-black no-underline ${FOCUS_RING} ${GOLD_PRESS}`;
 const RECENT_HEADING_CLASS = "mb-3 text-[11.5px] font-black uppercase tracking-[0.16em] opacity-70";
 const ROW_CLASS = `grid cursor-pointer gap-0.5 rounded-[14px] px-3 py-2.5 no-underline text-ground-ink hover:bg-gold-soft ${FOCUS_RING}`;
 const ROW_ACTIVE_CLASS = "bg-primary-soft shadow-[0_0_0_2px_var(--color-primary)] hover:bg-primary-soft";

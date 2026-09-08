@@ -2,7 +2,7 @@ import type { ChatDict } from "../i18n";
 
 /** Mockup `.mainhead`: breadcrumb + journey title left, the autosaved pill
  * right. The dashed rule parts the header from the conversation below. */
-const HEADER_CLASS = "flex items-center justify-between border-b-2 border-dashed border-ground-ink/20 px-7 pb-[18px] pt-[18px] max-lg:border-b-0 max-lg:px-5 max-lg:pb-0 max-lg:pt-1";
+const HEADER_CLASS = "flex items-center justify-between border-b-2 border-dashed border-ground-ink/20 px-7 pb-[var(--chat-rhythm)] pt-[var(--chat-rhythm)] max-lg:border-b-0 max-lg:px-5 max-lg:pb-0 max-lg:pt-1";
 const CRUMB_CLASS = "text-xs font-black opacity-70";
 const TITLE_CLASS = "m-0 mt-0.5 text-lg font-black";
 /* Night: the deep teal reads only 2.34:1 on the night soft-teal chip, so the
