@@ -5,8 +5,8 @@
 # with its own `origin/main`, a fake `pnpm` / `make` / `atlas` on PATH and the
 # three documentation checks stubbed. No real suite, container or network call.
 # The fake pnpm does double duty — it answers `ls -r --depth -1 --json` and
-# records every `run` asked of it, which is how the selected set and the absence
-# of the `...` closure are asserted. GATE_UNDER_TEST points at a mutant.
+# records every `run` asked of it: the selected set, the serial flag and the
+# absent `...` closure are read off it. GATE_UNDER_TEST points at a mutant.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 GATE="${GATE_UNDER_TEST:-$PWD/scripts/local-gates/pre-push-affected.sh}"
@@ -119,9 +119,9 @@ commit_change feature pnpm-lock.yaml
 run_gate < /dev/null
 expect_status "lockfile" 0 "$STATUS"
 expect "lockfile" "deps=1" "$OUT"
-for name in web catalog users; do
-  expect "lockfile" "--filter $name run" "$RECORDED"
-done
+for name in web catalog users; do for script in lint typecheck test test:integration; do
+  expect "lockfile" "--workspace-concurrency=1 --filter $name run --if-present $script" "$RECORDED"
+done; done
 refute "lockfile" "--filter ...web" "$RECORDED"
 refute "lockfile" "@animichi/agent" "$RECORDED"
 refute "lockfile" "animichi-cloudflare-worker" "$RECORDED"
