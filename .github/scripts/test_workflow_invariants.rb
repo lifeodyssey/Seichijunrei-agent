@@ -36,6 +36,7 @@
 #                (#1489), which asks the same question of steps that need the
 #                installed workspace without naming pnpm
 #   suppression  no `continue-on-error`
+#   reachability every `.github/scripts` file is invoked, or required by one
 #
 # The CI file's own shape is `test_ci_workflow_contract.rb`, not this file.
 #
@@ -45,6 +46,17 @@ require_relative "workflow_document"
 
 ROOT = repository_root
 WORKFLOW_DIR = File.join(ROOT, ".github", "workflows")
+SCRIPT_DIR = File.join(ROOT, ".github", "scripts")
+# `test_ci_workflow_contract.rb` asks whether every committed check is invoked;
+# this asks the reverse of the same directory — whether every file in it is
+# reachable at all. #1372 deleted two that were not (an adopt script run once by
+# hand, a fixture whose only reader was gone) and nothing noticed: an orphan
+# fails no assertion by existing. Reachable = a `run:` line names the path after
+# an interpreter (a comment or an `echo` runs nothing, so the line must begin
+# with one), or a reachable script `require_relative`s it — how every contract
+# here gets `workflow_document.rb`.
+INVOCATION = /\A(?:bash|ruby|node|sh|python3?)\s+\S+/
+REQUIRE_RELATIVE = /require_relative\s+"([^"]+)"/
 REQUIRED_CONTEXTS = ["PR Verification", "Security"].freeze
 CONTEXT_OWNER = "pr-verification.yml"
 PR_CANCEL_EXPRESSION = "${{ github.event_name == 'pull_request' }}"
@@ -227,6 +239,33 @@ def assert_local_actions_exist(file, text)
   end
 end
 
+def workflow_run_lines
+  Dir.glob(File.join(WORKFLOW_DIR, "*.yml")).sort.flat_map do |path|
+    document = WorkflowDocument.load(path)
+    document.jobs.each_key.flat_map { |job| document.steps_of(job) }
+  end.flat_map { |step| step["run"].to_s.lines }.map(&:strip)
+end
+
+def script_files
+  Dir.glob(File.join(SCRIPT_DIR, "**", "*")).select { |path| File.file?(path) }
+     .map { |path| path.delete_prefix("#{ROOT}/") }.sort
+end
+
+def required_by(invoked)
+  script_files.select { |path| invoked.include?(path) }
+              .flat_map { |path| File.read(File.join(ROOT, path)).scan(REQUIRE_RELATIVE) }
+              .flatten.map { |name| ".github/scripts/#{name}.rb" }.uniq
+end
+
+def assert_every_script_is_reachable
+  invoked = workflow_run_lines.grep(INVOCATION).join("\n")
+  reachable = required_by(invoked)
+  orphans = script_files.reject { |path| invoked.include?(path) || reachable.include?(path) }
+  @log.unless_true(orphans.empty?,
+                   ".github/scripts: no job invokes and no invoked script requires " \
+                   "#{orphans.join(', ')} — wire it into a workflow or delete it")
+end
+
 def pinnable_files
   (Dir.glob(File.join(WORKFLOW_DIR, "*.yml")) +
     Dir.glob(File.join(ROOT, ".github", "actions", "**", "*.yml"))).sort
@@ -254,6 +293,7 @@ def main
     assert_local_actions_exist(file, text)
     assert_no_github_secret(file, text)
   end
+  assert_every_script_is_reachable
   @log.report("workflow invariants: all assertions hold")
 end
 

@@ -54,7 +54,7 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - **Coverage floors ratchet UP only** — `apps/agent` ≥87 (`pyproject.toml` `--cov-fail-under`); `apps/web` floors live in `apps/web/vitest.config.ts` (mirrored in `apps/web/AGENTS.md`).
 - **Test quality**: mock the clock (no timing-dependent asserts); no conditional logic in tests
   (split them); ≤200 lines per test file; ≤5 mocks per test.
-- **No local deploy** (hook `block-local-deploy`) — CD only: a push to `main` builds the affected
+- **No local deploy** (`block-local-deploy`, an owner-local rule — see Harness) — CD only: a push to `main` builds the affected
   release cohort once, deploys those immutable artifacts to staging, then promotes the same
   digests after one GitHub `production` environment approval. There is no manual or tag-triggered
   deploy path. Details → `docs/ops/deployment.md`.
@@ -107,7 +107,7 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
   `/codex:review`; images via `/codex:imagegen`. **Read `.claude/skills/use-codex/SKILL.md` first** —
   short, and skipping it costs whole dispatches. Four facts it exists for: **never run the raw CLI
   concurrently or in a loop** (403/429 is connection contention, not a rate limit — retrying burns
-  quota; hook `guard-codex.sh` enforces it, and `block-codex-exec-codewrite` blocks raw code edits);
+  quota; the owner-local `guard-codex.sh` enforces it and `block-codex-exec-codewrite` blocks raw code edits);
   **Codex cannot commit** — its sandbox refuses every write under `.git`, worktree or clone alike, so
   ask for changes left in the working tree and integrate them into the current semantic outcome;
   **its sandbox has no network**, so build the environment and verify the gates yourself first;
@@ -159,7 +159,7 @@ Role definitions live in `.claude/agents/`:
 - executor — **opencode CLI** via one `opencode serve` instance (model `ds-flash-max` → `luna-max`), brief-driven, never commits.
 - reviewer — card-level final review: read the candidate diff vs brief before merge; **Mutation testing is the only valid green-light proof.**
 - tester — Playwright Test Agents pipeline (planner/generator/healer, promotion gates) + staging validation with evidence.
-**Quality Ratchet**: every AC carries a test-type (`unit`|`integration`|`eval`|`browser`|`api`) and a test in the PR diff (`ac_total == ac_with_test`); Codecov patch ≥95%. Merge requires resolved review threads + acknowledged bot findings. Hooks: `block-secrets-in-pr`, `block-local-deploy`, `block-codex-exec-codewrite`.
+**Quality Ratchet**: every AC carries a test-type (`unit`|`integration`|`eval`|`browser`|`api`) and a test in the PR diff (`ac_total == ac_with_test`); Codecov patch ≥95%. Merge requires resolved review threads + acknowledged bot findings. Two kinds of gate, not interchangeable. **Committed** (every contributor, every CI run): the `commitlint` commit-msg hook, the pre-push affected gate (`scripts/local-gates/pre-push-affected.sh`, running the same package scripts as CI's affected matrix), and the workflow contracts under `.github/scripts` — CI's `commits`, `affected` and `contracts` lanes mirror those three. **Owner-local**: the hookify rules `block-secrets-in-pr`, `block-local-deploy` and `block-codex-exec-codewrite`, which live beside the tracked files in `.claude/` but are gitignored — enabled and blocking on the owner's machine, absent from a fresh clone and from CI. Never cite one of the three as proof that a repository rule is enforced.
 
 ## PR 合并前的检查(单一来源)
 
