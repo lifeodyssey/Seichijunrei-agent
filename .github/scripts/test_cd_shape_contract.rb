@@ -55,11 +55,13 @@ REBUILD_MARKERS = [
 ZERO_SHA = "0000000000000000000000000000000000000000"
 HEAD_GUARD = "git ls-remote origin refs/heads/main"
 # `github.event.before` is the previous *push*, not the previous *deployment*, so
-# a failed run's cohort is stranded (#1506). The base is the newest head CD put
-# on staging, which is a question about a job rather than about a run — the
-# reasoning is in the step, and the two spellings that carry it between `plan`
-# and `smoke` are pinned by `test_cd_publish_contract.rb`, which owns that job.
+# a failed run's cohort is stranded (#1506). The base is the newest head CD put on
+# staging — found by a paged scan, and accepted only if this history descends from
+# it, `cat-file` alone being satisfied by a force-pushed tip off `main` (#1507).
 DEPLOYED_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=completed\b}
+PAGED_QUERY = /\bpage=\$\{?page\}?/
+PAGE_LOOP = /for page in ([\d ]+); do/
+ACCEPTED_BASES = ['head_descends_from "$run_head"', 'head_descends_from "$base"'].freeze
 ANCESTOR_CHECK = "git merge-base --is-ancestor"
 # Without it a stage runs on a push whose `build` was skipped — no artifact.
 BUILD_GUARD = "needs.build.result == 'success'"
@@ -167,8 +169,10 @@ end
 def assert_plan_guards
   @log.unless_true(plan_script.match?(DEPLOYED_QUERY) && plan_script.include?("head_sha"),
                    "cd.yml:plan: must base its range on a completed run's head, not on the previous push")
-  @log.unless_true(plan_script.include?(ANCESTOR_CHECK),
-                   "cd.yml:plan: must reject a candidate base this head does not descend from")
+  @log.unless_true(plan_script.match?(PAGED_QUERY) && plan_script[PAGE_LOOP, 1].to_s.split.size > 1,
+                   "cd.yml:plan: must scan more than one page, under a literal cap — one page may hold no green smoke")
+  @log.unless_true(plan_script.include?(ANCESTOR_CHECK) && ACCEPTED_BASES.all? { |call| plan_script.include?(call) },
+                   "cd.yml:plan: both candidate bases must be ones this head descends from, not merely resolvable ones")
   @log.unless_true(plan_script.include?("$EVENT_BEFORE"),
                    "cd.yml:plan: must fall back to `github.event.before` when no candidate run qualifies")
   @log.unless_true(@cd.dig("jobs", "plan", "permissions").to_h["actions"] == "read",

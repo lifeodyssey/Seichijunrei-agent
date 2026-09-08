@@ -43,27 +43,36 @@ last tree CD actually put on staging to `github.sha`. The previous push is the w
 run's cohort is never deployed and then falls outside the next push's range, while the head guard
 forbids re-running that run — the diff is stranded (#1506).
 
-`plan` finds the base by walking the 15 newest **completed** `cd.yml` runs on `main`, newest
-`created_at` first, and taking the first whose `CD / staging smoke` job concluded `success` (`plan`
-holds `actions: read` for those two API reads). Smoke is the last staging stage, so its success
-means that head is live on staging.
+`plan` finds the base by walking the **completed** `cd.yml` runs on `main`, newest `created_at`
+first, and taking the first whose `CD / staging smoke` job concluded `success` (`plan` holds
+`actions: read` for those two API reads). Smoke is the last staging stage, so its success means that
+head is live on staging. The walk is paged — five pages of 30, a hard cap of 150 runs, stopping at
+the first qualifying run — because a single page is not a window: a stretch of red CI longer than
+one page would find no green smoke and send the base back to `github.event.before`, stranding the
+cohorts this mechanism exists to rescue.
 
 The run's own conclusion is deliberately not the test, because on this repository it is an inverted
 signal. A CD run ends `success` exactly when it deployed nothing — `plan` selected no package and
 every later job skipped, and skipped jobs make a green run. A run that *did* deploy ends `failure`,
 because the repository policy auto-rejects the `production` approval and `promote production` fails
 after staging has already been published. Over the 15 newest completed runs on `main` (measured
-2026-09-08) six ended `success`, and all six had `CD / staging smoke: skipped`. A
-`status=success&per_page=1` filter therefore does not come back empty; it comes back with a head
-nothing was ever published from, which is worse than the `github.event.before` it replaced. The
+2026-09-08) six ended `success` and all six had `CD / staging smoke: skipped`, while six of the nine
+that ended `failure` had `CD / staging smoke: success` — the signal is not merely weak, it is
+inverted. A `status=success&per_page=1` filter therefore does not come back empty; it comes back
+with a head nothing was ever published from, which is worse than the `github.event.before` it
+replaced. The
 smoke job's name and `plan`'s jq selector are pinned to each other by
 `test_cd_publish_contract.rb`, since a rename or a typo would empty the lookup rather than fail it.
 
-A candidate is used only when this push's history still descends from it
-(`git merge-base --is-ancestor`). If none qualifies the base falls back to `github.event.before`,
-and then to `HEAD~1` when `before` is zero or unreachable (first push, force push, rewritten
-history). The step prints the chosen run id, base and reason into the job summary, and an Actions
-API outage degrades to the `before` fallback rather than failing the push.
+A candidate is used only when this push's history still descends from it, and the same test applies
+to the `github.event.before` fallback: `git cat-file -e` alone asks only whether the clone can
+resolve the object, and after a force push it still can — the old tip stays alive through another
+fetched ref while sitting outside `main`'s history, which would base the range on a diff that never
+happened. Both go through one `head_descends_from` (`cat-file` **and**
+`git merge-base --is-ancestor`), and `HEAD~1` is used only when `before` fails it or is zero. The
+step prints the chosen run id, the base, the reason and how many completed runs it inspected into
+the job summary, and an Actions API outage degrades to the `before` fallback rather than failing the
+push.
 
 The head guard is unchanged: `github.sha` must still be the head of `origin/main`, so re-running a
 run that a newer push has overtaken deploys nothing.
