@@ -345,6 +345,17 @@ The artifact carries the committed `migrations/neon/` chain and `atlas.sum` unde
 job's GitHub OIDC identity for a token scoped to `animichi:github-actions:migrator`, and POSTs
 `/migrate` with that head. CI holds no database credential on this path, not even a short-lived one.
 
+Immediately before that POST, the same job runs `infra/database-access/reset-staging-baseline.sh`
+— the one step on the lane that can destroy data. It is idempotent: it returns without touching
+anything once the baseline revision is in staging's `atlas_schema_revisions`, and it only drops and
+recreates `public` when staging has fallen below that baseline. It reaches Neon's control plane
+through `neonctl` on `NEON_API_KEY`, and takes the project and branch ids from the checkout's
+`infra/database-access/Pulumi.staging.yaml` rather than the sealed release, because they are stack
+config rather than built bytes. Both the step and the job around it are selected by the same
+`migrations` output, so a push carrying no schema change can never reach it (#1216) and a
+migrations-only push can never skip it (#1469); `test_cd_shape_contract.rb` fails if either half
+drifts. Production has no counterpart — the reset is staging-only by construction.
+
 Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
 `STAGING_ONLY_BASELINE` marker, deploys the migrator Worker with `--env production`, then runs
 `scripts/delivery/migrate-through-worker.sh production` against `vars.MIGRATOR_PRODUCTION_URL`.
@@ -446,7 +457,7 @@ longer read anywhere on the delivery lane.
 | ESC key | Exported into | What reads it |
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | every job that publishes: `build` (the container-registry push), the five staging stages, `promote-production` | the Cloudflare provider in both Pulumi programs, and `cloudflare/wrangler-action` for every Worker deploy. The key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
-| `NEON_API_KEY` | `stage-foundation` and `promote-production` only | the Neon provider in `infra/database-access` (`animichi-neon-secrets`) |
+| `NEON_API_KEY` | `stage-migration` and `promote-production` only | `neonctl` in the staging baseline reset. Not the Neon provider in `infra/database-access`: it is constructed from the `neonApiKey` stack config, which is why `stage-foundation` stopped opening the key when the reset left it (#1469) |
 | `ZEN_GO_API_KEY` | `agent-eval-nightly.yml` | the nightly L1 eval's model gateway |
 
 `CLOUDFLARE_ACCOUNT_ID` is not in that table and is not a secret: it is an account identifier. The

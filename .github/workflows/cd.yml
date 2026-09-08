@@ -403,20 +403,22 @@ jobs:
       - name: Resolve the pinned Pulumi CLI version
         id: pulumi-cli
         run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
-      # Two names, because this is the only staging job that touches Neon's
-      # control plane; every other stage opens the same environment for the
-      # publish token alone. What the list can and cannot promise is spelled out
-      # over the `build` job's ESC step.
+      # The publish token alone. Both Pulumi programs authenticate to Neon with
+      # the `neonApiKey` stack config the provider is constructed from
+      # (`infra/database-access/index.ts`), never from the environment, so the
+      # baseline reset was `NEON_API_KEY`'s only reader here and the key left
+      # with it for `stage-migration` (#1469). What the list can and cannot
+      # promise is spelled out over the `build` job's ESC step.
       - name: Open the staging ESC environment
         uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
         with:
           version: ${{ steps.pulumi-cli.outputs.version }}
           environment: lifeodyssey/animichi/staging
-          export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
+          export-environment-variables: CLOUDFLARE_API_TOKEN
       - name: Refuse to continue on a value ESC did not supply
         run: |
           set -euo pipefail
-          for key in CLOUDFLARE_API_TOKEN NEON_API_KEY; do
+          for key in CLOUDFLARE_API_TOKEN; do
             [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
           done
       - name: Install the sealed Pulumi programs
@@ -432,12 +434,6 @@ jobs:
           command: up
           stack-name: lifeodyssey/staging
           work-dir: release/foundation/infra/database-access
-      # Only when this push carries schema changes: the shared reset drops and
-      # recreates the staging `public` schema, and firing it on every foundation
-      # promotion was the #1216 defect.
-      - name: Reset the staging schema baseline
-        if: ${{ needs.plan.outputs.migrations == 'true' }}
-        run: bash release/foundation/infra/database-access/reset-staging-baseline.sh
       - name: Apply the staging topology stack
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
         env:
@@ -486,16 +482,20 @@ jobs:
       - name: Resolve the pinned Pulumi CLI version
         id: pulumi-cli
         run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      # Two names, because this is the staging job that touches Neon's control
+      # plane: `neonctl` reaches it on `NEON_API_KEY` for the baseline reset
+      # below. Every other stage opens the same environment for the publish
+      # token alone.
       - name: Open the staging ESC environment
         uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
         with:
           version: ${{ steps.pulumi-cli.outputs.version }}
           environment: lifeodyssey/animichi/staging
-          export-environment-variables: CLOUDFLARE_API_TOKEN
+          export-environment-variables: CLOUDFLARE_API_TOKEN,NEON_API_KEY
       - name: Refuse to continue on a value ESC did not supply
         run: |
           set -euo pipefail
-          for key in CLOUDFLARE_API_TOKEN; do
+          for key in CLOUDFLARE_API_TOKEN NEON_API_KEY; do
             [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
           done
       # `apiToken` is passed explicitly even though ESC already put the value in
@@ -513,6 +513,18 @@ jobs:
           packageManager: npm
           workingDirectory: release
           command: deploy migrator/bundle/index.js --no-bundle --config migrator/wrangler.toml --env staging --tag sha-${{ github.sha }}
+      # Only when this push carries schema changes: the shared reset drops and
+      # recreates the staging `public` schema, and firing it on a push that
+      # carries none was the #1216 defect. It sits here and not in
+      # `stage-foundation`, whose own `if:` is the `infra` half of the plan, so
+      # a migrations-only push cannot apply the chain onto a database that has
+      # fallen below the baseline (#1469). Idempotent: the script returns
+      # without touching anything once the baseline revision is in the ledger.
+      # The Neon ids come from the checkout rather than the sealed release —
+      # they are stack config, not built bytes.
+      - name: Reset the staging schema baseline
+        if: ${{ needs.plan.outputs.migrations == 'true' }}
+        run: bash infra/database-access/reset-staging-baseline.sh
       - name: Migrate staging through the migrator Worker
         if: ${{ needs.plan.outputs.migrations == 'true' }}
         env:
