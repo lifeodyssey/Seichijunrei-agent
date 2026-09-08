@@ -42,6 +42,7 @@ from animichi.tests.eval.eval_report import collect_scores
 from animichi.tests.eval.exec_tiers import read_max_cases, trajectory_web_mocks
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.utils.logger import configure_structlog
 
 AgentCase: TypeAlias = Case[AgentInput, AgentResult, AgentExpected]
 AgentReport: TypeAlias = EvaluationReport[AgentInput, AgentResult, AgentExpected]
@@ -220,6 +221,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 async def main() -> None:
+    configure_structlog()
     args = _parser().parse_args()
     arm = cast(Arm, args.arm)
     cases = stratified_cases(ALL_CASES, _case_cap())

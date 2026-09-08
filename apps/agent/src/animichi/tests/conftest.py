@@ -10,10 +10,16 @@ import pytest
 from dotenv import load_dotenv
 
 from animichi.config.settings import get_settings
+from animichi.utils.logger import configure_structlog
 
 # Configure logfire once so wrapper spans/metrics are quiet no-ops in tests
 # (pytest runs with filterwarnings=error; unconfigured logfire would warn).
 logfire.configure(send_to_logfire=False, console=False)
+
+# Configure structlog once, exactly as the container's app factory does, so the
+# suite pays the same (cheap) `exc_info=` rendering cost the runtime pays
+# instead of the default rich console renderer's (issue #1502).
+configure_structlog()
 
 # Load test environment variables
 test_env = Path(__file__).parent / ".env.test"

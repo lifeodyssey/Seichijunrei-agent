@@ -114,6 +114,13 @@ Anitabi (`api.anitabi.cn`) + Bangumi (`api.bgm.tv`) share Bangumi.tv subject IDs
   (`runtime_span` / `http_span`, `record_*`); `setup_logfire` calls
   `logfire.configure(send_to_logfire="if-token-present")`, which no-ops without `LOGFIRE_TOKEN`.
   Test spans via `logfire.testing.capfire`.
+- **structlog is configured once per process** — `animichi.utils.logger.configure_structlog()` runs
+  from every process start: the FastAPI app factory, the test conftest, the `run_agent_eval` CLI,
+  and the CodeMode rematch spike. Any new entry point owes the same call. It ends
+  the chain with `format_exc_info` + `JSONRenderer`, so `exc_info=` is safe to pass. Never leave
+  structlog unconfigured: its default `ConsoleRenderer` hands every frame to rich, which re-reads
+  and syntax-highlights that frame's source and pretty-prints its locals — 91 s and 28 MB of output
+  for one pydantic-ai agent-run error (#1502).
 - **Persistence = SQLModel/SQLAlchemy repositories** (#994/#995) — `infrastructure/persistence/`
   (models + repositories) is the only persistence path, expressed via typed SQLAlchemy expressions
   (raw-SQL policy, #999). asyncpg is the underlying driver (with `asyncpg-stubs`); repositories open
