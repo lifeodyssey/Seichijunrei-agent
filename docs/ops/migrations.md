@@ -102,7 +102,8 @@ approved, it would follow its own owner/runbook and must not add or alter Neon d
   names no database credential at all (#1365). Neither path may reintroduce `supabase db push` or
   a Drizzle migration command.
 - `.github/workflows/cd.yml` selects the affected set for each main SHA, builds one artifact, and
-  applies the migration chain in `stage-migration` — before services, edge, and web. Both
+  applies the migration chain in the `CD / staging` job's migration unit — before its services,
+  edge and web steps. Both
   environments run `scripts/delivery/migrate-through-worker.sh <env>` against their own migrator
   Worker, each with its own DSN and its own OIDC allowlist. There is no manual or tag-triggered
   alternate deploy path.

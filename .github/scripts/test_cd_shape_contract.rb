@@ -8,8 +8,8 @@
 #
 #   build        one build job, one artifact, and `promote-production` deploys
 #                that artifact without rebuilding anything
-#   propagation  every stage lists every earlier stage in `needs`, so a failure
-#                two hops back cannot evaporate into a `skipped` result
+#   propagation  every job lists every earlier job in `needs`, so a failure two
+#                hops back cannot evaporate into a `skipped` result
 #   guards       `plan` ranges from the last tree CD put on staging, falls back
 #                off a zero `before`, refuses a head origin/main has moved past
 #   concurrency  the staging lane and the production lane are separate job-level
@@ -17,14 +17,15 @@
 #   trigger      a push to main is the only way in — no tag, no dispatch
 #   pairing      a unit whose inputs live outside its own pnpm project also
 #                fires on the path that carries them
-#   reset        the staging schema reset runs exactly where a schema change is
-#                what selected the job around it, before the chain it baselines
-#                for, off the copy of the script that push actually has
 #   artifact     nothing environment-specific is resolved at build time
 #
-# How it publishes — deploy targets, version pinning, the smoke gate, the
-# production migration step — is `test_cd_publish_contract.rb`; the credentials
-# it may hold are `test_cd_credential_boundary_contract.rb`. The repository-wide meta-invariants
+# What the one staging job must contain and in what order — that it alone holds
+# `cd-staging`, that every unit publishes from a step of it, and where the schema
+# reset sits — is `test_cd_staging_chain_contract.rb`, which #1468 split out when
+# those properties stopped being about the job graph. How this file publishes —
+# deploy targets, version pinning, the smoke gate, the production migration step
+# — is `test_cd_publish_contract.rb`; the credentials it may hold are
+# `test_cd_credential_boundary_contract.rb`. The repository-wide meta-invariants
 # (timeouts, permissions, action pinning) are `test_workflow_invariants.rb`; the
 # CI file's shape is `test_ci_workflow_contract.rb`.
 #
@@ -35,9 +36,12 @@ require_relative "workflow_document"
 ROOT = repository_root
 CD_FILE = File.join(ROOT, ".github", "workflows", "cd.yml")
 # The delivery order. Each job must name every job before it in `needs`.
-CHAIN = %w[plan build stage-foundation stage-migration stage-services stage-edge
-           stage-web smoke promote-production].freeze
-STAGING_JOBS = %w[stage-foundation stage-migration stage-services stage-edge stage-web smoke].freeze
+CHAIN = %w[plan build stage promote-production].freeze
+# One job, holding `cd-staging` from the foundation apply through the smoke
+# probe. That it is one, and what it must contain, is
+# `test_cd_staging_chain_contract.rb`; here it is simply the staging half of the
+# graph, and the rules below are the ones the split into stages never owned.
+STAGING_JOBS = %w[stage].freeze
 ARTIFACT = "release-${{ github.sha }}"
 UPLOAD = "actions/upload-artifact"
 DOWNLOAD = "actions/download-artifact"
@@ -74,20 +78,6 @@ PAIRS = [["contains(fromJSON(needs.plan.outputs.packages), 'migrator')",
           "needs.plan.outputs.migrations == 'true'", "a migrations/neon change"],
          ["contains(fromJSON(needs.plan.outputs.packages), 'edge-worker')",
           "needs.plan.outputs.agent == 'true'", "an apps/agent change"]].freeze
-# The one step that destroys staging data. #1216 fixed it firing on a push that
-# carried no schema change; #1469 fixed the mirror defect — the step's own `if:`
-# said `migrations`, but the job around it said `infra`, so the intersection was
-# "both" and a migrations-only push applied the chain without it. One rule
-# covers both readings: the reset's job and the reset's step must each be
-# selected by the same migrations output.
-RESET_STEP = "Reset the staging schema baseline"
-MIGRATIONS_SELECTOR = "needs.plan.outputs.migrations == 'true'"
-# The chain apply the reset has to precede, and the copy of the script it has to
-# run. `release/foundation/` is written by one build step gated on
-# `infra == 'true'`, so on a migrations-only push the sealed copy is not in the
-# artifact at all and only the checkout has one.
-MIGRATE_STAGING = "migrate-through-worker.sh staging"
-RESET_SCRIPT = "infra/database-access/reset-staging-baseline.sh"
 
 @log = ViolationLog.new
 @cd = WorkflowDocument.load(CD_FILE)
@@ -111,7 +101,7 @@ def assert_one_build_one_artifact
 end
 
 def assert_every_stage_downloads_the_artifact
-  (STAGING_JOBS - ["smoke"] + ["promote-production"]).each do |job|
+  (STAGING_JOBS + ["promote-production"]).each do |job|
     downloads = steps_using(job, DOWNLOAD)
     @log.unless_true(downloads.any?, "cd.yml:#{job}: must deploy the built artifact, not a fresh checkout")
     @log.unless_true(downloads.all? { |step| step.dig("with", "name") == ARTIFACT },
@@ -245,51 +235,12 @@ def assert_no_build_time_environment_values
                    "cd.yml: a VITE_* value would make the artifact environment-specific")
 end
 
-def jobs_running(step_name)
-  @cd.jobs.each_key.select { |job| @cd.steps_of(job).any? { |step| step["name"] == step_name } }
-end
-
-def assert_reset_and_its_job_share_one_selector(job)
-  step = @cd.steps_of(job).find { |candidate| candidate["name"] == RESET_STEP }
-  @log.unless_true(@cd.dig("jobs", job, "if").to_s.include?(MIGRATIONS_SELECTOR),
-                   "cd.yml:#{job}: the schema reset must live in a job a schema change selects " \
-                   "(#{MIGRATIONS_SELECTOR})")
-  @log.unless_true(step["if"].to_s.include?(MIGRATIONS_SELECTOR),
-                   "cd.yml:#{job}: the schema reset must not fire on a push carrying no schema change")
-end
-
-def assert_reset_precedes_the_chain_apply(job)
-  apply = step_index(job, MIGRATE_STAGING)
-  @log.unless_true(!apply.nil? && apply > step_index(job, RESET_STEP),
-                   "cd.yml:#{job}: the schema reset must run before `#{MIGRATE_STAGING}` in the " \
-                   "same job — after it, the reset drops the schema the migrator just applied")
-end
-
-def assert_reset_runs_the_checkout_copy(job)
-  run = @cd.steps_of(job)[step_index(job, RESET_STEP)]["run"].to_s
-  @log.unless_true(run.include?(RESET_SCRIPT) && !run.include?("release/"),
-                   "cd.yml:#{job}: the schema reset must run `#{RESET_SCRIPT}` from the checkout — " \
-                   "the sealed `release/foundation/` copy is built only on an `infra` push, so on a " \
-                   "migrations-only one that path does not exist")
-end
-
-def assert_the_schema_reset_pairs_with_a_migration
-  jobs = jobs_running(RESET_STEP)
-  @log.unless_true(!jobs.empty?, "cd.yml: no job runs the #{RESET_STEP.inspect} step any more")
-  jobs.each do |job|
-    assert_reset_and_its_job_share_one_selector(job)
-    assert_reset_precedes_the_chain_apply(job)
-    assert_reset_runs_the_checkout_copy(job)
-  end
-end
-
 ASSERTIONS = %i[
   assert_push_to_main_is_the_only_trigger assert_one_build_one_artifact
   assert_every_stage_downloads_the_artifact assert_production_never_rebuilds
   assert_build_installs_pulumi_before_sealing assert_skip_propagation
   assert_stages_run_only_on_a_built_artifact assert_plan_guards assert_immutable_pairs
   assert_delivery_concurrency assert_environments assert_no_build_time_environment_values
-  assert_the_schema_reset_pairs_with_a_migration
 ].freeze
 
 def main
