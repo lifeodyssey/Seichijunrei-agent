@@ -374,7 +374,9 @@ made. That split is why the task can be tested with a fake fetch at all.
 **One door.** Every staging request goes through `workers/edge/api-test/lane-origin.ts`
 (`laneFetch`), which is why `edge-worker` is a devDependency here. It is the single module
 that resolves `CATALOG_API_ORIGIN`, refuses a non-loopback origin that is not HTTPS, attaches
-`x-staging-key`, and forbids following a redirect (#1291, #1294). Reimplementing those four
+`x-staging-key` **and the Cloudflare Access service token** (`CF-Access-Client-Id` /
+`CF-Access-Client-Secret`, D3 #1369 — this package therefore needs no Access code of its own,
+only the two variables in its environment), and forbids following a redirect (#1291, #1294). Reimplementing those four
 rules would be three places for one of them to be forgotten, and the request that forgot is the
 one that carries a bearer to wherever a `Location` header pointed. Neon Auth is a **different**
 origin behind no WAF rule, so `neon-auth-bearer.ts` takes an injected sender and never reads the
@@ -419,7 +421,8 @@ send. Its `steps` restate each call's arguments as the settled params, because t
 recorder had: `record_fixtures.py` declares ONE `params` per replayed call and writes it as the
 frame's `args`, so a capture cannot witness a divergence — the oracle's two settled-params
 scenarios are where that branch is measured. **Unverified:** no capture has been taken from a live staging turn yet; there was no
-`STAGING_GATE_TOKEN` in reach when this landed. `scripts/record-captures.sh` is how that
+`STAGING_GATE_TOKEN` in reach when this landed. A run against staging now also needs
+`CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` — both or neither. `scripts/record-captures.sh` is how that
 changes, and the shaper needing an edit afterwards is itself the finding.
 
 **Why `lib` includes `DOM`.** `tsconfig.json` compiles the shared door, which is written against

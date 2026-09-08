@@ -7,6 +7,7 @@ import "./src/buckets.ts"
 import "./src/web-routes.ts"
 import "./src/hardening.ts"
 import "./src/staging.ts"
+import "./src/staging-access.ts"
 
 import { config } from "./src/config.ts"
 import {
@@ -23,6 +24,8 @@ export {
   catalogBucketName,
   tilesBucketName,
   snapshotBucketName,
+  stagingAccessClientId,
+  stagingAccessClientSecret,
 } from "./src/outputs.ts"
 
 // ── Neon Auth staging declarations (AUTH-2 #950) ─────────────────────────────

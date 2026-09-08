@@ -188,6 +188,9 @@ importers:
 
   e2e:
     devDependencies:
+      '@animichi/contract':
+        specifier: workspace:*
+        version: link:../packages/contract
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.62.0)

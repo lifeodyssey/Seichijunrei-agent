@@ -11,6 +11,7 @@
     "test:perf-mobile-cold": "playwright test web-splash.spec.ts web-map-spike.spec.ts --grep @perf-mobile-cold"
   },
   "devDependencies": {
+    "@animichi/contract": "workspace:*",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.1",

@@ -25,8 +25,14 @@ import { fileURLToPath } from "node:url";
 
 const PACKAGE_DIR = new URL("../", import.meta.url);
 
-/** The environment the door owns; nothing here may read one for itself. */
-const DOOR_ENVIRONMENT = /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|STAGING_GATE_TOKEN)/;
+/** The environment the door owns; nothing here may read one for itself.
+ *
+ * The two Cloudflare Access names joined the list with D3 (#1369) and belong to
+ * the door for the same reason the gate token does: a script that read them
+ * itself would decide alone whether to send the pair, and half a service token
+ * is answered by an Access login page that reads as a broken app. */
+const DOOR_ENVIRONMENT =
+  /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|STAGING_GATE_TOKEN|CF_ACCESS_CLIENT_ID|CF_ACCESS_CLIENT_SECRET)/;
 
 /** The one import that reaches staging. */
 const DOOR_IMPORT = 'from "edge-worker/api-test/lane-origin.ts"';

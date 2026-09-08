@@ -142,6 +142,29 @@ decision (not a delete) — `ZETA_API_KEY`'s retirement was already decided in #
 Mapbox needs a provider-side revocation check, and only `CLAUDE_CODE_OAUTH_TOKEN` is safe to
 delete immediately.
 
+## Staging access: the Cloudflare Access service token (D3 #1369)
+
+Its own section, not a row in the two tables above, because the tables are the GitHub-secret
+inventory `test_secrets_docs_consistency.py` keeps honest: it derives its required set from
+`${{ secrets.X }}` references and `CONTAINER_ENV_KEYS`, and these two names appear in neither.
+They were never GitHub secrets and never will be.
+
+| ESC key | Scope | What it is | Source | Read by | Rotation |
+|---|---|---|---|---|---|
+| `CF_ACCESS_CLIENT_ID` | `environmentVariables` of `lifeodyssey/animichi/staging` only | The public half of the Cloudflare Access service token; Access matches it in the `CF-Access-Client-Id` header | Stack output `stagingAccessClientId` of `seichijunrei-infra`/`staging` (`infra/src/staging-access.ts`), imported by the environment's `pulumi-stacks` provider | CI: `pulumi/esc-action` in `cd.yml`'s `smoke` job (from PR 2). Local: `esc env open`. In code: `packages/contract/src/access-service-token.ts`, read by `.github/scripts/staging-smoke-check.sh`, `e2e/playwright.config.ts` and `workers/edge/api-test/lane-origin.ts` | Bump `clientSecretVersion` on the Pulumi resource; ESC re-reads the output on the next open. Never rotated by time |
+| `CF_ACCESS_CLIENT_SECRET` | same | The secret half, matched in the `CF-Access-Client-Secret` header | Stack output `stagingAccessClientSecret`, sealed with `pulumi.secret` so it is ciphertext in Pulumi Cloud state | same | same |
+
+Production has neither key: it has no Access application. The two are useless apart — Access
+answers a request carrying one of them exactly as it answers one carrying neither, so every
+consumer refuses a half-declared pair by name rather than sending a request that comes back
+looking like a broken deploy.
+
+**Failure modes.** A wrong or revoked value locks CI, the browser lane and every local staging
+lane out of staging at once (they answer with the Access login page, not a 4xx from the app);
+production is unaffected. Renaming either stack output silently empties the ESC key — ESC
+imports an unresolvable output as nothing — which is why `infra/topology-staging.test.ts` pins
+both names.
+
 ## Cloudflare Secrets Store (not GitHub secrets)
 
 #912 PR2 moved the per-component Neon DSNs out of GitHub secrets and into the **Cloudflare

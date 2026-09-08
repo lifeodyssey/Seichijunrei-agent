@@ -1,6 +1,6 @@
 /**
- * W2 (#1294): the staging gate header and the redirect rule, as the door
- * actually applies them.
+ * W2 (#1294) and D3 (#1369): the staging credentials and the redirect rule, as
+ * the door actually applies them.
  *
  * `web-search-lane.test.ts` reads the lanes verbatim — that is what catches a
  * NEW lane forgetting the door — but reading source can only ever prove the
@@ -18,19 +18,34 @@ import assert from "node:assert/strict";
 import { laneFetch, laneHeaders } from "../api-test/lane-origin.ts";
 
 const SENTINEL = "not-a-real-gate-token";
+const ACCESS_ID = "not-a-real-client-id";
+const ACCESS_SECRET = "not-a-real-client-secret";
 const STAGING = "https://staging.invalid";
 const LOOPBACK = "http://localhost:8787";
 
-/** Point the door at a deployed origin behind the gate. */
+/** Declare a complete Cloudflare Access service token, or none at all. */
+function useAccessToken(declared: boolean): void {
+  if (!declared) {
+    delete process.env.CF_ACCESS_CLIENT_ID;
+    delete process.env.CF_ACCESS_CLIENT_SECRET;
+    return;
+  }
+  process.env.CF_ACCESS_CLIENT_ID = ACCESS_ID;
+  process.env.CF_ACCESS_CLIENT_SECRET = ACCESS_SECRET;
+}
+
+/** Point the door at a deployed origin behind the gate and Access. */
 function useStagingOrigin(): void {
   process.env.CATALOG_API_ORIGIN = STAGING;
   process.env.STAGING_GATE_TOKEN = SENTINEL;
+  useAccessToken(true);
 }
 
-/** Point the door at a local `wrangler dev`, which is behind no gate. */
+/** Point the door at a local `wrangler dev`, which is behind neither door. */
 function useLoopbackOrigin(): void {
   process.env.CATALOG_API_ORIGIN = LOOPBACK;
   process.env.STAGING_GATE_TOKEN = SENTINEL;
+  useAccessToken(true);
 }
 
 void test("every request the door builds for staging carries the gate header", () => {
@@ -55,7 +70,46 @@ void test("a caller cannot substitute its own gate credential", () => {
 void test("a local dev origin is never handed the staging credential", () => {
   useLoopbackOrigin();
   assert.equal(laneHeaders().get("x-staging-key"), null);
+  assert.equal(laneHeaders().get("cf-access-client-id"), null);
+  assert.equal(laneHeaders().get("cf-access-client-secret"), null);
   assert.equal(laneHeaders({ "x-locale": "ja" }).get("x-locale"), "ja");
+});
+
+void test("every request the door builds for staging carries the Access service token", () => {
+  // D3 #1369. Both halves or neither: Access answers a one-header request with a
+  // 302 to its login page, which arrives as an HTML body where the lane expected
+  // JSON and reads as a broken deploy.
+  useStagingOrigin();
+  assert.deepEqual(
+    ["cf-access-client-id", "cf-access-client-secret"].map((name) => laneHeaders().get(name)),
+    [ACCESS_ID, ACCESS_SECRET],
+  );
+});
+
+void test("a caller cannot substitute its own Access credential", () => {
+  useStagingOrigin();
+  const headers = laneHeaders({ "CF-Access-Client-Id": "someone-elses" });
+  assert.equal(headers.get("cf-access-client-id"), ACCESS_ID);
+});
+
+void test("no Access token declared is the ordinary case, not a refusal", () => {
+  // The transitional state PR 1 ships in and the permanent state of any origin
+  // that is not behind an Access application: the door still works, it just has
+  // nothing to present.
+  useStagingOrigin();
+  useAccessToken(false);
+  assert.equal(laneHeaders().get("cf-access-client-id"), null);
+  assert.equal(laneHeaders().get("x-staging-key"), SENTINEL);
+});
+
+void test("half an Access token is refused before the request is built", () => {
+  useStagingOrigin();
+  useAccessToken(false);
+  process.env.CF_ACCESS_CLIENT_ID = ACCESS_ID;
+  assert.throws(() => laneHeaders(), /CF_ACCESS_CLIENT_SECRET/);
+  useAccessToken(false);
+  process.env.CF_ACCESS_CLIENT_SECRET = ACCESS_SECRET;
+  assert.throws(() => laneHeaders(), /CF_ACCESS_CLIENT_ID/);
 });
 
 /** One scripted answer: a redirect to `location`, or a terminal status. */

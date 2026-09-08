@@ -6,6 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import * as pulumi from "@pulumi/pulumi";
 import { buildStack, only, ofType, unseal, type Built } from "./testing/harness.ts";
 
 const built: Built[] = await buildStack("staging", {
@@ -24,6 +25,7 @@ const DNS = "cloudflare:index/dnsRecord:DnsRecord";
 const RULESET = "cloudflare:index/ruleset:Ruleset";
 const ZONE_DNSSEC = "cloudflare:index/zoneDnssec:ZoneDnssec";
 const ZONE_SETTING = "cloudflare:index/zoneSetting:ZoneSetting";
+const SERVICE_TOKEN = "cloudflare:index/zeroTrustAccessServiceToken:ZeroTrustAccessServiceToken";
 
 test("staging targets the stack-suffixed Workers, not the production ones", () => {
   const domain = only(built, CUSTOM_DOMAIN);
@@ -143,4 +145,39 @@ test("staging buckets are isolated from production and stay private", () => {
   assert.equal(buckets.every((bucket) => bucket.inputs.accountId === "acct"), true);
   const customDomains = ofType(built, "cloudflare:index/r2CustomDomain:R2CustomDomain");
   assert.deepEqual(customDomains, []);
+});
+
+test("staging mints the one Access service token CI presents at the front door", () => {
+  // D3 #1369 PR 1. The Cloudflare-side `name` is what an operator matches in the
+  // Zero Trust dashboard when revoking, and the resource name is what Pulumi
+  // matches in state — renaming either is a delete-and-recreate that silently
+  // invalidates every caller's headers, so both are pinned.
+  const token = only(built, SERVICE_TOKEN);
+  assert.equal(token.name, "staging-ci");
+  assert.equal(token.inputs.name, "animichi-staging-ci");
+  assert.equal(token.inputs.accountId, "acct");
+  assert.equal(token.inputs.duration, "8760h");
+});
+
+test("the token's two halves are exported under the names ESC imports", async () => {
+  // Pulumi ESC's `pulumi-stacks` provider reads stack outputs BY NAME, and a
+  // name it cannot resolve imports as empty rather than failing. So a rename
+  // here would leave `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` blank in
+  // `lifeodyssey/animichi/staging` and every automated caller locked out with no
+  // red anywhere. These two names are the wiring contract.
+  const program = (await import("./index.ts")) as Record<string, unknown>;
+  assert.ok(program.stagingAccessClientId, "ESC imports stagingAccessClientId");
+  assert.ok(program.stagingAccessClientSecret, "ESC imports stagingAccessClientSecret");
+});
+
+test("the client secret is sealed before it reaches state, and the id is not", async () => {
+  // Same invariant, and same reason, as the WAF gate expression above: this
+  // repository is public and an unsealed value comes back in the clear from any
+  // operator `pulumi stack export`. The id is the control — if `isSecret`
+  // reported everything sealed, the first assertion would pass on any code.
+  const program = (await import("./index.ts")) as Record<string, unknown>;
+  const secret = program.stagingAccessClientSecret as pulumi.Output<string>;
+  const id = program.stagingAccessClientId as pulumi.Output<string>;
+  assert.equal(await pulumi.isSecret(secret), true);
+  assert.equal(await pulumi.isSecret(id), false);
 });

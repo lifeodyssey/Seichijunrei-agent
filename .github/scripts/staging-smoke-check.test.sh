@@ -2,14 +2,18 @@
 # Behavior tests for the staging smoke check (#1198 park lifted by owner decision,
 # docs/specs/2026-08-26-system-health-audit.md §6.3): the script must fail closed on a
 # broken healthz, a broken SSR shell, or a status that never recovers, and must retry
-# through the deploy-propagation window before giving up. A `curl` stub stands in for the
-# network so the behavior is asserted without reaching a real staging host.
+# through the deploy-propagation window before giving up, and it must present the
+# Cloudflare Access service token when one is declared and refuse half of one (D3 #1369).
+# A `curl` stub stands in for the network so the behavior is asserted without reaching a
+# real staging host; it also records its own argv, which is how the header assertions read
+# what the probe actually sent.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCRIPT="$ROOT/.github/scripts/staging-smoke-check.sh"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+LAST_STATE_DIR=""
+trap 'rm -rf "$TMP" "$LAST_STATE_DIR"' EXIT
 
 fail=0
 mkdir -p "$TMP/bin"
@@ -20,6 +24,7 @@ cat > "$TMP/bin/curl" <<'STUB'
 set -euo pipefail
 url="${*: -1}"
 state_dir="${STUB_STATE_DIR:?}"
+printf '%s\n' "$*" >> "$state_dir/argv"
 if [[ "$url" == */healthz ]]; then
   name=healthz
   mode="${STUB_HEALTHZ_MODE:-ok}"
@@ -51,18 +56,36 @@ esac
 STUB
 chmod +x "$TMP/bin/curl"
 
+# `LAST_STATE_DIR` (declared above, beside the EXIT trap that removes it) holds
+# the state dir of the most recent `run`, so a case can read the argv the stub
+# recorded. `env -u` makes every case hermetic: an operator with a real Access
+# token exported would otherwise change what the "no token" cases assert.
 run() { # run <label> <want-exit> [env...]
   local label="$1" want="$2"; shift 2
-  local state_dir out rc
-  state_dir="$(mktemp -d)"
-  out="$(env "$@" STUB_STATE_DIR="$state_dir" PATH="$TMP/bin:$PATH" \
+  local out rc
+  rm -rf "$LAST_STATE_DIR"
+  LAST_STATE_DIR="$(mktemp -d)"
+  out="$(env -u CF_ACCESS_CLIENT_ID -u CF_ACCESS_CLIENT_SECRET "$@" \
+    STUB_STATE_DIR="$LAST_STATE_DIR" PATH="$TMP/bin:$PATH" \
     bash "$SCRIPT" https://staging.example.test 2>&1)" && rc=0 || rc=$?
-  rm -rf "$state_dir"
   if [ "$rc" -eq "$want" ]; then
     printf 'PASS %-60s exit=%s\n' "$label" "$rc"
   else
     fail=$((fail + 1))
     printf 'FAIL %-60s want=%s got=%s\n%s\n' "$label" "$want" "$rc" "$out"
+  fi
+}
+
+sent_headers() { cat "$LAST_STATE_DIR/argv" 2>/dev/null || true; }
+
+expect_sent() { # expect_sent <label> <want-present:0|1> <pattern>
+  local label="$1" want="$2" pattern="$3" present=0
+  grep -q -- "$pattern" <<<"$(sent_headers)" && present=1
+  if [ "$present" -eq "$want" ]; then
+    printf 'PASS %-60s\n' "$label"
+  else
+    fail=$((fail + 1))
+    printf 'FAIL %-60s want-present=%s got=%s\n%s\n' "$label" "$want" "$present" "$(sent_headers)"
   fi
 }
 
@@ -87,6 +110,24 @@ run "a healthz that recovers within the retry budget passes" 0 \
   SMOKE_ATTEMPTS=2 SMOKE_RETRY_DELAY=0 STUB_HEALTHZ_RETRY_UNTIL=1
 run "a healthz that never recovers fails after the attempt budget is spent" 1 \
   SMOKE_ATTEMPTS=2 SMOKE_RETRY_DELAY=0 STUB_HEALTHZ_RETRY_UNTIL=999
+
+echo
+echo "=== the Cloudflare Access service token (D3 #1369) ==="
+run "a declared service token still passes a healthy cohort" 0 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 \
+  CF_ACCESS_CLIENT_ID=id.access CF_ACCESS_CLIENT_SECRET=not-a-real-secret
+expect_sent "the client id header rides on every probe" 1 "CF-Access-Client-Id: id.access"
+expect_sent "the client secret header rides with it" 1 "CF-Access-Client-Secret: not-a-real-secret"
+
+run "no declared token is the ordinary case, not a failure" 0 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0
+expect_sent "an undeclared token sends no Access header at all" 0 "CF-Access-Client-"
+
+run "only the client id declared fails closed" 1 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 CF_ACCESS_CLIENT_ID=id.access
+expect_sent "and sends nothing, rather than half a token" 0 "CF-Access-Client-"
+run "only the client secret declared fails closed" 1 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 CF_ACCESS_CLIENT_SECRET=not-a-real-secret
 
 echo
 if [ "$fail" -eq 0 ]; then
