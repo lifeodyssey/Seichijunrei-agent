@@ -5,6 +5,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { ChatTurnRequest } from "@animichi/contract";
 import { chatDictFor } from "../../../src/features/chat/i18n";
+import { chatTurnsAnswered } from "../../msw/chat-answered";
 import {
   chatConflictHandler,
   chatStreamPatchedHandler,
@@ -41,15 +42,42 @@ interface SentTurn {
   readonly body: Promise<PickBody>;
 }
 
+interface ReadTurn {
+  readonly turnId: string | null;
+  readonly body: PickBody;
+}
+
 function recordInto(sent: SentTurn[]) {
   return (request: Request) => {
     sent.push({ turnId: request.headers.get("x-turn-id"), body: request.clone().json() as Promise<PickBody> });
   };
 }
 
+/** The turns that left the browser, read back by the channel each rode — the
+ * typed query or the structured pick — rather than by position, so a turn this
+ * case never asked about cannot silently re-index its assertions (#1503). */
+async function turnsByChannel(sent: readonly SentTurn[]) {
+  const read: ReadTurn[] = await Promise.all(
+    sent.map(async (turn) => ({ turnId: turn.turnId, body: await turn.body })),
+  );
+  return {
+    typed: read.filter((turn) => turn.body.clarification_id === undefined),
+    picks: read.filter((turn) => turn.body.clarification_id !== undefined),
+  };
+}
+
+/** Press a control that starts a turn, and wait for that turn to be answered. */
+async function pressAndAwaitTurn(control: HTMLElement): Promise<void> {
+  const answered = chatTurnsAnswered();
+  fireEvent.click(control);
+  await answered;
+}
+
 async function openClarify(sent: SentTurn[]) {
   server.use(chatStreamPatchedHandler("clarify", clarifyCandidatesPatch, { spy: recordInto(sent) }));
+  const answered = chatTurnsAnswered();
   renderChatPage(chatSearch({ q: "ハルヒ" }));
+  await answered;
   return await screen.findByRole("button", { name: HARUHI_LABEL });
 }
 
@@ -58,13 +86,14 @@ describe("clarify → pick → results (W1 #1220, MSW seam)", () => {
     const sent: SentTurn[] = [];
     const option = await openClarify(sent);
     server.use(chatStreamPatchedHandler("search", searchResultsPatch, { spy: recordInto(sent) }));
-    fireEvent.click(option);
+    await pressAndAwaitTurn(option);
     await screen.findByText("宇治橋");
-    const pick = await sent[1]?.body;
-    expect(pick?.selected_candidate_ids).toEqual(["115908"]);
-    expect(pick?.clarification_id).toBe(4);
-    expect(sent[1]?.turnId).toBeTruthy();
-    expect(sent[1]?.turnId).not.toBe(sent[0]?.turnId);
+    const { typed, picks } = await turnsByChannel(sent);
+    expect(picks).toHaveLength(1);
+    expect(picks[0]?.body.selected_candidate_ids).toEqual(["115908"]);
+    expect(picks[0]?.body.clarification_id).toBe(4);
+    expect(picks[0]?.turnId).toBeTruthy();
+    expect(typed.map((turn) => turn.turnId)).not.toContain(picks[0]?.turnId);
     // The pick still reads as the visitor's own bubble (button + bubble).
     expect(screen.getAllByText(HARUHI_LABEL).length).toBeGreaterThan(1);
   });
@@ -74,18 +103,19 @@ describe("clarify → pick → results (W1 #1220, MSW seam)", () => {
     const option = await openClarify(sent);
     server.use(chatStreamPatchedHandler("search", searchResultsPatch, { spy: recordInto(sent) }));
     server.use(chatConflictHandler("turn_in_flight", { once: true, spy: recordInto(sent) }));
-    fireEvent.click(option);
+    await pressAndAwaitTurn(option);
     await screen.findByText(en.errorStates.d15Message);
     expect(screen.queryByText(en.errorStates.d4Message)).toBeNull();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: HARUHI_LABEL }).getAttribute("data-state")).toBe("available");
     });
-    fireEvent.click(screen.getByRole("button", { name: en.errorStates.d15Retry }));
+    await pressAndAwaitTurn(screen.getByRole("button", { name: en.errorStates.d15Retry }));
     await screen.findByText("宇治橋");
-    const retried = await sent[2]?.body;
-    expect(retried?.selected_candidate_ids).toEqual(["115908"]);
-    expect(retried?.clarification_id).toBe(4);
-    expect(sent[2]?.turnId).toBe(sent[1]?.turnId);
+    const { picks } = await turnsByChannel(sent);
+    expect(picks).toHaveLength(2);
+    expect(picks[1]?.body.selected_candidate_ids).toEqual(["115908"]);
+    expect(picks[1]?.body.clarification_id).toBe(4);
+    expect(picks[1]?.turnId).toBe(picks[0]?.turnId);
   });
 
   it("shows the conflict copy on a stale-revision 409 and its retry re-reads state", async () => {
@@ -93,12 +123,12 @@ describe("clarify → pick → results (W1 #1220, MSW seam)", () => {
     const option = await openClarify(sent);
     server.use(chatStreamPatchedHandler("search", searchResultsPatch, { spy: recordInto(sent) }));
     server.use(chatConflictHandler("stale_revision", { once: true, spy: recordInto(sent) }));
-    fireEvent.click(option);
+    await pressAndAwaitTurn(option);
     await screen.findByText(en.errorStates.d16Message);
     expect(screen.queryByText(en.errorStates.d4Message)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: en.errorStates.d16Retry }));
     // No persisted session in the recordings, so re-reading state degrades to
     // regenerating the turn — either way a THIRD request leaves the browser.
-    await waitFor(() => { expect(sent).toHaveLength(3); });
+    await pressAndAwaitTurn(screen.getByRole("button", { name: en.errorStates.d16Retry }));
+    expect(sent).toHaveLength(3);
   });
 });

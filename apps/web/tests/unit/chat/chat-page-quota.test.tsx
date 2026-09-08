@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { QUOTA_BANNER_ID } from "../../../src/features/chat/components/ErrorStates/QuotaExhausted";
 import { chatDictFor } from "../../../src/features/chat/i18n";
 import { setLanguages } from "../_i18n";
+import { chatTurnsAnswered } from "../../msw/chat-answered";
 import {
   chatQuotaExhaustedHandler,
   chatStreamHandler,
@@ -40,8 +41,13 @@ function sendText(text: string) {
 
 async function exhaustQuota(resetsAt?: string) {
   server.use(chatQuotaExhaustedHandler(resetsAt));
+  const rejected = chatTurnsAnswered();
   renderChatPage();
   sendText("ユーフォ");
+  // Wait on the rejection actually being served, not on a wall clock: under a
+  // loaded runner the turn can leave the browser later than any `findBy*`
+  // budget, and abandoning it mid-flight leaks it into the next case (#1503).
+  await rejected;
   // The live region mounts empty and is filled once the rejection lands, so
   // waiting on `role="status"` alone returns before the notice has any copy.
   // The login CTA only exists inside the rendered quota banner.
