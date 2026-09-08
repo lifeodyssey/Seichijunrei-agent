@@ -867,12 +867,7 @@ jobs:
       # (workers/migrator/src/policy.ts); a staging token cannot open it.
       - name: Refuse a staging-only baseline before production migrates
         if: ${{ needs.plan.outputs.migrations == 'true' }}
-        run: |
-          set -euo pipefail
-          if [ -f release/migrations/STAGING_ONLY_BASELINE ]; then
-            echo "::error::staging-only baseline requires a separately approved production cutover"
-            exit 1
-          fi
+        run: bash infra/database-access/production-baseline-guard.sh release/migrations/STAGING_ONLY_BASELINE
       - name: Deploy the migrator Worker
         if: ${{ contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true' }}
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0

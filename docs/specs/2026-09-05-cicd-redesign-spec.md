@@ -273,7 +273,7 @@ jobs:
 | `workers/edge/test/auth-config.test.ts:99-107` | 三个部署文件里不得出现 `secrets.NEON_AUTH_JWKS_URL` / `secrets.CORS_ALLOWED_ORIGIN`（#1047） | C1 | 保留；只把 `paths` 缩成新的 `cd.yml`（两个 composite 没了）。`:57-66` 钉 staging var 与 production 不设的两条不动 |
 | `workers/edge/test/migrator-role-isolation.test.ts:51` | `cd.yml` + `promote-release-phase` 的角色隔离 | C3 | 改读 `workers/migrator/wrangler.toml` 的 Secrets Store 绑定 |
 | `packages/contract/test/oidc-github.helpers.ts` / `oidc-github.allowlist.test.ts` | 不读 workflow 文本，只是 claim 夹具：`workflow_ref` 的反例字符串 `evil.yml`、`other.yml`、`ci.yml`、`cd.yml@refs/heads/feature`（`oidc-github.allowlist.test.ts:61-82`）恰好匹配 `\.github/workflows` | — | 保留：反例需要这些字符串。不让 contract 去读 `workers/migrator/src/policy.ts`——那会把依赖方向反过来（contract 是被 migrator 依赖的一方） |
-| `apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py` | `docs/ops/secrets.md` | E2 | 随 secrets.md 重写同 PR 改 |
+| `apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py` | `docs/ops/secrets.md` | E3 | 整个文件删（owner 2026-09-08 定「删掉呗」，改归 E3 而非 E2）；secrets.md 同 PR 重写为「无自动守卫」，两条断言降级为人工在同一 commit 维护的纪律 |
 
 规则：断言流水线形状的删；断言运行时契约（密钥名、identity policy、镜像 tag、OIDC allowlist）的改读它守的那个源文件（ARCH-09 与审计 A1 的方向）。表外若还有，E3 扫尾时按同一规则归类，owner 确认（§七 #20）。
 
@@ -419,7 +419,7 @@ D4 验收：
 | 卡 | 范围 | needs |
 |---|---|---|
 | E1 → #1371 本地门禁 | `.pre-commit-config.yaml`：加两个 shebang hook、commitlint hook；`pre-push-affected.sh`（§3.2 的设计，含白名单常量与 docs 桶）；`make check-full`；删 §4.2 `scripts/local-gates` 清单；`docs/ops/local-gates.md` 重写 | B0、B1、B5 |
-| E2 → #1372 残余删除与文档 | `.github/scripts` 残余（`database-access-adopt.sh`、`fixtures/`）、`.claude/rules/ci.md`（ARCH-10：它写的 `ci.yml` / `deploy.yml` / `reusable-*.yml` 从未存在）、`AGENTS.md`（`commit-message.py` 那段、harness 段的 gate 描述）、`docs/ops/deployment.md`（`:48-50,334-335,406` 仍说自动 smoke 是"deferred technical debt"，与 `post-staging` 实况相反）、`docs/ops/secrets.md`（+ `test_secrets_docs_consistency.py`）、`docs/DOCS_POLICY.md`、`docs/adr/0004` 的 "rebase-merge" | D1、D3 |
+| E2 → #1372 残余删除与文档 | `.github/scripts` 残余（`database-access-adopt.sh`、`fixtures/`）、`.claude/rules/ci.md`（ARCH-10：它写的 `ci.yml` / `deploy.yml` / `reusable-*.yml` 从未存在）、`AGENTS.md`（`commit-message.py` 那段、harness 段的 gate 描述）、`docs/ops/deployment.md`（`:48-50,334-335,406` 仍说自动 smoke 是"deferred technical debt"，与 `post-staging` 实况相反）、`docs/ops/secrets.md`（守卫测试已随 E3 删）、`docs/DOCS_POLICY.md`、`docs/adr/0004` 的 "rebase-merge" | D1、D3 |
 | E3 → #1373 包内 workflow 文本测试扫尾 | §4.2 表以外的残余按同一规则删或改读源文件 | C3、D3、E2 |
 | E4 → #1374 issue 收尾 | 见 5.1 表 | 全部 |
 
@@ -434,7 +434,7 @@ E2 验收：
 - [ ] **(api)** `git ls-files .github/scripts` 只剩 `staging-smoke-check.sh` 与 `staging-smoke-check.test.sh`；`git ls-files scripts/local-gates` 含三个 `check-*.sh` 及其测试；`grep -c "reusable-\*\.yml\|deploy\.yml" .claude/rules/ci.md` 为 0；`grep -c "deferred technical debt" docs/ops/deployment.md` 为 0；`grep -c "commit-message.py" AGENTS.md` 为 0。
 
 E3 验收：
-- [ ] **(api)** `grep -rln "\.github/workflows\|components\.json\|pr-verification-gate" apps workers packages infra e2e --include='*.ts' --include='*.py'` 只剩 `workers/edge/test/auth-config.test.ts`（按 #1047 读新 `cd.yml`）、`workers/edge/test/migration-boundary.test.ts`（边界那半读新 `cd.yml`）、`workers/migrator/src/policy.ts`（`TRUSTED_CD_WORKFLOW` 常量里的 workflow 路径，不是注释）、C3 为它新增的测试文件（`workers/migrator/test/policy.test.ts`，同一常量的正反用例）、`packages/contract/test/oidc-github.helpers.ts` 与 `oidc-github.allowlist.test.ts`（claim 夹具，§4.2 表）；`workers/edge/src/staging-gate/policy.ts` 已随 D3 删，`test_secrets_docs_consistency.py` 已随 E2 改。
+- [ ] **(api)** `grep -rln "\.github/workflows\|components\.json\|pr-verification-gate" apps workers packages infra e2e --include='*.ts' --include='*.py'` 只剩 `workers/edge/test/auth-config.test.ts`（按 #1047 读新 `cd.yml`）、`workers/edge/test/migration-boundary.test.ts`（边界那半读新 `cd.yml`）、`workers/migrator/src/policy.ts`（`TRUSTED_CD_WORKFLOW` 常量里的 workflow 路径，不是注释）、C3 为它新增的测试文件（`workers/migrator/test/policy.test.ts`，同一常量的正反用例）、`packages/contract/test/oidc-github.helpers.ts` 与 `oidc-github.allowlist.test.ts`（claim 夹具，§4.2 表）；`workers/edge/src/staging-gate/policy.ts` 已随 D3 删，`test_secrets_docs_consistency.py` 已随 E3 整个删除（owner 2026-09-08 定「删掉呗」，不是改写；secrets.md 的守卫改为人工纪律）。
 
 E4 验收：
 - [ ] **(api)** 5.1 表里标"关闭"的每个 issue `gh issue view <n> --json state` 为 `CLOSED`，关闭评论引用本文与对应卡的 PR；标"owner 确认"的各有一条 owner 评论。

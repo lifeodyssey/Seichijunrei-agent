@@ -47,12 +47,6 @@ void test("no runtime worker wrangler.toml binds the migrator DSN", () => {
   }
 });
 
-void test("no deploy workflow ferries the migrator DSN as a worker secret", () => {
-  for (const workflow of [".github/workflows/cd.yml"]) {
-    assert.doesNotMatch(read(workflow), migratorSecretRegex, `${workflow} must not upload MIGRATOR_DATABASE_URL as a worker secret`);
-  }
-});
-
 // #1365 — the negative assertion above only means something while the DSN
 // actually arrives the other way. Every deployed migrator environment must bind
 // it from the Secrets Store, and the two environments must bind DIFFERENT store

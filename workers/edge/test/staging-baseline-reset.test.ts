@@ -81,19 +81,6 @@ void test("the reset SQL runs as a single transaction", () => {
   assert.match(sh, /staging_psql neondb_owner -1 -v ON_ERROR_STOP=1 -f "\$RESET_SQL"/);
 });
 
-// audit §2.6: the shared reset script fired on every foundation promotion regardless of
-// whether the push touched the schema. #1364 moved that narrowing out of the retired
-// promotion script and into the step's own `if:` — the reset runs only when this push
-// carries a migrations/neon change, and only against staging.
-void test("the reset trigger is narrowed to pushes that change the schema", () => {
-  const cd = read(".github/workflows/cd.yml");
-  assert.match(
-    cd,
-    /Reset the staging schema baseline\n\s*if: \$\{\{ needs\.plan\.outputs\.migrations == 'true' \}\}/,
-  );
-  assert.doesNotMatch(cd, /promote-production:[\s\S]*reset-staging-baseline\.sh/);
-});
-
 void test("reset SQL has one exact destructive target", () => {
   const sql = read("infra/database-access/reset-staging-baseline.sql");
   assert.match(sql, /DROP SCHEMA IF EXISTS public CASCADE/);
@@ -102,32 +89,24 @@ void test("reset SQL has one exact destructive target", () => {
   assert.doesNotMatch(sql, /DROP DATABASE|DROP ROLE|production/i);
 });
 
-void test("CD resets only staging and blocks production baseline SQL", () => {
-  const cd = read(".github/workflows/cd.yml");
-  const production = cd.slice(cd.indexOf("promote-production:"));
-  assert.match(cd, /reset-staging-baseline\.sh/);
-  assert.doesNotMatch(production, /reset-staging-baseline\.sh/);
-  assert.match(production, /STAGING_ONLY_BASELINE/);
-  assert.match(production, /staging-only baseline requires a separately approved production cutover/);
-});
-
-// The assertions above only prove the message is present in the file. A stray
-// `+` shipped on this branch left them all green while turning the guard into
-// `+: command not found`, so these run the shipped lines against a real payload.
-const productionGuard = (): string => {
-  const lines = read(".github/workflows/cd.yml").split("\n");
-  const at = lines.findIndex((line) => line.includes("release/migrations/STAGING_ONLY_BASELINE"));
-  assert.notEqual(at, -1, "CD must guard production on the staging-only marker");
-  const end = lines.findIndex((line, index) => index > at && line.trim() === "fi");
-  assert.notEqual(end, -1, "the marker guard must be a closed if-block");
-  return lines.slice(at, end + 1).map((line) => line.trimStart()).join("\n");
-};
+// A stray `+` once turned this guard into `+: command not found` while every
+// text assertion about it stayed green, so the shipped script is executed
+// against a real payload rather than read. This file owns the guard's
+// BEHAVIOUR only. That CD still reaches it is the other half, and it lives
+// where the workflow does: `test_cd_publish_contract.rb` pins that this script
+// exists, that a `promote-production` step's `run` BEGINS with
+// `bash <this script> <this marker>` (a mere mention of the marker path is not
+// a run — an `echo` of it once satisfied a substring search), and that the step
+// precedes the production migration. The two constants below are that contract's
+// two halves, restated here because this test executes them.
+const PRODUCTION_GUARD = `${ROOT}infra/database-access/production-baseline-guard.sh`;
+const BASELINE_MARKER = "release/migrations/STAGING_ONLY_BASELINE";
 
 const runProductionGuard = (marked: boolean): { status: number | null; stdout: string } => {
   const payload = mkdtempSync(join(tmpdir(), "promote-guard-"));
   mkdirSync(join(payload, "release", "migrations"), { recursive: true });
-  if (marked) writeFileSync(join(payload, "release", "migrations", "STAGING_ONLY_BASELINE"), "");
-  const source = `set -euo pipefail\n${productionGuard()}\necho PROCEEDED`;
+  if (marked) writeFileSync(join(payload, BASELINE_MARKER), "");
+  const source = `set -euo pipefail\nbash "${PRODUCTION_GUARD}" "${BASELINE_MARKER}"\necho PROCEEDED`;
   const result = spawnSync("bash", ["-c", source], { cwd: payload, encoding: "utf8" });
   rmSync(payload, { force: true, recursive: true });
   return { status: result.status, stdout: `${result.stdout}${result.stderr}` };

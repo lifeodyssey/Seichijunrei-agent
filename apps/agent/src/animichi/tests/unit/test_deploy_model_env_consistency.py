@@ -7,7 +7,6 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[6]
 _ENV = _ROOT / "workers/edge/src/container/container-env.ts"
-_DELIVERY = _ROOT / ".github/workflows/cd.yml"
 _DOCKERFILE = _ROOT / "apps/agent/Dockerfile"
 
 
@@ -27,23 +26,6 @@ def test_container_required_keys_are_forwarded() -> None:
     forwarded = _typescript_string_list(source, "CONTAINER_ENV_KEYS")
     assert required
     assert required <= forwarded
-
-
-def test_promotion_reuses_worker_artifacts_without_mutating_runtime_secrets() -> None:
-    delivery = _DELIVERY.read_text()
-    assert "download-artifact" in delivery
-    assert "deploy " in delivery
-    assert "--no-bundle" in delivery
-    assert "secret put" not in delivery
-    assert "secret bulk" not in delivery
-    assert "worker_secrets" not in delivery
-
-
-def test_sealed_release_artifacts_do_not_contain_agent_model_keys() -> None:
-    delivery = _DELIVERY.read_text()
-    assert "ZEN_GO_API_KEY" not in delivery
-    assert "MIMO_API_KEY" not in delivery
-    assert "DEEPSEEK_API_KEY" not in delivery
 
 
 def test_dockerfile_does_not_hardcode_a_privileged_app_env() -> None:
