@@ -1,4 +1,5 @@
 import type { ChatStatus, UIMessage } from "ai";
+import { memo, useMemo, useRef } from "react";
 import { routeDocumentKey, supersededFlags } from "../lib/supersession";
 import { HIDDEN_TOOL_STEPS } from "../i18n";
 import type { ChatDict } from "../i18n";
@@ -48,10 +49,20 @@ function messageDataParts(message: UIMessage): readonly DataPartRef[] {
  * streamed data part in conversation order and flag the ones a newer card of
  * the same document supersedes. Route cards are the first keyed document.
  */
-function supersededPartKeys(messages: readonly UIMessage[]): ReadonlySet<string> {
-  const refs = messages.flatMap(messageDataParts);
+function supersededKeysFrom(refs: readonly DataPartRef[]): ReadonlySet<string> {
   const flags = supersededFlags(refs.map((ref) => routeDocumentKey(ref.data)));
   return new Set(refs.filter((_, index) => flags[index] === true).map((ref) => ref.key));
+}
+
+/** Supersession reads only the data parts' document keys, so the set keeps a
+ * stable identity while text chunks stream (same pattern as useStablePoints in
+ * SearchMap) — memoized rows then skip every SSE chunk that adds no data part. */
+function useSupersededKeys(visible: readonly UIMessage[]): ReadonlySet<string> {
+  const refs = useMemo(() => visible.flatMap(messageDataParts), [visible]);
+  const key = refs.map((ref) => `${ref.key}:${routeDocumentKey(ref.data) ?? ""}`).join("|");
+  const held = useRef({ key, set: supersededKeysFrom(refs) });
+  if (held.current.key !== key) held.current = { key, set: supersededKeysFrom(refs) };
+  return held.current.set;
 }
 
 function ToolBadges({ parts, dict }: Readonly<{ parts: readonly ToolPart[]; dict: ChatDict }>) {
@@ -108,14 +119,16 @@ type ItemProps = Readonly<{
   supersededKeys: ReadonlySet<string>;
 }>;
 
-function MessageItem({ message, dict, settled, elapsedLabel, supersededKeys }: ItemProps) {
+/** Memoized so a streaming SSE chunk re-renders only the row whose message
+ * actually changed; every prop is a primitive or a stable reference. */
+const MessageItem = memo(function MessageItem({ message, dict, settled, elapsedLabel, supersededKeys }: ItemProps) {
   return (
     <li className={`chat-message chat-message--${message.role}`}>
       <MessageRail message={message} settled={settled} elapsedLabel={elapsedLabel} dict={dict} />
       <MessageBody parts={nonToolParts(message)} messageId={message.id} dict={dict} settled={settled} supersededKeys={supersededKeys} />
     </li>
   );
-}
+});
 
 function isActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
@@ -155,10 +168,10 @@ function visibleMessages(messages: readonly UIMessage[]): readonly UIMessage[] {
 }
 
 export function MessageList({ messages, dict, status, settledDurationMs }: ListProps) {
-  const visible = visibleMessages(messages);
+  const visible = useMemo(() => visibleMessages(messages), [messages]);
+  const supersededKeys = useSupersededKeys(visible);
   if (visible.length === 0) return null;
   const lastId = messages.at(-1)?.id;
-  const supersededKeys = supersededPartKeys(visible);
   const items = visible.map((message) => (
     <MessageRow key={message.id} message={message} isLast={message.id === lastId} dict={dict} status={status} settledDurationMs={settledDurationMs} supersededKeys={supersededKeys} />
   ));
