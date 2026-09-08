@@ -71,7 +71,7 @@ export function useTurnTiming(status: ChatStatus, eventCount: number, report: Ch
   const [lastDurationMs, setLastDurationMs] = useState<number>();
   const tracker = useRef<Tracker>({ startedAt: 0, firstToken: false, baselineEvents: 0 });
   const reportRef = useRef(report);
-  reportRef.current = report;
+  useEffect(() => { reportRef.current = report; });
   useEffect(() => {
     applyTiming(status, eventCount, tracker.current, reportRef.current, setLastDurationMs);
   }, [eventCount, status]);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { RecomputeStatus } from "../components/SelectionTray";
 import { isTurnActive } from "../lib/turn-gate";
 import type { ChatSession } from "../use-chat-session";
@@ -66,7 +66,8 @@ function useFire(chat: ChatSession, setStatus: SetSelectionStatus, setIds: SetId
 export function useRecomputeTurn(chat: ChatSession, sessionKey?: string): RecomputeTurn {
   const [status, setStatus] = useState<RecomputeStatus>("idle");
   const [lastSentIds, setLastSentIds] = useState<readonly string[]>();
-  useEffect(() => { setStatus("idle"); setLastSentIds(undefined); }, [sessionKey]);
+  const [prevKey, setPrevKey] = useState(sessionKey);
+  if (prevKey !== sessionKey) { setPrevKey(sessionKey); setStatus("idle"); setLastSentIds(undefined); }
   const fire = useFire(chat, setStatus, setLastSentIds);
   useSelectionSettle(status, chat, setStatus);
   return { status, lastSentIds, fire };

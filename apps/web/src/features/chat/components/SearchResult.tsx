@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { MAX_MAP_PINS, searchMapView, topSpots } from "../lib/spot-clusters";
 import type { SearchSpot, SpotCluster } from "../lib/spot-clusters";
 import { attachBasemap } from "../../bubble-map/bubble-map-controller";
@@ -82,12 +82,20 @@ interface DrillNav {
   readonly back: () => void;
 }
 
+/** Primitive drill-reset key: the caller rebuilds the spots array per SSE chunk,
+ * so identity would reset the drill on every chunk — key on the spot ids. */
+function spotsKey(spots: readonly SearchSpot[]): string {
+  return spots.map((spot) => spot.id).join("|");
+}
+
 function useDrillNav(spots: readonly SearchSpot[]): DrillNav {
   const [drill, setDrill] = useState<Drill | null>(null);
   const [refocusIndex, setRefocus] = useState<number | null>(null);
   const select = useCallback((cluster: SpotCluster, index: number) => { setRefocus(null); setDrill({ cluster, index }); }, []);
   const back = useCallback(() => { setRefocus(drill?.index ?? null); setDrill(null); }, [drill]);
-  useEffect(() => { setDrill(null); setRefocus(null); }, [spots]);
+  const key = spotsKey(spots);
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) { setPrevKey(key); setDrill(null); setRefocus(null); }
   return { drill, refocusIndex, select, back };
 }
 
