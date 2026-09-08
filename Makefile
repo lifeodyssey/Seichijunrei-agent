@@ -126,9 +126,10 @@ check: lint typecheck test test-integration
 # refactor lands, or when a lockfile change makes "affected" mean everything.
 #
 # The two suite segments run one package at a time. pnpm's default is one job
-# per CPU, and several packages' `test` claims a fixed resource: the browser
-# suite serves apps/web on :8799 and the container-backed ones each boot
-# test-postgres. Run in parallel they starve each other -- measured 2026-09-08,
+# per CPU, and several suites claim a fixed resource: the browser suite serves
+# apps/web on :8799, the agent's test:integration boots test-postgres, and so
+# does the catalog spike on its own line below (catalog's `test` chained it
+# until #1473). Run in parallel they starve each other -- measured 2026-09-08,
 # nine browser specs failing with ERR_CONNECTION_REFUSED while the same suite
 # passes 43/43 on its own. Serial is slower and true.
 check-full:

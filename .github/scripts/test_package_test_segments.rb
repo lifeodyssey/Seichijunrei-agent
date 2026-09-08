@@ -27,7 +27,7 @@ ROOT = ARGV.fetch(0, `git rev-parse --show-toplevel`.strip)
 # be a defined script of the same package.
 REQUIRED_SEGMENTS = {
   "workers/edge" => %w[test:node test:chat-answer-part test:bundle-smoke test:ratelimit-namespace],
-  "workers/catalog" => %w[test:worker test:spike],
+  "workers/catalog" => %w[test:worker],
   "workers/users" => %w[test:worker],
   "workers/migrator" => ["vitest run"],
   "packages/contract" => ["vitest run", "vet:baseline", "test:openapi-drift"],
@@ -54,13 +54,29 @@ REQUIRED_SEGMENTS = {
             "web-cwv.spec.ts", "web-chat-settings-return.spec.ts"]
 }.freeze
 
+# The other direction of the same question: a segment that must stay OUT of a
+# package's `test`, and the files that have to run it instead (#1473). The
+# catalog spike boots the Docker test-postgres container, and `test` is what
+# the pre-push hook runs for every affected package — chaining it there started
+# Docker on every catalog push. Dropping it from the manifest above and
+# stopping there would be the fail-open this file exists to catch: a committed
+# suite nothing runs. Each file has to invoke it by its full pnpm command, and
+# what that command reaches is pinned by DELEGATED_COMMANDS below.
+OUT_OF_BAND_SEGMENTS = {
+  ["workers/catalog", "test:spike"] => [".github/workflows/pr-verification.yml", "Makefile"]
+}.freeze
+
 # A segment that delegates to a repository gate script: the script name alone
 # would still be satisfied by `"test:program-load": "true"`, so the command the
 # segment must run is pinned as well. These were pinned by the pre-push
-# command log until #1358 moved them behind the package scripts.
+# command log until #1358 moved them behind the package scripts. The catalog
+# spike is here for the same reason from the other side: nothing else reads the
+# body of a script that no `test` chains, so `"test:spike": "true"` would leave
+# the out-of-band pair below naming a script that runs nothing.
 DELEGATED_COMMANDS = {
   ["workers/edge", "test:bundle-smoke"] => "bundle-smoke/",
   ["workers/edge", "test:ratelimit-namespace"] => "check-edge-ratelimit-namespace.sh",
+  ["workers/catalog", "test:spike"] => "vitest.spike.config.ts",
   ["packages/contract", "test:openapi-drift"] => "contract-drift.sh",
   ["packages/eval", "test:fixture-drift"] => "eval-fixture-drift.sh",
   ["infra", "test:program-load"] => "infra-check.sh"
@@ -118,6 +134,26 @@ def assert_manifest_is_complete
   end
 end
 
+def assert_segment_stays_out_of_test(directory, segment)
+  scripts = scripts_of(directory)
+  @violations << "#{directory}: does not define #{segment}" unless scripts.key?(segment)
+  return unless scripts["test"].to_s.include?(segment)
+
+  @violations << "#{directory}: `test` chains #{segment}, which must stay out of the pre-push lane"
+end
+
+def assert_segment_runs_in(directory, segment, file)
+  command = "pnpm --filter #{manifest_of(directory)['name']} run #{segment}"
+  return if File.read(File.join(ROOT, file)).include?(command)
+
+  @violations << "#{file}: nothing runs `#{command}` any more"
+end
+
+def assert_out_of_band(directory, segment, files)
+  assert_segment_stays_out_of_test(directory, segment)
+  files.each { |file| assert_segment_runs_in(directory, segment, file) }
+end
+
 def assert_delegated_command(directory, script, command)
   return if scripts_of(directory).fetch(script, "").include?(command)
 
@@ -127,6 +163,7 @@ end
 def main
   REQUIRED_SEGMENTS.each { |directory, segments| assert_package(directory, segments) }
   DELEGATED_COMMANDS.each { |(directory, script), command| assert_delegated_command(directory, script, command) }
+  OUT_OF_BAND_SEGMENTS.each { |(directory, segment), files| assert_out_of_band(directory, segment, files) }
   assert_manifest_is_complete
   return puts "package test segments: all lanes intact" if @violations.empty?
 
