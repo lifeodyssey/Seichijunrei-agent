@@ -21,7 +21,7 @@
  * refusal, a 500 — and retrying any of them would quietly turn a failing case
  * into a passing one, which is the failure mode an eval exists to detect.
  */
-import { getCurrentTaskRun, setEvalAttribute, type TaskRunState } from "logfire/evals";
+import { getCurrentTaskRun, type TaskRunState } from "logfire/evals";
 import type { GetSessionHistoryResponse } from "@animichi/contract/session-history-contract";
 
 import { caseSubmissionsOf, type ChatSubmission } from "./case-submissions.ts";
@@ -55,11 +55,11 @@ const SESSION_ID_HEADER = "x-session-id";
 /**
  * The report attribute a prefix-seeded case carries (E-1 #1380).
  *
- * It is set from the TASK and not from `CaseLifecycle.setup()`, because
- * `setEvalAttribute` writes into the case's own task-run context and the driver
- * opens that context around the task only (`logfire/evals`' case runner). What
- * the task knows is exactly what the attribute means: this case's turns ran on
- * a session somebody had already put a starting point in.
+ * It is set from the TASK and not from `CaseLifecycle.setup()`, because the
+ * driver opens a case's task-run context around the task only (`logfire/evals`'
+ * case runner) and `setup()` has none to write into. What the task knows is
+ * exactly what the attribute means: this case's turns ran on a session somebody
+ * had already put a starting point in.
  */
 export const PREFIX_SEEDED_ATTRIBUTE = "prefix_seeded";
 
@@ -148,18 +148,26 @@ export class TransportFailure extends Error {
  * turn — the only moment its duration is known — lands nowhere. Measured on the
  * first case of a process.
  *
- * `prefix_seeded` goes through that same call and still arrives, and NOT
- * because it is written synchronously: `#seededSession` is reached through
- * `#inFlight.enter`, which awaits a slot first, so that write is after an await
- * too. It survives on timing alone — one admitted slot is a microtask hop, and
- * the import has usually not resolved by then, so the fallback the driver reads
- * is still this case's. That is #1484, not a guarantee to copy. The state `run`
+ * `prefix_seeded` is written the same way now, and for the same reason (#1484).
+ * It used to call `setEvalAttribute` from `#seededSession`, which is reached
+ * through `#inFlight.enter` and therefore runs after a queue wait — and the
+ * module-level fallback is ONE variable every case on it shares, so from the
+ * third case of a run onwards that write landed on whichever case entered the
+ * fallback last, or on nobody once the storage existed. The state `run`
  * captures is this case's under either regime, and the driver reads that same
  * object into the report when the case ends.
  */
 function recordTurnSeconds(measured: TaskRunState | undefined, seconds: number): void {
   if (measured === undefined) return;
   measured.attributes[TURN_SECONDS_ATTRIBUTE] = seconds;
+}
+
+/** That this case started from a frozen prefix, onto its own state — a fact
+ * known before the case queues, so it is written there rather than from behind
+ * the wait (`recordTurnSeconds` carries the whole reason). */
+function recordPrefixSeeded(measured: TaskRunState | undefined): void {
+  if (measured === undefined) return;
+  measured.attributes[PREFIX_SEEDED_ATTRIBUTE] = true;
 }
 
 export class StagingTurnTask {
@@ -177,10 +185,12 @@ export class StagingTurnTask {
   }
 
   /** One case: its recorded history replayed, then the turn under measurement.
-   * The case's own task-run state is taken HERE, before the queue — see
-   * `recordTurnSeconds` for why it cannot be looked up when the turn ends. */
+   * The case's own task-run state is taken HERE, before the queue, and both
+   * report attributes go onto it — see `recordTurnSeconds` for why neither can
+   * be written through a lookup made behind the wait. */
   run(inputs: ExportedAgentInput): Promise<TranscriptResult> {
     const measured = getCurrentTaskRun();
+    if (this.#seededSession(inputs) !== null) recordPrefixSeeded(measured);
     return this.#inFlight.enter(() => this.#runCase(inputs, measured));
   }
 
@@ -204,13 +214,11 @@ export class StagingTurnTask {
     return { turn, sessionId, priorStreams };
   }
 
-  /** The session this case's prefix was seeded into, marked on the report so a
-   * reader can tell a case that started from a frozen prefix from one that did
-   * not. `null` is a case with no prefix, which starts where it always did. */
+  /** The session this case's prefix was seeded into, or `null` for a case with
+   * no prefix, which starts where it always did. A pure lookup: `run` asks it
+   * to mark the report, `submitCase` asks it where to send the turns. */
   #seededSession(inputs: ExportedAgentInput): string | null {
-    const seeded = this.#settings.sessions?.of(inputs) ?? null;
-    if (seeded !== null) setEvalAttribute(PREFIX_SEEDED_ATTRIBUTE, true);
-    return seeded;
+    return this.#settings.sessions?.of(inputs) ?? null;
   }
 
   /** The case, timed from INSIDE the slot: the turns it sent and the transcript
