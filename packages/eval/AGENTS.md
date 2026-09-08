@@ -317,7 +317,16 @@ Notes for the rest of W3:
   `provider_outage_gates`, so the two runners cannot drift on either; the blamed string is each
   runner's own and the oracle rows publish the one they were written with. `CRASHED_INTENT` is
   imported from `turn-transcript.ts`, which owns it — a second copy would keep counting the old
-  sentinel, silently zero, the day that one moved. Without it a total outage reported the seven columns a stepless turn still emits
+  sentinel, silently zero, the day that one moved.
+  **The gate runs BEFORE `aggregateScores` (`src/gate-run/run-judgement.ts`), and that order is the
+  fix, not a preference.** A crashed
+  turn's transcript read still publishes a `steps` array — an empty one counts
+  (`settled-params.ts::paramsRecordedIn`) — so `runMetricNames` keeps `argument_correctness` in the
+  run's own list while `ArgumentCorrectness` scored nobody. Aggregating first threw
+  `Missing metric(s): argument_correctness` out of `gateRunResultOf` and the outage sentence never
+  reached the result: the very nightly failure this gate replaces, rebuilt here. A starved run is
+  therefore reported and never compared — `scores` and `metrics` are empty, so no number a crashed
+  turn happened to emit can be read as a measurement of the agent. Without it a total outage reported the seven columns a stepless turn still emits
   and passed.
 - **A damaged baseline is a failure here, and that is the one place this side does
   not mirror `gate.py` (#1341).** Python logs `Invalid baseline for …` and carries

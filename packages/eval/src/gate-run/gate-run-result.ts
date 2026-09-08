@@ -2,13 +2,7 @@ import type { EvaluationReport } from 'logfire/evals';
 
 import type { ExportedAgentExpected, ExportedAgentInput } from '../dataset-roundtrip.ts';
 import type { BaselineRecord } from '../gate/baseline-record.ts';
-import {
-  DEFAULT_MIN_PAIRED,
-  errorRateGate,
-  metricGateResults,
-  type GateOutcome,
-  type MetricGateResult,
-} from '../gate/bootstrap-gate.ts';
+import { DEFAULT_MIN_PAIRED } from '../gate/bootstrap-gate.ts';
 import { DEFAULT_PROPORTION_MIN_EFFECT } from '../gate/clopper-pearson.ts';
 import {
   DEFAULT_CONFIDENCE,
@@ -18,7 +12,7 @@ import {
   type Interval,
   type Verdict,
 } from '../gate/paired-bootstrap.ts';
-import { aggregateScores, gateInputFromReport } from '../gate/report-gate-input.ts';
+import { gateInputFromReport } from '../gate/report-gate-input.ts';
 import type { TranscriptResult } from '../turn-transcript.ts';
 import { attributionEvidenceRef } from './attribution-evidence.ts';
 import {
@@ -26,9 +20,9 @@ import {
   attributionRecordOf,
   type RunFailureAttribution,
 } from './failure-attribution.ts';
-import { providerOutageGate } from './provider-outage.ts';
 import { reportOnlyMetricsOf, type ReportOnlyMetrics } from './report-only-metrics.ts';
 import { scoreBreakdownOf, type ScoreBreakdown } from './score-breakdown.ts';
+import { judgement } from './run-judgement.ts';
 import { runSpendOf, type RunSpend } from './run-spend.ts';
 
 /**
@@ -134,26 +128,20 @@ export function gateRunResultOf(
   report: AgentEvalReport,
   settings: GateRunSettings,
 ): GateRunResult {
-  const scores = aggregateScores(report, settings.metricNames);
-  const input = gateInputFromReport(report);
-  const metrics = comparedMetrics(input.cases, settings);
-  const errors = errorRateGate(input.erroredCount, input.total, settings.baseline);
-  const outage = providerOutageGate(report);
   const identity = runIdentity(settings);
+  const input = gateInputFromReport(report);
   return {
     ...identity,
     ...pinnedGateSettings(),
     case_count: settings.caseCount,
     evaluated_count: input.evaluatedCount,
     errored_count: input.erroredCount,
-    scores,
+    ...judgement(report, settings, input),
     report_only: reportOnlyMetricsOf(report),
     failure_attribution: attributionRecordOf(
       analyseFailures(report),
       attributionEvidenceRef(identity.generated_at, identity.dataset),
     ),
-    metrics: metrics.map(verdictRow),
-    ...gateOutcome(metrics, errors, outage, settings),
     breakdown: scoreBreakdownOf(report),
     spend: runSpendOf(report),
   };
@@ -187,75 +175,5 @@ function pinnedGateSettings(): Pick<
     min_effect: DEFAULT_PAIRED_MIN_EFFECT,
     proportion_min_effect: DEFAULT_PROPORTION_MIN_EFFECT,
     min_paired: DEFAULT_MIN_PAIRED,
-  };
-}
-
-/** No baseline is no comparison — never an empty one that would read as "pass". */
-function comparedMetrics(
-  cases: ReturnType<typeof gateInputFromReport>['cases'],
-  settings: GateRunSettings,
-): readonly MetricGateResult[] {
-  if (settings.baseline === null) {
-    return [];
-  }
-  return metricGateResults(cases, settings.baseline, { strata: settings.strata });
-}
-
-/**
- * `_gate_failures`' order, minus the direct thrash gate: Python's per-case
- * request counts come from `AgentResult.usage`, which the wire does not carry
- * (see `run-spend.ts`). Both lists lead with the baseline read, which is where
- * Python logs its own — and, for the one baseline problem this side blocks on,
- * where the red comes from (`baseline-store.ts`).
- *
- * The outage gate leads the failures because it is the only one that says the
- * run measured nothing: a reader who sees it must not spend time on the metric
- * rows underneath it (#1496).
- */
-function gateOutcome(
-  metrics: readonly MetricGateResult[],
-  errors: GateOutcome,
-  outage: readonly string[],
-  settings: GateRunSettings,
-): Pick<GateRunResult, 'failures' | 'warnings'> {
-  return {
-    failures: [
-      ...outage,
-      ...settings.baselineFailures,
-      ...metrics.flatMap((row) => row.outcome.failures),
-      ...errors.failures,
-    ],
-    warnings: [
-      ...settings.strataWarnings,
-      ...settings.baselineWarnings,
-      ...metrics.flatMap((row) => row.outcome.warnings),
-      ...errors.warnings,
-    ],
-  };
-}
-
-function verdictRow(result: MetricGateResult): MetricVerdictRow {
-  const { comparison } = result;
-  if (comparison === null) {
-    return skippedRow(result.metric, result.pairedCases);
-  }
-  return {
-    metric: result.metric,
-    verdict: comparison.verdict,
-    mean_delta: comparison.estimate,
-    interval: comparison.interval,
-    sample_size: comparison.sampleSize,
-    method: comparison.method,
-  };
-}
-
-function skippedRow(metric: string, pairedCases: number): MetricVerdictRow {
-  return {
-    metric,
-    verdict: 'skipped',
-    mean_delta: null,
-    interval: null,
-    sample_size: pairedCases,
-    method: null,
   };
 }
