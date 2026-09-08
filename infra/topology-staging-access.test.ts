@@ -4,6 +4,9 @@
  * it once — see `testing/harness.ts` — and because this is the one resource
  * group whose mistakes are invisible: a missing hostname, a missing policy or a
  * renamed output all leave a green apply and a wrong door.
+ *
+ * The allowlist VALUES the `allow` policy is built from are their own concern
+ * and their own file: `topology-staging-allowlist.test.ts`.
  */
 
 import { test } from "node:test";
@@ -140,20 +143,6 @@ test("both policies are attached to the application, Service Auth evaluated firs
     { id: "staging-ci-service-auth-id", precedence: 1 },
     { id: "staging-owner-sign-in-id", precedence: 2 },
   ]);
-});
-
-test("an allowlist that would lock every human out is refused at build time", async () => {
-  // Pinned on the pure function rather than through a second `buildStack`: a
-  // module that throws during evaluation is cached in its errored state, so a
-  // second import replays the FIRST failure and any further case passes
-  // vacuously. Same shape as the `buildIpClause` cases this file replaces.
-  const { validateAccessAllowedEmails } = await import("./index.ts");
-  assert.throws(() => validateAccessAllowedEmails([]), /stagingAccessAllowedEmails is empty/);
-  assert.throws(
-    () => validateAccessAllowedEmails(["owner@example.test", "not-an-address"]),
-    /stagingAccessAllowedEmails entry "not-an-address" is not an email address/,
-  );
-  assert.deepEqual(validateAccessAllowedEmails(["owner@example.test"]), ["owner@example.test"]);
 });
 
 test("the token's two halves are exported under the names ESC imports", async () => {

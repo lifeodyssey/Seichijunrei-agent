@@ -42,6 +42,19 @@ const SESSION_DURATION = "24h";
 const OTP_PROVIDER_NAME = "One-time PIN";
 
 /**
+ * A whole address, which is all this needs to decide.
+ *
+ * Not an attempt at RFC 5322 — that grammar admits quoted local parts and
+ * comments, and a validator that chases it is a source of false rejections for
+ * no gain here. The failures worth catching are the ones that produce a
+ * SELECTOR NOTHING CAN MATCH: an empty local part (`@example.com`), an empty or
+ * dotless domain (`owner@`, `owner@example`), whitespace anywhere
+ * (`owner @example.com`), and more than one `@`. Everything else is Cloudflare's
+ * problem at sign-in time, where it is visible.
+ */
+const COMPLETE_ADDRESS = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+
+/**
  * The two origins that are NOT on the zone, and so were never behind the WAF
  * rule this replaces.
  *
@@ -130,13 +143,18 @@ function publicDestinations(): { type: string; uri: string }[] {
  *
  * Empty is refused rather than applied. An `allow` policy with no include rules
  * is an application no human can open, and the first person to find that out is
- * the owner locked out of staging.
+ * the owner locked out of staging. An entry that is not a whole address is
+ * refused for the same reason, one step earlier: Cloudflare stores whatever
+ * string it is handed as the `email` selector, and a selector no authenticated
+ * identity can ever equal is an include rule that never fires. An allowlist made
+ * only of those is the empty allowlist wearing a disguise, and it would apply
+ * cleanly (CodeRabbit on PR #1520).
  */
 export function validateAccessAllowedEmails(emails: string[]): string[] {
   if (emails.length === 0) {
     throw new Error("stagingAccessAllowedEmails is empty: no human could sign in to staging");
   }
-  const invalid = emails.find((email) => !email.includes("@"));
+  const invalid = emails.find((email) => !COMPLETE_ADDRESS.test(email));
   if (invalid !== undefined) {
     throw new Error(`stagingAccessAllowedEmails entry "${invalid}" is not an email address`);
   }

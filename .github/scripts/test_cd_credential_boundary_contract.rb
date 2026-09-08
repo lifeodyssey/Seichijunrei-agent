@@ -156,11 +156,17 @@ end
 # from EXPORTING the token; this stops one from naming it at all — an `env:`
 # block, a `with:` input or a `run` line reaching for it would hold the same
 # credential without ever going through `esc_exported_names`.
+#
+# The WHOLE job mapping, not `steps_of` (CodeRabbit on PR #1520). `steps_of` is
+# `jobs.<job>.steps`, so a job-level `env:` — the shortest way to lift a
+# credential into every step at once — sat outside the scan while the comment
+# above claimed to cover it. Stringifying the job covers `env`, `container`,
+# `services`, `defaults` and anything a later schema adds, at the cost of
+# nothing: YAML comments are not in the parsed document, so a job that merely
+# MENTIONS the name in prose is not a false positive.
 def assert_the_access_token_stays_inside_the_smoke_job
   ACCESS_SERVICE_TOKEN.each do |name|
-    holders = @cd.jobs.each_key.select do |job|
-      @cd.steps_of(job).any? { |step| step.to_s.include?(name) }
-    end
+    holders = @cd.jobs.each_key.select { |job| @cd.dig("jobs", job).to_s.include?(name) }
     @log.unless_true(holders == [SMOKE_JOB],
                      "cd.yml: #{name} is staging's front-door credential and belongs to " \
                      "#{SMOKE_JOB} alone (held by #{holders.empty? ? 'nothing' : holders.join(', ')})")

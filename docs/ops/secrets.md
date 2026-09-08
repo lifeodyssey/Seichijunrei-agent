@@ -194,8 +194,13 @@ distinction that matters at 03:00 when CI cannot reach staging.
   `mechanisms`. What stopped it is the `mechanisms.emails` destination: Cloudflare only dispatches
   to an address the account has verified, and an unverified one fails the apply — inside
   `stage-foundation`, which would take the whole release cohort down for a reminder. Declaring it
-  is a small, separate change once the owner has confirmed a verified destination. Until then the
-  renewal date above is what a calendar reminder needs.
+  is a small, separate change once the owner has confirmed a verified destination.
+- **Until then the deadline is tracked as issue #1523**, "ops(infra): renew the staging access
+  service token before 2027-09-08" — the owner reminder this subsection previously left to a
+  calendar nobody could see from the repository, which is the gap CodeRabbit flagged on PR #1520.
+  It is the one place the date is actionable rather than merely written down. When the token is
+  refreshed, or its secret rotated, move the date above and that issue together: two records that
+  disagree about when CI stops being able to reach staging are worse than one.
 
 **Failure modes.** A wrong or revoked value locks CI, the browser lane and every local staging
 lane out of staging at once (they answer with the Access login page, not a 4xx from the app);
