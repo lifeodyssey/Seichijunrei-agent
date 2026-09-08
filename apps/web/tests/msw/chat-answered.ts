@@ -7,11 +7,14 @@ import { CHAT_URL } from "./chat-stream-base";
  *
  * Arm it BEFORE the act, then await it before querying the DOM. Without it a
  * test spends a `findBy*` wall clock waiting for a request the starved runner
- * has not even scheduled yet: the query times out, the case fails for a reason
- * that has nothing to do with the behaviour under test, and — worse — the
- * abandoned request is still in flight when the next case installs ITS
- * handlers, so the leaked answer lands in the next case's recorder and
- * re-indexes every positional assertion in it.
+ * has not even scheduled yet: the query times out and the case fails for a
+ * reason that has nothing to do with the behaviour under test.
+ *
+ * The cross-case half of that hazard — an abandoned turn answered into the
+ * NEXT case's recorder — is no longer this helper's job: `in-flight-requests`
+ * drains it in the shared `afterEach` for every file (issue #1514). This one
+ * stays for what it alone can do: state, in the case that needs it, that the
+ * turn must be answered before the assertions run.
  */
 export function chatTurnsAnswered(count = 1): Promise<void> {
   const pending = { remaining: count };

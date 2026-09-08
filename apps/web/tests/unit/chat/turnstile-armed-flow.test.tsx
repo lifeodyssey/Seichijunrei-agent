@@ -6,6 +6,7 @@ import { clearTurnstileToken } from "../../../src/lib/turnstile/token-store";
 import { RUNTIME_CONFIG_GLOBAL_KEY } from "../../../src/lib/runtime-config/provider";
 import { DEFAULT_RUNTIME_CONFIG } from "../../../src/lib/runtime-config/runtime-config";
 import { server } from "../../msw/node";
+import { expectAbandonedRequests } from "../../msw/in-flight-requests";
 import { armedChatHandler } from "../../msw/chat-handlers";
 import { setLanguages } from "../_i18n";
 import { chatSearch, renderChatEntry } from "./_chat-page";
@@ -55,6 +56,7 @@ describe("?q= after the entry verification", () => {
   });
 
   it("keeps the chat absent while verification is pending", async () => {
+    expectAbandonedRequests(1);
     server.use(http.post("*/v1/turnstile/verify", () => new Promise(() => undefined)));
     renderChatEntry(chatSearch({ q: "ユーフォ" }));
     await solve("pending-token");
