@@ -44,10 +44,12 @@ bindings remain in Wrangler; route ownership stays here. Root guide: `../AGENTS.
   `ZeroTrustAccessApplication` over `stagingDomain` plus the two `animichi-*-staging`
   workers.dev origins, a `non_identity` (Service Auth) policy carrying the
   `animichi-staging-ci` service token, an `allow` policy built from the
-  `stagingAccessAllowedEmails` stack config, the `onetimepin`
-  `ZeroTrustAccessIdentityProvider` that policy's humans sign in through (an **account-level**
-  resource this stack owns only because staging is the account's sole Access consumer — move it
-  to a shared program before a second stack needs one), and the two stack outputs the ESC environment
+  `stagingAccessAllowedEmails` stack config, the account's `onetimepin`
+  identity provider that policy's humans sign in through (an **account-level** object this stack
+  reads and never creates — `src/access-identity-provider.ts` selects it from the
+  `getZeroTrustAccessIdentityProviders` data source and refuses ≠1; declaring it is a `409
+  Conflict`, since Cloudflare allows one per account and another Access app already made it),
+  and the two stack outputs the ESC environment
   imports through its `pulumi-stacks` provider: `stagingAccessClientId` → `CF_ACCESS_CLIENT_ID`
   and `stagingAccessClientSecret` → `CF_ACCESS_CLIENT_SECRET` under `environmentVariables` of
   `lifeodyssey/animichi/staging`. **The output names are the wiring contract** — ESC resolves
