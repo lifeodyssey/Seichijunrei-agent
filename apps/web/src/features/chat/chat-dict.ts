@@ -28,25 +28,54 @@ export interface ChatChip {
 
 /** Chat-page copy, kept feature-local to avoid the shared dictionary hot file. */
 export interface ChatDict {
-  readonly greeting: string;
-  /** Phrases the lead bubble sets in bold, in the order they appear. */
-  readonly greetingEmphasis: readonly string[];
-  /** A1 hero headline above the greeting bubble (design spec: empty-state hero). */
-  readonly heroTitle: string;
-  /** Label introducing the example chips. */
-  readonly chipsLabel: string;
   readonly chips: readonly [ChatChip, ChatChip, ChatChip];
+  /** The composer's invitation (direction-E pill, mockup `.input-wrap input`). */
   readonly inputPlaceholder: string;
   /** G4: the placeholder while a turn is running — the field stays open. */
   readonly busyPlaceholder: string;
   readonly send: string;
+  /** Mockup `.hint` left side: the Enter key sends. */
+  readonly hintSend: string;
+  /** Mockup `.hint` right side: what the camera button is for. */
+  readonly hintCamera: string;
+  /** Sidebar brand tagline under the wordmark ("walk your fandom"). */
+  readonly brandTagline: string;
+  /** The gold pill that starts a fresh conversation. */
+  readonly newJourney: string;
+  /** Sidebar section label above the past-conversation rows. */
+  readonly recentLabel: string;
+  /** In-panel header breadcrumb above the journey title. */
+  readonly crumbJourneys: string;
+  /** In-panel header title for a fresh journey. */
+  readonly titleNewJourney: string;
+  /** In-panel header pill: the journey saves itself. */
+  readonly autosaved: string;
+  /** A1 cold-start headline (mockup `.start h1`). */
+  readonly coldStartHeading: string;
+  /** A1 cold-start one-line sub under the headline. */
+  readonly coldStartSub: string;
+  /** A1 entry card 1: begin from a work (teal-tinted in the mockup). */
+  readonly entryAnimeTitle: string;
+  /** A1 entry card 2: begin from a place. */
+  readonly entryCityTitle: string;
+  /** A1 entry card 3: no plan, open conversation. */
+  readonly entryChatTitle: string;
+  /** What entry card 1 sends down the existing send path. */
+  readonly entryAnimePrompt: string;
+  /** What entry card 2 sends down the existing send path. */
+  readonly entryCityPrompt: string;
+  /** What entry card 3 sends down the existing send path. */
+  readonly entryChatPrompt: string;
+  /** A1 teal link under the entry cards (mockup `.sample-link`). */
+  readonly sampleLink: string;
+  /** What the sample link sends down the existing send path. */
+  readonly samplePrompt: string;
   readonly errorBanner: string;
   readonly retry: string;
   readonly historyFootprint: string;
   readonly fallbackCard: string;
   readonly historyError: string;
   readonly preparing: string;
-  readonly foxAlt: string;
   readonly thinking: string;
   readonly waitingSubtitle: string;
   readonly footprintDetails: string;

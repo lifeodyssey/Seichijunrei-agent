@@ -60,7 +60,9 @@ describe("dedicated settings page", () => {
 
   it("uses package controls for preferences and anonymous BYOK", () => {
     renderPage();
-    expect(screen.getByRole("switch", { name: ja.settings.nightMode }).className).toContain("animal-switch");
+    // Night mode is paused (2026-09): the switch is commented out of
+    // AppPreferences, so no switch role is rendered until it returns.
+    expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.getByRole("combobox", { name: ja.settings.language }).className).toContain("animal-select-trigger");
     expect(screen.getByRole("button", { name: chatDictFor("ja").byok.signInToSetUp }).className).toContain("animal-btn");
   });

@@ -5,118 +5,86 @@ import { useChatReturnTarget, useChatSessionId } from "../ChatReturnTarget";
 import type { AuthStatus } from "../../../lib/auth/session";
 import type { ChatDict } from "../i18n";
 
-/** Design sync `.brand .mk`: the torii with the fox peeking out from behind it. */
-function ToriiFoxMark() {
+type Props = Readonly<{ dict: ChatDict; status: AuthStatus }>;
+
+/** Mockup `.m-top`: the green field's own bar — it is the only chrome mobile
+ * gets, so auth entry and settings stay reachable from every phone.
+ * `[display:*]` arbitrary properties instead of the plain `flex` utility: the
+ * animal-island package ships an unlayered `.flex` that would beat our layered
+ * `lg:[display:none]` variant and pin the bar open on desktop. */
+const BAR_CLASS = "items-center justify-between px-4 py-3 [display:flex] lg:[display:none]";
+const LOCKUP_CLASS = "flex items-center gap-2 text-[17px] font-black text-paper [text-shadow:0_2px_0_var(--color-ground-ink),2px_0_0_var(--color-ground-ink),-2px_0_0_var(--color-ground-ink),0_-2px_0_var(--color-ground-ink)]";
+/** The keyboard ring on the new chrome: ground-ink flips with the theme, so
+ * the same outline is the high-contrast ink on day cream and night pine. Our
+ * utilities layer beats the package's 2px teal `.animal-btn:focus-visible`
+ * (components layer), so this stays the ONE ring per control. */
+const FOCUS_RING = "focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-ground-ink";
+/* The bar's buttons are the library's `animal-btn`, rethemed through its
+ * `--animal-*` surface (the LoginForm idiom): the ledged circle pair rides the
+ * 3D-press `primary` grammar with the ledge remapped to `--shadow-3d` so it
+ * flips with the theme; the quiet login pill is the `default` grammar. */
+const PAPER_PRESS = "[--animal-bg-color:var(--color-paper)] [--animal-text-color:var(--color-ground-ink)] [--animal-shadow-press:0_3px_0_0_var(--shadow-3d)] [--animal-shadow-press-hover:0_4px_0_0_var(--shadow-3d)] [--animal-shadow-press-active:0_1px_0_0_var(--shadow-3d)]";
+const PAPER_QUIET = "[--animal-bg-color:var(--color-paper)] [--animal-text-color:var(--color-ground-ink)] [--animal-border-color:var(--color-ground-ink)]";
+const PLUS_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none [--animal-border-width:3px] border-ground-ink text-lg font-black no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
+const LOGIN_CLASS = `animal-btn animal-btn-default min-h-[38px] [--animal-border-width:3px] px-3 text-sm font-black ${FOCUS_RING} ${PAPER_QUIET}`;
+const GEAR_CLASS = `animal-btn animal-btn-primary size-[38px] flex-none [--animal-border-width:3px] border-ground-ink no-underline ${FOCUS_RING} ${PAPER_PRESS}`;
+
+function MobileLockup({ dict }: Readonly<{ dict: ChatDict }>) {
   return (
-    <span className="chat-appbar__mark">
-      <img className="chat-appbar__torii" src="/images/landing/torii.svg" alt="" width={40} height={40} />
-      <img className="chat-appbar__fox" src="/images/landing/fox/fox-curious.svg" alt="" width={24} height={24} />
+    <span className={LOCKUP_CLASS}>
+      <img src="/images/landing/torii.svg" alt="" width={26} height={26} />
+      {dict.appbar.brand}
     </span>
   );
 }
 
-/** Design sync `.brand .tt`: the localized name over the latin AI GUIDE lockup. */
-function ChatWordmark({ dict }: Readonly<{ dict: ChatDict }>) {
+/** Same document navigation as the sidebar's gold pill: `/chat` resets every
+ * draft state, which a client-side navigation to the same route cannot. */
+function NewJourneyButton({ dict }: Readonly<{ dict: ChatDict }>) {
   return (
-    <span className="chat-appbar__wordmark">
-      <span className="chat-appbar__name">{dict.appbar.brand}</span>
-      <span className="chat-appbar__tagline">{dict.appbar.tagline}</span>
-    </span>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg className="chat-appbar__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return <svg className="chat-appbar__settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
-  </svg>;
-}
-
-/**
- * A conversation's identity is its `?session=` scope (`use-chat-session`'s
- * `scopeOf`), and a client-side navigation to `/chat` cannot reset a draft that
- * is already scoped to `chat:draft`. So this is deliberately a document
- * navigation: the page's own cold start is the existing capability that yields
- * a genuinely new conversation from every state, and no new backend behaviour
- * is invented for it.
- */
-function NewConversationLink({ dict }: Readonly<{ dict: ChatDict }>) {
-  return (
-    <a className="chat-appbar__new" href="/chat" aria-label={dict.appbar.newConversation}>
-      <PlusIcon />
-      <span className="chat-appbar__new-label">{dict.appbar.newConversation}</span>
+    <a href="/chat" className={PLUS_CLASS} aria-label={dict.newJourney}>
+      <span aria-hidden="true">＋</span>
     </a>
   );
 }
 
-/**
- * A router link, kept last so settings occupies the true top-right slot. It
- * carries the conversation as `?session=` so the settings page's own link back
- * returns to it instead of a fresh draft (#1337).
- */
-function SettingsLink({ dict }: Readonly<{ dict: ChatDict }>) {
-  const session = useChatSessionId();
-  return <Link className="chat-appbar__settings" to="/settings" search={{ session }} aria-label={dict.appbar.settings}>
-    <SettingsIcon />
-    <span className="chat-appbar__settings-label">{dict.appbar.settings}</span>
-  </Link>;
-}
-
-/** Signed in: the design's teal disc, labelled — it reports state, it is not a
- * menu, because the app has no account menu to open. */
-function SignedInBadge({ dict }: Readonly<{ dict: ChatDict }>) {
-  return <span className="chat-appbar__avatar" role="img" aria-label={dict.appbar.signedIn} />;
-}
-
-/**
- * The identity slot. An unauthenticated visitor must never be shown a stand-in
- * avatar, so anonymous gets the login entry instead, and `pending` renders
- * nothing at all rather than a placeholder that would resolve into something
- * else a moment later.
- */
-export function ChatIdentitySlot({ dict, status }: Readonly<{ dict: ChatDict; status: AuthStatus }>) {
+/** The identity slot: anonymous gets the login entry, pending renders nothing,
+ * and a signed-in visitor gets no stand-in control at all — the desktop
+ * sidebar's identity card owns the signed-in state. */
+function LoginEntry({ dict, status }: Readonly<{ dict: ChatDict; status: AuthStatus }>) {
   const [open, setOpen] = useState(false);
   const returnTarget = useChatReturnTarget();
-  if (status === "pending") return null;
-  if (status === "authenticated") return <SignedInBadge dict={dict} />;
-  return <>
-    <button type="button" className="chat-appbar__login" onClick={() => { setOpen(true); }}>{dict.appbar.login}</button>
-    <LoginModal open={open} onClose={() => { setOpen(false); }} returnTarget={returnTarget} />
-  </>;
-}
-
-/** Design sync `.brand`: the mark and the wordmark read as one lockup. */
-function ChatBrand({ dict }: Readonly<{ dict: ChatDict }>) {
+  if (status !== "anonymous") return null;
+  const show = () => { setOpen(true); };
+  const hide = () => { setOpen(false); };
   return (
-    <span className="chat-appbar__brand">
-      <ToriiFoxMark />
-      <ChatWordmark dict={dict} />
-    </span>
+    <><button type="button" className={LOGIN_CLASS} onClick={show}>{dict.appbar.login}</button><LoginModal open={open} onClose={hide} returnTarget={returnTarget} /></>
   );
 }
 
-/**
- * The chat's chrome (design sync `.appbar`). It sits above the notices so a
- * banner that comes and goes never shifts the brand, and it stays outside the
- * banner's `role="alert"` so page-state announcements are not read as chrome.
- */
-type Props = Readonly<{ dict: ChatDict; status: AuthStatus }>;
+function GearIcon() {
+  return (
+    <svg className="size-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+    </svg>
+  );
+}
 
+/** Carries the live conversation as `?session=` so the settings page's own
+ * back link returns to it instead of a fresh draft (#1337). */
+function SettingsGear({ dict }: Readonly<{ dict: ChatDict }>) {
+  const session = useChatSessionId();
+  return (
+    <Link to="/settings" search={{ session }} className={GEAR_CLASS} aria-label={dict.appbar.settings}>
+      <GearIcon />
+    </Link>
+  );
+}
+
+/** The slim mobile top bar (mockup `.m-top`): outlined wordmark, new journey,
+ * login, settings. Desktop renders the sidebar instead and hides this. */
 export function ChatAppBar({ dict, status }: Props) {
-  return (
-    <header className="chat-appbar">
-      <ChatBrand dict={dict} />
-      <NewConversationLink dict={dict} />
-      <ChatIdentitySlot dict={dict} status={status} />
-      <SettingsLink dict={dict} />
-    </header>
-  );
+  const actions = <div className="flex items-center gap-2"><NewJourneyButton dict={dict} /><LoginEntry dict={dict} status={status} /><SettingsGear dict={dict} /></div>;
+  return <header className={BAR_CLASS}><MobileLockup dict={dict} />{actions}</header>;
 }

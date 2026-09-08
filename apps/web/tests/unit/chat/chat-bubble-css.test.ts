@@ -39,7 +39,6 @@ describe("A2 bubbles: the design spec's geometry and 3D depth", () => {
 
   it("floats the AI bubble above the page floor instead of sinking below it", () => {
     const tokens = parseTokens(globalsCss);
-    expect(ruleDeclaration(chatCss, ".chat-page", "background")).toBe("var(--color-bg)");
     expect(relativeLuminance(tokenValue(tokens, "--color-card")))
       .toBeGreaterThan(relativeLuminance(tokenValue(tokens, "--color-bg")));
   });
@@ -49,23 +48,5 @@ describe("A2 bubbles: the design spec's geometry and 3D depth", () => {
     const soft = relativeLuminance(tokenValue(tokens, "--color-border-soft"));
     expect(soft).toBeGreaterThan(relativeLuminance(tokenValue(tokens, "--color-border")));
     expect(ruleDeclaration(chatCss, ".chat-location__input", "border")).toBe("1px solid var(--color-border)");
-  });
-});
-
-describe("A1 hero: the fox owns the first screen", () => {
-  it("floats a 108px fox with the bob keyframes", () => {
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__fox", "width")).toBe("108px");
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__fox", "animation")).toContain("chat-fox-bob");
-    expect(chatCss).toContain("@keyframes chat-fox-bob");
-  });
-
-  it("sets the headline in the rounded display face", () => {
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__title", "font-family")).toContain("Zen Maru Gothic");
-  });
-
-  it("gives the lead bubble the same notched cream shape as an AI bubble", () => {
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__lead", "background")).toBe("var(--color-card)");
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__lead", "border-top-left-radius")).toBe("6px");
-    expect(ruleDeclaration(chatCss, ".chat-cold-start__lead", "border")).toBe("2px solid var(--color-border-soft)");
   });
 });

@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { Itinerary, SavedRoute } from "@animichi/contract";
 import { catalog, users } from "../../api/orpc";
 import { projectRouteDetail, selectSavedRoute } from "./load-route-detail";
@@ -34,3 +35,20 @@ export const liveRouteDetailPort = {
   listOwned: async (): Promise<{ readonly saved_routes: readonly SavedRoute[] }> => users().listSavedRoutes.call(),
   planItinerary: async (pointIds: readonly string[]): Promise<Itinerary> => catalog().planItinerary.call({ point_ids: [...pointIds] }),
 };
+
+function msUntilNextLocalDay(from: Date): number {
+  const midnight = new Date(from);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime() - from.getTime() + 1000;
+}
+
+/** The loader's `now`, re-sampled at each local midnight so a long-mounted
+ * page flips its "today" state without waiting for loader revalidation. */
+export function useDayClock(isoNow: string): Date {
+  const [now, setNow] = useState(() => new Date(isoNow));
+  useEffect(() => {
+    const timer = setTimeout(() => { setNow(new Date()); }, msUntilNextLocalDay(now));
+    return () => { clearTimeout(timer); };
+  }, [now]);
+  return now;
+}

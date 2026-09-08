@@ -8,6 +8,7 @@ import { PrivacyPolicy } from "../../src/components/legal/PrivacyPolicy";
 import { Route as PrivacyRoute } from "../../src/routes/privacy";
 import { dictFor } from "../../src/i18n/dictionaries";
 import { renderWithLocale, setLanguages } from "./_i18n";
+import { AppRouterContext } from "./_router";
 import globalsCss from "../../src/styles/globals.css?raw";
 
 beforeEach(() => { setLanguages(["ja-JP"]); });
@@ -57,7 +58,7 @@ describe("PrivacyPolicy", () => {
   it("negotiates the browser locale through the route's own provider", () => {
     setLanguages(["en-US"]);
     const renderRoute = PrivacyRoute.options.component as () => ReactNode;
-    render(<>{renderRoute()}</>);
+    render(<AppRouterContext>{renderRoute()}</AppRouterContext>);
     expect(screen.getByRole("heading", { name: dictFor("en").privacy.title })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: dictFor("ja").privacy.title })).toBeNull();
   });

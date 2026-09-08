@@ -5,9 +5,14 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ColdStart } from "../../../src/features/chat/components/ColdStart";
 import { chatDictFor } from "../../../src/features/chat/i18n";
-import { leadBubbleWith } from "./_lead-bubble";
 
 const ja = chatDictFor("ja");
+
+const ENTRIES = [
+  { title: ja.entryAnimeTitle, prompt: ja.entryAnimePrompt },
+  { title: ja.entryCityTitle, prompt: ja.entryCityPrompt },
+  { title: ja.entryChatTitle, prompt: ja.entryChatPrompt },
+] as const;
 
 afterEach(cleanup);
 
@@ -16,63 +21,42 @@ function renderColdStart(onChip = vi.fn()) {
   return onChip;
 }
 
-describe("A1 fox greeting", () => {
-  it("renders the fox guide hero beside the greeting lead", () => {
+describe("A1 cold start (direction-E)", () => {
+  it("headlines the frozen heading and its one-line sub", () => {
     renderColdStart();
-    const avatar = screen.getByAltText(ja.foxAlt);
-    expect(avatar.getAttribute("src")).toBe("/images/chat/fox-guide.webp");
-    expect(avatar.getAttribute("width")).toBe("108");
-    expect(screen.getByText(leadBubbleWith(ja.greeting))).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(ja.coldStartHeading);
+    expect(screen.getByText(ja.coldStartSub)).toBeTruthy();
   });
 
-  it("sets the greeting's marked phrases in bold inside the one lead bubble", () => {
+  it.each(ENTRIES)("ships the entry door $title with its prompt", ({ title }) => {
     renderColdStart();
-    const lead = document.querySelector(".chat-cold-start__lead");
-    const bold = [...(lead?.querySelectorAll("b") ?? [])].map((node) => node.textContent);
-    expect(bold).toEqual([...ja.greetingEmphasis]);
-    expect(lead?.textContent).toBe(ja.greeting);
+    expect(screen.getByRole("button", { name: title })).toBeTruthy();
   });
 
-  it("headlines the hero and labels the chip row", () => {
-    renderColdStart();
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(ja.heroTitle);
-    expect(screen.getByText(ja.chipsLabel)).toBeTruthy();
-  });
-});
-
-/**
- * The complete A1 row: which kind each of the three chips IS, and the tone the
- * design paints that kind in. `null` is the plain paper chip, which carries no
- * `data-tone` at all. Stated per chip so neither the kinds nor the tones can
- * drift while a "at least one of each" check still passes.
- */
-const CHIPS = [
-  { chip: ja.chips[0], kind: "example", tone: null },
-  { chip: ja.chips[1], kind: "example", tone: null },
-  { chip: ja.chips[2], kind: "nearbySearch", tone: "primary" },
-] as const;
-
-describe("A1 chips: tone follows meaning", () => {
-  it("ships exactly the three kinds the design tones, in order", () => {
-    expect(ja.chips.map((chip) => chip.kind)).toEqual(CHIPS.map((row) => row.kind));
-  });
-
-  it.each(CHIPS)("draws the $kind chip $chip.text in the $tone tone", ({ chip, kind, tone }) => {
-    renderColdStart();
-    expect(chip.kind).toBe(kind);
-    expect(screen.getByRole("button", { name: chip.text }).getAttribute("data-tone")).toBe(tone);
-  });
-
-  it("sends the chip text when a tile is clicked", () => {
+  it("sends the entry prompt when a door is clicked", () => {
     const onChip = renderColdStart();
-    fireEvent.click(screen.getByRole("button", { name: ja.chips[1].text }));
-    expect(onChip).toHaveBeenCalledWith(ja.chips[1].text);
+    fireEvent.click(screen.getByRole("button", { name: ja.entryCityTitle }));
+    expect(onChip).toHaveBeenCalledWith(ja.entryCityPrompt);
   });
 
-  it("disables every tile while the backend is unreachable", () => {
+  it("sends the sample prompt from the teal sample link", () => {
+    const onChip = renderColdStart();
+    fireEvent.click(screen.getByRole("button", { name: ja.sampleLink }));
+    expect(onChip).toHaveBeenCalledWith(ja.samplePrompt);
+  });
+
+  it("tints each door in its own accent ground", () => {
+    renderColdStart();
+    expect(screen.getByRole("button", { name: ja.entryAnimeTitle }).className).toContain("bg-primary-soft");
+    expect(screen.getByRole("button", { name: ja.entryCityTitle }).className).toContain("bg-gold-soft");
+    expect(screen.getByRole("button", { name: ja.entryChatTitle }).className).toContain("bg-walk-bg");
+  });
+
+  it("disables every door and the sample link while the backend is unreachable", () => {
     render(<ColdStart dict={ja} onChip={vi.fn()} disabled />);
-    for (const chip of ja.chips) {
-      expect(screen.getByRole("button", { name: chip.text }).hasAttribute("disabled")).toBe(true);
+    for (const { title } of ENTRIES) {
+      expect(screen.getByRole("button", { name: title }).hasAttribute("disabled")).toBe(true);
     }
+    expect(screen.getByRole("button", { name: ja.sampleLink }).hasAttribute("disabled")).toBe(true);
   });
 });

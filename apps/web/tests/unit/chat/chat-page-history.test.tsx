@@ -35,7 +35,7 @@ describe("A3 history restoration", () => {
     expect(screen.getByText("宇治の聖地を2件、徒歩ルートにまとめました。")).toBeTruthy();
     const footprint = document.querySelector(".chat-footprint");
     expect(footprint?.getAttribute("data-intent")).toBe("plan_route");
-    expect(screen.queryByText(ja.greeting)).toBeNull();
+    expect(screen.queryByRole("heading", { level: 1, name: ja.coldStartHeading })).toBeNull();
   });
 
   it("does not auto-send ?q= while restoring a session", async () => {
@@ -55,7 +55,7 @@ describe("A3 history failure", () => {
       const banner = await screen.findByRole("alert");
       expect(banner.textContent).toContain(ja.historyError);
       expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(true);
-      expect(screen.queryByText(ja.greeting)).toBeNull();
+      expect(screen.queryByRole("heading", { level: 1, name: ja.coldStartHeading })).toBeNull();
     },
   );
 

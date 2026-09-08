@@ -4,18 +4,17 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { NotFound } from "../../src/components/NotFound";
+import { RootError } from "../../src/components/RootError";
 import { AppRouterContext } from "./_router";
 
-describe("NotFound", () => {
-  it("renders the fallback brand, status, and home link", () => {
-    render(<AppRouterContext><NotFound /></AppRouterContext>);
+describe("RootError", () => {
+  it("renders the branded fallback with a home link, never the caught error", () => {
+    render(<AppRouterContext><RootError /></AppRouterContext>);
 
     const link = screen.getByRole("link", { name: "Return home" });
 
     expect(screen.getByText("Animichi")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "404" })).toBeTruthy();
-    expect(screen.getByText("Page not found")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Something went wrong" })).toBeTruthy();
     expect(link.getAttribute("href")).toBe("/");
   });
 });

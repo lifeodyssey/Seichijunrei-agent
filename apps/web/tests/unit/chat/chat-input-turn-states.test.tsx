@@ -83,9 +83,9 @@ describe("G4: a running turn keeps the field, not the key", () => {
 
   it("dims the pill only while busy", () => {
     const view = render(<ChatInput dict={ja} disabled={false} busy onSend={vi.fn()} />);
-    expect(document.querySelector(".chat-input")?.className).toContain("chat-input--busy");
+    expect(document.querySelector("form")?.className).toContain("opacity-75");
     view.rerender(<ChatInput dict={ja} disabled={false} onSend={vi.fn()} />);
-    expect(document.querySelector(".chat-input")?.className).not.toContain("chat-input--busy");
+    expect(document.querySelector("form")?.className).not.toContain("opacity-75");
   });
 
   it("still takes the field away when the page itself is out of service (A5)", () => {

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { RecomputeStatus } from "../components/SelectionTray";
 import { isTurnActive } from "../lib/turn-gate";
@@ -69,7 +69,8 @@ function useResend(chat: ChatSession, lastPick: CandidatePick | undefined, setSt
 function usePickTurnState(sessionKey?: string) {
   const [status, setStatus] = useState<RecomputeStatus>("idle");
   const [lastPick, setLastPick] = useState<CandidatePick>();
-  useEffect(() => { setStatus("idle"); setLastPick(undefined); }, [sessionKey]);
+  const [prevKey, setPrevKey] = useState(sessionKey);
+  if (prevKey !== sessionKey) { setPrevKey(sessionKey); setStatus("idle"); setLastPick(undefined); }
   return { status, setStatus, lastPick, setLastPick };
 }
 

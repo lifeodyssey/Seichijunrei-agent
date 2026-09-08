@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ChatDict } from "../i18n";
 import type { HistoryEntry } from "../use-conversation-history";
 
@@ -21,10 +22,13 @@ function HistoryItem({ entry }: Readonly<{ entry: HistoryEntry }>) {
 
 type Props = Readonly<{ entries: readonly HistoryEntry[]; dict: ChatDict }>;
 
-export function HistoryList({ entries, dict }: Props) {
+/** Memoized: settled history never changes while a live turn streams, and both
+ * props hold stable references (react-query cache + per-locale dict table), so
+ * SSE chunks skip this whole subtree. */
+export const HistoryList = memo(function HistoryList({ entries, dict }: Props) {
   if (entries.length === 0) return null;
   const items = entries.map((entry, index) => (
     <HistoryItem key={`history-${String(index)}-${entry.role}`} entry={entry} />
   ));
   return <ol className="chat-history" aria-label={dict.historyFootprint}>{items}</ol>;
-}
+});

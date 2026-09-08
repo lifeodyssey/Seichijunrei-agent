@@ -65,10 +65,9 @@ describe("B4 settled footprint: elapsed emphasis over a semantic token", () => {
 });
 
 describe("WCAG 2.2.2: the new looping motion yields to the reduce preference", () => {
-  it("disables the row-in and bob animations under reduced motion", () => {
+  it("disables the row-in animation under reduced motion", () => {
     const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*)\}/u.exec(chatCss)?.[1] ?? "";
     expect(block).toContain(".chat-message");
-    expect(block).toContain(".chat-cold-start__fox");
   });
 
   it("animates each landed turn with the row-in keyframes", () => {

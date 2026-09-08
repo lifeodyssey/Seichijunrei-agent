@@ -1,6 +1,6 @@
 import "../../styles/anime.css";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import { useRouter, useSearch } from "@tanstack/react-router";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../../i18n/locales";
 import { animeCopyFor, type AnimeCopy } from "./copy";
@@ -35,7 +35,7 @@ function AnimeErrorActions({ copy, onRetry }: ErrorCopyProps & Readonly<{ onRetr
   return (
     <p className="anime-actions">
       <button type="button" className="anime-press" onClick={onRetry}>{copy.errorRetry}</button>
-      <a className="anime-press" href="/">{copy.errorHome}</a>
+      <Link className="anime-press" to="/">{copy.errorHome}</Link>
     </p>
   );
 }

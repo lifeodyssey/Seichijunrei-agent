@@ -8,6 +8,7 @@ import {
   useMatches,
 } from "@tanstack/react-router";
 import { NotFound } from "../components/NotFound";
+import { RootError } from "../components/RootError";
 import { Splash } from "../components/Splash";
 import { THEME_BOOTSTRAP_SCRIPT } from "../components/theme-bootstrap";
 import { cfWebAnalyticsScripts } from "../features/seo/analytics";
@@ -89,6 +90,7 @@ export function rootHead() {
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: rootHead,
   component: RootComponent,
+  errorComponent: RootError,
   notFoundComponent: () => <NotFound />,
 });
 

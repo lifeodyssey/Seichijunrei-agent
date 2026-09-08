@@ -1,188 +1,7 @@
-/* Chat shell (S1.1) — Animal Island semantic tokens only, no raw palette values. */
-
-.chat-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  background: var(--color-bg);
-  color: var(--color-fg);
-}
-
-/* Appbar (design sync `.appbar`): the chat's chrome — brand, new conversation,
-   identity. First in `.chat-page`, above the notices, so a banner arriving or
-   leaving never shifts the brand. */
-.chat-appbar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 13px clamp(16px, 4vw, 28px);
-  background: var(--color-paper);
-  border-bottom: 2px solid var(--color-border-soft);
-}
-
-.chat-appbar__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-inline-end: auto;
-}
-
-.chat-appbar__mark {
-  position: relative;
-  flex: none;
-  width: 40px;
-  height: 40px;
-}
-
-.chat-appbar__torii {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  width: 40px;
-  height: 40px;
-}
-
-.chat-appbar__fox {
-  position: absolute;
-  left: -8px;
-  bottom: -6px;
-  width: 24px;
-  height: 24px;
-  transform: scaleX(-1);
-}
-
-.chat-appbar__wordmark {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.05;
-}
-
-.chat-appbar__name {
-  font-family: "Zen Maru Gothic", "Zen Maru Gothic fallback", "Noto Sans SC", sans-serif;
-  font-weight: 700;
-  font-size: 19px;
-  color: var(--color-fg);
-}
-
-/* The design's bright teal reads 1.97:1 on paper — the deep teal is the only
-   member of the family that carries this 10.5px lockup at AA by day. */
-.chat-appbar__tagline {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--color-primary-strong);
-}
-
-.chat-appbar__new,
-.chat-appbar__login,
-.chat-appbar__settings {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 8px 14px;
-  border: 2px solid var(--color-border);
-  border-radius: 50px;
-  background: var(--color-paper);
-  color: var(--color-fg);
-  font-family: inherit;
-  font-weight: 800;
-  font-size: 13.5px;
-  text-decoration: none;
-  box-shadow: 0 3px 0 var(--shadow-3d);
-  cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
-}
-
-.chat-appbar__new:active,
-.chat-appbar__login:active,
-.chat-appbar__settings:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--shadow-3d);
-}
-
-.chat-appbar__new:focus-visible,
-.chat-appbar__login:focus-visible,
-.chat-appbar__settings:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
-.chat-appbar__plus {
-  width: 15px;
-  height: 15px;
-  flex: none;
-}
-
-.chat-appbar__settings {
-  flex: none;
-  min-width: 44px;
-}
-
-.chat-appbar__settings-icon {
-  width: 17px;
-  height: 17px;
-  flex: none;
-}
-
-/* Signed-in disc (design sync `.ava`): reports identity, opens nothing. */
-.chat-appbar__avatar {
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  border: 2px solid var(--color-paper);
-  box-shadow: 0 3px 8px -3px var(--color-primary);
-}
-
-/* Design sync's own narrow rule: the plus keeps its 44px target, the word goes. */
-@media (max-width: 520px) {
-  .chat-appbar__wordmark {
-    display: none;
-  }
-
-  .chat-appbar__new-label {
-    display: none;
-  }
-
-  .chat-appbar__settings-label {
-    display: none;
-  }
-
-  .chat-appbar__new {
-    padding: 8px 11px;
-  }
-
-  .chat-appbar__settings {
-    padding: 8px 11px;
-  }
-}
-
-.chat-body {
-  flex: 1;
-  overflow-y: auto;
-  width: 100%;
-  max-width: 48rem;
-  margin-inline: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* The dock rail shares the composer's centred column (design sync `.dock .di`),
-   so the photo chip and the live hint line up with the pill above them instead
-   of hugging the page's left edge. */
-.chat-dock {
-  width: min(calc(100% - 2rem), 47.5rem);
-  margin-inline: auto;
-}
+/* Chat shell (S1.1) — Animal Island semantic tokens only, no raw palette values.
+ * The direction-E frame (mobile bar, sidebar, panel, composer) is Tailwind
+ * classes in ChatShell/ChatSidebar/ComposerDock; what remains here is the
+ * message-flow and dock-tray language the frozen internals still draw on. */
 
 .chat-bubble {
   width: fit-content;
@@ -285,65 +104,9 @@
   box-shadow: 0 3px 0 color-mix(in srgb, var(--color-primary-strong) 30%, var(--color-primary-soft));
 }
 
-/* A1 empty-state hero: the fox is the whole first screen on mobile. */
-.chat-cold-start {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 14px;
-  padding: 14px 0 30px;
-}
-
-@keyframes chat-fox-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-7px); }
-}
-
-.chat-cold-start__fox {
-  width: 108px;
-  height: 108px;
-  filter: drop-shadow(0 8px 10px color-mix(in srgb, var(--shadow-3d) 45%, transparent));
-  animation: chat-fox-bob 4s ease-in-out infinite;
-}
-
-.chat-cold-start__title {
-  margin: 0;
-  font-family: "Zen Maru Gothic", "Zen Maru Gothic fallback", "Noto Sans SC", sans-serif;
-  font-size: 27px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--color-fg);
-}
-
-.chat-cold-start__lead {
-  margin: 0;
-  max-width: 33em;
-  padding: 13px 18px;
-  border: 2px solid var(--color-border-soft);
-  border-radius: 20px;
-  border-top-left-radius: 6px;
-  background: var(--color-card);
-  font-size: 15px;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.chat-cold-start__chips-label {
-  margin: 4px 0 0;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  color: var(--color-muted-fg);
-}
-
-.chat-cold-start .chat-chips {
-  justify-content: center;
-  max-width: 580px;
-  gap: 10px;
-}
+/* A1 cold start and the G1 composer moved to Tailwind with the direction-E
+ * frame (ColdStart.tsx / ChatInput.tsx); the example-chip row below is the
+ * D1/D2 recovery surface the error states still render. */
 
 .chat-fox-avatar {
   width: 38px;
@@ -543,96 +306,6 @@
   padding: 0.625rem 1rem;
   background: var(--color-error-bg);
   color: var(--color-error-strong);
-}
-
-/* G1 composer (design sync `.composer`): a floating pill above the page floor,
-   not a bar welded to the bottom edge. */
-.chat-input {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  width: min(calc(100% - 2rem), 47.5rem);
-  margin: 0.25rem auto 1rem;
-  padding: 8px 8px 8px 18px;
-  border: 2px solid var(--color-border-soft);
-  border-radius: 50px;
-  background: var(--color-paper);
-  box-shadow: 0 12px 28px -16px var(--shadow-3d);
-  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.25s;
-}
-
-/* G4: a running turn dims the dock but never takes the field away. */
-.chat-input--busy {
-  opacity: 0.75;
-}
-
-/* Design sync `.composer:focus-within`: the teal edge answers any focus inside. */
-.chat-input:focus-within {
-  border-color: var(--color-primary);
-}
-
-/* G2 keyboard focus. The teal edge alone is 1.8:1 against paper, so the ring is
-   two bands — --color-focus inside for the design's yellow, --color-primary-strong
-   outside to carry the 3:1 that 1.4.11 asks of a focus indicator — plus the glow. */
-.chat-input:has(.chat-input__field:focus-visible) {
-  box-shadow:
-    0 0 0 2px var(--color-focus),
-    0 0 0 4px var(--color-primary-strong),
-    0 0 14px 3px color-mix(in srgb, var(--color-focus) 45%, transparent),
-    0 12px 28px -16px var(--shadow-3d);
-}
-
-.chat-input__field {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-fg);
-  font-family: inherit;
-  font-size: 15.5px;
-}
-
-.chat-input__field::placeholder {
-  color: var(--color-muted-fg);
-}
-
-/* The ring is drawn by the pill; an inner outline would double-draw it. */
-.chat-input__field:focus-visible {
-  outline: none;
-}
-
-.chat-input__send {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-primary-ink);
-  box-shadow: 0 3px 0 var(--color-primary-strong);
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.1s, transform 0.1s;
-}
-
-.chat-input__send:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--color-primary-strong);
-}
-
-/* G3: the press shadow IS the affordance. Nothing to send, nothing to press —
-   so the key goes muted and flat rather than merely translucent. */
-.chat-input__send:disabled {
-  background: var(--color-muted);
-  color: var(--color-muted-fg);
-  box-shadow: none;
-  transform: none;
-  cursor: not-allowed;
 }
 
 .chat-chip:disabled {
@@ -1164,10 +837,6 @@
   box-shadow: 0 1px 0 var(--shadow-3d);
 }
 
-.chat-settled--recompute {
-  margin: 0;
-}
-
 /* Persistent polite live region: keeps announcing the recompute after the
    tray unmounts on fire (a11y focus handoff, #461 review). */
 .chat-live-note {
@@ -1477,8 +1146,7 @@
   .chat-step[data-status="running"],
   .chat-card--skeleton,
   .chat-card,
-  .chat-message,
-  .chat-cold-start__fox {
+  .chat-message {
     animation: none;
   }
 }
@@ -1490,12 +1158,4 @@
 [data-theme="night"] .chat-scene-thumb--fallback {
   background: linear-gradient(135deg, var(--color-primary-ink), var(--color-bg));
   color: var(--color-fg);
-}
-
-/* Teal is theme-invariant, so the tagline swaps which end of the family it
- * uses rather than needing a night token: the deep teal that carries AA on day
- * paper reads only 3.04:1 on night paper, while the bright teal — unusable by
- * day at 1.97:1 — reads 7.25:1 there. */
-[data-theme="night"] .chat-appbar__tagline {
-  color: var(--color-primary);
 }

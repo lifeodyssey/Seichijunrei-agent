@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import type { Locale } from "../../../i18n/locales";
 import { ColdStart } from "./ColdStart";
 import { DeparturePrompt } from "./DeparturePrompt";
-import { PhotoSearchUpload } from "./PhotoSearchUpload";
 import { ErrorBanner } from "./ErrorBanner";
 import { SelectionTray } from "./SelectionTray";
 import { TurnFailure } from "./ErrorStates/TurnFailure";
@@ -14,21 +13,43 @@ import { WaitingRitual } from "./WaitingRitual";
 import type { ChatEntryState } from "../entry-state";
 import type { ChatDict } from "../i18n";
 import { isTurnActive } from "../lib/turn-gate";
-import type { PhotoSearchContext } from "../photo-search";
 import type { RecomputeTurn } from "../selection/use-recompute-turn";
 import type { DeparturePromptState } from "../use-departure-prompt";
 import type { ConversationHistory } from "../use-conversation-history";
 import type { ChatSession } from "../use-chat-session";
 import { businessEventCount, useTurnTiming } from "../use-turn-timing";
 
-/** The chat-page frame: ChatPage assembles the five regions it owns. */
+/** The direction-E page frame: ChatPage assembles the seven regions it owns —
+ * the mobile bar, the sidebar, the panel header, the notices, the body, the
+ * dock surfaces, and the composer. */
 export type ChatShellProps = Readonly<{
   appbar: ReactNode;
+  sidebar: ReactNode;
+  header: ReactNode;
   notices: ReactNode;
   body: ReactNode;
   dock: ReactNode;
   composer: ReactNode;
 }>;
+
+/** Mockup `body`: the leaf-green field with its leaf tile, sidebar beside the
+ * cream panel. Mobile drops the padding and stacks the bar over the panel.
+ * `lg:h-dvh` pins the desktop frame to the viewport, so a long conversation
+ * scrolls the panel's body — never the page, the composer, or the sidebar. */
+const SHELL_CLASS = "chat-page grid min-h-dvh gap-[var(--chat-gutter)] p-[var(--chat-gutter)] text-ground-ink [background-color:var(--color-ground)] [background-image:var(--leaf-tile-image)] [background-size:clamp(90px,18vw,260px)] max-lg:[grid-template-columns:1fr] max-lg:gap-0 max-lg:p-0 lg:h-dvh lg:[grid-template-columns:292px_1fr]";
+
+/** Mockup `.main`: the cream panel with the ink outline and the hard ledge.
+ * Flex column, not grid: the notices slot may render zero elements, and a
+ * `1fr` grid row would hand the free space to the dock instead of the body. */
+const PANEL_CLASS = "flex min-h-0 flex-col overflow-hidden rounded-3xl border-[3px] border-ground-ink bg-paper shadow-[var(--shadow-press-lg)] max-lg:min-h-[calc(100dvh-62px)] max-lg:rounded-none max-lg:border-0 max-lg:shadow-none";
+
+/** The conversation scroll region between the header and the dock; `flex-1`
+ * makes the body — never the dock — absorb the panel's free space. */
+const BODY_CLASS = "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-7 py-6 max-lg:px-5 max-lg:py-4";
+/* The history-loading note: the quiet small-text language of the waiting
+ * ritual's subtitle (`.chat-waiting__subtitle`), spoken in utilities. */
+const HISTORY_LOADING_CLASS = "text-[13px] text-muted-fg";
+const DOCK_CLASS = "min-h-0 overflow-y-auto";
 
 function useScrollAnchor(itemCount: number) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -71,7 +92,7 @@ function showColdStart(chat: ChatSession, history: ConversationHistory, entry: C
 export function ChatIntro({ entry, chat, history, dict, onSend }: ChatIntroProps) {
   return (
     <>
-      {history.status === "loading" ? <p className="chat-history-loading" role="status" aria-busy="true">{dict.preparing}</p> : null}
+      {history.status === "loading" ? <p className={HISTORY_LOADING_CLASS} role="status" aria-busy="true">{dict.preparing}</p> : null}
       <HistoryList entries={history.entries} dict={dict} />
       {showColdStart(chat, history, entry) ? <ColdStart dict={dict} onChip={onSend} disabled={entry === "A5"} /> : null}
     </>
@@ -97,23 +118,19 @@ export function TurnStream({ chat, dict, failure, locale }: TurnStreamProps) {
   );
 }
 
-/** The a11y anchor, last in `.chat-body`, keeps the live region announced in
+/** The a11y anchor, last in the chat body, keeps the live region announced in
  * order after the ritual. */
 export function ScrollAnchor({ count }: Readonly<{ count: number }>) {
   const ref = useScrollAnchor(count);
   return <div ref={ref} aria-hidden="true" />;
 }
 
-/** Owns the page frame: the appbar and notices above the chat body, the dock
- * rail and the composer below. */
-export function ChatShell({ appbar, notices, body, dock, composer }: ChatShellProps) {
-  return <main className="chat-page">
-    {appbar}
-    {notices}
-    <section className="chat-body">{body}</section>
-    <div className="chat-dock">{dock}</div>
-    {composer}
-  </main>;
+/** Owns the whole frame: the green field, the sidebar and the panel that
+ * carries the header, the conversation, the dock surfaces, and the composer. */
+export function ChatShell({ appbar, sidebar, header, notices, body, dock, composer }: ChatShellProps) {
+  return (
+    <main className={SHELL_CLASS}>{appbar}{sidebar}<section className={PANEL_CLASS}>{header}{notices}<div className={BODY_CLASS}>{body}</div><div className={DOCK_CLASS}>{dock}</div>{composer}</section></main>
+  );
 }
 
 /** C2t chips render only while a route request is held for departure info. */
@@ -124,8 +141,6 @@ export function DepartureGate({ departure, dict }: Readonly<{ departure: Departu
 
 type DockTrayProps = Readonly<{
   dict: ChatDict;
-  baseUrl: string;
-  photo: PhotoSearchContext;
   chat: ChatSession;
   recompute: RecomputeTurn;
 }>;
@@ -137,12 +152,12 @@ function trayStatus(chat: ChatSession, recompute: RecomputeTurn): RecomputeTurn[
   return isTurnActive(chat.status) ? "busy" : recompute.status;
 }
 
-/** Owns the dock surfaces: photo upload and the E2 recompute tray. */
-export function DockTray({ dict, baseUrl, photo, chat, recompute }: DockTrayProps) {
+/** Owns the mid-dock surfaces: the busy live note and the E2 recompute tray.
+ * Photo search lives in the composer now — the camera key opens the same flow. */
+export function DockTray({ dict, chat, recompute }: DockTrayProps) {
   const status = trayStatus(chat, recompute);
   return (
     <>
-      <PhotoSearchUpload dict={dict} baseUrl={baseUrl} context={photo} />
       <span className="chat-live-note" aria-live="polite">{status === "busy" ? dict.preparing : ""}</span>
       <SelectionTray dict={dict} status={status} lastSentIds={recompute.lastSentIds} onRecompute={recompute.fire} />
     </>

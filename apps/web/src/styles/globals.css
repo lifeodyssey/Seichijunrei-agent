@@ -98,6 +98,12 @@
   --shadow-menu: 0 8px 20px rgb(107 92 67 / 24%);
   --shadow-3d: #bdaea0;
   --shadow-press: 0 5px 0 0 var(--shadow-3d);
+  /* The press-ledge family, sized by surface: the big cream cards (shell
+   * panel, sidebar) press harder than the composer pill and the entry doors.
+   * Consumed via arbitrary values (`shadow-[var(--shadow-press-lg)]`), never
+   * registered in the `--shadow-*` utility namespace. */
+  --shadow-press-sm: 0 4px 0 0 var(--shadow-3d);
+  --shadow-press-lg: 0 6px 0 0 var(--shadow-3d);
 
   /* Nook pastel chips (from the animal-island palette): brand surfaces, theme-
    * invariant, each paired with the fixed warm-brown ink below. The ink is the
@@ -123,6 +129,11 @@
    * lettering with a full ink outline (the splash wordmark), where the outline
    * ring, not the fill, carries the contrast. */
   --color-ground-ink: #3d2b1c;
+  /* Direction-E chat chrome spacing (mockup body/.side): the page gutter
+   * around the cream panel and the interior rhythm inside the cards. Read via
+   * arbitrary values (`gap-[var(--chat-gutter)]`), not `@theme`-registered. */
+  --chat-gutter: 22px;
+  --chat-rhythm: 18px;
 
   /* Map furniture on the route sheet. Like the card plane's drop shadow these
    * are a fixed deep brown rather than a theme token: a pin frame and the
@@ -148,8 +159,8 @@
  *
  * Deliberately NOT registered: `--app-font-mono` (registering it as
  * `--font-mono` would replace Tailwind's own default and change preflight's
- * `code`/`pre` family), and `--shadow-3d` / `--shadow-press` (the first is a
- * colour, not a shadow; the second composes it — neither belongs in the
+ * `code`/`pre` family), and `--shadow-3d` / `--shadow-press*` (the first is a
+ * colour, not a shadow; the press family composes it — none belongs in the
  * `--shadow-*` utility namespace). */
 @theme inline {
   --color-primary: var(--color-primary);
