@@ -31,19 +31,25 @@
 # decision, spec §六 #3). actionlint has no schema entry for `queue` — see
 # .github/actionlint.yaml.
 #
-# `plan` and `build` are keyed on the commit rather than sharing a lane: the
-# only run that can ever wait is a rerun of the same commit, and what it waits
-# for is the run already holding that commit's `release-<sha>` artifact name.
-# Two different pushes still never queue behind each other, which is exactly
-# what a workflow-level group would reintroduce — there is still none, and
+# `plan` and `build` are keyed on the commit rather than sharing a lane. The
+# group is what `concurrency-limits` asks for at `pedantic` — every job under
+# one — bought at no behavioural cost: push-to-main is the only trigger, so two
+# runs never share a key and nothing ever actually queues here. A key that did
+# span commits would be the expensive kind, ordering one push behind another,
+# and a workflow-level group is that plus the production gate holding staging
+# (#1204 / #1325). There is still none, and
 # .github/scripts/test_cd_shape_contract.rb still asserts that (owner decision
 # 2026-09-08).
 #
 # The four Worker-publishing stages and the promotion pass
-# `package-manager-cache: false` to setup-node. Those jobs never install; they
-# hand the deploy to `wrangler-action`, and a restored package-manager cache is
-# build state anything holding a `GITHUB_TOKEN` can write to (zizmor
-# `cache-poisoning`, high). The jobs that only build keep their cache.
+# `package-manager-cache: false` to setup-node. Nothing was being restored to
+# begin with: that cache turns itself on only when `packageManager` names npm
+# (setup-node v7 action.yml), and this workspace's is `pnpm@10.33.2`. So this
+# closed no live hole — it states the absence, so the five jobs that put bytes
+# on Cloudflare cannot start restoring build state a `GITHUB_TOKEN` holder can
+# write to (zizmor `cache-poisoning`, high) if that default ever widens. Where
+# a cache is wanted it is still asked for by name: `build` sets `cache: pnpm`,
+# and `promote-production` installs the sealed Pulumi programs uncached.
 #
 # This file holds no credential (#1367). Every job that needs one proves who it
 # is instead: `environment:` puts `environment:<name>` into the job's OIDC
@@ -68,8 +74,8 @@ jobs:
   plan:
     name: CD / plan
     runs-on: ubuntu-latest
-    # Per commit, so the only run that can ever wait is a rerun of the one
-    # already holding this commit's `release-<sha>` artifact name.
+    # Per commit: satisfies `concurrency-limits` without letting one push queue
+    # behind another. See the concurrency note in the file header.
     concurrency:
       group: cd-build-${{ github.sha }}
       cancel-in-progress: false
@@ -264,8 +270,8 @@ jobs:
     # present an `environment:` subject (§3.5), and `staging` is the one without
     # an approval gate — production's reviewer must not be woken up to build.
     environment: staging
-    # Per commit, so the only run that can ever wait is a rerun of the one
-    # already holding this commit's `release-<sha>` artifact name.
+    # Per commit: satisfies `concurrency-limits` without letting one push queue
+    # behind another. See the concurrency note in the file header.
     concurrency:
       group: cd-build-${{ github.sha }}
       cancel-in-progress: false
