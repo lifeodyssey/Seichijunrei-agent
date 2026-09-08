@@ -10,8 +10,8 @@
 #                that artifact without rebuilding anything
 #   propagation  every stage lists every earlier stage in `needs`, so a failure
 #                two hops back cannot evaporate into a `skipped` result
-#   guards       `plan` falls back off a zero `before` and refuses a head that
-#                origin/main has already moved past
+#   guards       `plan` ranges from the last tree CD put on staging, falls back
+#                off a zero `before`, refuses a head origin/main has moved past
 #   concurrency  the staging lane and the production lane are separate job-level
 #                groups that queue instead of cancelling
 #   trigger      a push to main is the only way in — no tag, no dispatch
@@ -54,6 +54,15 @@ REBUILD_MARKERS = [
 ].freeze
 ZERO_SHA = "0000000000000000000000000000000000000000"
 HEAD_GUARD = "git ls-remote origin refs/heads/main"
+# `github.event.before` is the previous *push*, not the previous *deployment*, so
+# a failed run's cohort is stranded (#1506). The base is the newest head CD put on
+# staging — found by a paged scan, and accepted only if this history descends from
+# it, `cat-file` alone being satisfied by a force-pushed tip off `main` (#1507).
+DEPLOYED_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=completed\b}
+PAGED_QUERY = /\bpage=\$\{?page\}?/
+PAGE_LOOP = /for page in ([\d ]+); do/
+ACCEPTED_BASES = ['head_descends_from "$run_head"', 'head_descends_from "$base"'].freeze
+ANCESTOR_CHECK = "git merge-base --is-ancestor"
 # Without it a stage runs on a push whose `build` was skipped — no artifact.
 BUILD_GUARD = "needs.build.result == 'success'"
 # Two units take their inputs from outside their own pnpm project: the edge
@@ -158,6 +167,16 @@ def plan_script
 end
 
 def assert_plan_guards
+  @log.unless_true(plan_script.match?(DEPLOYED_QUERY) && plan_script.include?("head_sha"),
+                   "cd.yml:plan: must base its range on a completed run's head, not on the previous push")
+  @log.unless_true(plan_script.match?(PAGED_QUERY) && plan_script[PAGE_LOOP, 1].to_s.split.size > 1,
+                   "cd.yml:plan: must scan more than one page, under a literal cap — one page may hold no green smoke")
+  @log.unless_true(plan_script.include?(ANCESTOR_CHECK) && ACCEPTED_BASES.all? { |call| plan_script.include?(call) },
+                   "cd.yml:plan: both candidate bases must be ones this head descends from, not merely resolvable ones")
+  @log.unless_true(plan_script.include?("$EVENT_BEFORE"),
+                   "cd.yml:plan: must fall back to `github.event.before` when no candidate run qualifies")
+  @log.unless_true(@cd.dig("jobs", "plan", "permissions").to_h["actions"] == "read",
+                   "cd.yml:plan: reading the Actions API needs `actions: read` on the job")
   @log.unless_true(plan_script.include?(ZERO_SHA),
                    "cd.yml:plan: must fall back off a zero `before` instead of failing the push")
   @log.unless_true(plan_script.include?(HEAD_GUARD),

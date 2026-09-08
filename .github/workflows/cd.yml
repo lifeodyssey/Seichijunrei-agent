@@ -54,6 +54,11 @@ jobs:
     name: CD / plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `actions: read` is the one addition to the workflow default: the range
+    # step below asks the Actions API which commit CD last published.
+    permissions:
+      contents: read
+      actions: read
     outputs:
       packages: ${{ steps.pnpm.outputs.packages }}
       deploy: ${{ steps.pnpm.outputs.deploy }}
@@ -66,25 +71,99 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      # No `cache: pnpm` here: this job only runs `pnpm ls`, which reads the
+      # workspace manifests and never installs, so the store path setup-node's
+      # save phase points at is never created and the post step fails the job
+      # with `Path Validation Error` (run 34186376453, both attempts). The
+      # cached installs live in the jobs that actually install; the same
+      # reasoning already keeps the cache off `pr-verification.yml`'s plan job.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
       - name: Resolve the deployable range and refuse a superseded head
         id: range
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_BEFORE: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          base="$EVENT_BEFORE"
+          # The range starts at the last tree CD actually deployed to staging,
+          # not at the previous push. When a run fails, its cohort is never
+          # deployed, and `before..sha` on the next push excludes that diff
+          # outright while the stale-head guard below forbids re-running the
+          # superseded run — so the cohort is stranded until something else
+          # happens to touch the same packages (9598144f7, #1506). This is the
+          # deployment record spec decision 3 said CD did not have.
+          #
+          # It cannot be `status=success` on the run, which is an inverted
+          # signal here. A run ends `success` exactly when it deployed nothing:
+          # `plan` selected no package, every later job skipped, and a skipped
+          # job counts as a green run. A run that did deploy ends `failure`,
+          # because the repository policy auto-rejects the `production`
+          # approval and `promote production` fails after staging is already
+          # published. Measured over the 15 newest completed runs on main
+          # (2026-09-08): six ended `success` and all six had
+          # `CD / staging smoke: skipped`. So `status=success&per_page=1` does
+          # not come back empty — it comes back with a head nothing was ever
+          # published from (34185204327 on 71998d47), which is worse than the
+          # `before` it replaced.
+          #
+          # The staging record is the `CD / staging smoke` job, the last
+          # staging stage: it runs only after all five publish steps and probes
+          # the deployed surfaces, so its success means that head is live on
+          # staging whatever production later did. Its name is pinned against
+          # the selector below by `test_cd_publish_contract.rb` — a rename or a
+          # typo empties this lookup instead of failing it.
+          # One acceptance test, used at both ends. `cat-file` alone asks only
+          # whether this clone can resolve the object, and after a force push
+          # it still can: the old tip stays alive through another fetched ref
+          # while sitting outside main's history. A base off that history names
+          # a diff that never happened.
+          head_descends_from() {
+            git cat-file -e "$1^{commit}" 2>/dev/null &&
+              git merge-base --is-ancestor "$1" "$HEAD_SHA"
+          }
+          base=""
+          reason=""
+          inspected=0
+          # Newest first, paged, hard-capped at 150 runs. A single page is not a
+          # window: a stretch of 16 completed runs with no green smoke — which
+          # is what a run of red CI looks like — would send the base back to
+          # `before` and strand the cohorts again, the defect this step exists
+          # to close (CodeRabbit on #1507).
+          for page in 1 2 3 4 5; do
+            [ -z "$base" ] || break
+            completed="$(gh api \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/cd.yml/runs?branch=main&status=completed&per_page=30&page=$page" \
+              --jq '.workflow_runs | sort_by(.created_at) | reverse | .[] | "\(.id) \(.head_sha)"' \
+              2>/dev/null || true)"
+            # No rows: the API is out, or main has fewer runs than the cap.
+            [ -n "$completed" ] || break
+            while read -r run_id run_head; do
+              [ -n "$run_id" ] || continue
+              inspected=$((inspected + 1))
+              smoke="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" \
+                --jq '.jobs[] | select(.name == "CD / staging smoke") | .conclusion' 2>/dev/null || true)"
+              # `skipped` is not a deployment: on a push that selected nothing,
+              # smoke never ran and that head was never published.
+              [ "$smoke" = "success" ] || continue
+              head_descends_from "$run_head" || continue
+              base="$run_head"
+              reason="head of run $run_id, the newest of $inspected whose \`CD / staging smoke\` passed"
+              break
+            done <<< "$completed"
+          done
           # A first push and every force push report a 40-zero `before`; a
-          # rewritten history reports one this clone does not have. Both fall
-          # back to the parent commit. CD's range is `before..sha` and nothing
-          # else — there is no deployment-record baseline (spec decision 3).
-          if [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-            base="$(git rev-parse HEAD~1)"
+          # rewritten history reports one this history does not contain. Both
+          # fall back to the parent commit.
+          if [ -z "$base" ]; then
+            base="$EVENT_BEFORE"
+            reason="this push's github.event.before — none of $inspected completed runs reached a green staging smoke"
+            if [ "$base" = "0000000000000000000000000000000000000000" ] || ! head_descends_from "$base"; then
+              base="$(git rev-parse HEAD~1)"
+              reason="HEAD~1 — before is zero or off this history, and none of $inspected completed runs reached a green staging smoke"
+            fi
           fi
           # A rerun of a run a newer push has already overtaken would publish an
           # older tree over a newer one. `queue: max` orders the live runs; this
@@ -95,6 +174,7 @@ jobs:
             exit 1
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "Base $base — $reason ($inspected completed runs inspected)" >> "$GITHUB_STEP_SUMMARY"
       # `migrations/neon` and `infra/database-access` sit outside the pnpm
       # project graph, and `apps/agent` is a pnpm project whose deploy unit is a
       # container image rather than a Worker bundle — all three are routed by

@@ -16,6 +16,9 @@
 #   smoke      the staging gate probes the two real surfaces, and its exit code
 #              is what decides the job — a discarded one promotes a broken
 #              staging, which is the #1198 failure the job exists to prevent
+#   record     this job's `name` is also CD's staging-deployment record: `plan`
+#              reads it back off the API to find the last head that reached
+#              staging, so the name and the lookup are pinned to one another
 #   migration  every environment reaches the database only through the migrator
 #              Worker, and the staging-only baseline is refused BEFORE the
 #              production migration rather than after it
@@ -55,6 +58,17 @@ SMOKE_SURFACES = ["https://animichi-staging.zhenjiazhou0127.workers.dev",
 # assertion about the probe's text while discarding its result; the third is
 # banned repository-wide and named here so the smoke job says why.
 SMOKE_ESCAPES = ["|| true", "set +e", %w[continue on error].join("-")].freeze
+# `plan` decides its range base by asking the API which run last had this job
+# conclude `success` (#1506). That makes the job's display name an interface
+# between two jobs, and a string on each side of an API call is exactly the
+# coupling nothing type-checks: rename the job, or misspell the jq selector,
+# and the lookup returns empty, the base falls silently back to
+# `github.event.before`, and the stranded-cohort bug is back with every
+# contract green. Both spellings are pinned here, together, because either one
+# alone is worthless — and the plan step's own comment names the job, so the
+# selector has to be read out of the commands rather than the step text.
+SMOKE_JOB_NAME = "CD / staging smoke"
+SMOKE_LOOKUP = %(select(.name == "#{SMOKE_JOB_NAME}"))
 # C3 (#1365) retired the transitional Atlas step: production migrates the way
 # staging always has. What is left to pin is that no job applies the chain
 # itself — doing so is holding a database credential by definition — and that
@@ -213,6 +227,21 @@ def assert_baseline_guard_precedes_the_production_migration
                    "cd.yml:promote-production: the staging-only guard must refuse before production migrates")
 end
 
+# Comment lines out: in a block scalar YAML hands `#` through, and the same
+# blind spot let a `--dry-run` in a comment excuse a real publish above.
+def commands_of(job)
+  run_text(job).lines.grep_v(/\A\s*#/).join
+end
+
+def assert_plan_reads_the_smoke_job_by_name
+  @log.unless_true(@cd.dig("jobs", "smoke", "name") == SMOKE_JOB_NAME,
+                   "cd.yml:smoke: `name` must stay `#{SMOKE_JOB_NAME}` — `plan` reads it back off " \
+                   "the API, and a rename empties that lookup instead of failing it")
+  @log.unless_true(commands_of("plan").include?(SMOKE_LOOKUP),
+                   "cd.yml:plan: must select the smoke job with `#{SMOKE_LOOKUP}` — a comment naming " \
+                   "the job is not the lookup, and a misspelt selector returns empty rather than red")
+end
+
 def main
   assert_deploys_pin_wrangler
   assert_deploys_tag_the_version
@@ -220,6 +249,7 @@ def main
   assert_shell_publishes_obey_the_same_rules
   assert_smoke_probes_the_real_surfaces
   assert_smoke_failure_is_decisive
+  assert_plan_reads_the_smoke_job_by_name
   assert_every_environment_migrates_through_the_worker
   assert_no_job_applies_the_chain_itself
   assert_baseline_guard_precedes_the_production_migration
