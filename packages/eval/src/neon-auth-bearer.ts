@@ -10,7 +10,7 @@
  * written down here rather than rediscovered.
  *
  * This is NOT a second door onto staging. Neon Auth is a different origin behind
- * no WAF rule: it takes no `x-staging-key`, and `CATALOG_API_ORIGIN` is never
+ * no Access application: it takes no service token, and `CATALOG_API_ORIGIN` is never
  * read here. What it does share with the door is the refusal that matters — a
  * password and a JWT both cross this wire, so a non-HTTPS base URL is refused
  * before either is sent.

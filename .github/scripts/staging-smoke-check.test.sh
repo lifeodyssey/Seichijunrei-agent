@@ -166,6 +166,26 @@ run_at "http://localhost:3000" "an undeclared token against the loopback still p
   SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0
 
 echo
+echo "=== the script's spellings match the one TS definition (PR #1498 review) ==="
+# The script cannot import TypeScript, so it re-spells what
+# `packages/contract/src/access-service-token.ts` owns: the two variable names,
+# the two header names, and the loopback list. Drift is silent in both
+# directions — a header Access does not read, or a loopback form the script
+# hands staging's real token to.
+CONTRACT="$ROOT/packages/contract/src/access-service-token.ts"
+for literal in CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET \
+  CF-Access-Client-Id CF-Access-Client-Secret \
+  localhost .localhost '[::1]' '[::]' 0.0.0.0 127.
+do
+  if grep -qF -- "$literal" "$SCRIPT" && grep -qF -- "$literal" "$CONTRACT"; then
+    printf 'PASS %-60s\n' "both files spell $literal"
+  else
+    fail=$((fail + 1))
+    printf 'FAIL %-60s\n' "only one of the two files spells $literal"
+  fi
+done
+
+echo
 if [ "$fail" -eq 0 ]; then
   echo "All staging-smoke-check tests passed."
 else

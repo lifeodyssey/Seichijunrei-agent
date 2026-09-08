@@ -57,11 +57,13 @@ const TS_ROOTS: readonly string[] = ["", "workers/edge/src/"];
 const EXEMPT = /^(?:unsourced|not )/;
 
 // Every issue the checklist may cite: the epic, the umbrella, this card, the
-// W1/W2 cards whose PRs the rows are sourced from, and the open decision and
-// follow-up issues. Listed here rather than fetched so the gate stays offline.
+// W1/W2 cards whose PRs the rows are sourced from, the open decision and
+// follow-up issues, and #1369, which replaced the staging credential one row
+// tells an operator to export. Listed here rather than fetched so the gate stays
+// offline.
 const KNOWN_ISSUES: ReadonlySet<number> = new Set([
   1243, 1251, 1253, 1257, 1277, 1278, 1279, 1280, 1281, 1282, 1283, 1284, 1285,
-  1286, 1287, 1288, 1289, 1291, 1292, 1293, 1295, 1296, 1297, 1298, 1304,
+  1286, 1287, 1288, 1289, 1291, 1292, 1293, 1295, 1296, 1297, 1298, 1304, 1369,
 ]);
 
 interface Row {

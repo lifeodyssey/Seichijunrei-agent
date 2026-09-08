@@ -38,16 +38,23 @@ bindings remain in Wrangler; route ownership stays here. Root guide: `../AGENTS.
 
 ## Key files + entrypoints
 
-- `index.ts` — R2 media bucket, flag-gated web Custom Domains, edge routes, www redirect, staging WAF gate, exported catalog DB secret, and the Neon Auth staging declarations (JWKS/issuer derivation + QA login, AUTH-2 #950).
+- `index.ts` — R2 media bucket, flag-gated web Custom Domains, edge routes, www redirect, the staging per-host WAF config override, exported catalog DB secret, and the Neon Auth staging declarations (JWKS/issuer derivation + QA login, AUTH-2 #950).
 - `database-access/` — database roles, per-service DSNs, and Auth access material. Its Pulumi project name remains the stable persisted state identity until an explicit cross-project stack migration. Its Neon provider SDK is generated at release time and gitignored, so no test can build this program; `topology-prod-database-access.test.ts` pins the prod stack's role/secret derivations from the source instead.
-- `src/staging-access.ts` — the staging Cloudflare Access service token (D3 #1369) and
-  the two stack outputs the ESC environment imports through its `pulumi-stacks` provider:
-  `stagingAccessClientId` → `CF_ACCESS_CLIENT_ID` and `stagingAccessClientSecret` →
-  `CF_ACCESS_CLIENT_SECRET` under `environmentVariables` of `lifeodyssey/animichi/staging`.
-  **The output names are the wiring contract** — ESC resolves them by name and imports an
-  unresolvable one as empty, so a rename locks every automated caller out with no red
-  anywhere; `topology-staging.test.ts` pins both. Staging only: production has no Access
-  application, and `topology-prod.test.ts` pins that no token is minted there.
+- `src/staging-access.ts` — the whole staging front door (D3 #1369): one
+  `ZeroTrustAccessApplication` over `stagingDomain` plus the two `animichi-*-staging`
+  workers.dev origins, a `nonIdentity` (Service Auth) policy carrying the
+  `animichi-staging-ci` service token, an `allow` policy built from the
+  `stagingAccessAllowedEmails` stack config, the `onetimepin`
+  `ZeroTrustAccessIdentityProvider` that policy's humans sign in through (an **account-level**
+  resource this stack owns only because staging is the account's sole Access consumer — move it
+  to a shared program before a second stack needs one), and the two stack outputs the ESC environment
+  imports through its `pulumi-stacks` provider: `stagingAccessClientId` → `CF_ACCESS_CLIENT_ID`
+  and `stagingAccessClientSecret` → `CF_ACCESS_CLIENT_SECRET` under `environmentVariables` of
+  `lifeodyssey/animichi/staging`. **The output names are the wiring contract** — ESC resolves
+  them by name and imports an unresolvable one as empty, so a rename locks every automated
+  caller out with no red anywhere; `topology-staging-access.test.ts` pins both, along with the
+  hostname list and both policies. Staging only: production has a real login, and
+  `topology-prod.test.ts` pins that no application, policy or token is built there.
 - `src/neon-auth.ts` — pure Neon Auth derivation (JWKS URL ↔ issuer base URL, env-var names); pinned by `topology-neon-auth.test.ts`.
 - `Pulumi.yaml` — project metadata and base encrypted config.
 - `Pulumi.staging.yaml` · `Pulumi.prod.yaml` — live environment stacks.
@@ -69,8 +76,13 @@ bindings remain in Wrangler; route ownership stays here. Root guide: `../AGENTS.
   Prod additionally gets the www placeholder and redirect, and so requires `wwwDomain` on top of
   `cloudflareZoneId` + `webDomain`; other stacks require `cloudflareZoneId` + `stagingDomain`.
   Do not flip it as routine cleanup.
-- `stagingGateEnabled` defaults false. Enabling it requires `stagingDomain` and the
-  `stagingGateToken` secret.
+- **Access enforces the moment its policy exists, and it is eventually consistent.** The
+  application in `src/staging-access.ts` starts refusing unauthenticated traffic a minute or
+  two after the apply, not at the apply — a smoke probe on the landing run can pass without
+  ever having been checked. Adding a hostname to it is therefore a lockout risk for whatever
+  automation reaches that hostname without the two `CF-Access-*` headers, and removing one is
+  a silent exposure nothing goes red for. `stagingAccessAllowedEmails` is refused empty for
+  the same reason: an `allow` policy with no include rules is a door no human can open.
 - No Hyperdrive: catalog reaches Neon over `@neondatabase/serverless` HTTP.
 - **The pre-apply `pulumi stack export` rollback backup is retired** (#485 → #1077). Pulumi Cloud's
   own update history is the rollback record, so CD no longer copies a state snapshot into the R2

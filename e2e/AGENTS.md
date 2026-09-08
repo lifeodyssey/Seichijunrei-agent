@@ -33,9 +33,9 @@ It needs nothing running beforehand; every other script targets `:3000` (or what
   `CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET`, turned into the
   `CF-Access-Client-Id` / `CF-Access-Client-Secret` request headers on
   `use.extraHTTPHeaders` by `playwright.config.ts`. It is headers and not a storage
-  state because Access reads the credential off each request; the `STAGING_GATE_TOKEN`
-  cookie `global-setup.ts` writes is the older WAF gate and is unrelated. Both
-  variables or neither — half a token is answered with the Access login page, and
+  state because Access reads the credential off each request — which is why #1369 also
+  deleted `global-setup.ts`, whose whole job was launching a browser before the run to
+  seed the retired WAF gate's `animichi_staging` cookie. Both variables or neither — half a token is answered with the Access login page, and
   `@animichi/contract/access-service-token` refuses it by name before any spec starts.
   It is scoped to the TARGET, and the scoping is a **refusal**, not a filter, because
   `use.extraHTTPHeaders` is context-wide — it rides `context.request` calls too, and
@@ -53,6 +53,14 @@ It needs nothing running beforehand; every other script targets `:3000` (or what
   environmentVariables.CF_ACCESS_CLIENT_ID --format string` (and the secret likewise);
   CI takes them from the same ESC environment. `.github/scripts/test_browser_lane_contract.rb`
   fails if the config stops presenting them.
+  **The headers also ride Cloudflare-operated subresources.** `extraHTTPHeaders` is
+  context-wide, so a page that loads `challenges.cloudflare.com` (Turnstile) or
+  `static.cloudflareinsights.com` sends them the pair too. That is acceptable today — the
+  recipient is Cloudflare, the same party that issued the token and terminates Access —
+  and the refusal above only covers origins the suite is *configured* to reach, not ones a
+  page pulls in. Re-check this the first time a spec loads a subresource from anybody
+  else: a non-Cloudflare third party would be a real leak and needs the `context.route`
+  interceptor this file argues against, or a narrower target.
 - Keep browser assertions user-visible and locale-aware; failure screenshots are automatic.
 
 ## Key files + entrypoints

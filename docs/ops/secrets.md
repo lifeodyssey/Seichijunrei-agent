@@ -114,7 +114,7 @@ column is now the record of *why* each is safe to delete rather than a per-row b
 
 | Secret | Finding | Owner action |
 |---|---|---|
-| `STAGING_GATE_TOKEN` | The staging WAF gate remains, but no current workflow can read this GitHub environment secret after automatic smoke was deferred | Owner smoke must use an independently held break-glass value; either add a future approved smoke workflow that explicitly consumes this secret or delete the unreachable GitHub copy after confirming the gate's source of truth |
+| `STAGING_GATE_TOKEN` | **Dead.** D3 (#1369) deleted the staging WAF gate this credential opened, along with `scripts/setup-staging-gate.sh` and the `stagingGate*` stack config; Cloudflare Access replaced it, and nothing in the repository reads this name any more | `gh secret delete STAGING_GATE_TOKEN` on the `staging` environment — no dependency left to check |
 | `AGENT_DATABASE_URL` | The production maintenance Worker may still read this DSN, but no current workflow forwards it | Confirm whether the maintenance Worker remains deployed; wire it into CD if retained, otherwise retire the Worker and then delete the secret |
 | `GCP_SA_KEY` | A GCP service-account private key, added 2025-12, referenced nowhere in code or workflows — the only row here with a real blast radius if it leaked (a live cloud credential, not an inert config name) | Check GCP IAM for any usage of this SA outside this repo; if none, revoke it in GCP first, then `gh secret delete GCP_SA_KEY`. Open an issue to track — do not batch with the rows below |
 | `GCP_PROJECT_ID` | Companion to `GCP_SA_KEY`, same 2025-12 origin, referenced nowhere | Delete once `GCP_SA_KEY` is confirmed dead and revoked |
@@ -151,7 +151,7 @@ They were never GitHub secrets and never will be.
 
 | ESC key | Scope | What it is | Source | Read by | Rotation |
 |---|---|---|---|---|---|
-| `CF_ACCESS_CLIENT_ID` | `environmentVariables` of `lifeodyssey/animichi/staging` only | The public half of the Cloudflare Access service token; Access matches it in the `CF-Access-Client-Id` header | Stack output `stagingAccessClientId` of `seichijunrei-infra`/`staging` (`infra/src/staging-access.ts`), imported by the environment's `pulumi-stacks` provider | CI: `pulumi/esc-action` in `cd.yml`'s `smoke` job (from PR 2). Local: `esc env open`. In code: `packages/contract/src/access-service-token.ts`, read by `.github/scripts/staging-smoke-check.sh`, `e2e/playwright.config.ts` and `workers/edge/api-test/lane-origin.ts` | Bump `clientSecretVersion` on the Pulumi resource; ESC re-reads the output on the next open. **The token itself still expires — see the deadline below** |
+| `CF_ACCESS_CLIENT_ID` | `environmentVariables` of `lifeodyssey/animichi/staging` only | The public half of the Cloudflare Access service token; Access matches it in the `CF-Access-Client-Id` header | Stack output `stagingAccessClientId` of `seichijunrei-infra`/`staging` (`infra/src/staging-access.ts`), imported by the environment's `pulumi-stacks` provider | CI: `pulumi/esc-action` in `cd.yml`'s `smoke` job, which exports these two names and nothing else. Local: `esc env open`. In code: `packages/contract/src/access-service-token.ts`, read by `.github/scripts/staging-smoke-check.sh`, `e2e/playwright.config.ts` and `workers/edge/api-test/lane-origin.ts` | Bump `clientSecretVersion` on the Pulumi resource; ESC re-reads the output on the next open. **The token itself still expires — see the deadline below** |
 | `CF_ACCESS_CLIENT_SECRET` | same | The secret half, matched in the `CF-Access-Client-Secret` header | Stack output `stagingAccessClientSecret`, sealed with `pulumi.secret` so it is ciphertext in Pulumi Cloud state | same | same |
 
 Production has neither key: it has no Access application. The two are useless apart — Access
@@ -168,10 +168,12 @@ distinction that matters at 03:00 when CI cannot reach staging.
 
 - **Created** by the first `stage-foundation` apply that carries `infra/src/staging-access.ts`
   (2026-09, the CD run that lands PR #1498). **Expires one year later.** The exact instant is the
-  resource's `expiresAt` attribute. It is deliberately NOT a stack output today — the two exported
-  outputs are the ones ESC imports and nothing else — so read it from Zero Trust → Access →
-  Service Auth in the dashboard, or from the service-tokens API. Exporting it, so the deadline is
-  machine-readable, is a PR-2 follow-up.
+  resource's `expiresAt` attribute. It is deliberately NOT a stack output — the two exported
+  outputs are the ones ESC imports and nothing else, and a third would be a name ESC could import
+  by accident — so read it from Zero Trust → Access → Service Auth in the dashboard, or from the
+  service-tokens API. **Concretely: minted by CD run 34189880991 on 2026-09-08, so it expires on
+  or about 2026-09-08 of next year.** That date is the one an operator has to put somewhere a
+  machine will remind them; see "who gets warned" below.
 - **Extend it** (same client id and secret, one more year): the dashboard's **Refresh** button on
   the token, or `POST …/access/service_tokens/{id}/refresh`. Changing `duration` on the Pulumi
   resource sets a new lifetime too.
@@ -185,14 +187,26 @@ distinction that matters at 03:00 when CI cannot reach staging.
   by hand; it is not on by default, and nothing in this repository creates or asserts it. Unless
   the owner has already added it out of band, expiry surfaces as
   every automated caller getting the Access login page at once — the same symptom as a wrong value.
-  Creating the notification (or a calendar reminder, whichever the owner prefers) is tracked as a
-  PR-2 follow-up on #1369.
+  **It is declarable, and this PR deliberately did not declare it.**
+  `@pulumi/cloudflare@6.19.0` does carry the alert: `NotificationPolicy` accepts
+  `alertType: "expiring_service_token_alert"` (`notificationPolicy.d.ts`, in the `alertType`
+  enum — the docstring prints underscores as `*`), alongside a required `accountId`, `name` and
+  `mechanisms`. What stopped it is the `mechanisms.emails` destination: Cloudflare only dispatches
+  to an address the account has verified, and an unverified one fails the apply — inside
+  `stage-foundation`, which would take the whole release cohort down for a reminder. Declaring it
+  is a small, separate change once the owner has confirmed a verified destination.
+- **Until then the deadline is tracked as issue #1523**, "ops(infra): renew the staging access
+  service token before 2027-09-08" — the owner reminder this subsection previously left to a
+  calendar nobody could see from the repository, which is the gap CodeRabbit flagged on PR #1520.
+  It is the one place the date is actionable rather than merely written down. When the token is
+  refreshed, or its secret rotated, move the date above and that issue together: two records that
+  disagree about when CI stops being able to reach staging are worse than one.
 
 **Failure modes.** A wrong or revoked value locks CI, the browser lane and every local staging
 lane out of staging at once (they answer with the Access login page, not a 4xx from the app);
 production is unaffected. Renaming either stack output silently empties the ESC key — ESC
-imports an unresolvable output as nothing — which is why `infra/topology-staging.test.ts` pins
-both names.
+imports an unresolvable output as nothing — which is why `infra/topology-staging-access.test.ts`
+pins both names.
 
 ## Cloudflare Secrets Store (not GitHub secrets)
 

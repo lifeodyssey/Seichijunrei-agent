@@ -13,6 +13,8 @@
 #              `test_workflow_invariants.rb` with the other meta-invariants
 #   esc        each stage opens its own environment and exports only the names
 #              it publishes with, never the action's export-everything default.
+#              The one non-publishing exception is `smoke`, which opens the
+#              Cloudflare Access service token and nothing else (D3 #1369).
 #              That each opened name is then checked for emptiness is a
 #              repository-wide rule in `test_workflow_invariants.rb`;
 #              `NEON_API_KEY` reaches the jobs that hold a reader for it and no
@@ -57,6 +59,15 @@ NEON_CLI = /neonctl|reset-staging-baseline\.sh/
 PUBLISH_TOKEN = "CLOUDFLARE_API_TOKEN"
 NEON_CONTROL_PLANE = "NEON_API_KEY"
 PULUMI_PLANE = [PUBLISH_TOKEN, NEON_CONTROL_PLANE].freeze
+# The Cloudflare Access service token the staging smoke probe presents at
+# staging's front door (D3 #1369). Not the Pulumi plane at all: it authenticates
+# a READ of a deployed surface, publishes nothing, and exists only because
+# staging has no login of its own. `smoke` is the one job with a reason to hold
+# it — anywhere else it is a job widening itself, which is what this pairing
+# with a job name is for. `smoke` correspondingly holds NEITHER Pulumi-plane
+# name: it deploys nothing.
+ACCESS_SERVICE_TOKEN = %w[CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET].freeze
+SMOKE_JOB = "smoke"
 WRANGLER_API_TOKEN = "${{ env.CLOUDFLARE_API_TOKEN }}"
 # An individual-edition organization cannot mint organization or team tokens —
 # the 2026-09-05 probe answered `401 … Org tokens are not supported for non
@@ -107,17 +118,58 @@ def neon_control_plane_jobs
   (steps_using(PULUMI_ACTION).map(&:first) + cli_jobs).uniq
 end
 
+# What a job is allowed to ask ESC for: the Pulumi plane everywhere, plus the
+# Access service token in `smoke` alone.
+def esc_allowance(job)
+  job == SMOKE_JOB ? PULUMI_PLANE + ACCESS_SERVICE_TOKEN : PULUMI_PLANE
+end
+
 def assert_esc_exports_only_what_its_stage_publishes_with
   neon_jobs = neon_control_plane_jobs
   steps_using(ESC_ACTION).each do |job, step|
     exports = esc_exported_names(step)
-    @log.unless_true(!exports.empty? && (exports - PULUMI_PLANE).empty?,
-                     "cd.yml:#{job}: ESC must export a non-empty subset of #{PULUMI_PLANE.join(', ')}, " \
+    allowed = esc_allowance(job)
+    @log.unless_true(!exports.empty? && (exports - allowed).empty?,
+                     "cd.yml:#{job}: ESC must export a non-empty subset of #{allowed.join(', ')}, " \
                      "never the export-everything default (got #{exports.join(', ')})")
     next unless exports.include?(NEON_CONTROL_PLANE)
 
     @log.unless_true(neon_jobs.include?(job),
                      "cd.yml:#{job}: #{NEON_CONTROL_PLANE} belongs to the jobs that hold a reader for it")
+  end
+end
+
+# The positive half. The two assertions above bound what `smoke` MAY hold; on
+# their own, a smoke job that opened nothing at all satisfies both — and then
+# probes staging bare, gets the Access login page, and reports a broken deploy
+# for every push. So the job is required to open exactly this pair.
+def assert_smoke_opens_the_front_door_credential
+  opened = steps_using(ESC_ACTION).select { |job, _step| job == SMOKE_JOB }
+                                  .flat_map { |_job, step| esc_exported_names(step) }
+  @log.unless_true(opened.sort == ACCESS_SERVICE_TOKEN.sort,
+                   "cd.yml:#{SMOKE_JOB}: must open #{ACCESS_SERVICE_TOKEN.join(', ')} from ESC — " \
+                   "staging is behind Cloudflare Access and a bare probe reads the login page as a " \
+                   "broken deploy (got #{opened.empty? ? 'nothing' : opened.join(', ')})")
+end
+
+# The other direction of the same pairing. The allowance above stops another job
+# from EXPORTING the token; this stops one from naming it at all — an `env:`
+# block, a `with:` input or a `run` line reaching for it would hold the same
+# credential without ever going through `esc_exported_names`.
+#
+# The WHOLE job mapping, not `steps_of` (CodeRabbit on PR #1520). `steps_of` is
+# `jobs.<job>.steps`, so a job-level `env:` — the shortest way to lift a
+# credential into every step at once — sat outside the scan while the comment
+# above claimed to cover it. Stringifying the job covers `env`, `container`,
+# `services`, `defaults` and anything a later schema adds, at the cost of
+# nothing: YAML comments are not in the parsed document, so a job that merely
+# MENTIONS the name in prose is not a false positive.
+def assert_the_access_token_stays_inside_the_smoke_job
+  ACCESS_SERVICE_TOKEN.each do |name|
+    holders = @cd.jobs.each_key.select { |job| @cd.dig("jobs", job).to_s.include?(name) }
+    @log.unless_true(holders == [SMOKE_JOB],
+                     "cd.yml: #{name} is staging's front-door credential and belongs to " \
+                     "#{SMOKE_JOB} alone (held by #{holders.empty? ? 'nothing' : holders.join(', ')})")
   end
 end
 
@@ -154,6 +206,8 @@ end
 def main
   assert_pulumi_login_is_the_only_token_type_this_org_can_mint
   assert_esc_exports_only_what_its_stage_publishes_with
+  assert_smoke_opens_the_front_door_credential
+  assert_the_access_token_stays_inside_the_smoke_job
   assert_wrangler_publishes_on_the_opened_token
   assert_retired_credentials_stay_retired
   assert_no_runtime_secret_upload

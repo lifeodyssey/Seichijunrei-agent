@@ -9,10 +9,9 @@
  *
  * THE DOOR IS `api-test/lane-origin.ts`, imported rather than reimplemented.
  * That module resolves `CATALOG_API_ORIGIN`, refuses a non-loopback origin that
- * is not HTTPS, attaches `x-staging-key` and the Cloudflare Access service token
- * headers to every request, and forbids following
- * a redirect (#1291, #1294). A second implementation of those four rules is
- * three places for one of them to be forgotten — and the request that forgot is
+ * is not HTTPS, attaches the Cloudflare Access service token headers to every
+ * request, and forbids following a redirect (#1291, #1294, #1369). A second
+ * implementation of those rules is three places for one of them to be forgotten — and the request that forgot is
  * the one that carries a Neon Auth bearer to wherever a `Location` header
  * pointed. `test/staging-door.test.ts` holds this file to it.
  *
@@ -24,7 +23,7 @@
  * Usage (from the repo root):
  *
  *   CATALOG_API_ORIGIN=https://staging.animichi.com \
- *   STAGING_GATE_TOKEN=… CF_ACCESS_CLIENT_ID=… CF_ACCESS_CLIENT_SECRET=… \
+ *   CF_ACCESS_CLIENT_ID=… CF_ACCESS_CLIENT_SECRET=… \
  *   NEON_AUTH_BASE_URL=… \
  *   QA_NEON_USER_EMAIL=… QA_NEON_USER_PASSWORD=… \
  *   pnpm --filter @animichi/eval run eval:staging -- --dataset agent_eval_heldout_v1 --limit 3

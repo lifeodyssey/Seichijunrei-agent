@@ -19,7 +19,7 @@ import {
 } from "./src/neon-auth.ts"
 
 export { validateLegacyRedirectZones } from "./src/web-routes.ts"
-export { validateIpEntry, buildIpClause } from "./src/staging.ts"
+export { validateAccessAllowedEmails } from "./src/staging-access.ts"
 export {
   catalogBucketName,
   tilesBucketName,

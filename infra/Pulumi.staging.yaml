@@ -21,36 +21,26 @@ config:
   # `webDomain` here; following it would leave `stagingDomain` unset and fail the
   # apply with "Missing required configuration variable".
   #
-  # ── Staging access gate (#529/#559), ON since 2026-08-05 (#541 step 6) ─────
-  # A WAF rule blocking staging traffic that carries neither the
-  # `animichi_staging` cookie nor the `x-staging-key` header (and is not on the
-  # `stagingAllowedIps` allowlist or hitting the OIDC exchange path). The token
-  # is a value you invent (`openssl rand -base64 32`), not one issued by
-  # anybody. The SAME value must reach two places: this config, and the
-  # STAGING_GATE_TOKEN GitHub secret that CI's smoke/E2E requests send as the
-  # `x-staging-key` header. `bash scripts/setup-staging-gate.sh --rotate`
-  # replaces both together — a mismatch locks CI out of staging.
+  # ── Staging access = Cloudflare Access (#1369), since 2026-09-08 ──────────
+  # `infra/src/staging-access.ts` puts one `ZeroTrustAccessApplication` in front
+  # of `stagingDomain` and the two `animichi-*-staging` workers.dev origins.
+  # Humans sign in against the identity policy built from the list below;
+  # automation presents the `animichi-staging-ci` service token, whose two
+  # halves reach every caller as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`
+  # through the ESC environment `lifeodyssey/animichi/staging`. Nothing is copied
+  # by hand and no credential is configured here.
   #
-  # #1054 (OIDC phase 2): the CI channel of the staging gate is switching to the
-  # pipeline's GitHub OIDC identity — CI exchanges it at /staging-gate/exchange for
-  # a short-lived gate session (distinct audience animichi:github-actions:staging-gate).
-  # Deleting the STAGING_GATE_TOKEN GitHub secret is the ORCHESTRATOR's post-merge step,
-  # taken ONLY after the OIDC smoke switch is verified in a real deploy (issue #1054 AC5).
-  # The WAF cannot verify the opaque session, so the static token stays the WAF credential
-  # for the CI transit until that cutover; the human browser cookie/header channel is unchanged.
+  # This replaced the hand-written WAF gate (`stagingGateEnabled`,
+  # `stagingGateToken`, `stagingAllowedIps`, all deleted with #1369, along with
+  # `scripts/setup-staging-gate.sh` and the GitHub `STAGING_GATE_TOKEN` secret).
+  # A WAF rule can only see hostnames on the zone, so the workers.dev origins CD
+  # smoke-tests were never behind it (#539).
   #
-  #   pulumi config set cloudflareZoneId <animichi.com zone id> --stack staging
-  #   pulumi config set stagingDomain staging.animichi.com      --stack staging
-  #   pulumi config set stagingGateEnabled true                 --stack staging
-  #   pulumi config set --secret stagingGateToken "<value>"     --stack staging
+  # The list is who may SIGN IN, not a secret — plain config so it is reviewable.
+  # An empty list is refused at build time: an `allow` policy with no include
+  # rules is an application no human can open.
   #
-  # The first two repeat the cutover block above on purpose. The gate reads them
-  # independently of `webRoutesEnabled`, so enabling only the gate while the
-  # cutover flag is still false fails the apply on missing config — which is
-  # what following the previous version of these instructions would have done.
-
-  seichijunrei-infra:stagingGateEnabled: "true"
-  seichijunrei-infra:stagingAllowedIps:
-    secure: AAABALiqDFOq100yZBGSU0p3At9dty2mTuRaVYhpHvubdUiT7iaFwFFXN1+Xo5i9hyth+R6p9++a/dYlaBvf7d/0eDe8
-  seichijunrei-infra:stagingGateToken:
-    secure: AAABANl4oFN+iGsQWCIgCwCJoLgLv+Mv6gB1IzjE3ixMVfFvdx5ynM4lXS9tn1LxaYzq4IN9EAIC+7e3rQcOMbDYd9YLD64jfa1MJSeTNTn5B5/eu5jI629d8TXTBapc
+  #   pulumi config set --path 'stagingAccessAllowedEmails[0]' <address> --stack staging
+  seichijunrei-infra:stagingAccessAllowedEmails:
+    - zhouthepassion@gmail.com
+    - zhenjiazhou0127@gmail.com

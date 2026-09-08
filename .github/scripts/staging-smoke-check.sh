@@ -16,10 +16,11 @@ RETRY_DELAY="${SMOKE_RETRY_DELAY:-10}"
 
 fail() { echo "::error title=staging smoke::$*"; exit 1; }
 
-# The Cloudflare Access service token this probe presents (D3 #1369). Empty
-# until the ESC environment carries the pair, which is the whole transitional
-# state PR 1 ships in: staging has no Access application in front of it yet, so
-# an unset token is the ordinary case and not a failure.
+# The Cloudflare Access service token this probe presents (D3 #1369). CD opens
+# the pair from the staging ESC environment and guards both names before this
+# runs, so in CI it is always set. It stays optional here because the same
+# script is what an operator points at a local `wrangler dev`, which is behind
+# no Access application.
 #
 # Half a token IS a failure, and a loud one. Access answers a request carrying
 # one of the two headers exactly as it answers one carrying neither — a 302 to
@@ -41,8 +42,9 @@ url_host() {
 }
 
 # MIRROR of `isLoopbackHostname` in packages/contract/src/access-service-token.ts.
-# A shell script cannot import that module, so the list is spelled twice and both
-# spellings carry a test row per form. `127.[0-9]*.[0-9]*.[0-9]*` also matches a
+# A shell script cannot import that module, so the list is spelled twice; both
+# spellings carry a test row per form, and `staging-smoke-check.test.sh` greps
+# both files for the same literals so a rename cannot land in only one of them. `127.[0-9]*.[0-9]*.[0-9]*` also matches a
 # hostname like `127.0.0.1.example.com`; that direction is the safe one — it
 # refuses rather than sends.
 is_loopback_url() {

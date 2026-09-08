@@ -3,8 +3,8 @@
  *
  * Per-environment-anchored claims allowlist (MED-2, issue #1051 amendment):
  * staging accepts only ref == refs/heads/main AND environment == staging.
- * The audience is a fixed project-specific value, DISTINCT from the
- * staging-gate verifier audience (#1054) so the two doors never cross-accept.
+ * The audience is a fixed project-specific value, so a token minted for any
+ * other door in this account is rejected here rather than cross-accepted.
  *
  * #1365 adds PRODUCTION as a SEPARATE allowlist, never extra shapes appended
  * to the staging one: `refAnchored` is `policy.refAllow.some(...)`
@@ -19,8 +19,11 @@ import { GITHUB_OIDC_ISSUER, type GitHubOidcPolicy } from "@animichi/contract/oi
 /**
  * Fixed migrator OIDC audience (stem: `animichi:github-actions:migrator`).
  * CI requests it via ACTIONS_ID_TOKEN_REQUEST_URL?audience=... and GitHub
- * mints the token with this aud. It must never collide with the staging-gate
- * verifier's audience (#1054).
+ * mints the token with this aud. It is the only OIDC door this repository
+ * verifies for itself — the staging one it used to be paired against was
+ * deleted with #1369, when Cloudflare Access took that job — so the audience
+ * earns its specificity against every OTHER consumer of a GitHub OIDC token in
+ * this account, not against a sibling in this tree.
  */
 export const MIGRATOR_OIDC_AUDIENCE = "animichi:github-actions:migrator";
 

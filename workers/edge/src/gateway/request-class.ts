@@ -1,6 +1,5 @@
 import { USERS_BINDING_PREFIX } from "@animichi/contract/internal-binding";
 import { SESSION_ADOPT_PATH } from "../identity/session-adopt.ts";
-import { STAGING_GATE_EXCHANGE_PATH } from "../staging-gate/session.ts";
 
 /**
  * WHICH surface a request is for (EDGE-1 #963), as one pure decision taken once
@@ -25,7 +24,6 @@ const USERS_PREFIX = USERS_BINDING_PREFIX;
 
 export type RequestClass =
   | { kind: "landing"; asset: "healthz" | "banner" | "tiles" | "img" }
-  | { kind: "staging-gate-exchange" }
   | { kind: "public-catalog" }
   | { kind: "users" }
   | { kind: "adopt" }
@@ -53,18 +51,13 @@ export function classify(request: Request): RequestClass {
   if (landing !== null) return landing;
   if (request.method === "GET" && PUBLIC_CATALOG_PATTERN.test(pathname)) return { kind: "public-catalog" };
   if (pathname === SESSION_MIGRATE_PATH) return { kind: "retired" };
-  if (pathname === STAGING_GATE_EXCHANGE_PATH) return { kind: "staging-gate-exchange" };
   if (pathname.startsWith(USERS_PREFIX)) return { kind: "users" };
   if (pathname === SESSION_ADOPT_PATH) return { kind: "adopt" };
   if (pathname.startsWith("/v1/")) return { kind: "v1", pathname };
   return { kind: "not-found" };
 }
 
-/** Functional routes are denied in showcase mode; the landing surface and the
- * staging-gate OIDC exchange (the CI auth endpoint, reachable past the WAF
- * regardless of showcase) stay. */
+/** Functional routes are denied in showcase mode; the landing surface stays. */
 export function isFunctionalRoute(route: RequestClass): boolean {
-  return route.kind !== "landing" &&
-    route.kind !== "not-found" &&
-    route.kind !== "staging-gate-exchange";
+  return route.kind !== "landing" && route.kind !== "not-found";
 }

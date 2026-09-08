@@ -34,8 +34,10 @@ S0-v2 Track B 按 GOAL「repo 级 CF token 删除」收口——执行 ticket �
 
 ### 应用与门禁密钥(用途索引)
 
-- staging WAF 仍要求 owner 持有的 break-glass token；自动 smoke 已延期，当前 CI 不读取 `STAGING_GATE_TOKEN`。
-- `stagingAllowedIps` / `stagingGateToken`(Pulumi staging 栈密文):WAF IP 白名单与闸 token。
+- staging 的门是 Cloudflare Access(#1369):人登录,自动化带 service token
+  (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`,来自 ESC `lifeodyssey/animichi/staging`
+  的 `environmentVariables`,源头是 `infra/src/staging-access.ts` 的两个 stack output)。
+  旧的 WAF 闸与 `STAGING_GATE_TOKEN` / `stagingAllowedIps` / `stagingGateToken` 已随本卡删除。
 - `VITE_*` 六键(部署侧构建注入,per-env;preflight 非空校验):web 构建期配置。
   S0-v2 增 `VITE_SHOWCASE_MODE`(严格布尔契约,见 launch spec)。
 - `EDGE_SHOWCASE_MODE`(edge Worker 的 `[vars]`,根/staging/production 三段):showcase 闸,
@@ -49,11 +51,19 @@ S0-v2 Track B 按 GOAL「repo 级 CF token 删除」收口——执行 ticket �
 
 - zone `animichi.com`:ACTIVE(Cloudflare 注册商)。
 - **staging**(staging 栈持有):`staging.animichi.com` Custom Domain(web)+ `/v1` 等四条路由;
-  zone 级规则先例:WAF gate ruleset、http_config_settings(免浏览器挑战——CI smoke 不被
-  「Just a moment」拦截;该主机防护 = IP 闸)。
+  zone 级规则只剩一条 http_config_settings(关掉该主机的 BIC 与 security level——CI smoke
+  不被「Just a moment」拦截)。**该主机的防护是 Cloudflare Access,不是 zone 规则**:
+  #1369 删掉了原来的 WAF gate ruleset,门改由 `infra/src/staging-access.ts` 的
+  `ZeroTrustAccessApplication` 把守。
 - **prod**(prod 栈持有 zone 硬化:DNSSEC/CAA/限速/HSTS;apex/www/301/子域拓扑随 S0-v2 Track C 落):
   zone 级资源归属规则——staging 栈只持 staging 主机作用域的规则,zone 全局资源归 prod 栈。
-- workers.dev:S0-v2 Track 0 后全关。
+  production 没有 Access 应用——它有真正的登录。
+- workers.dev:**production 全关;staging 两个 Worker 开着**
+  (`animichi-staging` 与 `animichi-web-staging`,owner 2026-08-27 定)——zone 前门对 GitHub
+  runner IP 出 Bot Fight Mode managed challenge,Free plan 不能按主机名跳过,所以 CD 的 smoke
+  直接探 workers.dev。这两个主机名同在上面那一个 Access 应用的 `destinations` 里:Access 不是
+  zone 功能,所以它罩得住 zone 外的主机——这正是 #539 那条「workers.dev 绕过 zone 闸」的关闭
+  方式(不是容忍)。`preview_urls` 两边都关:逐版本 preview URL 是没人加进该应用的主机名。
 
 ## 3. 数据链路
 

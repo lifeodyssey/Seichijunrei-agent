@@ -52,22 +52,8 @@ void test("the shared door requires HTTPS of every origin that is not the loopba
   assert.match(destinationCheck(), /url\.protocol,/);
 });
 
-void test("the door refuses to run against staging with no gate credential", () => {
-  assert.match(destinationCheck(), /assert\.ok\(\s*gate,/);
-  assert.match(destinationCheck(), /STAGING_GATE_TOKEN/, "the refusal has to name the variable");
-});
-
-void test("the loopback is answered before the gate credential is even read", () => {
-  const check = destinationCheck();
-  assert.match(check, /if \(isLoopback\(url\)\) return \{ origin, gate: null, access: \{\} \};/);
-  assert.ok(
-    check.indexOf("isLoopback(url)") < check.indexOf("assert.ok(\n    gate,"),
-    "a local dev origin must never be handed the staging credential",
-  );
-});
-
 void test("no lane opens a second door onto the origin or either credential", () => {
-  const environment = /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|STAGING_GATE_TOKEN)/;
+  const environment = /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|CF_ACCESS_CLIENT_)/;
   const own = LANE_SUITES.filter((name) => environment.test(laneFile(name)));
   assert.deepEqual(own, [], "these lanes read the environment instead of lane-origin.ts");
 });
@@ -80,13 +66,13 @@ void test("every lane that makes a request resolves it through that door", () =>
 /**
  * `laneFetch` is the only request in this directory, and these two cases are
  * what make that structural rather than a convention. A lane calling `fetch`
- * for itself reaches staging with no gate header and comes back a 403 block
- * page — the exact failure #1294 exists to stop, wearing the costume of a
- * broken app.
+ * for itself reaches staging with no Access header and comes back a redirect to
+ * a login page — the exact failure #1294 exists to stop, wearing the costume of
+ * a broken app.
  */
 void test("no lane calls fetch for itself", () => {
   const direct = LANE_SUITES.filter((name) => /\bfetch\(/.test(laneFile(name)));
-  assert.deepEqual(direct, [], "these lanes make a request without the gate header");
+  assert.deepEqual(direct, [], "these lanes make a request without the Access header");
 });
 
 void test("every lane makes at least one request, and all of them through the door", () => {
@@ -94,10 +80,9 @@ void test("every lane makes at least one request, and all of them through the do
   assert.deepEqual(requesting, LANE_SUITES);
 });
 
-void test("the door presents the gate credential on every request it makes", () => {
-  assert.match(DOOR, /const GATE_HEADER = "x-staging-key";/);
+void test("the door presents the credential on every request it makes", () => {
   assert.match(DOOR, /headers: laneHeaders\(init\.headers\)/);
-  assert.match(DOOR, /headers\.set\(GATE_HEADER, gate\)/);
+  assert.match(DOOR, /for \(const \[name, value\] of Object\.entries\(access\)\) headers\.set\(name, value\)/);
 });
 
 void test("the door reads the Access service token in one shared place, not for itself", () => {
@@ -113,8 +98,9 @@ void test("the door reads the Access service token in one shared place, not for 
   );
 });
 
-void test("the loopback is answered before the Access token is read, too", () => {
+void test("the loopback is answered before the Access token is even read", () => {
   const check = destinationCheck();
+  assert.match(check, /if \(isLoopback\(url\)\) return \{ origin, access: \{\} \};/);
   assert.ok(
     check.indexOf("isLoopback(url)") < check.indexOf("accessServiceTokenHeaders("),
     "a local dev origin must never be handed staging's Access service token",
@@ -156,6 +142,6 @@ void test("every failure detail the runbook explains is one the code can produce
 
 void test("the runbook states both rules an operator can otherwise trip", () => {
   assert.match(RUNBOOK, /requires HTTPS of every\n?non-loopback origin/);
-  assert.match(RUNBOOK, /NO gate credential because it is behind no gate/);
+  assert.match(RUNBOOK, /NO Access credential because it is behind no door/);
   assert.match(RUNBOOK, /`redirect: "error"`/);
 });

@@ -431,18 +431,18 @@ made. That split is why the task can be tested with a fake fetch at all.
 | `src/prefix-seeding-lifecycle.ts` · `src/trajectory-prefix-case.ts` · `src/seeded-sessions.ts` | the `CaseLifecycle` that seeds a case's frozen prefix before its turn (E-1 #1380) |
 | `src/staging-bearer.ts` · `src/neon-auth-bearer.ts` | the 15-minute Neon Auth JWT, minted and re-minted on age |
 | `scripts/eval-staging.ts` | `pnpm run eval:staging -- --dataset <set> --limit <n>`; prints `renderReport` |
-| `scripts/record-captures.sh` | re-record `fixtures/captures/` from live turns, once a gate token exists |
+| `scripts/record-captures.sh` | re-record `fixtures/captures/` from live turns, once the Access service token is to hand |
 
 **One door.** Every staging request goes through `workers/edge/api-test/lane-origin.ts`
 (`laneFetch`), which is why `edge-worker` is a devDependency here. It is the single module
 that resolves `CATALOG_API_ORIGIN`, refuses a non-loopback origin that is not HTTPS, attaches
-`x-staging-key` **and the Cloudflare Access service token** (`CF-Access-Client-Id` /
-`CF-Access-Client-Secret`, D3 #1369 — this package therefore needs no Access code of its own,
-only the two variables in its environment), and forbids following a redirect (#1291, #1294). Reimplementing those four
+the **Cloudflare Access service token** (`CF-Access-Client-Id` / `CF-Access-Client-Secret`,
+D3 #1369 — this package therefore needs no Access code of its own, only the two variables in
+its environment), and forbids following a redirect (#1291, #1294, #1369). Reimplementing those
 rules would be three places for one of them to be forgotten, and the request that forgot is the
 one that carries a bearer to wherever a `Location` header pointed. Neon Auth is a **different**
-origin behind no WAF rule, so `neon-auth-bearer.ts` takes an injected sender and never reads the
-door's environment. `test/staging-door.test.ts` holds all of that.
+origin behind no Access application, so `neon-auth-bearer.ts` takes an injected sender and never
+reads the door's environment. `test/staging-door.test.ts` holds all of that.
 
 **Cases that need a starting point (E-1 #1380).** Five cases — all of `phase1c_selection_v1` —
 carry `inputs.seeded_pending`, a clarification their measured turn REPLIES to. Python set that
@@ -482,9 +482,9 @@ the contract's `GetSessionHistoryResponse` so it cannot drift into a shape the e
 send. Its `steps` restate each call's arguments as the settled params, because that is what the
 recorder had: `record_fixtures.py` declares ONE `params` per replayed call and writes it as the
 frame's `args`, so a capture cannot witness a divergence — the oracle's two settled-params
-scenarios are where that branch is measured. **Unverified:** no capture has been taken from a live staging turn yet; there was no
-`STAGING_GATE_TOKEN` in reach when this landed. A run against staging now also needs
-`CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` — both or neither. `scripts/record-captures.sh` is how that
+scenarios are where that branch is measured. **Unverified:** no capture has been taken from a live staging turn yet; there was no staging
+credential in reach when this landed. A run against staging needs `CF_ACCESS_CLIENT_ID` +
+`CF_ACCESS_CLIENT_SECRET` — both or neither. `scripts/record-captures.sh` is how that
 changes, and the shaper needing an edit afterwards is itself the finding.
 
 **Why `lib` includes `DOM`.** `tsconfig.json` compiles the shared door, which is written against

@@ -41,7 +41,8 @@ export const ACCESS_CLIENT_SECRET_HEADER = "CF-Access-Client-Secret";
  * all. Each gap sends staging's real service token to whatever is listening on
  * a laptop port. `.github/scripts/staging-smoke-check.sh` mirrors this list in a
  * `case` pattern because a shell script cannot import it; both suites carry a
- * row per form.
+ * row per form, and that script's own test greps both files for the same
+ * literals, so a rename here that skips the shell copy goes red.
  *
  * Takes `URL.hostname`, which is why IPv6 arrives bracketed (`[::1]`) — that is
  * the form the WHATWG parser produces, and the bare form is accepted too for a
