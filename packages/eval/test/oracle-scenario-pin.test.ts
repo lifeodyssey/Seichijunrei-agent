@@ -44,6 +44,7 @@ const STATS_ORACLE_CASES: readonly (readonly [StatsOracleList, NamedCases])[] = 
   ['case_strata', statsOracle.case_strata],
   ['error_rate_gates', statsOracle.error_rate_gates],
   ['paired_comparisons', statsOracle.paired_comparisons],
+  ['provider_outage_gates', statsOracle.provider_outage_gates],
 ];
 
 const STATS_ORACLE_ROWS: Readonly<Record<StatsOracleRowList, number>> = {

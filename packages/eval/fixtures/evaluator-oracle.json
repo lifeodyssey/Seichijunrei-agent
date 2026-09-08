@@ -20,6 +20,24 @@
       "data_keys_present",
       "locale_match",
       "step_efficiency"
+    ],
+    "withoutParamsRecorded": [
+      "tool_correctness",
+      "trajectory_match",
+      "max_tool_calls",
+      "data_keys_present",
+      "locale_match",
+      "nonempty_results",
+      "step_efficiency"
+    ],
+    "withoutMeasuredSteps": [
+      "argument_correctness",
+      "tool_correctness",
+      "trajectory_match",
+      "max_tool_calls",
+      "data_keys_present",
+      "locale_match",
+      "nonempty_results"
     ]
   },
   "cases": [

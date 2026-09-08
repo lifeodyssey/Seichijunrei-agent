@@ -11,13 +11,14 @@ from pydantic_evals.evaluators import EvaluationResult, EvaluatorSpec
 from pydantic_evals.reporting import EvaluationReport, ReportCase, ReportCaseFailure
 
 from animichi.agents.agent_result import AgentResult
-from animichi.tests.eval import eval_gate_flow
-from animichi.tests.eval.eval_gate_flow import NoEvaluatedCases, finish_cli_report
+from animichi.tests.eval import eval_gate_flow, run_scores
+from animichi.tests.eval.eval_gate_flow import finish_cli_report
 from animichi.tests.eval.eval_harness import AgentReport
 from animichi.tests.eval.evaluators import AgentExpected, AgentInput
 from animichi.tests.eval.exec_tiers import CaseRow, EvalTierTarget, ResultsPayload
 from animichi.tests.eval.gate import BaselineRecord, baseline_path
 from animichi.tests.eval.run_agent_eval import _finish_report
+from animichi.tests.eval.run_scores import NoEvaluatedCases
 from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.test_agent_eval import _assert_report
 
@@ -104,6 +105,11 @@ def _configure(
     monkeypatch.setattr(eval_gate_flow, "CAPPED", is_capped)
     monkeypatch.setattr(eval_gate_flow, "DATASET_NAME", payload.dataset)
     monkeypatch.setattr(eval_gate_flow, "METRIC_NAMES", list(payload.scores))
+    # The fixtures name their own columns ("Accuracy"), so the run's derived
+    # list — real metric names read off the report — is pinned to them here.
+    monkeypatch.setattr(
+        run_scores, "run_metric_names", lambda report, **_: list(payload.scores)
+    )
     return EvalTierTarget(object(), object, _LAYER, payload.tier, "fixture")
 
 

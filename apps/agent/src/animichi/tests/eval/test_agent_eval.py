@@ -7,10 +7,7 @@ import os
 import pytest
 
 from animichi.interfaces.public_api import default_catalog_client
-from animichi.tests.eval.eval_gate_flow import (
-    NoEvaluatedCases,
-    finish_cli_report,
-)
+from animichi.tests.eval.eval_gate_flow import finish_cli_report
 from animichi.tests.eval.eval_harness import (
     DATASET_PATH,
     EVAL_MODEL_ID,
@@ -25,6 +22,8 @@ from animichi.tests.eval.exec_tiers import (
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.tests.eval.provider_outage import ProviderOutage
+from animichi.tests.eval.run_scores import NoEvaluatedCases
 from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.strata_first_run import evaluate_after_strata
 
@@ -41,7 +40,7 @@ def _assert_report(
 ) -> None:
     try:
         failures = finish_cli_report(report, target, model_id, strata)
-    except NoEvaluatedCases as exc:
+    except (ProviderOutage, NoEvaluatedCases) as exc:
         pytest.fail(str(exc))
     if failures is None:
         pytest.skip(f"Baseline created for {model_id}; re-run to enforce gate.")

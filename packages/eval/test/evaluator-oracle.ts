@@ -33,6 +33,8 @@ export interface EvaluatorOracle {
   readonly metricNames: {
     readonly withNonemptyCases: readonly string[];
     readonly withoutNonemptyCases: readonly string[];
+    readonly withoutParamsRecorded: readonly string[];
+    readonly withoutMeasuredSteps: readonly string[];
   };
 }
 

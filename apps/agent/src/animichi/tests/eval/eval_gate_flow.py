@@ -25,7 +25,7 @@ from animichi.tests.eval.eval_harness import (
     RESULTS_DIR,
     AgentReport,
 )
-from animichi.tests.eval.eval_report import collect_scores, print_scores
+from animichi.tests.eval.eval_report import print_scores
 from animichi.tests.eval.evaluators import (
     EVALUATOR_VERSION,
     accepted_chains_for_case,
@@ -43,6 +43,7 @@ from animichi.tests.eval.gate import (
     read_baseline_record,
     write_baseline_record,
 )
+from animichi.tests.eval.run_scores import ScoreMap, scores_for_run
 from animichi.tests.eval.smoke_errors import (
     SmokeError,
     SmokeErrorSummary,
@@ -58,7 +59,6 @@ from animichi.tests.eval.trajectory_assertions import (
     trajectory_assertion_failures,
 )
 
-ScoreMap: TypeAlias = dict[str, float]
 CaseScores: TypeAlias = dict[str, ScoreMap]
 
 
@@ -86,28 +86,8 @@ def gate_exit_code(failures: list[str] | None) -> int:
     return 1 if failures else 0
 
 
-class NoEvaluatedCases(RuntimeError):
-    """Raised when every eval case failed during task execution."""
-
-
 class SmokeRequiresCappedRun(RuntimeError):
     """Raised when EVAL_SMOKE=1 is set but the run resolved to uncapped."""
-
-
-def _scores(report: AgentReport) -> ScoreMap:
-    avg = report.averages()
-    if avg is None:
-        raise NoEvaluatedCases("All cases errored — check model endpoint and DB.")
-    return collect_scores(avg, METRIC_NAMES)
-
-
-def _scores_for_run(report: AgentReport) -> ScoreMap:
-    try:
-        return _scores(report)
-    except NoEvaluatedCases:
-        if CAPPED:
-            return {}
-        raise
 
 
 def persist_report(
@@ -367,7 +347,7 @@ def _print_report_scores(
 def finish_cli_report(
     report: AgentReport, target: EvalTierTarget, model_id: str, strata: CaseStrata
 ) -> list[str] | None:
-    scores = _scores_for_run(report)
+    scores = scores_for_run(report, model_id, is_capped=CAPPED)
     persist_report(report, target, model_id, scores, strata.warnings)
     _print_report_scores(scores, target, model_id)
     return gate_report(report, target, model_id, scores, strata)

@@ -159,6 +159,13 @@ EVAL_MAX_CASES=50 uv run python -m animichi.tests.eval.run_agent_eval ...  # cap
 Direct thrash gates (req≤12 / tool≤10 / repeat=0 / p95≤8 — `src/animichi/tests/eval/direct_gates.py`) are
 **report-only** until `DIRECT_GATE_ENFORCE=1` (owner calibrates first). Capped runs never read/write baselines.
 
+**A starved run is refused before it is scored (#1496).** `error_boundary` answers an unclassified
+agent-loop failure with a clean `ErrorResponseModel`, so those cases are *evaluated*, not failed, and
+`error_rate_gate` never sees them. `src/animichi/tests/eval/provider_outage.py` gates on their share
+(ceiling 20%, `smoke_errors.TRANSPORT_RATE_CEILING`'s) and raises `ProviderOutage` naming the model.
+Under it, `run_metric_names.py` derives the run's columns from what the report actually scored, so a
+column no case could compute is dropped rather than reported as `Missing metric(s)`.
+
 **CI tiering (SD-30, #228/#227).** `EVAL_SMOKE=1` makes a capped run enforce its own
 zero-error/direct-thrash assertions, without reading or writing the baseline. It has no CI lane:
 pull requests stopped running a model-backed eval when the affected-matrix rewrite landed, so

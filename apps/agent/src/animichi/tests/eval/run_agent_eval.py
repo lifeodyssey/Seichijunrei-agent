@@ -30,7 +30,6 @@ from animichi.tests.db_config import (
 )
 from animichi.tests.eval.dataset_case_view import write_case_view
 from animichi.tests.eval.eval_gate_flow import (
-    NoEvaluatedCases,
     finish_cli_report,
     gate_exit_code,
 )
@@ -51,6 +50,8 @@ from animichi.tests.eval.exec_tiers import (
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.tests.eval.provider_outage import ProviderOutage
+from animichi.tests.eval.run_scores import NoEvaluatedCases
 from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.strata_first_run import evaluate_after_strata
 
@@ -234,7 +235,7 @@ def _finish_report(
 ) -> int:
     try:
         failures = finish_cli_report(report, target, model_id, strata)
-    except NoEvaluatedCases as exc:
+    except (ProviderOutage, NoEvaluatedCases) as exc:
         print(str(exc), file=sys.stderr)
         return 1
     return _finish(failures)
