@@ -115,7 +115,8 @@ Anitabi (`api.anitabi.cn`) + Bangumi (`api.bgm.tv`) share Bangumi.tv subject IDs
   `logfire.configure(send_to_logfire="if-token-present")`, which no-ops without `LOGFIRE_TOKEN`.
   Test spans via `logfire.testing.capfire`.
 - **structlog is configured once per process** — `animichi.utils.logger.configure_structlog()` runs
-  from the FastAPI app factory (the container's process start) and from the test conftest. It ends
+  from every process start: the FastAPI app factory, the test conftest, the `run_agent_eval` CLI,
+  and the CodeMode rematch spike. Any new entry point owes the same call. It ends
   the chain with `format_exc_info` + `JSONRenderer`, so `exc_info=` is safe to pass. Never leave
   structlog unconfigured: its default `ConsoleRenderer` hands every frame to rich, which re-reads
   and syntax-highlights that frame's source and pretty-prints its locals — 91 s and 28 MB of output

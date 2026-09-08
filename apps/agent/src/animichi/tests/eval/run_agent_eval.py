@@ -54,6 +54,7 @@ from animichi.tests.eval.provider_outage import ProviderOutage
 from animichi.tests.eval.run_scores import NoEvaluatedCases
 from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.strata_first_run import evaluate_after_strata
+from animichi.utils.logger import configure_structlog
 
 AgentCase = Case[AgentInput, AgentResult, AgentExpected]
 
@@ -242,6 +243,9 @@ def _finish_report(
 
 
 async def _main(args: CliArgs | None = None) -> int:
+    # This CLI is a third process start, with neither the app factory nor
+    # the pytest conftest to configure structlog for it (issue #1502).
+    configure_structlog()
     parsed = args or _parse_args()
     export_path = parsed.export_dataset
     if export_path is not None:

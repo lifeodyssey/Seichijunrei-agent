@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import sys
+from typing import NoReturn
+
+import pytest
+import structlog
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.profiles import ModelProfile
@@ -12,6 +17,7 @@ from pydantic_monty import Monty, MontyRepl
 from animichi.agents import animichi_agent as production_module
 from animichi.agents.agent_result import AgentResult
 from animichi.agents.runtime_deps import RuntimeDeps
+from animichi.spikes.codemode import rematch
 from animichi.spikes.codemode.agent import (
     CODEMODE_TEACHING_ADDENDUM,
     RAW_TOOL_NAMES,
@@ -22,6 +28,7 @@ from animichi.spikes.codemode.rematch import stratified_cases
 from animichi.tests.eval.evaluators import AgentExpected, AgentInput
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.utils.logger import configure_structlog
 
 _QA_OUTPUT = {"message": "offline"}
 
@@ -115,3 +122,27 @@ def test_teaching_addendum_pins_whole_script_example_and_monty_limits() -> None:
         "`sys`, `typing`, `asyncio`, `math`, `json`, `re`, `datetime`, `os`, "
         "and `pathlib`" in lesson
     )
+
+
+async def test_rematch_main_configures_structlog_before_evaluating(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The spike runner is a process start of its own, with neither the app
+    factory nor the pytest conftest behind it, so it would otherwise render
+    the runtime's `exc_info=` logs through rich for a whole arm (#1502)."""
+    configured: list[bool] = []
+
+    async def stop_before_the_report_is_written(*_args: object) -> NoReturn:
+        configured.append(structlog.is_configured())
+        raise RuntimeError("stop before the spike writes its report")
+
+    monkeypatch.setattr(rematch, "_evaluate", stop_before_the_report_is_written)
+    monkeypatch.setattr(sys, "argv", ["rematch", "--arm", "control"])
+    structlog.reset_defaults()
+    try:
+        with pytest.raises(RuntimeError, match="stop before"):
+            await rematch.main()
+    finally:
+        configure_structlog()
+
+    assert configured == [True]
