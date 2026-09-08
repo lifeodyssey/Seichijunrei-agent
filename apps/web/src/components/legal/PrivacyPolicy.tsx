@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useDict } from "../../i18n/LocaleProvider";
 import type { Dict } from "../../i18n/dictionaries";
 
@@ -46,7 +47,7 @@ function PrivacyHeader({ copy }: { copy: PrivacyCopy }) {
 export function PrivacyPolicy() {
   const copy = useDict().privacy;
   return <main className="mx-auto w-[min(860px,calc(100%_-_32px))] pt-8 pb-18" aria-labelledby="privacy-title">
-    <div className="mb-10.5 flex items-center justify-between gap-4"><a className="inline-block font-extrabold text-primary-strong no-underline hover:underline hover:underline-offset-[3px] focus-visible:underline focus-visible:underline-offset-[3px]" href="/">← {copy.back_home}</a></div>
+    <div className="mb-10.5 flex items-center justify-between gap-4"><Link className="inline-block font-extrabold text-primary-strong no-underline hover:underline hover:underline-offset-[3px] focus-visible:underline focus-visible:underline-offset-[3px]" to="/">← {copy.back_home}</Link></div>
     <PrivacyHeader copy={copy} />
     <PrivacyCoreSections copy={copy} />
     <PrivacySafeguardSections copy={copy} />

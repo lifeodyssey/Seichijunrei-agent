@@ -1,6 +1,6 @@
 import "../../../styles/route-detail.css";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
-import { useRouter, useSearch } from "@tanstack/react-router";
+import { Link, useRouter, useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../../../i18n/locales";
 import { routeDetailCopyFor, type RouteDetailCopy } from "../lib/copy";
@@ -30,7 +30,7 @@ function RouteErrorActions({ copy, onRetry }: { readonly copy: RouteDetailCopy; 
   return (
     <p className="m-0 flex items-center justify-center gap-4">
       <button type="button" className="home-link" onClick={onRetry}>{copy.errorRetry}</button>
-      <a className="home-link" href="/">{copy.errorHome}</a>
+      <Link className="home-link" to="/">{copy.errorHome}</Link>
     </p>
   );
 }

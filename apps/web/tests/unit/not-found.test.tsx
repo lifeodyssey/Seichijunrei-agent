@@ -5,10 +5,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { NotFound } from "../../src/components/NotFound";
+import { AppRouterContext } from "./_router";
 
 describe("NotFound", () => {
   it("renders the fallback brand, status, and home link", () => {
-    render(<NotFound />);
+    render(<AppRouterContext><NotFound /></AppRouterContext>);
 
     const link = screen.getByRole("link", { name: "Return home" });
 
