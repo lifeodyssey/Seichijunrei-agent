@@ -1,8 +1,8 @@
-/** Both flags OFF — the default every stack ships with today.
+/** `webRoutesEnabled` OFF — the default every stack ships with today.
  *
- * This is the assertion that makes the flags meaningful. If the gate ever
- * stops gating, DNS and a WAF Block rule appear on a live zone the next time
- * anyone runs `pulumi up`, with no code change to point at.
+ * This is the assertion that makes the flags meaningful. If `webRoutesEnabled`
+ * ever stops gating, DNS records and Worker routes appear on a live zone the
+ * next time anyone runs `pulumi up`, with no code change to point at.
  */
 
 import { test } from "node:test";

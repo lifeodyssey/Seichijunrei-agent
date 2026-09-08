@@ -29,8 +29,9 @@ separate DSN secrets and separate OIDC allowlists. Root guide:
    open the production door. Both also require
    repository == `lifeodyssey/animichi`, and
    `workflow_ref/job_workflow_ref` in the trusted deploy workflows. The
-   audience is the fixed `animichi:github-actions:migrator`, DISTINCT from the
-   staging-gate verifier audience (#1054). The reusable verifier lives in
+   audience is the fixed `animichi:github-actions:migrator` — specific to this
+   door, so a GitHub OIDC token minted for anything else is rejected rather
+   than cross-accepted. The reusable verifier lives in
    `packages/contract/src/oidc-github.ts` (`@animichi/contract/oidc-github`).
 2. **Apply the chain over neon-http (#1124)**: after OIDC, a fixed-name
    Durable Object mutex (`migrator-apply-lock`, not `migrator-job-*`)

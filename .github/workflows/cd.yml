@@ -889,27 +889,50 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      # Only to prove the environment subject is the one the issuer policy
-      # accepts; card D3 turns that token into Access headers for the probe.
-      id-token: write  # proves the environment subject to the issuer
+      # Two doors on one identity: the Pulumi Cloud login that proves the
+      # environment subject, and the ESC environment holding the Access service
+      # token the probe presents (D3 #1369).
+      id-token: write  # the Pulumi Cloud login, then its ESC environment
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      # This job publishes nothing, so it opens no ESC environment — the probe
-      # below is two unauthenticated HTTP requests today. It still exchanges a
-      # token, because that exchange is what proves the `environment:staging`
-      # subject is the one the Pulumi Cloud issuer policy accepts (§3.5 / the
-      # D1 acceptance criteria), and it is the seat card D3 fills when the two
-      # staging surfaces move behind Cloudflare Access and the probe starts
-      # sending `CF-Access-Client-Id` / `CF-Access-Client-Secret` from ESC.
+      # This job publishes nothing, so it opens neither half of the Pulumi plane:
+      # the two names below are the Cloudflare Access service token the probe
+      # presents at staging's front door (D3 #1369), and nothing else. The login
+      # is still what proves the `environment:staging` subject is the one the
+      # Pulumi Cloud issuer policy accepts (§3.5 / the D1 acceptance criteria).
       - name: Log into Pulumi Cloud with GitHub OIDC
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
           organization: lifeodyssey
           requested-token-type: urn:pulumi:token-type:access_token:personal
           scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      # The stack outputs `stage-foundation` published reach this environment
+      # through its `pulumi-stacks` provider, so on the run that first creates
+      # the Access application these values already exist by the time smoke runs.
+      - name: Open the staging ESC environment
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/staging
+          export-environment-variables: CF_ACCESS_CLIENT_ID,CF_ACCESS_CLIENT_SECRET
+      # `pulumi/esc-action` only warns on a name it has no value for and exits 0.
+      # Half a service token is worse than none: Access answers a request
+      # carrying one header exactly as it answers one carrying neither, with a
+      # 302 to a login page, so the probe would read HTML where it expected JSON
+      # and report a broken deploy. The script refuses that case by name too —
+      # this guard is what stops the job before it can even get there.
+      - name: Refuse to continue on a value ESC did not supply
+        run: |
+          set -euo pipefail
+          for key in CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing from the ESC environment"; exit 1; }
+          done
       # The container cold-starts on roughly every deploy (measured at 24.5s),
       # so the first probes hit a closed port by design — the retry window has
       # to outlast cold start plus agent boot, not just route propagation.

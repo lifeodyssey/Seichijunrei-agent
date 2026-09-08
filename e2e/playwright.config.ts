@@ -5,10 +5,6 @@ import {
   isLoopbackHostname,
 } from "@animichi/contract/access-service-token";
 
-// Staging credentials are written to a host-scoped cookie by global setup so
-// browser requests to third-party origins never receive the gate token.
-const stagingGateToken = process.env.STAGING_GATE_TOKEN;
-
 // The Playwright MCP test server (the agent tool surface) runs as
 // `npx playwright run-test-mcp-server`; every other invocation is the plain
 // test runner. The "seed" project exists only in the MCP server process so the
@@ -99,10 +95,12 @@ function otherConfiguredOrigins(targetHost: string): readonly string[] {
   return declared.filter((raw) => raw.trim() !== "" && new URL(raw).host !== targetHost);
 }
 
-// The Cloudflare Access service token (D3 #1369). Unlike the gate cookie above
-// this is a pair of REQUEST HEADERS, so it rides on `use.extraHTTPHeaders`
-// rather than a storage state — Access reads it off the request, and a browser
-// context has no place to keep it.
+// The Cloudflare Access service token (D3 #1369), the one credential this suite
+// presents to staging. It is a pair of REQUEST HEADERS, so it rides on
+// `use.extraHTTPHeaders` — Access reads it off the request, and there is nothing
+// to seed into a browser profile first. That is why #1369 could delete
+// `global-setup.ts`, whose whole job was launching a browser before the run to
+// write the retired WAF gate's `animichi_staging` cookie into a storage state.
 //
 // It is scoped to the TARGET, the same asymmetry `workers/edge/api-test/lane-origin.ts`
 // applies: a local `wrangler dev` or `make dev-local` is behind no Access
@@ -140,7 +138,6 @@ function stagingAccessHeaders(): Readonly<Record<string, string>> {
 const accessHeaders = stagingAccessHeaders();
 
 export default defineConfig({
-  globalSetup: "./global-setup.ts",
   testDir: ".",
   testMatch: "*.spec.ts",
   // Agent-discovered specs live in working dirs until human-gated promotion
@@ -183,7 +180,6 @@ export default defineConfig({
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
-    ...(stagingGateToken ? { storageState: "./.auth/staging-gate.json" } : {}),
     extraHTTPHeaders: accessHeaders,
   },
   projects: [

@@ -312,14 +312,16 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
 - `db-test/` — the opt-in real-PostgreSQL lane (W0-S4, #1247). Test-only, outside `pnpm test`,
   and deleted with the spike when W0 closes.
 - `api-test/lane-origin.ts` — the ONE door onto a deployed origin. It resolves
-  `CATALOG_API_ORIGIN`, requires HTTPS off the loopback, attaches the `x-staging-key`
-  WAF gate header and — since D3 (#1369) — the Cloudflare Access service token
-  (`CF-Access-Client-Id` / `CF-Access-Client-Secret`, read from `CF_ACCESS_CLIENT_ID` /
-  `CF_ACCESS_CLIENT_SECRET` through `@animichi/contract/access-service-token`), and
-  forbids following a redirect. Both Access variables or neither: half a token is
-  refused before the request is built, because Access answers a one-header request
-  with a login page that reads as a broken app. The loopback is handed neither
-  credential. `packages/eval` reaches staging through this same module.
+  `CATALOG_API_ORIGIN`, requires HTTPS off the loopback, attaches the Cloudflare
+  Access service token (`CF-Access-Client-Id` / `CF-Access-Client-Secret`, read from
+  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` through
+  `@animichi/contract/access-service-token`), and forbids following a redirect —
+  which D3 (#1369) made load-bearing rather than defensive, since a 302 to the
+  identity provider is what an unauthenticated request gets. Both variables or
+  neither: half a token is refused before the request is built, because Access
+  answers a one-header request with a login page that reads as a broken app. The
+  loopback is behind no Access application and is handed no credential.
+  `packages/eval` reaches staging through this same module.
 - `api-test/` — the W1-4 staging lane (#1253). Test-only: `main` in `wrangler.toml` is the only
   boundary the edge bundle has, and no lane directory is reachable from it.
 - `agent-db-test/` — the agent-tier database arm (#1251), kept apart from `db-test/` precisely

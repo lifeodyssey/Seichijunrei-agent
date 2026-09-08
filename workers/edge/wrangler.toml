@@ -428,19 +428,20 @@ new_sqlite_classes = ["AgentSession"]
 name = "animichi-staging"
 routes = []
 # No custom domain in staging: the hostname comes from the zone routes Pulumi
-# declares (staging.animichi.com/v1/*, /img/*, /tiles/*, /healthz — #541), with
-# the staging WAF gate (#529/#559) sitting on the zone ahead of them.
+# declares (staging.animichi.com/v1/*, /img/*, /tiles/*, /healthz — #541).
 # `workers_dev` history: explicitly `true` until #541 step 6 (issue #484),
-# then `false` per #539 because a `*.workers.dev` hostname bypasses the zone
-# WAF. Re-opened for STAGING ONLY by owner decision 2026-08-27: the zone front
-# door answers GitHub-runner IPs with a Bot Fight Mode managed challenge,
-# which the Free plan cannot skip per hostname or rule (audit follow-up;
-# subdomain zone-splits are Enterprise-only), so the CD smoke check probes
-# workers.dev directly. The bypass concern #539 closed is accepted here
-# knowingly: the worker's own gates (Turnstile, Neon Auth JWT, the anonymous
-# rate/budget DOs) do not depend on the zone, and production keeps
-# `workers_dev = false`. The zone-routed path is exercised by every real
-# browser session.
+# then `false` per #539 because a `*.workers.dev` hostname is not on the zone
+# and so bypassed the WAF gate that used to guard staging. Re-opened for
+# STAGING ONLY by owner decision 2026-08-27: the zone front door answers
+# GitHub-runner IPs with a Bot Fight Mode managed challenge, which the Free
+# plan cannot skip per hostname or rule (audit follow-up; subdomain zone-splits
+# are Enterprise-only), so the CD smoke check probes workers.dev directly.
+# #1369 closed the bypass instead of accepting it: staging's door is now a
+# Cloudflare Access application (`infra/src/staging-access.ts`), and Access is
+# not a zone feature — the same application covers `staging.animichi.com` AND
+# this worker's `*.workers.dev` hostname, so both are behind one login and one
+# service token. Production keeps `workers_dev = false` and has no Access
+# application: it has a real login.
 # `preview_urls` stays `false` — per-version preview URLs remain unexposed.
 # Main-only CD promotes the sealed edge bundle after its paired agent image;
 # local and Cloudflare Workers Builds deployment entrypoints are retired.

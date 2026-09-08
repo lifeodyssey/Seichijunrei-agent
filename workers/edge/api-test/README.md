@@ -2,13 +2,13 @@
 
 Opt-in, never in CI, never in a deploy unit. Four suites, one per question, over one
 shared door — `lane-origin.ts`, which resolves `CATALOG_API_ORIGIN`,
-`AGENT_TURN_BEARER`, `STAGING_GATE_TOKEN` and the Cloudflare Access service token
+`AGENT_TURN_BEARER` and the Cloudflare Access service token
 (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) for all of them, requires HTTPS of every
 non-loopback origin before a credential is sent, and makes every request itself
-(`laneFetch`) so neither the gate header nor the no-redirect rule can be forgotten by
+(`laneFetch`) so neither the Access headers nor the no-redirect rule can be forgotten by
 one call site. `http://localhost` and `http://127.0.0.1` are the one exception —
 plaintext is fine on the loopback, there is no wire to intercept, and a local
-`wrangler dev` is sent NO gate credential because it is behind no gate. No
+`wrangler dev` is sent NO Access credential because it is behind no door. No
 lane reads those variables or calls `fetch` for itself; `test/web-search-lane.test.ts`
 fails if one starts to.
 
@@ -49,18 +49,17 @@ fails if one starts to.
 ```sh
 CATALOG_API_ORIGIN=https://staging.animichi.com \
 AGENT_TURN_BEARER="$(cat ~/.animichi/staging-access-token)" \
-STAGING_GATE_TOKEN="$(cat ~/.animichi/staging-gate-token)" \
 CF_ACCESS_CLIENT_ID="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_ID --format string)" \
 CF_ACCESS_CLIENT_SECRET="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_SECRET --format string)" \
 pnpm --filter edge-worker run test:catalog-api
 ```
 
 Every variable fails closed: without `CATALOG_API_ORIGIN` the lane refuses to
-guess an origin, without `AGENT_TURN_BEARER` the turn cases refuse to run, without
-`STAGING_GATE_TOKEN` the lane refuses to talk to a non-loopback origin at all, and
-with exactly ONE of the two Access variables it refuses before building a request.
-The two Access variables are the only ones that may be absent together — that is
-every run against a target with no Access application in front of it.
+guess an origin, without `AGENT_TURN_BEARER` the turn cases refuse to run, and with
+exactly ONE of the two Access variables it refuses before building a request. The
+two Access variables are the only ones that may be absent together — that is every
+run against a target with no Access application in front of it, the loopback
+included.
 
 Run it only after a deploy that carries `AGENT_TURN_ROUTE = "edge"` — against
 the container the turn is answered by `apps/agent`, which emits no
@@ -68,10 +67,10 @@ the container the turn is answered by `apps/agent`, which emits no
 
 ## The Cloudflare Access service token (D3 #1369)
 
-Staging is moving behind Cloudflare Access. Automation gets in with a **service
-token**: two request headers, `CF-Access-Client-Id` and `CF-Access-Client-Secret`,
-which `lane-origin.ts` attaches to every non-loopback request the same way it
-attaches the gate header. The values are a Pulumi stack output
+Staging is behind Cloudflare Access. Humans sign in; automation gets in with a
+**service token**: two request headers, `CF-Access-Client-Id` and `CF-Access-Client-Secret`,
+which `lane-origin.ts` attaches to every non-loopback request. The values are a
+Pulumi stack output
 (`infra/src/staging-access.ts`), carried into the ESC environment
 `lifeodyssey/animichi/staging` by the `pulumi-stacks` provider; read them with the
 `esc env open` lines in the recipe above and never write them to a file in this repo.
@@ -87,33 +86,29 @@ exactly as it answers one carrying neither — a 302 to the identity provider's 
 page — so half a token arrives as an HTML login page where the lane expected JSON,
 and reads as a broken app. `@animichi/contract/access-service-token` refuses that
 case by name before the request is built. Leaving both unset is the ordinary state
-until the Access application exists (PR 2 of that card).
+for any origin with no Access application in front of it.
 
-## The staging gate (#1294)
+Two rules follow from carrying a real credential, and both live in `lane-origin.ts`
+rather than in any lane: a non-loopback origin must be HTTPS (the service token and
+the Neon Auth bearer both ride these requests, and neither belongs on a plaintext
+wire), and no request may follow a redirect — `fetch` replays headers on a 30x, so a
+redirect would hand both credentials to whatever origin the `Location` named. Access
+makes that load-bearing rather than defensive: a 302 to the identity provider is
+exactly what an unauthenticated request gets, so it is the redirect these lanes are
+most likely to meet. There is no legitimate redirect on any of these routes, so
+`laneFetch` sets `redirect: "error"` and a 30x fails the lane loudly.
 
-Staging sits behind a Cloudflare WAF custom rule that blocks every request without
-an allowlisted source IP, the `animichi_staging` cookie, or the `x-staging-key`
-header. The lanes present the header form — `lane-origin.ts` attaches it to every
-request — because a header needs no cookie jar. `STAGING_GATE_TOKEN` is the SAME
-variable and the same value the Playwright suite uses (`e2e/global-setup.ts`, which
-turns it into the cookie instead); get it from wherever you get that one, and never
-paste it into a file in this repo, a test, a PR or a log line.
+**A login page is the door, not the app.** If `/healthz` answers a 302 to
+`*.cloudflareaccess.com`, or returns Cloudflare's own HTML, the request did not
+reach our Worker: the token is missing, half-declared, or rotated out from under
+this shell. It is not a broken deploy, and every assertion downstream of it fails
+for that same unrelated reason — which is why the lane refuses to start on half a
+token rather than let you read a login page as a bug.
 
-Two rules follow from that, and both live in `lane-origin.ts` rather than in any
-lane: a non-loopback origin must be HTTPS (the gate token and the Neon Auth bearer
-both ride these requests, and neither belongs on a plaintext wire), and no request
-may follow a redirect — `fetch` replays headers on a 30x, so a redirect would hand
-both credentials to whatever origin the `Location` named. There is no legitimate
-redirect on any of these routes, so `laneFetch` sets `redirect: "error"` and a 30x
-fails the lane loudly.
-
-**A Cloudflare 403 block page is the gate, not the app.** If `/healthz` answers 403
-with Cloudflare's own HTML, the request did not reach our Worker: the token is
-missing, stale, or not the one this environment expects. It is not a broken deploy,
-and every assertion downstream of it fails for that same unrelated reason — which is
-exactly why the lane now refuses to start rather than let you read a 403 as a bug.
-The lane passing from an allowlisted office IP without the token proves nothing
-about anyone else's machine.
+The `x-staging-key` WAF gate this section used to describe was deleted with D3
+(#1369), along with `STAGING_GATE_TOKEN` and `scripts/setup-staging-gate.sh`. A WAF
+rule could only ever see hostnames on the zone, so the `*.workers.dev` origins CD
+smoke-tests were never behind it (#539).
 
 ## Why the turn is signed in, and the anonymous path is not here
 

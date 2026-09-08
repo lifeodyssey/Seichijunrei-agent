@@ -109,8 +109,9 @@ Checks (all against `https://animichi.com`):
 Exit 0 = all green; non-zero = at least one check failed (each failure is
 printed). Safe to run before activation — a pre-launch run is expected to fail
 checks 1 and 9 (no DNS yet). The script takes an optional origin argument for
-read-only dry runs against other hosts; note staging is behind the WAF gate
-and answers 403 without the `x-staging-key` header.
+read-only dry runs against other hosts; note staging is behind Cloudflare Access
+(#1369) and answers a redirect to its login page without the
+`CF-Access-Client-Id` / `CF-Access-Client-Secret` service-token headers.
 
 ### 2. Core Web Vitals (Playwright)
 

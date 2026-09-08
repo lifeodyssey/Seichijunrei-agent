@@ -72,7 +72,7 @@ describe("POST /migrate — invalid identities", () => {
     })
       .setProtectedHeader({ alg: "RS256", kid: "other", typ: "JWT" })
       .setIssuer(GITHUB_OIDC_ISSUER)
-      .setAudience("staging-gate-audience")
+      .setAudience("some-other-audience")
       .setExpirationTime("5m")
       .sign(privateKey);
     const { app } = await makeApp({ verifier: createGitHubOidcVerifier(policy, joseEnv(jwk2)) });

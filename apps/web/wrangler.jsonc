@@ -48,11 +48,15 @@
   "env": {
     "staging": {
       "name": "animichi-web-staging",
-      // #541 step 6: staging answers only on the staging.animichi.com Custom
-      // Domain (created by Pulumi); the workers.dev host is off because it
-      // would bypass the staging WAF gate (workers.dev is not on the zone).
-      // `preview_urls` is off for the same reason: per-version preview URLs
-      // bypass the WAF the same way.
+      // #541 step 6 turned the workers.dev host off because it is not on the
+      // zone and so bypassed the WAF gate that used to guard staging. #1369
+      // replaced that gate with a Cloudflare Access application, which is not a
+      // zone feature: it covers `staging.animichi.com` and this worker's
+      // `*.workers.dev` hostname alike (`infra/src/staging-access.ts`), so the
+      // host below is behind the same login and the same service token as the
+      // Custom Domain. `preview_urls` stays off — a per-version preview URL is
+      // a hostname nobody added to that application, so it would be the bypass
+      // all over again.
       // Main-only CD promotes the one built artifact with this explicit
       // environment block; it no longer rewrites anything inside it.
       // workers_dev on for STAGING ONLY (owner 2026-08-27, mirrors the edge worker):

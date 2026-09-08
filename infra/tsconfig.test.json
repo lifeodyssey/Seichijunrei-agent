@@ -14,7 +14,8 @@
     "topology-prod.test.ts",
     "topology-prod-database-access.test.ts",
     "topology-staging.test.ts",
-    "topology-staging-invalid-ip.test.ts",
+    "topology-staging-access.test.ts",
+    "topology-staging-empty-allowlist.test.ts",
     "topology-unknown-stack.test.ts"
   ]
 }

@@ -518,10 +518,13 @@ need it read. Five properties are worth stating:
   version `pulumi/actions` just installed. Given the same version it detects the existing install
   and downloads nothing, so a small step resolves `.pulumi.version` into the action's `version`
   input rather than duplicating the number.
-- **`smoke` opens no environment.** It exchanges a token and stops there: the probe is two
-  unauthenticated requests today, and the exchange is what proves the `environment:staging` subject
-  works. Card #1369 gives that step its ESC keys when the staging surfaces move behind Cloudflare
-  Access.
+- **`smoke` opens the one environment it needs and nothing else.** It publishes nothing, so it
+  holds neither `CLOUDFLARE_API_TOKEN` nor `NEON_API_KEY`; it opens `CF_ACCESS_CLIENT_ID` /
+  `CF_ACCESS_CLIENT_SECRET` because staging is behind Cloudflare Access and the probe has to get
+  through the door (#1369). The Pulumi Cloud login stays, because that exchange is what proves the
+  `environment:staging` subject works. `test_cd_credential_boundary_contract.rb` pins the pairing
+  in both directions: no other job may export those two names, and no other job may so much as
+  mention them.
 
 **Provisioning state, and what is still owed.** `CLOUDFLARE_API_TOKEN` and `NEON_API_KEY` are in
 both ESC environments under `environmentVariables`, and staging's have been in use by the
@@ -598,15 +601,38 @@ staging deploy and one green nightly on the ESC path — deleting `R2_ACCESS_KEY
 
 ## Staging access (Cloudflare Access, D3 #1369)
 
-Staging runs the same app as production **with anonymous access on**, so there is no login
-keeping strangers out; a Cloudflare WAF custom rule (`infra/src/staging.ts`) does that today.
-Card #1369 replaces it with Cloudflare Access — humans sign in through an identity policy,
-automation presents a **service token** — and ships in two parts so nothing is locked out
-mid-rollout.
+Staging runs the same app as production **with anonymous access on**, so there is no login of
+its own keeping strangers out. Cloudflare Access is that login: humans sign in against an
+identity policy, automation presents a **service token**, and both are decided by Cloudflare
+before a request reaches the Worker.
 
-**What is live now (PR 1).** `infra/src/staging-access.ts` mints one
-`ZeroTrustAccessServiceToken` on the staging stack (Cloudflare name `animichi-staging-ci`,
-duration `8760h`) and exports two stack outputs:
+`infra/src/staging-access.ts` declares all of it on the staging stack:
+
+- one `ZeroTrustAccessApplication` (`type: "self_hosted"`, `sessionDuration: "24h"`,
+  `appLauncherVisible: false`) whose `destinations` are the three hostnames staging answers on:
+  `staging.animichi.com` and the `animichi-staging` / `animichi-web-staging` workers.dev
+  origins. All three, because CD's smoke probe deliberately uses the workers.dev origins —
+  GitHub-runner IPs get a managed challenge at the zone front door — and a staging surface CI
+  can reach that Access cannot see is the hole (#539) this closes;
+- a `nonIdentity` (**Service Auth**) policy including the service token, first in precedence.
+  Service Auth is the only decision that answers a service token; under a plain `allow` the CD
+  probe is redirected to an identity provider and reads the login page as a broken deploy;
+- an `allow` policy with one include rule per address in the `stagingAccessAllowedEmails` stack
+  config (`infra/Pulumi.staging.yaml`) — plain config, because it says who may sign in, not how.
+  An empty list is refused at build time: it would be a door no human can open;
+- a `onetimepin` `ZeroTrustAccessIdentityProvider`, named on the application as its only
+  `allowedIdps` entry. **The human login path is therefore an emailed one-time PIN** to an
+  address in that allowlist — no password, no third-party app registration. It exists because
+  the account had no identity provider at all (`GET /accounts/{id}/access/identity_providers`
+  answered `[]` on 2026-09-08) and `allowedIdps` defaults to "all IdPs configured in your
+  account": the owner would have reached a login page with nothing to log in with, while the
+  service token kept working and every automated check stayed green.
+  **It is an ACCOUNT-level resource that the staging stack owns only because staging is this
+  account's sole Access consumer.** If production or anything else ever grows an Access
+  application, move it to a shared program first — two stacks declaring one account object fight
+  over it on every apply;
+- the `animichi-staging-ci` `ZeroTrustAccessServiceToken` (duration `8760h`) and two stack
+  outputs:
 
 | Stack output | ESC key in `lifeodyssey/animichi/staging` | Request header |
 |---|---|---|
@@ -616,32 +642,36 @@ duration `8760h`) and exports two stack outputs:
 **That token expires after one year** and nothing alerts on it — the deadline, the two renewal
 paths and who is (not) warned are in `secrets.md`, "It expires. Nothing tells you."
 
-The ESC environment imports them through its `pulumi-stacks` provider once the
-`stage-foundation` apply has published them, so no value is copied by hand. Renaming either
-output empties the ESC key silently — `infra/topology-staging.test.ts` pins both names for
-exactly that reason. Production mints no token: it has no Access application.
+The ESC environment imports the two outputs through its `pulumi-stacks` provider, so no value is
+copied by hand. Renaming either output empties the ESC key silently —
+`infra/topology-staging-access.test.ts` pins both names for exactly that reason. Production has
+none of this: it has a real login, and `infra/topology-prod.test.ts` pins that no application,
+policy or token is built there.
 
-Every automated caller already sends the pair when both variables are set, and refuses when
-exactly one is: the CD smoke probe (`.github/scripts/staging-smoke-check.sh`), the Playwright
-suite (`e2e/playwright.config.ts`, `use.extraHTTPHeaders`), the staging lanes
-(`workers/edge/api-test/lane-origin.ts`) and, through that same door, `packages/eval`. The
-names and the refusal live once, in `packages/contract/src/access-service-token.ts`. Access
-answers a request carrying one header exactly as it answers one carrying neither — a 302 to
-the login page — so a half-declared token would surface as "the app is broken", which is why
-it fails closed by name instead.
+Every automated caller sends the pair when both variables are set, and refuses when exactly one
+is: the CD smoke probe (`.github/scripts/staging-smoke-check.sh`), the Playwright suite
+(`e2e/playwright.config.ts`, `use.extraHTTPHeaders`), the staging lanes
+(`workers/edge/api-test/lane-origin.ts`) and, through that same door, `packages/eval`. The names
+and the refusal live once, in `packages/contract/src/access-service-token.ts`. Access answers a
+request carrying one header exactly as it answers one carrying neither — a 302 to the login page
+— so a half-declared token would surface as "the app is broken", which is why it fails closed by
+name instead.
 
-`cd.yml`'s `smoke` job deliberately does **not** export the two keys from ESC yet: they do not
-exist in the environment until the first `stage-foundation` apply publishes them, and
-`pulumi/esc-action` fails a job that asks for a name the environment has no value for. The
-probe therefore runs unauthenticated in this transitional state, which is correct while there
-is still no Access application in front of staging.
+**Enforcement is eventually consistent.** An Access application starts refusing traffic a minute
+or two after the apply, not at the apply. On the run that first creates it, `stage-foundation`
+and `smoke` are minutes apart in the same run, so that smoke can pass without ever having been
+checked — the evidence that the door is live is the NEXT push's smoke, plus a `curl` with no
+headers answering 302 or 403.
 
-**What PR 2 adds.** The `ZeroTrustAccessApplication` covering `staging.animichi.com` and the
-`animichi-staging` / `animichi-web-staging` workers.dev hosts, an identity `allow` policy for
-the owner plus a `nonIdentity` (Service Auth) policy carrying this token, the two ESC exports
-on the `smoke` job, and the deletion of the WAF gate, `workers/edge/src/staging-gate/**`,
-`scripts/setup-staging-gate.sh` and the `stagingGate*` stack config. Access enforcement is
-eventually consistent — re-probe a few minutes after the apply.
+**What this replaced.** A WAF custom rule blocking traffic without an allowlisted source IP, the
+`animichi_staging` cookie or the `x-staging-key` header, plus a hand-written OIDC exchange in the
+edge Worker. Both are deleted (#1369): `infra/src/staging.ts`'s ruleset,
+`workers/edge/src/staging-gate/**`, `scripts/setup-staging-gate.sh`, `e2e/global-setup.ts`, the
+`stagingGate*` / `stagingAllowedIps` stack config and the `STAGING_GATE_TOKEN` GitHub secret. A
+WAF rule can only see hostnames on the zone, and its credential was a static string that had to
+stay in sync across a stack config and a GitHub secret. `infra/src/staging.ts` keeps only
+`staging-http-config-settings`, which turns the Browser Integrity Check and the security-level
+challenge off for the staging hostname so CI is not challenged ahead of Access.
 
 **Locally.** Read the values from ESC rather than a file:
 
@@ -656,6 +686,10 @@ ciphertext unless `--show-secrets` is passed). So
 `esc env get lifeodyssey/animichi/staging environmentVariables` is what to run when you only need
 to see that the two keys are declared and where they come from — it shows the import expression,
 never the token.
+
+A browser needs no variables at all: open `https://staging.animichi.com/`, enter an address in
+`stagingAccessAllowedEmails`, paste the one-time PIN Cloudflare emails to it, and the session
+lasts 24 hours.
 
 ## WAF and Edge Hardening
 

@@ -5,11 +5,11 @@
  * `lane-origin.ts`; this is the same invariant for the same door's second
  * consumer, and it lives here because a guard on somebody else's files is a
  * guard nobody updates. What it protects is not tidiness: a request that
- * resolved the origin for itself reaches staging with no `x-staging-key` and
- * comes back a Cloudflare 403 block page, which reads as a broken app; and a
- * request that skipped `laneFetch` could follow a redirect carrying both the
- * gate header and a Neon Auth bearer to whatever `Location` named (#1291,
- * #1294).
+ * resolved the origin for itself reaches staging with no Access service token
+ * and comes back a redirect to a login page, which reads as a broken app; and a
+ * request that skipped `laneFetch` could follow that redirect, carrying both the
+ * service token and a Neon Auth bearer to whatever `Location` named (#1291,
+ * #1294, #1369).
  *
  * `src/` is held to something stricter still — it makes no request at all. The
  * task takes the door as a port, which is what lets the suites above drive it
@@ -27,12 +27,12 @@ const PACKAGE_DIR = new URL("../", import.meta.url);
 
 /** The environment the door owns; nothing here may read one for itself.
  *
- * The two Cloudflare Access names joined the list with D3 (#1369) and belong to
- * the door for the same reason the gate token does: a script that read them
- * itself would decide alone whether to send the pair, and half a service token
- * is answered by an Access login page that reads as a broken app. */
+ * The two Cloudflare Access names replaced the retired `STAGING_GATE_TOKEN` with
+ * D3 (#1369) and belong to the door for the same reason it did: a script that
+ * read them itself would decide alone whether to send the pair, and half a
+ * service token is answered by an Access login page that reads as a broken app. */
 const DOOR_ENVIRONMENT =
-  /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|STAGING_GATE_TOKEN|CF_ACCESS_CLIENT_ID|CF_ACCESS_CLIENT_SECRET)/;
+  /process\.env\.(CATALOG_API_ORIGIN|AGENT_TURN_BEARER|CF_ACCESS_CLIENT_ID|CF_ACCESS_CLIENT_SECRET)/;
 
 /** The one import that reaches staging. */
 const DOOR_IMPORT = 'from "edge-worker/api-test/lane-origin.ts"';
@@ -76,7 +76,7 @@ void test("no staging script calls fetch on the staging origin for itself", () =
 /**
  * `src/` is a port away from the network on purpose. The exception the rule has
  * to survive is `neon-auth-bearer.ts`, which talks to a DIFFERENT origin — Neon
- * Auth is behind no WAF rule and takes no gate credential — and it still makes
+ * Auth is behind no Access application and takes no service token — and it still makes
  * no request itself: it is handed a sender.
  */
 void test("nothing under src/ makes a request; the door and the sender are both ports", () => {

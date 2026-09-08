@@ -36,5 +36,7 @@ config:
   #
   # Prod applies run through CI behind the GitHub `production` environment
   # approval — only the foundation promotion phase runs Pulumi (see
-  # ../docs/ops/deployment.md and .github/workflows/cd.yml). There is no
-  # staging gate here; `stagingGateEnabled` is read only on the staging stack.
+  # ../docs/ops/deployment.md and .github/workflows/cd.yml). Production has no
+  # Cloudflare Access application and mints no service token — it has a real
+  # login. `src/staging-access.ts` builds nothing off the staging stack, and
+  # `topology-prod.test.ts` pins that.

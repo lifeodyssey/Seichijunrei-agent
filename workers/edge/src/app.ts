@@ -5,7 +5,6 @@ import type { Env, WorkerExecutionContext } from "./env.ts";
 import type { AuthResult } from "./identity/auth.ts";
 import { authenticate as realAuthenticate } from "./identity/auth.ts";
 import { HandleGatewayRequest, gatewayFailure, type GatewayDeps } from "./gateway/request.ts";
-import { defaultStagingGateExchange } from "./staging-gate/exchange.ts";
 import { createTurnstileGate, type TurnstileGate } from "./protect/turnstile.ts";
 import { createShowcaseMode, type ShowcaseMode } from "./proxy/showcase.ts";
 import { neonAgentTurnTier, type AgentTurnTier } from "./gateway/agent-turn.ts";
@@ -30,9 +29,6 @@ export interface WorkerDeps {
   sleep?: (ms: number) => Promise<void>;
   /** Injectable showcase gate (tests capture its warning / isolate it per case). */
   showcaseMode?: ShowcaseMode;
-  /** Injectable staging-gate OIDC exchange (CI channel, #1054); tests substitute
-   * it to avoid hitting GitHub's remote JWKS. */
-  stagingGateExchange?: (request: Request, env: Env) => Promise<Response>;
   /** Injectable agent tier (W1-7 #1256): the production one opens a Neon pool
    * and two Durable Object stubs, so tests substitute it to stay hermetic. */
   agentTurns?: AgentTurnTier;
@@ -51,7 +47,6 @@ function resolveGates(deps: WorkerDeps): GatewayDeps {
     turnstileGate: deps.turnstileGate ?? createTurnstileGate(),
     showcaseMode: deps.showcaseMode ?? createShowcaseMode(),
     sleep: deps.sleep ?? realSleep,
-    stagingGateExchange: deps.stagingGateExchange ?? defaultStagingGateExchange,
     agentTurns: deps.agentTurns ?? neonAgentTurnTier(),
   };
 }

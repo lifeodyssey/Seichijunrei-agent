@@ -3,7 +3,7 @@
  *
  * The shaper is built and tested against the Python-recorded SD-9 captures in
  * `apps/agent/tests/fixtures/chat_stream/`, because at the time this card was
- * implemented no `STAGING_GATE_TOKEN` was available to make a live one. Those
+ * implemented no staging credential was available to make a live one. Those
  * captures are the same wire (#1283 verified the edge frame for frame), so they
  * are a sound subject — but they are not evidence that a LIVE turn shapes the
  * same way. This script is how that evidence gets made once the credential

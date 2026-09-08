@@ -22,7 +22,6 @@ import { publicReadKey } from "./read-key.ts";
 import { isAnonymousV1, isPublicV1, turnRoutePolicy } from "./routing-policy.ts";
 import { agentTierResponse, type AgentTierGates } from "./agent-tier-route.ts";
 import { stagingPrefixResponse, stagingPrefixRoute } from "./staging-prefix-route.ts";
-import { stagingGateExchangeResponse } from "../staging-gate/exchange.ts";
 
 // ── EDGE-1 #963: the composed gateway seam ─────────────────────────────────
 //
@@ -68,11 +67,6 @@ function authenticationRejection(request: Request, auth: AuthFailure): Response 
 
 export interface GatewayDeps extends AgentTierGates {
   showcaseMode: ShowcaseMode;
-  /** The staging-gate OIDC exchange (CI channel, #1054). Reuses the shared
-   * @animichi/contract/oidc-github verifier; valid CI identity authorizes the
-   * private smoke path, invalid is rejected. Injectable so tests drive it
-   * without Cloudflare bindings (same seam as MigratorDeps.verifier). */
-  stagingGateExchange?: (request: Request, env: Env) => Promise<Response>;
 }
 
 export function HandleGatewayRequest(
@@ -129,7 +123,6 @@ export function gatewayFailure(error: unknown, request: Request): Response {
 function dispatch(route: RequestClass, env: Env, request: Request, ctx: WorkerExecutionContext, deps: GatewayDeps): Promise<Response> {
   switch (route.kind) {
     case "landing": return landingResponse(env, request, ctx, route.asset, deps.sleep);
-    case "staging-gate-exchange": return stagingGateExchangeResponse(env, request, deps);
     case "public-catalog": return publicCatalogResponse(env, request);
     case "users": return usersResponse(env, request, ctx, deps);
     case "adopt": return adoptResponse(env, request, ctx, deps);

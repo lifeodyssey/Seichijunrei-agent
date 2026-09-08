@@ -20,18 +20,18 @@
  *     for the same reason the module exists — `catalog-api.test.ts` carries no
  *     token today, but it is one edit away from carrying one.
  *   - a half-declared Cloudflare Access service token is refused before the
- *     request is built (D3 #1369). Access answers a request carrying one of the
- *     two headers exactly as it answers one carrying neither — a 302 to the
- *     login page — so half a token reads as a broken app in the same way the
- *     missing gate credential below does.
- *   - a missing staging gate credential is refused rather than sent anyway
- *     (#1294). Staging is behind a WAF rule that blocks every request without an
- *     allowlisted source IP, the gate cookie, or the `x-staging-key` header, so
- *     a lane that omits it gets a Cloudflare 403 block page for `/healthz` and
- *     every assertion below fails for a reason that has nothing to do with the
- *     code under test. It only ever passed because the operator's own IP
- *     happened to be allowlisted. Failing with the variable's NAME is the whole
- *     point: a 403 that looks like a broken app costs an afternoon.
+ *     request is built (D3 #1369). Staging is behind an Access application, and
+ *     Access answers a request carrying one of the two headers exactly as it
+ *     answers one carrying neither — a 302 to the login page. So a lane that
+ *     sent half a token would read an HTML login page where it expected JSON and
+ *     fail for a reason that has nothing to do with the code under test.
+ *     Failing with the missing variable's NAME is the whole point: a redirect
+ *     that looks like a broken app costs an afternoon.
+ *
+ *     A token that is absent ENTIRELY is not an error — that is the loopback
+ *     case, and any origin behind no Access application. #1369 deleted the
+ *     `x-staging-key` WAF gate this door used to require in the same place; the
+ *     Access service token is the one credential staging asks for now.
  *
  * Not a `*.test.ts` file, so `pnpm run test:catalog-api`'s glob does not run it
  * as a suite; it is imported by the lanes that do.
@@ -47,24 +47,19 @@ import {
  * environment once at module load could not be driven through both its
  * loopback and its staging branch by a test, and a rule nobody can exercise is
  * a rule nobody can trust. */
-function environment(): { origin?: string; bearer?: string; gate?: string } {
+function environment(): { origin?: string; bearer?: string } {
   return {
     origin: process.env.CATALOG_API_ORIGIN,
     bearer: process.env.AGENT_TURN_BEARER,
-    gate: process.env.STAGING_GATE_TOKEN,
   };
 }
 
-/** The header form of the staging gate. The WAF accepts it or the cookie; a
- * header needs no cookie jar, which is the whole reason these lanes use it. */
-const GATE_HEADER = "x-staging-key";
-
-/** The loopback, the one origin that is not behind the staging gate.
+/** The loopback, the one origin that is behind no Access application.
  *
  * Delegates rather than spelling the hostnames again: this door checked
  * `localhost` and `127.0.0.1` only, so `https://[::1]` took the credentialed
- * staging path and was handed both the gate token and the Access service token
- * (PR #1498 review). The one list lives with the credential it protects. */
+ * staging path and was handed the service token (PR #1498 review). The one list
+ * lives with the credential it protects. */
 function isLoopback(url: URL): boolean {
   return isLoopbackHostname(url.hostname);
 }
@@ -72,8 +67,6 @@ function isLoopback(url: URL): boolean {
 /** Where a lane may talk to, and what it must present to get in. */
 interface LaneDestination {
   origin: string;
-  /** The staging gate credential, or `null` for the loopback, which has no gate. */
-  gate: string | null;
   /** The Cloudflare Access service token headers, empty when none is declared. */
   access: Readonly<Record<string, string>>;
 }
@@ -81,31 +74,24 @@ interface LaneDestination {
 /**
  * The destination, refused unless it is one these lanes may safely talk to.
  *
- * The loopback returns before the gate is even read, which is the point: a
- * local `wrangler dev` is not behind the WAF, so sending it the staging
- * credential would be handing a production-adjacent secret to whatever is
- * listening on a port. Every other origin must present one, and is refused
- * here rather than allowed to come back as a Cloudflare 403 nobody can read.
+ * The loopback returns before the token is even read, which is the point: a
+ * local `wrangler dev` is behind no Access application, so sending it staging's
+ * service token would be handing a production-adjacent secret to whatever is
+ * listening on a port. Every other origin gets whatever token the environment
+ * declares, and the shared reader refuses a HALF-declared one here rather than
+ * letting one header come back as a login page nobody can read.
  */
 function checkedDestination(): LaneDestination {
-  const { origin, gate } = environment();
+  const { origin } = environment();
   assert.ok(origin, "set CATALOG_API_ORIGIN (see api-test/README.md); this lane never guesses");
   const url = new URL(origin);
-  if (isLoopback(url)) return { origin, gate: null, access: {} };
+  if (isLoopback(url)) return { origin, access: {} };
   assert.equal(
     url.protocol,
     "https:",
     "CATALOG_API_ORIGIN must be https for any non-loopback origin — these lanes send real credentials",
   );
-  assert.ok(
-    gate,
-    "set STAGING_GATE_TOKEN (the variable the e2e suite already uses; see api-test/README.md) — staging's WAF answers 403 to a request without it, and that 403 reads as a broken app",
-  );
-  // Read after the loopback returns, for the same reason the gate is: a local
-  // `wrangler dev` is behind no Access application, and handing it staging's
-  // service token would put a real credential on whatever is listening. The
-  // reader refuses a HALF-declared token here rather than sending one header.
-  return { origin, gate, access: accessServiceTokenHeaders(process.env) };
+  return { origin, access: accessServiceTokenHeaders(process.env) };
 }
 
 /** The staging origin, without its trailing slash, or a failed assertion. */
@@ -121,19 +107,17 @@ export function laneBearer(): string {
 }
 
 /**
- * One request's headers: whatever the call itself needs, plus the gate.
+ * One request's headers: whatever the call itself needs, plus the door's.
  *
- * The gate header and the Cloudflare Access service token are added last and
- * cannot be overridden by a caller: a lane has no reason to send a different one
- * and every reason to send these. `checkedDestination` decides whether there ARE
- * any — `null` and `{}` for the loopback, which is behind neither door and must
- * not be handed either credential — so this function has no policy of its own to
- * get wrong.
+ * The Cloudflare Access service token is added last and cannot be overridden by
+ * a caller: a lane has no reason to send a different one and every reason to
+ * send this. `checkedDestination` decides whether there IS one — `{}` for the
+ * loopback, which is behind no door and must not be handed a credential — so
+ * this function has no policy of its own to get wrong.
  */
 export function laneHeaders(extra?: HeadersInit): Headers {
   const headers = new Headers(extra);
-  const { gate, access } = checkedDestination();
-  if (gate !== null) headers.set(GATE_HEADER, gate);
+  const { access } = checkedDestination();
   for (const [name, value] of Object.entries(access)) headers.set(name, value);
   return headers;
 }
@@ -149,14 +133,15 @@ export function laneHeaders(extra?: HeadersInit): Headers {
  *
  * `redirect: "error"` is set AFTER the spread, so no caller can opt out of it,
  * and it is not politeness: `fetch` replays request headers on a followed
- * redirect, so a 30x from staging — a WAF rule, a stray trailing slash, a
- * hostile response on a compromised hop — would carry `x-staging-key` AND the
- * Neon Auth bearer to whatever origin and scheme the `Location` named. There is
- * no legitimate redirect on any of these routes, so a redirect is a finding,
- * and a rejected promise says so where a followed one would say nothing. Once
- * staging is behind Cloudflare Access (D3 #1369 PR 2) the rule earns a second
- * job: an unauthenticated request is answered with a 302 to the identity
- * provider, and following it would carry the service token to that origin.
+ * redirect, so a 30x from staging — a stray trailing slash, a hostile response
+ * on a compromised hop — would carry the service token AND the Neon Auth bearer
+ * to whatever origin and scheme the `Location` named. There is no legitimate
+ * redirect on any of these routes, so a redirect is a finding, and a rejected
+ * promise says so where a followed one would say nothing. Cloudflare Access
+ * makes it load-bearing rather than defensive (D3 #1369): an unauthenticated
+ * request is answered with a 302 to the identity provider, so the one response
+ * these lanes are most likely to meet is exactly the one that must not be
+ * followed with the credentials attached.
  */
 export function laneFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${laneOrigin()}${path}`, {

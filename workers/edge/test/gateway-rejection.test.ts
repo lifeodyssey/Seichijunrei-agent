@@ -15,7 +15,6 @@ import { createWorkerApp } from "../src/app.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
 import { gatewayRejection } from "../src/gateway/responses.ts";
 import { catalogOutbound } from "../src/gateway/forward.ts";
-import { defaultStagingGateExchange } from "../src/staging-gate/exchange.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 
 const NOW = Date.UTC(2026, 8, 5, 12, 0, 0);
@@ -77,12 +76,4 @@ void test("a catalog call the container is not allowed to make is refused in the
   const response = await catalogOutbound(request, { CATALOG: { fetch: () => Promise.reject(new Error("never")) } } as never);
   assert.equal(response.status, 403);
   assert.equal((await envelopeOf(response)).error?.code, "catalog_request_forbidden");
-});
-
-void test("the staging-gate exchange refuses a credential-less call in the envelope", async () => {
-  const response = await defaultStagingGateExchange(
-    new Request("https://animichi.test/staging-gate/exchange", { method: "POST" }), {} as never,
-  );
-  assert.equal(response.status, 401);
-  assert.equal((await envelopeOf(response)).error?.code, "missing_oidc_token");
 });

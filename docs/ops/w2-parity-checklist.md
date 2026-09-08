@@ -145,7 +145,7 @@ rather than guessing.
 | quota refunded exactly once on a failed turn | `interfaces/usage_metering.py` (no single line — the refund is spread across the metering service) | `agent/settlement/turn-settlement.ts` | `workers/edge/test/turn-settlement.test.ts`, `workers/edge/agent-db-test/turn-refund.db.test.ts` | — | — | ☐ |
 | the flag can send every route back to the container in one word | not applicable | `gateway/routing-policy.ts` | `workers/edge/test/agent-turn-routing.test.ts`, `workers/edge/test/agent-turn-route-policy.test.ts`, `workers/edge/test/agent-turn-route-config.test.ts` | journey §5 | anything but the literal `edge` is `container`; staging is `edge`, production and `wrangler dev` are `container` (PR #1284) | ☐ |
 | the request body shape the web app already sends | `interfaces/routes/chat_body.py:159-161` | `gateway/chat-envelope.ts` | `workers/edge/test/chat-envelope.test.ts` | journey §1 | — | ☐ |
-| the staging lanes present the WAF gate credential | not applicable | `workers/edge/api-test/lane-origin.ts` | `workers/edge/test/web-search-lane.test.ts`, `workers/edge/test/lane-gate-header.test.ts` | see "How to run the manual pass" | without `STAGING_GATE_TOKEN` every lane request is a Cloudflare 403 block page unrelated to the code (PR #1295) | ☐ |
+| the staging lanes present staging's credential | not applicable | `workers/edge/api-test/lane-origin.ts` | `workers/edge/test/web-search-lane.test.ts`, `workers/edge/test/lane-gate-header.test.ts` | see "How to run the manual pass" | the credential is the Cloudflare Access service token since #1369 (it was `STAGING_GATE_TOKEN` when this row was written, PR #1295); without it every lane request comes back as the Access login page, unrelated to the code | ☐ |
 
 ## How to run the manual pass
 
@@ -155,10 +155,13 @@ deploy that carries `AGENT_TURN_ROUTE = "edge"` — merged is not deployed
 
 **Credentials.** Two, neither of which belongs in this repo:
 
-- `STAGING_GATE_TOKEN` — the WAF gate. Same variable and same value the
-  Playwright suite turns into the `animichi_staging` cookie (`e2e/global-setup.ts`);
-  the recipe and the reasoning are in `workers/edge/api-test/README.md` under
-  "The staging gate". A Cloudflare 403 block page means the gate, not the app.
+- `CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` — the Cloudflare Access
+  service token, both or neither (#1369 replaced the `STAGING_GATE_TOKEN` WAF gate
+  this row used to name). The same pair the Playwright suite sends as
+  `use.extraHTTPHeaders`; the recipe and the reasoning are in
+  `workers/edge/api-test/README.md` under "The Cloudflare Access service token",
+  and the values come from `esc env open lifeodyssey/animichi/staging`. A login
+  page means the door, not the app.
 - `AGENT_TURN_BEARER` — any real staging Neon Auth access token; the browser's
   own session token works and is short-lived by design.
 
@@ -167,7 +170,8 @@ deploy that carries `AGENT_TURN_ROUTE = "edge"` — merged is not deployed
 ```sh
 CATALOG_API_ORIGIN=https://staging.animichi.com \
 AGENT_TURN_BEARER="$(cat ~/.animichi/staging-access-token)" \
-STAGING_GATE_TOKEN="$(cat ~/.animichi/staging-gate-token)" \
+CF_ACCESS_CLIENT_ID="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_ID --format string)" \
+CF_ACCESS_CLIENT_SECRET="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_SECRET --format string)" \
 pnpm --filter edge-worker run test:catalog-api
 ```
 

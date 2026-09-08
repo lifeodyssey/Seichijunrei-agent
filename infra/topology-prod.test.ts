@@ -24,6 +24,10 @@ const DNS = "cloudflare:index/dnsRecord:DnsRecord";
 const RULESET = "cloudflare:index/ruleset:Ruleset";
 const ZONE_DNSSEC = "cloudflare:index/zoneDnssec:ZoneDnssec";
 const SERVICE_TOKEN = "cloudflare:index/zeroTrustAccessServiceToken:ZeroTrustAccessServiceToken";
+const ACCESS_APPLICATION = "cloudflare:index/zeroTrustAccessApplication:ZeroTrustAccessApplication";
+const ACCESS_POLICY = "cloudflare:index/zeroTrustAccessPolicy:ZeroTrustAccessPolicy";
+const ACCESS_IDP =
+  "cloudflare:index/zeroTrustAccessIdentityProvider:ZeroTrustAccessIdentityProvider";
 const ZONE_SETTING = "cloudflare:index/zoneSetting:ZoneSetting";
 
 test("the apex serves the web Worker, not the edge Worker", () => {
@@ -93,10 +97,11 @@ test("the redirect points www AT the apex, not the other way round", () => {
   assert.equal(params.fromValue.statusCode, 301);
 });
 
-test("the staging WAF gate stays off on prod", () => {
-  // Its own flag is unset here, but the `stack === "staging"` guard is the
-  // structural one: a Block rule on the production zone is the worst thing
-  // this file could emit.
+test("prod declares exactly two rulesets, and neither of them blocks", () => {
+  // The `stack === "staging"` guards are what keep the staging-only rulesets off
+  // this zone. A Block rule on the production zone is the worst thing this file
+  // could emit — it used to be the WAF staging gate (deleted with #1369), and
+  // the next one will be something else, so the assertion is on the SHAPE.
   const rulesets = ofType(built, RULESET).map((r) => r.name).sort();
   assert.deepEqual(rulesets, ["animichi-api-rate-limit", "animichi-www-redirect"]);
   for (const ruleset of ofType(built, RULESET)) {
@@ -159,9 +164,18 @@ test("production declares no R2 custom domain, so all buckets stay private", () 
   assert.deepEqual(customDomains, []);
 });
 
-test("production mints no Access service token", () => {
-  // D3 #1369: only staging goes behind Cloudflare Access. A token minted for a
-  // door that does not exist is a live credential sitting in production state
-  // with no consumer and nobody rotating it.
+test("production has no Cloudflare Access door and mints no token for one", () => {
+  // D3 #1369: only staging goes behind Cloudflare Access — production has a real
+  // login. An application here would put every visitor behind an identity
+  // provider, and a token minted for a door that does not exist is a live
+  // credential sitting in production state with no consumer and nobody rotating
+  // it. One assertion per resource kind, so a partial regrowth names itself.
   assert.deepEqual(ofType(built, SERVICE_TOKEN), []);
+  assert.deepEqual(ofType(built, ACCESS_APPLICATION), []);
+  assert.deepEqual(ofType(built, ACCESS_POLICY), []);
+  // The identity provider is an ACCOUNT resource the staging stack happens to
+  // own (it is the only Access consumer today). Two stacks declaring it would
+  // fight over one account object on every apply, which is the same failure the
+  // zone-hardening assertions above exist to prevent.
+  assert.deepEqual(ofType(built, ACCESS_IDP), []);
 });

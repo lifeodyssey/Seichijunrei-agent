@@ -34,8 +34,10 @@ S0-v2 Track B 按 GOAL「repo 级 CF token 删除」收口——执行 ticket �
 
 ### 应用与门禁密钥(用途索引)
 
-- staging WAF 仍要求 owner 持有的 break-glass token；自动 smoke 已延期，当前 CI 不读取 `STAGING_GATE_TOKEN`。
-- `stagingAllowedIps` / `stagingGateToken`(Pulumi staging 栈密文):WAF IP 白名单与闸 token。
+- staging 的门是 Cloudflare Access(#1369):人登录,自动化带 service token
+  (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`,来自 ESC `lifeodyssey/animichi/staging`
+  的 `environmentVariables`,源头是 `infra/src/staging-access.ts` 的两个 stack output)。
+  旧的 WAF 闸与 `STAGING_GATE_TOKEN` / `stagingAllowedIps` / `stagingGateToken` 已随本卡删除。
 - `VITE_*` 六键(部署侧构建注入,per-env;preflight 非空校验):web 构建期配置。
   S0-v2 增 `VITE_SHOWCASE_MODE`(严格布尔契约,见 launch spec)。
 - `EDGE_SHOWCASE_MODE`(edge Worker 的 `[vars]`,根/staging/production 三段):showcase 闸,

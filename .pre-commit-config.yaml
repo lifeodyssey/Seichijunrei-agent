@@ -95,8 +95,7 @@ repos:
         language: system
         types: [shell]
 
-      # GitHub Actions syntax + workflow_call.secrets typing (actionlint.yaml
-      # carries the documented STAGING_GATE_TOKEN environment-secret escape).
+      # GitHub Actions syntax + workflow_call.secrets typing.
       - id: actionlint
         name: actionlint (workflow syntax)
         entry: actionlint
