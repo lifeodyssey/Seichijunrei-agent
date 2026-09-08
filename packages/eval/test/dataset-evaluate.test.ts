@@ -49,6 +49,7 @@ function makeRoutedMultiSelection(): TranscriptResult {
     trajectory: [
       {
         args: { result_ref: 'search:multi:1' },
+        origin: 'model',
         output: { status: 'ok' },
         params: { result_ref: 'search:multi:1' },
         status: 'ok',

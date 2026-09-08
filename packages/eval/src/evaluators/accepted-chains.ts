@@ -35,8 +35,11 @@ const GENERAL_QA_CHAINS: readonly ModelCallChain[] = [
  * source (`turn-transcript.ts`, rewrite spec §一) — the same turn publishes ONE
  * tool part named for the stage: the runtime streams its server-initiated step
  * exactly as it streams a model-initiated one (`turn-frames.ts`'s
- * `serverStepOpened`, Python's `selection.py::_emit`), and the frames carry no
- * member that tells the two apart. Measured on staging 2026-09-07: all four
+ * `serverStepOpened`, Python's `selection.py::_emit`). Since #1462 the opening
+ * frame does say which of the two it is — but that changes nothing HERE, because
+ * both chains are listed for what each runner OBSERVES rather than for what it
+ * can tell apart, and in process a bypass still produces no span at all.
+ * Measured on staging 2026-09-07: all four
  * seeded `plan_multi` cases of `phase1c_selection_v1` published `plan_multi`
  * and nothing else, so the empty chain scored the two turns that FAILED 1.0 and
  * the two that did the work 0.0. `plan_selected` is the same shape on the other

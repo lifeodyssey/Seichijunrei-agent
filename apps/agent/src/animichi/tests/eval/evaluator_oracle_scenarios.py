@@ -10,10 +10,12 @@ the wire shape `packages/eval/src/turn-transcript.ts` publishes is
 The vocabulary is deliberately no richer than the wire. W3-2 (#1300) reads the
 trajectory out of the SD-9 stream frames, which publish one `args` record per
 call; E-2 (#1381) added the second record `argument_correctness` needs — the
-params the tool ran with, published on the retrieval surface. Anything the wire
-still cannot answer for (`model_initiated`) stays out, because a scenario that
+params the tool ran with, published on the retrieval surface; and #1462 added
+`model_initiated`, which the wire could not answer for until the frames a
+deterministic bypass opens started carrying their own origin. A scenario that
 could express more than the wire would let this oracle prove a parity the
-TypeScript side has no way to reach.
+TypeScript side has no way to reach, so the rule is unchanged even though this
+member no longer falls foul of it.
 """
 
 from __future__ import annotations
@@ -24,6 +26,10 @@ from typing import Literal
 StepStatus = Literal["ok", "error", "unsettled"]
 """How a call ended. `unsettled` = the stream said it was made, never how it
 ended; the span-tree ports treat it as not-successful, exactly like `error`."""
+
+StepOrigin = Literal["model", "server"]
+"""Who asked for the call, in the vocabulary the frames publish (#1462).
+`StepRecord.model_initiated` said as the wire says it."""
 
 
 @dataclass(frozen=True)
@@ -37,6 +43,10 @@ class OracleStep:
     """What the tool RAN with, when the runtime settled it into something other
     than what the model asked with (#1381). `None` = the call ran with its own
     arguments, which is every scenario written before the second witness."""
+    model_initiated: bool = True
+    """Whether the MODEL asked for this call (#1462). `False` is a deterministic
+    bypass — the runtime's own step, opened with no model arguments — which
+    `OfficialArgumentCorrectness` does not score on either side."""
 
     @property
     def settled_params(self) -> dict[str, object]:

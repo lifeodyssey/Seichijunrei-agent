@@ -31,6 +31,7 @@
  */
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { JsonValue } from "@earendil-works/pi-ai";
+import { serverStepOrigin } from "@animichi/contract/agent-step-origin";
 import { ANSWER_TOOL_NAME } from "@animichi/contract/agent-tool-schemas";
 import { isJsonRecord } from "../json-record.ts";
 import type { TurnState } from "./run-machine.ts";
@@ -105,10 +106,19 @@ export function framesFor(event: AgentEvent): TurnFrame[] {
  * `{}` because a selection's arguments came from the request rather than from a
  * model, exactly as Python emitted `_emit(on_step, call_id, tool, "running",
  * {})`.
+ *
+ * AND THE OPENING FRAME SAYS SO (#1462). That empty `input` is the runtime's
+ * honest answer and it is also indistinguishable, on the frames alone, from a
+ * model that called a tool with no arguments — which made
+ * `argument_correctness` read 0.0 on every successful bypass turn for a reason
+ * that says nothing about the agent. `serverStepOrigin()` is the marker Python
+ * already had as `StepRecord.model_initiated`; see
+ * `@animichi/contract/agent-step-origin` for why it rides in `toolMetadata` and
+ * why absence still means the model asked.
  */
 export function serverStepOpened(callId: string, toolName: string): TurnFrame[] {
   return [
-    { type: "tool-input-start", toolCallId: callId, toolName },
+    { type: "tool-input-start", toolCallId: callId, toolName, ...serverStepOrigin() },
     { type: "tool-input-available", toolCallId: callId, toolName, input: {} },
   ];
 }

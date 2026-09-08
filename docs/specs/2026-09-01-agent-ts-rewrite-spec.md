@@ -333,9 +333,26 @@ DO 计费实数与并发模型（S4 出数）；typebox↔zod 桥的落点代码
 
 **定案（#1311 选项 b）**：从 `run_steps` 把**已结算参数**发布到取回面 `GET /v1/conversations/{id}/messages`，`TranscriptStep`（`packages/eval/src/turn-transcript.ts:71-75`）增 `params`，评估器按 Python 比 `args` vs `params`。**直播流不动**。
 
-- **契约非目标在此处明确修订**：§一 Non-goals 的"不改 `packages/contract` 的 zod 契约"自 W1-5 起就已有一次**可加**例外（`GetSessionHistoryResponse` 加 `run`，`packages/contract/src/agent-contract.ts:246-262`）。本节把口径写死：**取回面 payload 只允许可加式增补**（nullable/optional，旧 payload 仍要 parse），**SD-9 帧 surface 与其余 zod 契约一行不动**。
+- **契约非目标在此处明确修订**：§一 Non-goals 的"不改 `packages/contract` 的 zod 契约"自 W1-5 起就已有一次**可加**例外（`GetSessionHistoryResponse` 加 `run`，`packages/contract/src/agent-contract.ts:246-262`）。本节把口径写死：**取回面 payload 只允许可加式增补**（nullable/optional，旧 payload 仍要 parse），**SD-9 帧 surface 与其余 zod 契约一行不动**。（SD-9 帧 surface 这一半在 10.2.1 让出一个同款的可加式例外，#1462。）
 - **两个见证人今天不在同一条路径上**：SSE 是尽力而为的直播（§三 交接契约、`turn-frames.ts:29-30`），断线即无；取回面今天只发布 `intent`/`success`，会把持久化的 tool-call 信封剥掉（`workers/edge/src/agent/retrieval/transcript-message.ts:53-67`）。对**评估**够用 —— 任务始终握着流并与转录一起成型（`staging-turn-task.ts:119-126`）；对**断线后的复核**不够。是否把 raw 参数也一并持久发布（一个同时带 raw / settled / status / step 身份的取回形状），是一处比裁决更大的接缝，**留给 owner**；本卡按裁决只发 settled 参数。
 - 授权面不放宽：`run_steps` 不授权给 `readonly` 角色，因为「a tool's input and result carry the visitor's own query text」（`migrations/neon/20260902000000_agent_runs.sql:10-12`）。发布对象是该 session 的 owner 本人（`conversation-retrieval.ts:79-82`），数据库授权一行不改。
+
+### 10.2.1 服务端发起的步骤不参与 `argument_correctness` → #1462
+
+10.2 让这条指标有了第二见证人；这一节决定**哪些调用值得比**。
+
+`serverStepOpened`（`workers/edge/src/agent/session/turn-frames.ts`）为确定性绕过开步——`plan_selected`、`plan_multi`、地点选择那次半径 `search_nearby`（`selection/turn-selection.ts:105,119,133`）——`input` 是 `{}`，因为**没有模型参数可填**；结算下来的 `run_steps.input` 带的却是访客真正的请求（`{"candidate_ids": […]}` / `{"point_ids", "origin"}`）。两个见证人于是**按构造永不相等**，每一个成功的绕过回合 `argument_correctness` 都读 0.0：`D3_multi_success_two`、`D3_multi_partial_success`、`D3_place_selection_radius`、`K1_ja_001`、`K1_en_002`（#1454 结算时发现）。
+
+Python 从来不给这些步骤打分——`official_evaluators.py:77-81` 的循环条件是 `item.is_success and item.model_initiated`，而 `selection.py:212`、`selected_route.py:120,168`、`step_recording.py:21` 都把绕过步骤记成 `model_initiated=False`。已提交的 Python 基线就是这条规则的实证：662 例里 15 个 `K1`/`K3` 用例**根本没有 `argument_correctness` 这个键**。
+
+**定案（owner 2026-09-08，选项 1）**：把这件事发到 SD-9 帧上，评估器照 Python 过滤。
+
+- **修订 10.2 的契约口径**：那里写的「SD-9 帧 surface 一行不动」在此处让出一个例外，边界与取回面同款——**只允许可加式增补，且缺省即旧义**。开步帧（`tool-input-start`）多带 `toolMetadata.origin`；`toolMetadata` 是 SD-9 自己为这两类 chunk 定义的自由 `Record<string, JsonValue>`（`ai@7.0.77`，`node_modules/ai/dist/index.js:6554-6590`），不是靠 `z.looseObject` 蒙混过去的顶层字段。**缺省读作 `model`**，所以 #1462 之前录下的每一帧含义不变、读它的每一侧分数不变，`apps/web` 也照旧读过去。
+- 声明落在 `packages/contract/src/agent-step-origin.ts`，**零 zod**：edge 要把它打进 bundle（`bundle-smoke/entry-bundle.test.ts`），eval 的转录成型器要读它。边写 `serverStepOrigin()`、评估侧读 `stepOriginOf()`，一处拼写两端共用。
+- `TranscriptStep.origin` 随之落地；`OfficialArgumentCorrectness` 与 10.4 失败归因里的 `misArguedSteps`（用的是同一条谓词）都跳过服务端步骤。
+- **连带修一处孪生漂移**：`run-metric-names.ts` 原按「取回面是否发布过 `steps`」决定这一列，Python 的孪生（`run_metric_names.py:40`，#1496）按「有没有用例真的打出这个分」决定。本节之后 `phase1c_selection_v1` 五个用例全是绕过、无人打分，旧规则会让 `aggregateScores` 对一次**健康**的跑抛 `Missing metric(s): argument_correctness`。改为读分数，与 Python 一致，也与该文件里 `step_efficiency` 的既有写法一致；`run-judgement.ts` 的先后顺序（#1496/#1510）保留，它挡的是「被饿死的一跑不得参与比较与铸基线」。
+- **拒掉的两条**：选项 2（把真实 input 填进开步帧）会让帧宣称一个模型从未产出的 `input`；选项 3（成型时按工具名排除）要维护第二张表，而 `search_nearby` 一名两义，按名字排除会把模型自己发起的那次调用一起丢掉。
+- **代价说清楚**：这三个 stage 的 `argument_correctness` 从此是 `{}`（未测量）而不是 0.0。#1303 双跑时这三列少了用例——少的恰是 Python 基线里同样没有的那些用例，所以两侧比的仍是同一批。
 
 ### 10.3 最终答复验证器 → #1382
 
@@ -385,6 +402,7 @@ DO 计费实数与并发模型（S4 出数）；typebox↔zod 桥的落点代码
 | #1381 | 第二见证：取回面发布已结算 params + 评估器恢复比较（10.2） | — |
 | #1382 | 最终答复验证器（10.3） | #1303 |
 | #1383 | 失败归因（10.4） | #1303 |
+| #1462 | 服务端发起的步骤不参与 `argument_correctness`（10.2.1） | #1381 |
 
 顺序：#1380、#1381 在 W3-5 双跑（#1303）**之前**落地 —— 前者决定 5 个选择用例是否有起点，后者决定 `argument_correctness` 是否是一个真指标，两者都会改变双跑要比的数字；#1382、#1383 在双跑**之后**，它们读的是那一轮跑出来的答复与失败轨迹。
 

@@ -77,9 +77,11 @@ project's own, ported from `evaluators.py`.
 - **There is no span tree, and no need for one.** `trajectory` is what the SD-9 stream publishes and
   `stepCount` is `len(AgentResult.steps)` for every turn the wire can describe. It is NOT the span
   tree: a deterministic selection publishes a tool part named for its stage
-  (`turn-frames.ts::serverStepOpened`) and produces no span at all, and the frames carry no member
-  that tells a server-initiated call from a model-initiated one. Measured on staging 2026-09-07
-  (#1454) — see the ANY-of-N entry below, which is where the difference is paid for. `status` has
+  (`turn-frames.ts::serverStepOpened`) and produces no span at all. Measured on staging 2026-09-07
+  (#1454) — see the ANY-of-N entry below, which is where the difference is paid for. Since #1462 the
+  opening frame does say which of the two a call is (`TranscriptStep.origin`); that changes neither
+  of those facts and changes exactly one metric — see the `argument_correctness` section below.
+  `status` has
   three states:
   `"unsettled"` (made, never settled) is excluded wherever `include_failed=False` applies and counted
   by `MaxToolCalls`, which counts every attempt.
@@ -132,11 +134,14 @@ project's own, ported from `evaluators.py`.
   only the empty one any more — without moving `_STAGE_MIN_STEPS`.
 - **`_available_data_keys` is ported once, in W3-2.** `DataKeysPresent` reads `dataKeys`; it does not
   re-derive the rule. The oracle publishes Python's own `_available_data_keys` under that name, so it
-  is the tripwire for `dataKeysOf` too.
+  is the tripwire for `answer-data-keys.ts::dataKeysOf` too — a module of its own because it
+  reads the answer PART and never a frame.
 - **The oracle, not a re-derivation.** `fixtures/evaluator-oracle.json` is what the *Python*
   evaluators score for 26 synthetic transcripts — every `_acceptable_min_steps` branch, the ANY-of-N
   ties, the two empty-chain selection stages, the bypass step as the wire publishes it — one
-  scenario per bypass stage (#1454, #1461) — and the place selection that is not one, the zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
+  scenario per bypass stage (#1454, #1461), each carrying its own `origin` and its own disagreeing
+  witnesses since #1462 — and the place selection, which accepts no empty chain and is a bypass step
+  all the same, the zero-step turn on a case that required a step, the three call outcomes, the `resolve_reply_language`
   decision points, and both answers `argument_correctness` can give (a call settled into a coerced
   value and one settled with an optional null dropped, each scored 0.0 by Python itself) — paired
   with the wire transcript the TS side reads for the same turn. Changing an
@@ -174,6 +179,18 @@ carries every settled step of every run of the session (`steps`, additive), each
 its tool executed with as JSON text, and `turn-transcript.ts` pairs them onto the frames' calls by
 **tool name and occurrence** — the pairing `ArgumentCorrectness(tool, occurrence=k)` makes itself,
 and the only one that survives a settled step the stream never published (`respond`).
+
+**And it scores only the calls the MODEL asked for (#1462).** Python's loop is
+`if item.is_success and item.model_initiated`; the second half was unreachable here until the frames
+carried the fact. A deterministic bypass (`plan_selected`, `plan_multi`, a place pick's radius
+`search_nearby`) is opened by the runtime with `input: {}` and settles with the visitor's own
+request, so its two witnesses disagree by construction — the metric read 0.0 on every successful
+bypass turn, which is a fact about the runtime and not about the agent. `turn-frames.ts` now marks
+the opening frame (`toolMetadata.origin`, declared once in `@animichi/contract/agent-step-origin`;
+absent means `model`, so every capture recorded before it means what it always meant),
+`turn-transcript.ts` carries it as `TranscriptStep.origin`, and both this evaluator and E-4's
+`misArguedSteps` — the same predicate — skip it. Python's committed baseline is the proof that this
+is parity rather than leniency: fifteen of its 662 cases carry no `argument_correctness` key at all.
 
 The metric therefore has THREE answers, and `src/settled-params.ts` owns the distinction. A read
 that published no `steps` array at all (an edge older than #1381, the Python route's `null`, a read
@@ -236,14 +253,17 @@ reads, which is where a third of τ²-bench's information-reporting failures liv
 against the oracle's committed dump (`metric_names_oracle.py` publishes one row per flag, so the
 tests compare rather than re-derive). Order is load-bearing: baselines and report tables are keyed
 positionally. Three columns are conditional: `nonempty_results` on the DATASET (no tagged case, no
-column), and two on the RUN (`src/gate-run/run-metric-names.ts`) — `argument_correctness` when no
-case was offered the settled params, and `step_efficiency` when no case scored it at all, which an
-unseeded `phase1c_selection_v1` arm reaches exactly (every turn refuses, so no turn has a
-denominator). All three exist because `aggregateScores` is strict, as Python's `collect_scores` is:
+column), and two on the RUN (`src/gate-run/run-metric-names.ts`) — each dropped when no case scored
+it at all. `step_efficiency` reaches that on an unseeded `phase1c_selection_v1` arm (every turn
+refuses, so no turn has a denominator); `argument_correctness` reaches it on a SEEDED one, where all
+five cases are bypasses and #1462 stopped scoring those. That second column used to be decided by
+whether the transcript read had OFFERED the settled params (`TranscriptResult.paramsRecorded`) — the
+same question until #1462, and afterwards a rule that named a column a healthy run does not carry.
+All three exist because `aggregateScores` is strict, as Python's `collect_scores` is:
 a metric the list names and the run does not report throws, which would let one unavailable
 measurement take the other seven down with it. **Python has the twin since #1496**
-(`run_metric_names.py`, reading the emitted scores rather than a transcript flag); before it, a
-nightly whose every turn crashed died on `Missing metric(s): argument_correctness`.
+(`run_metric_names.py`, reading the emitted scores — which is what this side now does too); before
+it, a nightly whose every turn crashed died on `Missing metric(s): argument_correctness`.
 
 ## Version pin
 
@@ -324,13 +344,13 @@ Notes for the rest of W3:
   imported from `turn-transcript.ts`, which owns it — a second copy would keep counting the old
   sentinel, silently zero, the day that one moved.
   **The gate runs BEFORE `aggregateScores` (`src/gate-run/run-judgement.ts`), and that order is the
-  fix, not a preference.** A crashed
-  turn's transcript read still publishes a `steps` array — an empty one counts
-  (`settled-params.ts::paramsRecordedIn`) — so `runMetricNames` keeps `argument_correctness` in the
-  run's own list while `ArgumentCorrectness` scored nobody. Aggregating first threw
+  fix, not a preference.** `runMetricNames` used to keep `argument_correctness` in a starved run's
+  own list while `ArgumentCorrectness` scored nobody, so aggregating first threw
   `Missing metric(s): argument_correctness` out of `gateRunResultOf` and the outage sentence never
-  reached the result: the very nightly failure this gate replaces, rebuilt here. A starved run is
-  therefore reported and never compared — `scores` and `metrics` are empty, so no number a crashed
+  reached the result: the very nightly failure this gate replaces, rebuilt here. That column is now
+  dropped at its source as well (#1462 made `runMetricNames` read the emitted score), so the throw
+  has a second guard — but the ORDER stays, for the reason it was always for: a starved run is
+  reported and never compared, `scores` and `metrics` empty, so no number a crashed
   turn happened to emit can be read as a measurement of the agent. Without it a total outage reported the seven columns a stepless turn still emits
   and passed.
 - **A damaged baseline is a failure here, and that is the one place this side does
@@ -395,7 +415,8 @@ made. That split is why the task can be tested with a fake fetch at all.
 
 | Piece | Owns |
 |---|---|
-| `src/turn-transcript.ts` | (SSE frames, transcript read) → `TranscriptResult`, the members Python's evaluators read off an `AgentResult`, plus each step's published return (#1382) |
+| `src/turn-transcript.ts` | (SSE frames, transcript read) → `TranscriptResult`, the members Python's evaluators read off an `AgentResult`, plus each step's published return (#1382) and who asked for it (#1462) |
+| `src/answer-data-keys.ts` | the answer part → the `expected_data_keys` vocabulary (Python's `_available_data_keys`) |
 | `src/prior-turn-returns.ts` | the earlier submissions' calls, which #1377 puts back in the model's context |
 | `src/settled-params.ts` | the one part of the shaper that reads the RETRIEVAL surface: whether a second record was offered at all, and which settled step answers which frame call |
 | `src/case-submissions.ts` | the `POST /v1/chat` bodies one case sends, history first |

@@ -39,19 +39,31 @@
  * refinement here: a call nobody witnessed must not be able to score 1.0, and
  * no oracle case reaches the branch, so the two runners still agree on every
  * measured turn.
+ *
+ * ONLY THE MODEL'S OWN CALLS ARE SCORED (#1462). Python's loop is
+ * `if item.is_success and item.model_initiated` (`official_evaluators.py:77-81`),
+ * and the second half was unreachable here until the frames said which steps the
+ * runtime opened for itself. A deterministic bypass — `plan_selected`,
+ * `plan_multi`, a place pick's radius `search_nearby` — is opened with `{}`
+ * because no model produced arguments for it, while its settled step carries the
+ * request the visitor made; the two witnesses therefore disagreed by
+ * construction and the metric read 0.0 on every successful bypass turn. That is
+ * a fact about the runtime, not about the agent, so it is not scored — exactly
+ * as Python does not score it, and as Python's own committed baseline shows
+ * (its fifteen `K1`/`K3` cases carry no `argument_correctness` key at all).
  */
 
 import { isDeepStrictEqual } from 'node:util';
 
 import { type AgentTurnContext, AgentTurnEvaluator, type MetricRecord } from './agent-evaluator.ts';
-import { type TranscriptStep, completedCalls } from './transcript-view.ts';
+import { type TranscriptStep, completedCalls, modelAsked } from './transcript-view.ts';
 
 export class OfficialArgumentCorrectness extends AgentTurnEvaluator {
   static override readonly evaluatorName = 'OfficialArgumentCorrectness';
 
   override evaluate(ctx: AgentTurnContext): MetricRecord {
     if (!ctx.output.paramsRecorded) return {};
-    const scores = completedCalls(ctx.output).map(settledArgumentsMatch);
+    const scores = completedCalls(ctx.output).filter(modelAsked).map(settledArgumentsMatch);
     return scores.length === 0 ? {} : { argument_correctness: Math.min(...scores) };
   }
 }

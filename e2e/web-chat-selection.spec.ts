@@ -35,9 +35,12 @@ const searchResultsBody = patchFinalFrame(chatStreamRecording("search"), (envelo
 
 /** The real bypass wire shape: `execute_selected_route` emits a
  * `plan_selected` running/done step pair, translated by `chat_stream` into
- * these tool chunks — the UI must suppress them, so the fixture keeps them. */
+ * these tool chunks — the UI must suppress them, so the fixture keeps them.
+ * The opening chunk carries `toolMetadata.origin` because the edge's
+ * `serverStepOpened` does (#1462); SD-9 declares that slot free-form, so the UI
+ * reads straight past it and the suppression this spec checks is unchanged. */
 const planSelectedStepFrames = [
-  'data: {"type":"tool-input-start","toolCallId":"plan_selected-fixture","toolName":"plan_selected"}',
+  'data: {"type":"tool-input-start","toolCallId":"plan_selected-fixture","toolName":"plan_selected","toolMetadata":{"origin":"server"}}',
   'data: {"type":"tool-input-available","toolCallId":"plan_selected-fixture","toolName":"plan_selected","input":{}}',
   'data: {"type":"tool-output-available","toolCallId":"plan_selected-fixture","output":{"point_count":2}}',
 ].join("\n\n");

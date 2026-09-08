@@ -9,6 +9,8 @@
  * hard-coded `[]`; `makeReplyTurn` (E-3) covers the reply-source side and names
  * its tools after the sources instead.
  */
+import type { AgentStepOrigin } from '@animichi/contract/agent-step-origin';
+
 import type { ExportedAgentExpected, ExportedAgentInput } from '../src/dataset-roundtrip.ts';
 import type { StepStatus, TranscriptResult, TranscriptStep } from '../src/turn-transcript.ts';
 
@@ -26,6 +28,9 @@ export interface StepSpec {
    * leaving `params` null by default would make every clean turn look
    * mis-argued (`OfficialArgumentCorrectness` scores an unwitnessed call 0). */
   readonly params?: Readonly<Record<string, unknown>> | null;
+  /** Who asked for the call (#1462). Defaults to the model, which is what every
+   * call on the wire is unless its opening frame said otherwise. */
+  readonly origin?: AgentStepOrigin;
 }
 
 export interface AttributedTurnParts {
@@ -58,6 +63,7 @@ function transcriptStep(spec: StepSpec): TranscriptStep {
     params: spec.params === undefined ? args : spec.params,
     status,
     output: status === 'ok' ? (spec.output ?? {}) : null,
+    origin: spec.origin ?? 'model',
   };
 }
 

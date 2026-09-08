@@ -11,11 +11,14 @@
  * What the wire changes versus the Python originals, and why the ports here
  * read the way they do:
  *
- * - **There is no span tree, and no need for one.** Every call the stream
- *   publishes is a model-initiated tool call — deterministic bypasses and
- *   synthetic terminal steps emit no `tool-input-start` frame and no PydanticAI
- *   span either. So `trajectory` *is* the span tree, and `stepCount` is
- *   `len(AgentResult.steps)` for every turn the wire can describe.
+ * - **There is no span tree, and no need for one.** A deterministic bypass makes
+ *   no model call and so produces no PydanticAI span — but it DOES publish a
+ *   `tool-input-start` frame named for its stage (`turn-frames.ts`'s
+ *   `serverStepOpened`, measured on staging 2026-09-07, #1454), which is why
+ *   `accepted-chains.ts` lists two chains per bypass stage and why the frame
+ *   carries its own `origin` (#1462). So `trajectory` is what the STREAM saw
+ *   rather than a span tree rebuilt, and `stepCount` is `len(AgentResult.steps)`
+ *   for every turn the wire can describe.
  * - **`status` has three states.** `"unsettled"` means the call was made and
  *   the stream never said how it ended. The three ports that default to
  *   `include_failed=False` accept only `"ok"`; `MaxToolCalls` counts all three,
@@ -48,4 +51,18 @@ export function completedCalls(result: TranscriptResult): readonly TranscriptSte
 
 export function toolNames(steps: readonly TranscriptStep[]): string[] {
   return steps.map((step) => step.toolName);
+}
+
+/**
+ * The calls the MODEL asked for — `ArgumentCorrectness`' other default, and the
+ * one this side could not honour until the frames carried a step's origin
+ * (#1462). Python's loop is `if item.is_success and item.model_initiated`;
+ * `completedCalls` is the first half and this is the second.
+ *
+ * A predicate rather than a filter because one of its two readers needs each
+ * step's index in the WHOLE trajectory (`gate-run/first-deviation.ts`), which a
+ * filtered list would have renumbered.
+ */
+export function modelAsked(step: TranscriptStep): boolean {
+  return step.origin === 'model';
 }

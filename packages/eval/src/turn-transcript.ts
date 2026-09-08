@@ -32,8 +32,10 @@
  * Pure: no network, no clock, no environment. The reading is here; the
  * requesting is `staging-turn-task.ts`.
  */
+import { type AgentStepOrigin, stepOriginOf } from "@animichi/contract/agent-step-origin";
 import type { GetSessionHistoryResponse } from "@animichi/contract/session-history-contract";
 
+import { dataKeysOf } from "./answer-data-keys.ts";
 import { objectOrNull } from "./json-object.ts";
 import { paramsRecordedIn, settledSteps, withSettledParams } from "./settled-params.ts";
 
@@ -93,6 +95,12 @@ export type StepStatus = "ok" | "error" | "unsettled";
  * vocabulary verbatim. The final-reply verifier needs it because a claim is
  * traceable against what came BACK and name/args/status say only what was
  * asked; `null` is a call the stream never settled, not an empty return.
+ *
+ * `origin` is `StepRecord.model_initiated`, published (#1462): a deterministic
+ * bypass is opened by the RUNTIME with `input: {}`, so its two witnesses can
+ * never agree and `argument_correctness` scored it 0.0 on every successful
+ * bypass turn. `evaluators/transcript-view.ts::modelAsked` is the filter Python
+ * has always applied (`official_evaluators.py:77-81`).
  */
 export interface TranscriptStep {
   readonly toolName: string;
@@ -100,6 +108,7 @@ export interface TranscriptStep {
   readonly params: Readonly<Record<string, unknown>> | null;
   readonly status: StepStatus;
   readonly output: Readonly<Record<string, unknown>> | null;
+  readonly origin: AgentStepOrigin;
 }
 
 /** The status of the run that produced this transcript, per `GET /v1/conversations/{id}/messages`. */
@@ -170,7 +179,8 @@ function openedCalls(frames: readonly TurnFrame[]): Map<string, TranscriptStep> 
     const callId = frameString(frame, "toolCallId");
     const toolName = frameString(frame, "toolName");
     if (callId === null || toolName === null) continue;
-    calls.set(callId, { toolName, args: {}, params: null, status: "unsettled", output: null });
+    const origin = stepOriginOf(frame);
+    calls.set(callId, { toolName, args: {}, params: null, status: "unsettled", output: null, origin });
   }
   return calls;
 }
@@ -225,39 +235,6 @@ export function answerOf(frames: readonly TurnFrame[]): AnswerPart | null {
     message: typeof part.message === "string" ? part.message : "",
     data: frameRecord(part, "data"),
   };
-}
-
-/** The intents whose `data` may publish a search, and those that may publish a
- * route — `_available_data_keys`' own two lists. The gating is not redundant
- * with the contract: `RouteData` allows BOTH members, so a `plan_route` answer
- * carrying search rows would otherwise report a key Python never reports. */
-const SEARCH_INTENTS: ReadonlySet<string> = new Set(["search_bangumi", "search_nearby", "plan_multi"]);
-const ROUTE_INTENTS: ReadonlySet<string> = new Set(["plan_route", "plan_selected", "plan_multi"]);
-
-/** Python's clarification pair: published together whenever a question is
- * actually pending, which on the wire is a `candidates` member. */
-function clarificationKeys(candidates: unknown): readonly string[] {
-  return candidates === undefined ? [] : ["candidates", "reason"];
-}
-
-/**
- * Python's `_available_data_keys`, read off the published `data` instead of the
- * session registry the wire does not carry.
- *
- * The two are the same fact from opposite ends: `_available_data_keys` asks
- * whether the turn's provenance still resolves to a stored payload, and the
- * `data` member exists exactly when `turn-answer-part.ts` found that payload to
- * project. What is compared against these keys is the dataset's own
- * `expected_data_keys` (`results` / `route` / `reason` + `candidates`), so the
- * names here are that vocabulary and not the wire's.
- */
-export function dataKeysOf(part: AnswerPart | null): readonly string[] {
-  if (part === null) return [];
-  if (part.intent === "clarify") return clarificationKeys(part.data.candidates);
-  const keys: string[] = [];
-  if (SEARCH_INTENTS.has(part.intent) && part.data.results !== undefined) keys.push("results");
-  if (ROUTE_INTENTS.has(part.intent) && part.data.itinerary !== undefined) keys.push("route");
-  return keys.sort();
 }
 
 /** What one turn produced, and what reading its transcript back added. */

@@ -5,14 +5,22 @@ ones walk `AgentResult` and the session registries. This module reconstructs
 both from a single scenario, which is what makes the two views consistent by
 construction.
 
-Every call in a scenario is treated as model-initiated, so the span tree,
-`AgentResult.steps` and W3-2's `trajectory` are the same list here, which is
-what lets `stepCount` mean the same thing on both sides. That is a statement
-about this rebuild, NOT about the runtime: a deterministic bypass publishes a
-`tool-input-start` frame exactly like a model call does and produces no span at
-all (#1454), so the wire cannot tell the two apart and neither can a scenario.
-`candidate_selection_published_step` and `point_selection_published_step`
-are that shape written down, one per bypass stage (#1461).
+Every call in a scenario gets a span, so the span tree, `AgentResult.steps` and
+W3-2's `trajectory` are the same list here, which is what lets `stepCount` mean
+the same thing on both sides. That is a statement about this rebuild, NOT about
+the runtime: a deterministic bypass publishes a `tool-input-start` frame exactly
+like a model call does and produces no span at all (#1454), and giving it one
+here is what keeps the two views of a bypass scenario scoring the same trajectory
+metrics. `candidate_selection_published_step`, `point_selection_published_step`
+and `place_selection_calls_the_stage_it_names` are that shape written down, one
+per bypass stage (#1461, #1462).
+
+What a scenario CAN now say is who asked for the call (`model_initiated`, #1462).
+It reaches `StepRecord` and the wire's `origin`, and nothing else: the span stays
+because the trajectory ports read it. Only `OfficialArgumentCorrectness` filters
+on it, and it pairs by occurrence over the spans — so a scenario must not mix a
+server-initiated and a model-initiated call to the SAME tool, a turn the runtime
+cannot produce anyway (a bypass turn makes no model call at all).
 
 An `unsettled` call — made, never settled — is given a span status of `error`
 and `is_success=False`: `include_failed=False` must exclude it, since its
@@ -135,6 +143,7 @@ def _step_record(step: OracleStep) -> StepRecord:
         tool=step.tool,
         is_success=succeeded(step),
         params=step.settled_params,
+        model_initiated=step.model_initiated,
     )
 
 
