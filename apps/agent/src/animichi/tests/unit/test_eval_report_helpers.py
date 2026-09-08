@@ -5,8 +5,8 @@ from collections.abc import Mapping
 import pytest
 from pydantic_evals.reporting import ReportCaseAggregate
 
-from animichi.tests.eval.eval_harness import metric_names
 from animichi.tests.eval.eval_report import collect_scores
+from animichi.tests.eval.metric_names import metric_names
 
 
 def _aggregate(scores: Mapping[str, int | float]) -> ReportCaseAggregate:
@@ -39,8 +39,18 @@ def test_collect_scores_raises_on_unknown_metric_name() -> None:
 
 
 def test_metric_names_conditionally_includes_nonempty_results() -> None:
-    tagged = metric_names(has_nonempty_cases=True, l3_enabled=False)
-    untagged = metric_names(has_nonempty_cases=False, l3_enabled=False)
+    tagged = metric_names(
+        has_nonempty_cases=True,
+        has_params_recorded=True,
+        has_measured_steps=True,
+        l3_enabled=False,
+    )
+    untagged = metric_names(
+        has_nonempty_cases=False,
+        has_params_recorded=True,
+        has_measured_steps=True,
+        l3_enabled=False,
+    )
     assert tagged == [
         "argument_correctness",
         "tool_correctness",

@@ -24,7 +24,6 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from animichi.tests.eval.eval_harness import metric_names
 from animichi.tests.eval.evaluator_oracle_cases import SCENARIOS
 from animichi.tests.eval.evaluator_oracle_context import evaluator_context
 from animichi.tests.eval.evaluator_oracle_scenarios import (
@@ -39,6 +38,10 @@ from animichi.tests.eval.evaluators import (
     NonemptyResults,
     StepEfficiency,
     _available_data_keys,
+)
+from animichi.tests.eval.metric_names_oracle import (
+    MetricNamesSection,
+    metric_names_section,
 )
 from animichi.tests.eval.official_evaluators import (
     OfficialArgumentCorrectness,
@@ -141,19 +144,12 @@ class _OracleCase(BaseModel):
     scores: dict[str, float]
 
 
-class _MetricNames(BaseModel):
-    """`eval_harness.metric_names` under both of its meaningful flags."""
-
-    withNonemptyCases: list[str]
-    withoutNonemptyCases: list[str]
-
-
 class EvaluatorOracle(BaseModel):
     """The whole fixture: metric-name parity plus one row per scenario."""
 
     generatedBy: str
     evaluatorVersion: str
-    metricNames: _MetricNames
+    metricNames: MetricNamesSection
     cases: list[_OracleCase]
 
 
@@ -262,12 +258,7 @@ def build_oracle() -> EvaluatorOracle:
     return EvaluatorOracle(
         generatedBy="apps/agent/src/animichi/tests/eval/evaluator_oracle.py",
         evaluatorVersion=EVALUATOR_VERSION,
-        metricNames=_MetricNames(
-            withNonemptyCases=metric_names(has_nonempty_cases=True, l3_enabled=False),
-            withoutNonemptyCases=metric_names(
-                has_nonempty_cases=False, l3_enabled=False
-            ),
-        ),
+        metricNames=metric_names_section(),
         cases=[_oracle_case(scenario) for scenario in SCENARIOS],
     )
 

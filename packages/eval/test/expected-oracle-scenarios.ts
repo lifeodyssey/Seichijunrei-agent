@@ -25,7 +25,8 @@ export type StatsOracleList =
   | 'bootstrap_gates'
   | 'case_strata'
   | 'error_rate_gates'
-  | 'paired_comparisons';
+  | 'paired_comparisons'
+  | 'provider_outage_gates';
 
 /** The same file's anonymous rows, which carry no name to pin. */
 export type StatsOracleRowList =
@@ -106,6 +107,7 @@ export const STATS_ORACLE_SCENARIOS: Readonly<Record<StatsOracleList, readonly s
     'empty_baseline',
     'steady',
   ],
+  provider_outage_gates: ['total_outage', 'over_ceiling', 'at_ceiling', 'empty_run'],
   paired_comparisons: [
     'clear_regression',
     'clear_improvement',

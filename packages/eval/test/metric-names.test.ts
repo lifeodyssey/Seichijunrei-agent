@@ -4,6 +4,13 @@ import { test } from 'node:test';
 import { metricNames } from '../src/metric-names.ts';
 import { ORACLE } from './evaluator-oracle.ts';
 
+/**
+ * Every row is Python's own answer, never a filter over another row: the two
+ * per-RUN toggles are the columns #1496 made Python drop too, and a test that
+ * re-derived "the list minus that name" would agree with a port that had got
+ * the rule wrong in the same way (`metric_names_oracle.py`).
+ */
+
 void test('a dataset with nonempty-tagged cases reports all eight metrics', () => {
   assert.deepEqual(
     metricNames({
@@ -35,10 +42,7 @@ void test('a run whose reads published no settled params drops that column', () 
     hasMeasuredSteps: true,
     l3Enabled: false,
   });
-  assert.deepEqual(
-    dropped,
-    ORACLE.metricNames.withNonemptyCases.filter((name) => name !== 'argument_correctness'),
-  );
+  assert.deepEqual(dropped, ORACLE.metricNames.withoutParamsRecorded);
 });
 
 void test('a run whose every turn skipped a required step drops that column', () => {
@@ -48,10 +52,7 @@ void test('a run whose every turn skipped a required step drops that column', ()
     hasMeasuredSteps: false,
     l3Enabled: false,
   });
-  assert.deepEqual(
-    dropped,
-    ORACLE.metricNames.withNonemptyCases.filter((name) => name !== 'step_efficiency'),
-  );
+  assert.deepEqual(dropped, ORACLE.metricNames.withoutMeasuredSteps);
 });
 
 void test('the L3 judges append after the deterministic metrics', () => {

@@ -47,6 +47,7 @@ from animichi.tests.eval.exec_tiers import (
     read_max_cases,
 )
 from animichi.tests.eval.l0_selection import L0Case, select_l0_cases
+from animichi.tests.eval.metric_names import metric_names
 from animichi.tests.eval.official_evaluators import (
     OfficialArgumentCorrectness,
     OfficialMaxToolCalls,
@@ -93,30 +94,6 @@ DATASET_PATH = (
 DATASET_NAME = DATASET_PATH.stem
 BASELINES_DIR = Path(__file__).parent / "baselines"
 RESULTS_DIR = Path(__file__).parent / "results"
-_OFFICIAL_METRIC_NAMES = [
-    "argument_correctness",
-    "tool_correctness",
-    "trajectory_match",
-    "max_tool_calls",
-]
-_KEPT_METRIC_NAMES = [
-    "data_keys_present",
-    "locale_match",
-    "nonempty_results",
-    "step_efficiency",
-]
-
-
-def metric_names(*, has_nonempty_cases: bool, l3_enabled: bool) -> list[str]:
-    kept = [
-        name
-        for name in _KEPT_METRIC_NAMES
-        if name != "nonempty_results" or has_nonempty_cases
-    ]
-    names = [*_OFFICIAL_METRIC_NAMES, *kept]
-    if l3_enabled:
-        names += ["task_completion", "hallucination_check"]
-    return names
 
 
 def make_model(model_id: str | None = None) -> Model:
@@ -241,10 +218,17 @@ def select_cases(cases: list[AgentCase], cap: int | None) -> list[AgentCase]:
 ALL_CASES = load_cases()
 CASES = select_cases(ALL_CASES, read_max_cases())
 CAPPED = len(CASES) < len(ALL_CASES)
+HAS_NONEMPTY_CASES = any(
+    case.metadata is not None and case.metadata.expect_nonempty for case in CASES
+)
+#: This DATASET's vocabulary, with both per-run toggles on. What ONE run reports
+#: is `run_metric_names`; this stays the vocabulary a committed baseline is read
+#: against, so a run that computed a column for nobody does not make the
+#: baseline look stale.
 METRIC_NAMES = metric_names(
-    has_nonempty_cases=any(
-        case.metadata is not None and case.metadata.expect_nonempty for case in CASES
-    ),
+    has_nonempty_cases=HAS_NONEMPTY_CASES,
+    has_params_recorded=True,
+    has_measured_steps=True,
     l3_enabled=EVAL_L3,
 )
 

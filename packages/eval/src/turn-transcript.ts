@@ -138,8 +138,12 @@ const RESPONSE_DATA_ID = "response";
 
 /** The intent a turn that crashed carries. The contract has a member for it
  * (`ChatResponseDataPart`'s `error`), Python had no `AgentResult` at all, and
- * an evaluator must be able to tell "answered nothing" from "answered". */
-const CRASHED_INTENT = "error";
+ * an evaluator must be able to tell "answered nothing" from "answered".
+ *
+ * Exported because `gate-run/provider-outage.ts` counts the cases that carry it
+ * (#1496). A second copy of the literal there would keep counting the old
+ * sentinel — silently zero — the day this one moved. */
+export const CRASHED_INTENT = "error";
 
 /** The frames of one `text/event-stream` body, in order. */
 export function turnFramesOf(stream: string): readonly TurnFrame[] {

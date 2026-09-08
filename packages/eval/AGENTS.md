@@ -147,8 +147,9 @@ project's own, ported from `evaluators.py`.
   used to take its own test away with it and leave the suite green — a hole in the one guard that
   exists to catch Python/TS divergence. `test/expected-oracle-scenarios.ts` is the committed id list
   and `test/oracle-scenario-pin.test.ts` compares it, by set difference, against what the fixtures
-  carry: `evaluator-oracle.json`'s `cases`, and `stats-oracle.json`'s five named case lists
-  (`paired_comparisons`, `bootstrap_gates`, `error_rate_gates`, `baseline_staleness`, and
+  carry: `evaluator-oracle.json`'s `cases`, and `stats-oracle.json`'s six named case lists
+  (`paired_comparisons`, `bootstrap_gates`, `error_rate_gates`, `provider_outage_gates`,
+  `baseline_staleness`, and
   `strata_oracle.py`'s `case_strata` — one id set for both of `gate-case-strata.test.ts`' loops,
   since the loaded and the refused entries partition it). Its rows that
   Python never names — `clopper_pearson_intervals`, `proportion_comparisons`, `baseline_paths`,
@@ -231,15 +232,18 @@ reads, which is where a third of τ²-bench's information-reporting failures liv
   drop every response but the last, and since #1377 those turns' returns are in the model's context.
   Neither is folded into `trajectory` or `stepCount`, which stay the measured turn's.
 
-`src/metric-names.ts` ports `eval_harness.metric_names` — same names, same order, checked against the
-oracle's committed dump. Order is load-bearing: baselines and report tables are keyed positionally.
-Three columns are conditional: `nonempty_results` on the DATASET (no tagged case, no column), and
-two on the RUN (`src/gate-run/run-metric-names.ts`) — `argument_correctness` when no case was
-offered the settled params, and `step_efficiency` when no case scored it at all, which an unseeded
-`phase1c_selection_v1` arm reaches exactly (every turn refuses, so no turn has a denominator). All
-three exist because `aggregateScores` is strict, as Python's `_scores` is: a metric the list names
-and the run does not report throws, which would let one unavailable measurement take the other
-seven down with it.
+`src/metric-names.ts` ports `metric_names.py` — same names, same order, same four flags, checked
+against the oracle's committed dump (`metric_names_oracle.py` publishes one row per flag, so the
+tests compare rather than re-derive). Order is load-bearing: baselines and report tables are keyed
+positionally. Three columns are conditional: `nonempty_results` on the DATASET (no tagged case, no
+column), and two on the RUN (`src/gate-run/run-metric-names.ts`) — `argument_correctness` when no
+case was offered the settled params, and `step_efficiency` when no case scored it at all, which an
+unseeded `phase1c_selection_v1` arm reaches exactly (every turn refuses, so no turn has a
+denominator). All three exist because `aggregateScores` is strict, as Python's `collect_scores` is:
+a metric the list names and the run does not report throws, which would let one unavailable
+measurement take the other seven down with it. **Python has the twin since #1496**
+(`run_metric_names.py`, reading the emitted scores rather than a transcript flag); before it, a
+nightly whose every turn crashed died on `Missing metric(s): argument_correctness`.
 
 ## Version pin
 
@@ -299,6 +303,22 @@ Notes for the rest of W3:
   text-identical and cannot be: Python interpolates the pydantic `ValidationError`
   into `Invalid baseline for …`, and there is no such object on this side, so the
   message names the schema instead. The other four are pinned verbatim.
+- **A run the provider starved is refused, not scored (#1496).** `StagingTurnTask` retries only a
+  request that never reached the app and shapes everything the app ANSWERS into a transcript, so a
+  turn that came back as the edge's error envelope publishes no answer part, reads as the crashed
+  intent, and files an EVALUATED case — one `errorRateGate` cannot count, since its numerator is
+  `report.failures`. `src/gate-run/provider-outage.ts` gates on the share of those (ceiling 20%,
+  `provider_outage.PROVIDER_OUTAGE_CEILING`'s, itself `smoke_errors`') and leads
+  `GateRunResult.failures` with one sentence naming the share and the party to blame. That party is
+  `DEPLOYED_AGENT_TIER`, not a model: the deploy publishes nothing about what answered, and
+  `PYTHON_BASELINE_MODEL` is the baseline record's identity (`python-baseline.ts`), so a sentence
+  interpolating it would be a claim the wire never made. Python names its own `model_id`, which its
+  runner does know. The sentence FORMAT and the ceiling are pinned by `stats-oracle.json`'s
+  `provider_outage_gates`, so the two runners cannot drift on either; the blamed string is each
+  runner's own and the oracle rows publish the one they were written with. `CRASHED_INTENT` is
+  imported from `turn-transcript.ts`, which owns it — a second copy would keep counting the old
+  sentinel, silently zero, the day that one moved. Without it a total outage reported the seven columns a stepless turn still emits
+  and passed.
 - **A damaged baseline is a failure here, and that is the one place this side does
   not mirror `gate.py` (#1341).** Python logs `Invalid baseline for …` and carries
   on, so a truncated or hand-edited committed record disables the regression gate

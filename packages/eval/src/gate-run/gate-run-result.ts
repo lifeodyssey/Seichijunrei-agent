@@ -26,6 +26,7 @@ import {
   attributionRecordOf,
   type RunFailureAttribution,
 } from './failure-attribution.ts';
+import { providerOutageGate } from './provider-outage.ts';
 import { reportOnlyMetricsOf, type ReportOnlyMetrics } from './report-only-metrics.ts';
 import { scoreBreakdownOf, type ScoreBreakdown } from './score-breakdown.ts';
 import { runSpendOf, type RunSpend } from './run-spend.ts';
@@ -137,6 +138,7 @@ export function gateRunResultOf(
   const input = gateInputFromReport(report);
   const metrics = comparedMetrics(input.cases, settings);
   const errors = errorRateGate(input.erroredCount, input.total, settings.baseline);
+  const outage = providerOutageGate(report);
   const identity = runIdentity(settings);
   return {
     ...identity,
@@ -151,7 +153,7 @@ export function gateRunResultOf(
       attributionEvidenceRef(identity.generated_at, identity.dataset),
     ),
     metrics: metrics.map(verdictRow),
-    ...gateOutcome(metrics, errors, settings),
+    ...gateOutcome(metrics, errors, outage, settings),
     breakdown: scoreBreakdownOf(report),
     spend: runSpendOf(report),
   };
@@ -205,14 +207,20 @@ function comparedMetrics(
  * (see `run-spend.ts`). Both lists lead with the baseline read, which is where
  * Python logs its own — and, for the one baseline problem this side blocks on,
  * where the red comes from (`baseline-store.ts`).
+ *
+ * The outage gate leads the failures because it is the only one that says the
+ * run measured nothing: a reader who sees it must not spend time on the metric
+ * rows underneath it (#1496).
  */
 function gateOutcome(
   metrics: readonly MetricGateResult[],
   errors: GateOutcome,
+  outage: readonly string[],
   settings: GateRunSettings,
 ): Pick<GateRunResult, 'failures' | 'warnings'> {
   return {
     failures: [
+      ...outage,
       ...settings.baselineFailures,
       ...metrics.flatMap((row) => row.outcome.failures),
       ...errors.failures,

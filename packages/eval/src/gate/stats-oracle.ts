@@ -68,6 +68,16 @@ export interface OracleErrorRateCase {
   readonly warnings: readonly string[];
 }
 
+/** One `provider_outage_failure` answer: the counts, the party the sentence
+ * blames, and Python's sentence. */
+export interface OracleProviderOutageCase {
+  readonly name: string;
+  readonly starved: number;
+  readonly evaluated: number;
+  readonly answered_by: string;
+  readonly failure: string | null;
+}
+
 export interface OracleStalenessCase {
   readonly name: string;
   readonly record: BaselineRecord;
@@ -111,6 +121,7 @@ export interface StatsOracle {
   readonly proportion_comparisons: readonly OracleProportion[];
   readonly bootstrap_gates: readonly OracleGateCase[];
   readonly error_rate_gates: readonly OracleErrorRateCase[];
+  readonly provider_outage_gates: readonly OracleProviderOutageCase[];
   readonly baseline_staleness: readonly OracleStalenessCase[];
   readonly case_strata: readonly OracleCaseStrata[];
   readonly baseline_paths: readonly { layer: string; model_id: string; filename: string }[];

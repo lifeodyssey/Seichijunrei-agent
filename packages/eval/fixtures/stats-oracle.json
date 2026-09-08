@@ -13486,6 +13486,36 @@
       "warnings": []
     }
   ],
+  "provider_outage_gates": [
+    {
+      "name": "total_outage",
+      "starved": 662,
+      "evaluated": 662,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "failure": "662/662 evaluated cases came back as the agent's error payload (100% > 20%): openai:mimo-v2.5@https://opencode.ai/zen/go/v1 answered nothing the evaluators could score. This run is a provider outage, not a result — re-run it."
+    },
+    {
+      "name": "over_ceiling",
+      "starved": 21,
+      "evaluated": 100,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "failure": "21/100 evaluated cases came back as the agent's error payload (21% > 20%): openai:mimo-v2.5@https://opencode.ai/zen/go/v1 answered nothing the evaluators could score. This run is a provider outage, not a result — re-run it."
+    },
+    {
+      "name": "at_ceiling",
+      "starved": 20,
+      "evaluated": 100,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "failure": null
+    },
+    {
+      "name": "empty_run",
+      "starved": 0,
+      "evaluated": 0,
+      "answered_by": "openai:mimo-v2.5@https://opencode.ai/zen/go/v1",
+      "failure": null
+    }
+  ],
   "baseline_staleness": [
     {
       "name": "fresh",

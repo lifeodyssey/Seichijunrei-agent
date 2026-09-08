@@ -1,6 +1,7 @@
 """The gate half of the oracle the TypeScript port is pinned against.
 
-``bootstrap_gate`` and ``error_rate_gate`` run here for real — over a synthetic
+``bootstrap_gate``, ``error_rate_gate`` and ``provider_outage_failure`` run here
+for real — over a synthetic
 record, over a five-case record that trips the ``min_paired`` short circuit, and
 over the committed 662-case baseline with its behaviour strata — so the TS gate
 is measured against Python's failures and warnings verbatim.
@@ -26,6 +27,7 @@ from animichi.tests.eval.gate import (
     bootstrap_gate,
     error_rate_gate,
 )
+from animichi.tests.eval.provider_outage import provider_outage_failure
 from animichi.tests.eval.stats import load_case_strata
 
 DATASET_PATH = EVAL_DIR / "datasets" / "agent_eval_v3.json"
@@ -123,9 +125,37 @@ def _error_rate_cases() -> list[dict[str, object]]:
     ]
 
 
+#: The party the outage rows blame. The sentence interpolates it and each runner
+#: names what it knows — Python its model, the TS side its deployed tier — so the
+#: rows publish the string they were written with rather than a model either side
+#: is expected to hold.
+OUTAGE_BLAMED = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
+
+
+def _provider_outage_case(name: str, starved: int, evaluated: int) -> dict[str, object]:
+    return {
+        "name": name,
+        "starved": starved,
+        "evaluated": evaluated,
+        "answered_by": OUTAGE_BLAMED,
+        "failure": provider_outage_failure(starved, evaluated, OUTAGE_BLAMED),
+    }
+
+
+def _provider_outage_cases() -> list[dict[str, object]]:
+    """The four answers the ceiling gives, the two boundary ones included."""
+    return [
+        _provider_outage_case("total_outage", 662, 662),
+        _provider_outage_case("over_ceiling", 21, 100),
+        _provider_outage_case("at_ceiling", 20, 100),
+        _provider_outage_case("empty_run", 0, 0),
+    ]
+
+
 def gate_sections() -> dict[str, object]:
-    """Every reference value drawn from the two gates."""
+    """Every reference value drawn from the three gates."""
     return {
         "bootstrap_gates": _gate_cases(),
         "error_rate_gates": _error_rate_cases(),
+        "provider_outage_gates": _provider_outage_cases(),
     }
