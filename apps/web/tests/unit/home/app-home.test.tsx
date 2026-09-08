@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppHome } from "../../../src/components/home/AppHome";
 import { server } from "../../msw/node";
 import { popularEmptyHandler } from "../../msw/popular";
@@ -14,7 +14,6 @@ beforeEach(() => {
   setLanguages(["ja-JP"]);
   server.use(popularEmptyHandler, usersSavedRoutesWithDraftHandler);
 });
-afterEach(cleanup);
 
 describe("AppHome composition", () => {
   it("wires the search box submit to the onSearch handler", () => {

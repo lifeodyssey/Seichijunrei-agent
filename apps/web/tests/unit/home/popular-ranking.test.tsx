@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 import { PopularRanking } from "../../../src/components/home/PopularRanking";
 import { server } from "../../msw/node";
 import { popularEmptyHandler, popularErrorHandler, popularHandler } from "../../msw/popular";
@@ -10,7 +10,6 @@ import { setLanguages } from "../_i18n";
 import { renderHome } from "./_render";
 
 beforeEach(() => { setLanguages(["ja-JP"]); });
-afterEach(cleanup);
 
 describe("PopularRanking", () => {
   it("shows a loading status before the ranking resolves", () => {
