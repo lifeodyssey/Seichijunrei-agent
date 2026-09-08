@@ -11,18 +11,25 @@
 #              user. That every such job declares the `environment:` its OIDC
 #              subject needs is a repository-wide rule, so it lives in
 #              `test_workflow_invariants.rb` with the other meta-invariants
-#   esc        each stage opens its own environment and exports only the names
-#              it publishes with, never the action's export-everything default.
-#              The one non-publishing exception is `smoke`, which opens the
-#              Cloudflare Access service token and nothing else (D3 #1369).
-#              That each opened name is then checked for emptiness is a
-#              repository-wide rule in `test_workflow_invariants.rb`;
-#              `NEON_API_KEY` reaches the jobs that hold a reader for it and no
-#              other. What the list cannot promise is that a value stays out
-#              of the job: `pulumi/esc-action` publishes every
-#              `environmentVariables` entry as a step output whatever the list
-#              says, so ADR 0003 rests on the runtime secrets living under
-#              `pulumiConfig` instead (card D4), not on this allowlist
+#   esc        each job opens its own environment and exports only the names it
+#              spends, never the action's export-everything default. The
+#              staging job runs five units and a probe, so what it opens is
+#              their union — the publish token, Neon's control plane, and the
+#              Cloudflare Access service token (D3 #1369). That each opened name
+#              is then checked for emptiness is a repository-wide rule in
+#              `test_workflow_invariants.rb`; `NEON_API_KEY` reaches the jobs
+#              that hold a reader for it and no other. What the list cannot
+#              promise is that a value stays out of the job:
+#              `pulumi/esc-action` publishes every `environmentVariables` entry
+#              as a step output whatever the list says, so ADR 0003 rests on the
+#              runtime secrets living under `pulumiConfig` instead (card D4),
+#              not on this allowlist
+#   unit       and that is why collapsing the five staging stages into one job
+#              (#1468) cost nothing here: a job's export list was never the
+#              trust boundary, only the readable statement of what a stage was
+#              for. With one job holding the union, that statement moves down a
+#              level — a STEP may reach for only the names its own unit spends,
+#              and a step reaching past its unit is what this file now refuses
 #   publish    every Wrangler deploy authenticates with the token ESC just
 #              opened. wrangler-action assigns
 #              `process.env.CLOUDFLARE_API_TOKEN = getInput("apiToken")`
@@ -67,7 +74,27 @@ PULUMI_PLANE = [PUBLISH_TOKEN, NEON_CONTROL_PLANE].freeze
 # with a job name is for. `smoke` correspondingly holds NEITHER Pulumi-plane
 # name: it deploys nothing.
 ACCESS_SERVICE_TOKEN = %w[CF_ACCESS_CLIENT_ID CF_ACCESS_CLIENT_SECRET].freeze
-SMOKE_JOB = "smoke"
+# The one job the whole staging chain runs in (#1468), and the union it opens.
+STAGING_JOB = "stage"
+STAGING_UNION = (PULUMI_PLANE + ACCESS_SERVICE_TOKEN).freeze
+# The steps of that job, grouped by the unit each belongs to.
+PUBLISHING_STEPS = ["Deploy the migrator Worker", "Deploy the catalog Worker",
+                    "Deploy the users Worker", "Deploy the edge Worker",
+                    "Deploy the web Worker"].freeze
+RESET_STEP = "Reset the staging schema baseline"
+SMOKE_STEP = "staging smoke"
+SMOKE_SCRIPT = /staging-smoke-check\.sh/
+# What each opened name is for: the steps allowed to NAME it, and what actually
+# consumes it. Both halves are needed and neither implies the other. The
+# spender list alone is satisfied by a job that opens a credential nothing
+# reads; the reader alone by a job that opens one and hands it to every step.
+# For two of the three the consumer is a process reading its own environment
+# rather than a step naming anything — `neonctl` inside the baseline reset, and
+# the smoke script — which is why the reader is matched as the reader and not
+# as the name.
+STAGING_CREDENTIALS = ([[PUBLISH_TOKEN, [PUBLISHING_STEPS, %r{cloudflare/wrangler-action@}]],
+                        [NEON_CONTROL_PLANE, [[RESET_STEP], NEON_CLI]]] +
+                       ACCESS_SERVICE_TOKEN.map { |name| [name, [[SMOKE_STEP], SMOKE_SCRIPT]] }).to_h.freeze
 WRANGLER_API_TOKEN = "${{ env.CLOUDFLARE_API_TOKEN }}"
 # An individual-edition organization cannot mint organization or team tokens —
 # the 2026-09-05 probe answered `401 … Org tokens are not supported for non
@@ -119,9 +146,10 @@ def neon_control_plane_jobs
 end
 
 # What a job is allowed to ask ESC for: the Pulumi plane everywhere, plus the
-# Access service token in `smoke` alone.
+# Access service token in the staging job, whose smoke probe is the one reader
+# of it.
 def esc_allowance(job)
-  job == SMOKE_JOB ? PULUMI_PLANE + ACCESS_SERVICE_TOKEN : PULUMI_PLANE
+  job == STAGING_JOB ? STAGING_UNION : PULUMI_PLANE
 end
 
 def assert_esc_exports_only_what_its_stage_publishes_with
@@ -139,17 +167,48 @@ def assert_esc_exports_only_what_its_stage_publishes_with
   end
 end
 
-# The positive half. The two assertions above bound what `smoke` MAY hold; on
-# their own, a smoke job that opened nothing at all satisfies both — and then
+# The positive half. The assertion above bounds what the staging job MAY hold;
+# on its own, a job that opened only the publish token satisfies it — and then
 # probes staging bare, gets the Access login page, and reports a broken deploy
-# for every push. So the job is required to open exactly this pair.
-def assert_smoke_opens_the_front_door_credential
-  opened = steps_using(ESC_ACTION).select { |job, _step| job == SMOKE_JOB }
+# for every push, or migrates without the key `neonctl` resets the baseline on.
+# So the job is required to open exactly the union its units spend.
+def assert_the_staging_job_opens_the_union_its_units_spend
+  opened = steps_using(ESC_ACTION).select { |job, _step| job == STAGING_JOB }
                                   .flat_map { |_job, step| esc_exported_names(step) }
-  @log.unless_true(opened.sort == ACCESS_SERVICE_TOKEN.sort,
-                   "cd.yml:#{SMOKE_JOB}: must open #{ACCESS_SERVICE_TOKEN.join(', ')} from ESC — " \
-                   "staging is behind Cloudflare Access and a bare probe reads the login page as a " \
-                   "broken deploy (got #{opened.empty? ? 'nothing' : opened.join(', ')})")
+  @log.unless_true(opened.sort == STAGING_UNION.sort,
+                   "cd.yml:#{STAGING_JOB}: must open #{STAGING_UNION.join(', ')} from ESC — one job " \
+                   "runs every staging unit, so it opens what all of them spend " \
+                   "(got #{opened.empty? ? 'nothing' : opened.join(', ')})")
+end
+
+def step_label(step)
+  step["name"] || step["uses"] || step["run"].to_s.lines.first.to_s.strip
+end
+
+# How a step reaches a value the job's environment holds: an Actions expression
+# (`${{ env.KEY }}`) or a shell reference (`$KEY`, `${KEY}`). The whole step is
+# stringified because `env:`, `with:` and `run:` are three spellings of the same
+# reach. Naming a key in prose is not one of them — the ESC step's export list
+# and the emptiness guard's `for key in …` both carry every name and neither
+# spends any, so they need no exemption.
+def spends?(step, key)
+  step.to_s.match?(/env\.#{key}\b|\$\{?#{key}\b/)
+end
+
+# The rule that replaced the per-job export list. One job holds the union, so
+# what stops the edge deploy from reaching for Neon's control-plane key, or the
+# smoke probe from reaching for the publish token, is per step.
+def assert_each_credential_stays_inside_its_unit
+  steps = @cd.steps_of(STAGING_JOB)
+  STAGING_CREDENTIALS.each do |key, (spenders, reader)|
+    trespassers = steps.select { |step| spends?(step, key) }.map { |step| step_label(step) } - spenders
+    @log.unless_true(trespassers.empty?,
+                     "cd.yml:#{STAGING_JOB}: #{key} belongs to #{spenders.join(', ')} and no other " \
+                     "step may reach for it (#{trespassers.join(', ')})")
+    @log.unless_true(steps.any? { |step| step.to_s.match?(reader) },
+                     "cd.yml:#{STAGING_JOB}: #{key} is opened with nothing in the job that reads it " \
+                     "(#{reader.source})")
+  end
 end
 
 # The other direction of the same pairing. The allowance above stops another job
@@ -164,12 +223,12 @@ end
 # `services`, `defaults` and anything a later schema adds, at the cost of
 # nothing: YAML comments are not in the parsed document, so a job that merely
 # MENTIONS the name in prose is not a false positive.
-def assert_the_access_token_stays_inside_the_smoke_job
+def assert_the_access_token_stays_inside_the_staging_job
   ACCESS_SERVICE_TOKEN.each do |name|
     holders = @cd.jobs.each_key.select { |job| @cd.dig("jobs", job).to_s.include?(name) }
-    @log.unless_true(holders == [SMOKE_JOB],
+    @log.unless_true(holders == [STAGING_JOB],
                      "cd.yml: #{name} is staging's front-door credential and belongs to " \
-                     "#{SMOKE_JOB} alone (held by #{holders.empty? ? 'nothing' : holders.join(', ')})")
+                     "#{STAGING_JOB} alone (held by #{holders.empty? ? 'nothing' : holders.join(', ')})")
   end
 end
 
@@ -206,8 +265,9 @@ end
 def main
   assert_pulumi_login_is_the_only_token_type_this_org_can_mint
   assert_esc_exports_only_what_its_stage_publishes_with
-  assert_smoke_opens_the_front_door_credential
-  assert_the_access_token_stays_inside_the_smoke_job
+  assert_the_staging_job_opens_the_union_its_units_spend
+  assert_each_credential_stays_inside_its_unit
+  assert_the_access_token_stays_inside_the_staging_job
   assert_wrangler_publishes_on_the_opened_token
   assert_retired_credentials_stay_retired
   assert_no_runtime_secret_upload

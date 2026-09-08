@@ -262,9 +262,13 @@ jobs:
         run: ruby .github/scripts/test_schema_lane_contract.rb
       # #1364 replaced the seven parked delivery contracts with these three: the
       # per-unit artifacts, the promotion shell script and the router they
-      # pinned are gone, and what is left to guard is cd.yml's own shape.
+      # pinned are gone, and what is left to guard is cd.yml's own shape. #1468
+      # added the fourth, when the five staging stages became five units inside
+      # one job and their properties stopped being about the job graph.
       - name: Verify the CD workflow's one-build-one-artifact shape
         run: ruby .github/scripts/test_cd_shape_contract.rb
+      - name: Verify the staging chain runs as one job, in order
+        run: ruby .github/scripts/test_cd_staging_chain_contract.rb
       - name: Verify how the CD workflow publishes and what gates it
         run: ruby .github/scripts/test_cd_publish_contract.rb
       - name: Verify the CD workflow holds no credential it should not
