@@ -117,7 +117,7 @@ async def test_make_agent_task_threads_mock_title_translator() -> None:
 
 
 async def test_selection_task_dispatches_anime_pending_to_multi_handler() -> None:
-    from animichi.tests.eval.eval_harness import _selection_task
+    from animichi.tests.eval.agent_eval_task import selection_task
     from animichi.tests.eval.evaluators import AgentInput
 
     pending = {
@@ -129,7 +129,7 @@ async def test_selection_task_dispatches_anime_pending_to_multi_handler() -> Non
         ],
         "revision": 7,
     }
-    result = await _selection_task(
+    result = await selection_task(
         AgentInput(
             query="",
             locale="en",
@@ -147,7 +147,7 @@ async def test_selection_task_dispatches_anime_pending_to_multi_handler() -> Non
 
 
 async def test_selection_task_dispatches_place_pending_to_place_handler() -> None:
-    from animichi.tests.eval.eval_harness import _selection_task
+    from animichi.tests.eval.agent_eval_task import selection_task
     from animichi.tests.eval.evaluators import AgentInput
 
     pending = {
@@ -159,7 +159,7 @@ async def test_selection_task_dispatches_place_pending_to_place_handler() -> Non
         ],
         "revision": 3,
     }
-    result = await _selection_task(
+    result = await selection_task(
         AgentInput(
             query="",
             locale="en",

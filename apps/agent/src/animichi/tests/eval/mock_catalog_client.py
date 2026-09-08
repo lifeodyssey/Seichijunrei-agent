@@ -18,11 +18,11 @@ from animichi.clients.catalog_client import (
 from animichi.clients.geocode import GeocodeCandidate, GeocodeKind, GeocodeSource
 from animichi.tests.eval.mock_catalog_fixtures import (
     FIXTURE_POINTS,
-    GEOCODE_FIXTURES,
     LOCATION_CENTERS,
     TITLE_ALIASES,
     TITLE_NAMES,
 )
+from animichi.tests.eval.mock_geocode_fixtures import GEOCODE_FIXTURES
 
 __all__ = [
     "FIXTURE_POINTS",

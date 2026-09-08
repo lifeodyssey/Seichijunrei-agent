@@ -7,6 +7,7 @@ import os
 import pytest
 
 from animichi.interfaces.public_api import default_catalog_client
+from animichi.tests.eval.case_strata import CaseStrata
 from animichi.tests.eval.eval_gate_flow import finish_cli_report
 from animichi.tests.eval.eval_harness import (
     DATASET_PATH,
@@ -24,7 +25,6 @@ from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
 from animichi.tests.eval.provider_outage import ProviderOutage
 from animichi.tests.eval.run_scores import NoEvaluatedCases
-from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.strata_first_run import evaluate_after_strata
 
 __all__ = ["AgentInput", "make_agent_task"]

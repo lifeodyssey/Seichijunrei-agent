@@ -2,9 +2,9 @@
  * The chat bodies one eval case submits, in the order they must be sent.
  *
  * Python's task handed `run_animichi_agent` an in-process `message_history`
- * (`eval_harness._message_history`) and seeded session state directly. Over HTTP
- * neither is possible: the transcript belongs to the session, and the only way
- * to put a prior turn in it is to have taken that turn. So a case with
+ * (`agent_eval_cases.message_history`) and seeded session state directly. Over
+ * HTTP neither is possible: the transcript belongs to the session, and the only
+ * way to put a prior turn in it is to have taken that turn. So a case with
  * `context.message_history` becomes N+1 submissions on ONE session id — its
  * history turns, then the case's own query.
  *
@@ -22,7 +22,7 @@
  */
 import type { ExportedAgentInput } from "./dataset-roundtrip.ts";
 
-/** Python's filler sentence, verbatim from `eval_harness._padded_text`. */
+/** Python's filler sentence, verbatim from `agent_eval_cases._padded_text`. */
 const PADDING_SENTENCE = " Travel planning context remains unchanged.";
 
 /** One `POST /v1/chat` body. */

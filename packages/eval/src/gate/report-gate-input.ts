@@ -5,7 +5,8 @@ import type { CaseScores } from './metric-gate.ts';
 
 /**
  * What the gates need out of a finished `logfire/evals` report — the TS side of
- * `eval_gate_flow._report_gate_input` and `exec_tiers.collect_case_scores`.
+ * `eval_gate_flow._report_gate_input` and
+ * `report_case_rows.collect_case_scores`.
  *
  * `report.failures` is the single source of truth for errored cases, exactly as
  * Python treats its classified errors, and the error gate's denominator is

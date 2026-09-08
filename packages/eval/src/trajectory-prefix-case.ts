@@ -11,7 +11,7 @@
  * WHAT THE FIELD CANNOT CARRY, AND WHAT IS DONE ABOUT IT. `seeded_pending` is
  * the STATE the previous turn left — a reason, an ordered candidate list and a
  * revision — and says nothing about the turn that left it, because Python never
- * took one: `eval_harness._selection_task` set that state directly on an
+ * took one: `agent_eval_task.selection_task` set that state directly on an
  * in-process session. Over HTTP a session's state is the trace of its turns, so
  * a turn has to exist, and the only honest one is the MINIMAL turn consistent
  * with the state: the tool that can raise this clarification, called with the
