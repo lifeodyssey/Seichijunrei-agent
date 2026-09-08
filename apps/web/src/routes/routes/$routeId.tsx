@@ -27,7 +27,9 @@ export const Route = createFileRoute("/routes/$routeId")({
   loaderDeps: ({ search }) => ({ hl: search.hl }),
   loader: async ({ params, deps, context }) => {
     await assertRouteExists(context.queryClient, params.routeId);
-    return { locale: deps.hl ?? DEFAULT_LOCALE };
+    // `now` is sampled in the loader, not at render: the serialized ISO string
+    // keeps SSR HTML and client hydration agreeing on the same "today".
+    return { locale: deps.hl ?? DEFAULT_LOCALE, now: new Date().toISOString() };
   },
   errorComponent: RouteDetailErrorState,
   pendingComponent: RouteDetailPendingState,
@@ -35,8 +37,8 @@ export const Route = createFileRoute("/routes/$routeId")({
 });
 
 function RouteDetailRoute() {
-  const { locale } = Route.useLoaderData();
+  const { locale, now } = Route.useLoaderData();
   const { routeId } = Route.useParams();
   const detail = useRouteDetail(routeId);
-  return <RouteDetailView detail={detail} locale={locale} now={new Date()} />;
+  return <RouteDetailView detail={detail} locale={locale} now={new Date(now)} />;
 }

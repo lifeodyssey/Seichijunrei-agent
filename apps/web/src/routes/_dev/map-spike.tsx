@@ -3,18 +3,18 @@ import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { MapSpike, type MapStatus } from "../../features/map-spike/MapSpike";
 import { attachMapSpike } from "../../features/map-spike/map-controller";
-import { parseSourceMode, type SourceMode } from "../../features/map-spike/source-mode";
+import type { SourceMode } from "../../features/map-spike/source-mode";
 
-export const Route = createFileRoute("/_dev/map-spike")({
-  component: MapSpikeRoute,
+// The `?source=` toggle is validated by the router (SSR-safe) instead of
+// reading `window.location.search` in a state initializer.
+const parseSearch = (search: Record<string, unknown>): { readonly source: SourceMode } => ({
+  source: search.source === "worker" ? "worker" : "pmtiles",
 });
 
-const initialSourceMode = (): SourceMode => {
-  if (typeof window === "undefined") {
-    return "pmtiles";
-  }
-  return parseSourceMode(window.location.search);
-};
+export const Route = createFileRoute("/_dev/map-spike")({
+  validateSearch: parseSearch,
+  component: MapSpikeRoute,
+});
 
 type StatusSetter = (status: MapStatus) => void;
 
@@ -32,7 +32,7 @@ function useMapSpikeMount(ref: RefObject<HTMLDivElement | null>, mode: SourceMod
 function MapSpikeRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<MapStatus>("loading");
-  const [sourceMode] = useState<SourceMode>(initialSourceMode);
-  useMapSpikeMount(containerRef, sourceMode, setStatus);
-  return <MapSpike mapContainerRef={containerRef} status={status} sourceMode={sourceMode} />;
+  const { source } = Route.useSearch();
+  useMapSpikeMount(containerRef, source, setStatus);
+  return <MapSpike mapContainerRef={containerRef} status={status} sourceMode={source} />;
 }

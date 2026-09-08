@@ -4,19 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { attachMapLibre } from "../../features/maplibre/maplibre-adapter";
 
-export const Route = createFileRoute("/_dev/map-canary")({
-  component: MapCanaryRoute,
-});
-
 type CanaryMode = "fallback" | "happy";
 type CanaryStatus = "fallback" | "loading" | "ready" | "unmounted";
 
-const readMode = (): CanaryMode => {
-  if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "fallback") {
-    return "fallback";
-  }
-  return "happy";
-};
+// The `?mode=fallback` failure toggle is validated by the router (SSR-safe)
+// instead of reading `window.location.search` in a state initializer.
+const parseSearch = (search: Record<string, unknown>): { readonly mode: CanaryMode } => ({
+  mode: search.mode === "fallback" ? "fallback" : "happy",
+});
+
+export const Route = createFileRoute("/_dev/map-canary")({
+  validateSearch: parseSearch,
+  component: MapCanaryRoute,
+});
 
 const canaryStyle = (): StyleSpecification => ({
   version: 8,
@@ -76,7 +76,7 @@ function CanaryView({ containerRef, mode, mounted, onUnmount, status }: CanaryVi
 
 function MapCanaryRoute() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [mode] = useState<CanaryMode>(readMode);
+  const { mode } = Route.useSearch();
   const [mounted, setMounted] = useState(true);
   const [status, setStatus] = useState<CanaryStatus>("loading");
   const handleUnmount = (): void => { setMounted(false); };
