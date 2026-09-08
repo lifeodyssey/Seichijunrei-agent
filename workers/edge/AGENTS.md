@@ -370,7 +370,14 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
 
 ## Tests
 
-node:test (no vitest, no workers pool). The suite doubles as **workflow-content guard**:
-`auth-config.test.ts`, `migration-boundary.test.ts`, `release-toolchain.test.ts`
-read workflow/docs files verbatim — any change under `.github/workflows/`
-or to the test-runner wiring must keep `pnpm run test:worker` green (`.claude/rules/ci.md`).
+node:test (no vitest, no workers pool). Two files in the suite still read a workflow verbatim,
+and they are the whole list: `auth-config.test.ts` (#1047 — no deploy surface may carry
+`secrets.NEON_AUTH_JWKS_URL` / `secrets.CORS_ALLOWED_ORIGIN`) and `migration-boundary.test.ts`
+(every environment reaches the database only through the migrator Worker). A change under
+`.github/workflows/` must keep `pnpm run test:worker` green for those two. Everything else that
+used to pin pipeline text was deleted or repointed at the file owning the contract (#1373) —
+`release-toolchain.test.ts` reads `package.json` manifests, not workflows, and
+`staging-baseline-reset.test.ts` now executes
+`infra/database-access/production-baseline-guard.sh` instead of extracting it from `cd.yml`.
+Do not add a new assertion about a job name, a step name, or an `if:` condition: pipeline shape
+belongs to the contract tests in `.github/scripts`.

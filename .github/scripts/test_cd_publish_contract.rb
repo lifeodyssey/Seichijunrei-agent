@@ -39,6 +39,7 @@ ROOT = repository_root
 CD_FILE = File.join(ROOT, ".github", "workflows", "cd.yml")
 WRANGLER_ACTION = "cloudflare/wrangler-action"
 DEPLOY_TAG = "--tag sha-${{ github.sha }}"
+SEALED_BUNDLE = "--no-bundle"
 # No stage may publish where another job is the gate: a staging stage carrying
 # `--env production` would go live without the production approval at all. A job
 # absent from this map may not publish by any route.
@@ -89,7 +90,14 @@ SMOKE_LOOKUP = %(select(.name == "#{STAGE_JOB_NAME}") | .steps[]? | select(.name
 MIGRATION_SCRIPT = "bash scripts/delivery/migrate-through-worker.sh"
 MIGRATION_TARGETS = { "stage" => ["staging", "vars.MIGRATOR_STAGING_URL"],
                       "promote-production" => ["production", "vars.MIGRATOR_PRODUCTION_URL"] }.freeze
-BASELINE_GUARD = "release/migrations/STAGING_ONLY_BASELINE"
+BASELINE_GUARD_SCRIPT = "infra/database-access/production-baseline-guard.sh"
+BASELINE_GUARD_MARKER = "release/migrations/STAGING_ONLY_BASELINE"
+# Presence of the marker path is not a binding to the guard: `echo
+# release/migrations/STAGING_ONLY_BASELINE` reads identically to the step that
+# refuses the cutover and refuses nothing. Same shape as
+# `test_ci_workflow_contract.rb`'s INVOCATION — the run has to START with an
+# interpreter and then this script, so a mention cannot stand in for a run.
+BASELINE_GUARD_RUN = /\A\s*bash\s+#{Regexp.escape(BASELINE_GUARD_SCRIPT)}\s+#{Regexp.escape(BASELINE_GUARD_MARKER)}\b/
 DIRECT_APPLY = ["atlas migrate apply", "ariga/setup-atlas"].freeze
 
 @log = ViolationLog.new
@@ -128,6 +136,21 @@ def assert_deploys_tag_the_version
 
     @log.unless_true(command.include?(DEPLOY_TAG),
                      "cd.yml:#{job}: every publish must tag its version #{DEPLOY_TAG}")
+  end
+end
+
+# The release cohort is built once and published as sealed bytes. Dropping
+# `--no-bundle` makes wrangler re-bundle the artifact at publish time from
+# whatever sits in the payload — a different build than the one staging proved,
+# produced inside the job that holds the publishing token. Nothing else in the
+# repository reads for it, so its ten occurrences are pinned here.
+def assert_deploys_publish_the_sealed_bundle
+  deploy_steps.each do |job, step|
+    command = step.dig("with", "command").to_s
+    next unless command.start_with?("deploy ")
+
+    @log.unless_true(command.include?(SEALED_BUNDLE),
+                     "cd.yml:#{job}: every publish must ship the sealed artifact (#{SEALED_BUNDLE})")
   end
 end
 
@@ -242,12 +265,19 @@ def assert_no_job_applies_the_chain_itself
   end
 end
 
-# Order, not presence: a guard placed after the migration reads identically to
-# one placed before it, and refuses a cutover that has already happened.
+# Three separable failures, so three assertions: the script CD names has to
+# exist, some step has to actually run it on the marker, and it has to run
+# before the migration — a guard placed after one reads identically to a guard
+# and refuses a cutover that has already happened.
 def assert_baseline_guard_precedes_the_production_migration
+  @log.unless_true(File.exist?(File.join(ROOT, BASELINE_GUARD_SCRIPT)),
+                   "cd.yml:promote-production: #{BASELINE_GUARD_SCRIPT} does not exist")
   runs = @cd.steps_of("promote-production").map { |step| step["run"].to_s }
-  guard = runs.index { |run| run.include?(BASELINE_GUARD) }
+  guard = runs.index { |run| run.match?(BASELINE_GUARD_RUN) }
   migrate = runs.index { |run| run.include?("#{MIGRATION_SCRIPT} production") }
+  @log.unless_true(!guard.nil?,
+                   "cd.yml:promote-production: no step runs " \
+                   "`bash #{BASELINE_GUARD_SCRIPT} #{BASELINE_GUARD_MARKER}`")
   @log.unless_true(!guard.nil? && !migrate.nil? && guard < migrate,
                    "cd.yml:promote-production: the staging-only guard must refuse before production migrates")
 end
@@ -282,6 +312,7 @@ end
 def main
   assert_deploys_pin_wrangler
   assert_deploys_tag_the_version
+  assert_deploys_publish_the_sealed_bundle
   assert_deploys_name_their_own_environment
   assert_shell_publishes_obey_the_same_rules
   assert_smoke_probes_the_real_surfaces

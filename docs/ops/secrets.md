@@ -15,30 +15,28 @@ Companion to [`deployment.md`](./deployment.md), which covers non-secret runtime
 GitHub secret). **Values never appear here, in commit messages, in PR bodies, or in chat** —
 see the "Handling" section at the bottom.
 
-## This file rots by default — the test that keeps it honest
+## This file rots by default, and nothing enforces it
 
 A one-time inventory snapshot goes stale the moment a secret is added, renamed, or
 re-scoped, and nothing else notices. `gh secret list` cannot be the enforcement mechanism:
 it needs a repo-admin PAT to run in CI (the default `GITHUB_TOKEN` cannot list repo
 secrets), and minting a standing admin token just to keep a doc honest is a net-negative
-trade. Instead,
-[`apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py`](../../apps/agent/src/animichi/tests/unit/test_secrets_docs_consistency.py)
-does it with zero credentials, by grepping source instead of asking GitHub:
+trade. A Python test used to stand in for it by grepping source, and #1373 deleted it: half
+its required set was every `${{ secrets.X }}` reference under `.github/workflows/**`, a set
+`test_workflow_invariants.rb` has kept at zero since #1367, and the other half was a regex
+over a TypeScript array in another package — a doc guard living in `apps/agent`, red for
+reasons no reader of that package could place.
 
-- **A** = every credential-shaped name in `workers/edge/src/container/container-env.ts`'s
-  `CONTAINER_ENV_KEYS` (`_API_KEY` / `_TOKEN` / `_SECRET` suffix), plus every name used as
-  `${{ secrets.X }}` anywhere under `.github/workflows/**` — a set that has been empty since #1367
-  and that `test_workflow_invariants.rb` keeps empty. The rest of `CONTAINER_ENV_KEYS` is plain
-  runtime config with no credential behind it and stays out of scope here (see `deployment.md`).
-- **B** = every name in this file's two tables (Live + Referenced by nothing).
-- `test_every_workflow_secret_and_credential_container_key_is_documented`: **A ⊆ B**. Code
-  reaches for a secret this file has never heard of → red.
-- `test_live_table_entries_are_still_actually_referenced`: every name in the **Live** table is
-  still in A. A secret's last reference gets deleted and the row doesn't move to
-  "Referenced by nothing" → red, not a silent stale claim.
+So the discipline is human, and it is the same two rules the test asserted. Whoever adds,
+renames, re-scopes, or retires a credential updates this file **in the same commit**:
 
-Follows the shape of `apps/agent/src/animichi/tests/unit/test_anonymous_docs_consistency.py`, which
-does the same job for `ARCHITECTURE.md` against `workers/edge/src/identity/auth.ts`.
+- every credential-shaped name in `workers/edge/src/container/container-env.ts`'s
+  `CONTAINER_ENV_KEYS` (`_API_KEY` / `_TOKEN` / `_SECRET` suffix) appears in one of this file's
+  two tables (Live + Referenced by nothing). The rest of `CONTAINER_ENV_KEYS` is plain runtime
+  config with no credential behind it and stays out of scope here (see `deployment.md`).
+- every name in the **Live** table still has the consumer its row claims. When a secret's last
+  reference is deleted, its row moves to "Referenced by nothing" rather than becoming a silent
+  stale claim.
 
 ## Nothing in GitHub is read any more (#1367)
 
@@ -148,10 +146,9 @@ delete immediately.
 
 ## Staging access: the Cloudflare Access service token (D3 #1369)
 
-Its own section, not a row in the two tables above, because the tables are the GitHub-secret
-inventory `test_secrets_docs_consistency.py` keeps honest: it derives its required set from
-`${{ secrets.X }}` references and `CONTAINER_ENV_KEYS`, and these two names appear in neither.
-They were never GitHub secrets and never will be.
+Its own section, not a row in the two tables above, because those tables are the GitHub-secret
+inventory: their scope is `${{ secrets.X }}` references and `CONTAINER_ENV_KEYS`, and these two
+names appear in neither. They were never GitHub secrets and never will be.
 
 | ESC key | Scope | What it is | Source | Read by | Rotation |
 |---|---|---|---|---|---|
@@ -220,8 +217,7 @@ Secrets Store** (the account's default store, id `66c9bb0faef644b4a0671bb7d90d98
 store is refused by the account plan, `maximum_stores_exceeded`). Values are managed by the
 `infra/database-access` Pulumi stack (staging branch roles + composed DSNs; see its `index.ts` for
 the role→secret mapping and the bootstrap/rotation runbook). This file only covers GitHub
-secrets, so store secrets are listed here for the reader, not enforced by
-`test_secrets_docs_consistency.py`:
+secrets, so store secrets are listed here for the reader, outside the two tables' scope:
 
 | Store secret | Worker binding | Consumed by |
 |---|---|---|

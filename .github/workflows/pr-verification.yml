@@ -342,9 +342,11 @@ jobs:
   agent:
     name: CI / agent
     needs: plan
-    # `workflows` for the same reason the matrix adds `edge-worker`:
-    # test_deploy_model_env_consistency.py is the only `--no-bundle` / no-secret-
-    # upload guard on cd.yml, and it would otherwise never run on a workflow PR.
+    # `workflows` for the same reason the matrix adds `edge-worker`: a
+    # workflow-only PR must still reach a lane that runs a real suite.
+    # `test_ci_workflow_contract.rb` pins both routes. No agent test reads a
+    # workflow file any more — #1373 moved those assertions onto the source
+    # files that own the contracts — so this route is the routing rule alone.
     if: ${{ needs.plan.result == 'success' && (needs.plan.outputs.agent == 'true' || needs.plan.outputs.deps == 'true' || needs.plan.outputs.workflows == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45

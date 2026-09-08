@@ -405,7 +405,8 @@ carrying no schema change can never reach it (#1216) and a migrations-only push 
 drifts. Production has no counterpart — the reset is staging-only by construction.
 
 Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
-`STAGING_ONLY_BASELINE` marker, deploys the migrator Worker with `--env production`, then runs
+`STAGING_ONLY_BASELINE` marker (`infra/database-access/production-baseline-guard.sh`, which the
+step hands the marker's path in the payload), deploys the migrator Worker with `--env production`, then runs
 `scripts/delivery/migrate-through-worker.sh production` against `vars.MIGRATOR_PRODUCTION_URL`.
 That Worker is a separate deployment with a separate DSN (`MIGRATOR_DATABASE_URL_PROD` in the
 shared Secrets Store) and a separate OIDC allowlist selected by its `MIGRATOR_OIDC_POLICY` var, so
