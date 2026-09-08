@@ -29,9 +29,12 @@
 #                the line that added it
 #   esc          every name a job opens from ESC is checked for emptiness before
 #                the job spends it — the action only warns on a missing value
-#   toolchain    a job that runs `pnpm` or `uv` installs it first. Those steps
-#                lived in a composite until #1367 wrote them out into each job,
-#                which is where one of them can now go missing on its own
+#   toolchain    a job that runs `uv` installs it first. Those steps lived in a
+#                composite until #1367 wrote them out into each job, which is
+#                where one of them can now go missing on its own. The pnpm half
+#                of this rule moved to `test_workspace_install_contract.rb`
+#                (#1489), which asks the same question of steps that need the
+#                installed workspace without naming pnpm
 #   suppression  no `continue-on-error`
 #
 # The CI file's own shape is `test_ci_workflow_contract.rb`, not this file.
@@ -70,14 +73,11 @@ SECRET_REFERENCE = /\bsecrets\.[A-Za-z0-9_]+|secrets:\s*inherit/
 # over exactly the names the step asked for.
 ESC_ACTION = "pulumi/esc-action"
 ESC_GUARD = /for key in ([A-Z0-9_ ]+); do/
-# `pnpm ls` reads the workspace manifests and needs no install; every other form
-# resolves a binary or a package script out of node_modules. `pnpm install
-# --dir <sealed tree>` provisions someone else's tree, so it is neither a use
-# nor a provider here. Each entry is [what needs the toolchain, what provides
-# it, what to call it in the message].
+# Each entry is [what needs the toolchain, what provides it, what to call it in
+# the message]. Only `uv` is left: pnpm and everything else that needs the
+# installed workspace is `test_workspace_install_contract.rb`, which can also
+# see a step that reaches node_modules without spelling `pnpm` (#1489).
 TOOLCHAINS = [
-  [/\bpnpm (?!ls\b|install\b)\S/, /pnpm install --frozen-lockfile --ignore-scripts/,
-   "pnpm install --frozen-lockfile"],
   [/\buv (run|sync|python|tool)\b/, %r{astral-sh/setup-uv@}, "astral-sh/setup-uv"]
 ].freeze
 # Both halves of the exchange: `auth-actions` mints the Pulumi token and

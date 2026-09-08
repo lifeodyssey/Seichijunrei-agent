@@ -240,6 +240,12 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Verify the workflow invariants and action pinning
         run: ruby .github/scripts/test_workflow_invariants.rb
+      # #1489: the rule that keeps the install step above from being deleted.
+      # Until this file existed the toolchain rule read a job's dependency on
+      # the workspace off a literal `pnpm` in its steps, and this job spells
+      # none — it reaches Wrangler through bundle-release-worker.test.sh.
+      - name: Verify every workspace-using step has an install before it
+        run: ruby .github/scripts/test_workspace_install_contract.rb
       - name: Verify the CI workflow's affected-matrix shape
         run: ruby .github/scripts/test_ci_workflow_contract.rb
       - name: Verify the Python lane and the Makefile gate behind it
