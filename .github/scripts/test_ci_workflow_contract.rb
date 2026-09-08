@@ -21,9 +21,11 @@
 #               checks it alone ran would have gone dark with it.
 #   image       every step building the offline Postgres image resolves the one
 #               declaration in `packages/test-postgres/postgres-image.env`
-#   commits     the `commits` job runs commitlint (the CI mirror of the
-#               local commit-msg hook) and gates the aggregate; the B1
-#               transitional codeql job is gone — default setup owns CodeQL
+#   commits     the `commits` job runs commitlint (the CI mirror of the local
+#               commit-msg hook) over both of its subjects — the branch's own
+#               commits and the pull request title that becomes the squash
+#               subject — and gates the aggregate; the B1 transitional codeql
+#               job is gone — default setup owns CodeQL
 #   aggregates  `Security` and `PR Verification` each name their dependencies,
 #               run `always()`, and fail on a failed or cancelled one
 #
@@ -56,6 +58,14 @@ MATRIX_TOOLCHAINS = [
   ["infra", "pulumi/actions"]
 ].freeze
 AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')"
+# The `commits` job holds two commitlint runs with different subjects, and one
+# `commitlint` anywhere in the job vouched for both until #1500 — deleting the
+# title step, the only gate on the squash-merge subject, left this file green.
+# Each is pinned by what it lints instead. The title reaches the shell through
+# a step `env`, so its step is found by the expression and then read for the
+# name it binds; the commits reach commitlint as a revision range.
+PR_TITLE_EXPRESSION = "github.event.pull_request.title"
+COMMIT_RANGE_FLAGS = %w[--from --to].freeze
 # `.github/**` belongs to the root project, which the matrix subtracts, so pnpm
 # answers a change under it with nothing. These two lanes own the tests that
 # read deployment workflow text — several of which extract a shipped shell
@@ -212,6 +222,34 @@ def assert_aggregate(job, expected_needs)
                    "pr-verification.yml:#{job}: must fail on a failed or cancelled dependency")
 end
 
+def commitlint_steps
+  @ci.steps_of("commits").select { |step| step["run"].to_s.include?("commitlint") }
+end
+
+# The name a step binds the title expression to, or nil when it binds none.
+def pr_title_env_name(step)
+  env = step["env"]
+  return nil unless env.is_a?(Hash)
+
+  env.find { |_, value| value.to_s.include?(PR_TITLE_EXPRESSION) }&.first
+end
+
+def assert_commitlint_lints_the_squash_subject
+  step = commitlint_steps.find { |candidate| pr_title_env_name(candidate) }
+  @log.unless_true(step,
+                   "pr-verification.yml:commits: no commitlint step reads #{PR_TITLE_EXPRESSION} — " \
+                   "the squash-merge subject would reach main unlinted")
+  @log.unless_true(step.nil? || step["run"].to_s.include?("$#{pr_title_env_name(step)}"),
+                   "pr-verification.yml:commits: the step holding #{PR_TITLE_EXPRESSION} must feed " \
+                   "that name to commitlint, not declare it and lint something else")
+end
+
+def assert_commitlint_lints_the_branch_commits
+  @log.unless_true(commitlint_steps.any? { |step| COMMIT_RANGE_FLAGS.all? { |flag| step["run"].to_s.include?(flag) } },
+                   "pr-verification.yml:commits: no commitlint step lints the branch's own commits " \
+                   "over a #{COMMIT_RANGE_FLAGS.join('/')} range")
+end
+
 # B3 replaced the transitional codeql job with GitHub's CodeQL default setup:
 # the ruleset's code_scanning rule consumes its results, and a workflow-side
 # upload would fight it. The commits job is the CI mirror of the local
@@ -219,9 +257,8 @@ end
 def assert_commits_gate_replaces_codeql
   @log.unless_true(@ci.dig("jobs", "codeql").nil?,
                    "pr-verification.yml: the transitional codeql job must be gone (default setup owns CodeQL)")
-  commits_runs = @ci.steps_of("commits").map { |step| step["run"].to_s }.join("\n")
-  @log.unless_true(commits_runs.include?("commitlint"),
-                   "pr-verification.yml:commits: must lint the PR's commits with commitlint")
+  assert_commitlint_lints_the_branch_commits
+  assert_commitlint_lints_the_squash_subject
   @log.unless_true(Array(@ci.dig("jobs", "aggregate", "needs")).include?("commits"),
                    "pr-verification.yml:aggregate: the commits gate must be one of its needs")
 end
