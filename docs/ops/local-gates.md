@@ -104,7 +104,7 @@ which is what keeps the refusal working under the wrapper too. For an ordinary p
 `pnpm ls -r --depth -1 --json` lists the workspace project directories; a prefix join against the
 changed paths gives the package set. The root project and `@animichi/agent` are dropped — the first
 would match every file by directory containment, the second is the agent bucket's job. Each selected
-package then runs, through `pnpm -r --filter "...<name>" run --if-present`:
+package then runs, through `pnpm -r --workspace-concurrency=1 --filter "...<name>" run --if-present`:
 
 ```text
 lint → typecheck → test → test:integration
@@ -112,6 +112,17 @@ lint → typecheck → test → test:integration
 
 `...<name>` pulls in that package's dependents, so a `packages/contract` change gates its consumers.
 `--no-renames` lists both sides of a rename, so a cross-package move gates the source package too.
+
+**One package at a time.** `pnpm -r run` defaults to a concurrency of 4 (`pnpm help recursive`, pnpm
+10.33.2) and a `...<name>` closure is wide — `packages/contract` pulls in all eight TypeScript
+packages — so the suites used to run side by side on one laptop: `apps/web`'s vitest run blew its
+5 s budgets (#1503) and the e2e lane's webServer on `:8799` died mid-run with
+`ERR_CONNECTION_REFUSED`, 16 failed, while that lane alone passed 43/43 in 34 s (#1369, #1517).
+`--workspace-concurrency=1` keeps pnpm's topological order and runs one package at a time. It is set
+on all four scripts and not on the suites alone: measured over the contract closure it cost `lint`
+41 s against 32 s but ran `typecheck` in 15 s against 22 s (2026-09-08, 10 cores), so the
+parallelism given up is a wash, and one form of the invocation is one fewer thing to keep true.
+`make check-full` splits them only because it runs `pnpm -r` over every package unfiltered.
 
 ### Why the selection is git's and not pnpm's
 

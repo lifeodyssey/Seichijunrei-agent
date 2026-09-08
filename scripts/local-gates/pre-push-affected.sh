@@ -60,7 +60,7 @@ loose="$(grep -vE "$covered" <<<"$changed" || true)"
 closure="..."; [ "$deps" = 0 ] || closure=""  # every package is already selected
 for name in $packages; do
   for script in lint typecheck test test:integration; do
-    pnpm -r --filter "$closure$name" run --if-present "$script"
+    pnpm -r --workspace-concurrency=1 --filter "$closure$name" run --if-present "$script"
   done
 done
 [ "$agent" = 0 ] || make check
