@@ -3,7 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { RouteDetailView } from "../../features/route-detail/components/RouteDetailView";
 import { RouteDetailErrorState, RouteDetailPendingState } from "../../features/route-detail/components/RouteDetailStates";
 import { listSavedRoutesOptions } from "../../features/route-detail/hooks";
-import { useRouteDetail } from "../../features/route-detail/hooks";
+import { useDayClock, useRouteDetail } from "../../features/route-detail/hooks";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "../../i18n/locales";
 
 /** A real `Error` carrying TanStack's not-found marker (`isNotFound: true`). */
@@ -40,5 +40,6 @@ function RouteDetailRoute() {
   const { locale, now } = Route.useLoaderData();
   const { routeId } = Route.useParams();
   const detail = useRouteDetail(routeId);
-  return <RouteDetailView detail={detail} locale={locale} now={new Date(now)} />;
+  const dayNow = useDayClock(now);
+  return <RouteDetailView detail={detail} locale={locale} now={dayNow} />;
 }

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatSidebar } from "../../../src/features/chat/components/ChatSidebar";
 import { ChatReturnTargetProvider } from "../../../src/features/chat/ChatReturnTarget";
@@ -26,8 +26,8 @@ const ROWS: readonly ConversationListRowFixture[] = [
 
 afterEach(cleanup);
 
-function renderSidebar(status: "anonymous" | "authenticated" = "authenticated", activeSessionId?: string, sessionId?: string) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderSidebar(status: "anonymous" | "authenticated" = "authenticated", activeSessionId?: string, sessionId?: string, seeded?: QueryClient) {
+  const client = seeded ?? new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <AppRouterContext>
       <ChatReturnTargetProvider sessionIdOf={() => sessionId}>
@@ -93,13 +93,25 @@ describe("ChatSidebar RECENT rows", () => {
     expect(screen.queryByText(ja.recentLabel)).toBeNull();
   });
 
-  it("stays idle — and never fetches — while signed out", () => {
+  it("stays idle — and never fetches — while signed out", async () => {
     authHeaders.mockResolvedValue({});
     let called = false;
     server.use(conversationsListHandler(ROWS, () => { called = true; }));
     renderSidebar("anonymous");
+    /* Flush past the auth-header await so a would-be fetch could land. */
+    await act(async () => { await Promise.resolve(); });
     expect(screen.queryByText(ja.recentLabel)).toBeNull();
     expect(called).toBe(false);
+  });
+
+  it("hides a previous session's cached list from the signed-out visitor", async () => {
+    authHeaders.mockResolvedValue({});
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["chat", "conversations", TEST_ORIGIN], [{ id: "s-9", title: "Previous session", subtitle: "cached" }]);
+    renderSidebar("anonymous", undefined, undefined, client);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByText("Previous session")).toBeNull();
+    expect(screen.queryByText(ja.recentLabel)).toBeNull();
   });
 });
 

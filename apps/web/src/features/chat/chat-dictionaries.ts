@@ -144,7 +144,7 @@ const en: ChatDict = {
   entryAnimeTitle: "Start from an anime",
   entryCityTitle: "I have a city in mind",
   entryChatTitle: "No plans yet — just chat",
-  entryAnimePrompt: "I want to plan a pilgrimage for an anime I love",
+  entryAnimePrompt: "I want to plan a journey around an anime I love",
   entryCityPrompt: "I have a city in mind — help me find anime spots there",
   entryChatPrompt: "I don't have plans yet — let's just chat",
   sampleLink: "See a sample Kamakura conversation →",

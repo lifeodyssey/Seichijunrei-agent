@@ -70,7 +70,9 @@ function toConversationList(
 ): ConversationList {
   return {
     status: toStatus(query, enabled),
-    conversations: query.data ?? [],
+    // `enabled: false` still surfaces cached rows for the key — gate the data
+    // itself so a signed-out visitor never sees a previous session's list.
+    conversations: enabled ? (query.data ?? []) : [],
   };
 }
 
