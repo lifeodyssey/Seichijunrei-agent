@@ -151,13 +151,42 @@ They were never GitHub secrets and never will be.
 
 | ESC key | Scope | What it is | Source | Read by | Rotation |
 |---|---|---|---|---|---|
-| `CF_ACCESS_CLIENT_ID` | `environmentVariables` of `lifeodyssey/animichi/staging` only | The public half of the Cloudflare Access service token; Access matches it in the `CF-Access-Client-Id` header | Stack output `stagingAccessClientId` of `seichijunrei-infra`/`staging` (`infra/src/staging-access.ts`), imported by the environment's `pulumi-stacks` provider | CI: `pulumi/esc-action` in `cd.yml`'s `smoke` job (from PR 2). Local: `esc env open`. In code: `packages/contract/src/access-service-token.ts`, read by `.github/scripts/staging-smoke-check.sh`, `e2e/playwright.config.ts` and `workers/edge/api-test/lane-origin.ts` | Bump `clientSecretVersion` on the Pulumi resource; ESC re-reads the output on the next open. Never rotated by time |
+| `CF_ACCESS_CLIENT_ID` | `environmentVariables` of `lifeodyssey/animichi/staging` only | The public half of the Cloudflare Access service token; Access matches it in the `CF-Access-Client-Id` header | Stack output `stagingAccessClientId` of `seichijunrei-infra`/`staging` (`infra/src/staging-access.ts`), imported by the environment's `pulumi-stacks` provider | CI: `pulumi/esc-action` in `cd.yml`'s `smoke` job (from PR 2). Local: `esc env open`. In code: `packages/contract/src/access-service-token.ts`, read by `.github/scripts/staging-smoke-check.sh`, `e2e/playwright.config.ts` and `workers/edge/api-test/lane-origin.ts` | Bump `clientSecretVersion` on the Pulumi resource; ESC re-reads the output on the next open. **The token itself still expires — see the deadline below** |
 | `CF_ACCESS_CLIENT_SECRET` | same | The secret half, matched in the `CF-Access-Client-Secret` header | Stack output `stagingAccessClientSecret`, sealed with `pulumi.secret` so it is ciphertext in Pulumi Cloud state | same | same |
 
 Production has neither key: it has no Access application. The two are useless apart — Access
 answers a request carrying one of them exactly as it answers one carrying neither, so every
 consumer refuses a half-declared pair by name rather than sending a request that comes back
 looking like a broken deploy.
+
+### It expires. Nothing tells you.
+
+`infra/src/staging-access.ts` sets `duration: "8760h"`, which is **one year** — the provider's own
+default, written out so the number is visible. An earlier revision of this table said the token is
+"never rotated by time"; that was true of *rotation* and false about *expiry*, which is the
+distinction that matters at 03:00 when CI cannot reach staging.
+
+- **Created** by the first `stage-foundation` apply that carries `infra/src/staging-access.ts`
+  (2026-09, the CD run that lands PR #1498). **Expires one year later.** The exact instant is the
+  resource's `expiresAt` attribute. It is deliberately NOT a stack output today — the two exported
+  outputs are the ones ESC imports and nothing else — so read it from Zero Trust → Access →
+  Service Auth in the dashboard, or from the service-tokens API. Exporting it, so the deadline is
+  machine-readable, is a PR-2 follow-up.
+- **Extend it** (same client id and secret, one more year): the dashboard's **Refresh** button on
+  the token, or `POST …/access/service_tokens/{id}/refresh`. Changing `duration` on the Pulumi
+  resource sets a new lifetime too.
+- **Replace the secret** (new value, same token): bump `clientSecretVersion` on the Pulumi
+  resource, which is the rotate call underneath —
+  `previousClientSecretExpiresAt` is the grace window during which the old secret still works, so
+  set it far enough out to cover one CD run and let ESC re-read the output. Omitting the grace
+  window revokes the old secret immediately.
+- **Who gets warned: nobody, today.** Cloudflare can email an "Expiring Access Service Token"
+  notification a week before expiry, but it is a Notifications rule an account admin has to create
+  by hand; it is not on by default, and nothing in this repository creates or asserts it. Unless
+  the owner has already added it out of band, expiry surfaces as
+  every automated caller getting the Access login page at once — the same symptom as a wrong value.
+  Creating the notification (or a calendar reminder, whichever the owner prefers) is tracked as a
+  PR-2 follow-up on #1369.
 
 **Failure modes.** A wrong or revoked value locks CI, the browser lane and every local staging
 lane out of staging at once (they answer with the Access login page, not a 4xx from the app);

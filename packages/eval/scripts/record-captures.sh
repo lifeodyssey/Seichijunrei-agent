@@ -8,10 +8,10 @@
 # need a line changed, and if it does, that difference is the finding.
 #
 # Needs, all fail-closed in the code rather than re-checked here (one door):
-#   CATALOG_API_ORIGIN   the staging origin           (api-test/README.md)
-#   STAGING_GATE_TOKEN   the WAF gate header value    (api-test/README.md, #1294)
-#   CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET     the Cloudflare Access service
-#                        token, both or neither       (api-test/README.md, #1369)
+#   CATALOG_API_ORIGIN   the staging origin           (workers/edge/api-test/README.md)
+#   STAGING_GATE_TOKEN   the WAF gate header value    (workers/edge/api-test/README.md, #1294)
+#   CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET     the Cloudflare Access service token,
+#                        both or neither              (workers/edge/api-test/README.md, #1369)
 #   NEON_AUTH_BASE_URL   the Neon Auth base URL       (docs/ops/auth-migration-neon.md §4)
 #   QA_NEON_USER_EMAIL / QA_NEON_USER_PASSWORD        the QA identity to sign in as
 #

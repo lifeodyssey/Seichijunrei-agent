@@ -28,9 +28,48 @@ fail() { echo "::error title=staging smoke::$*"; exit 1; }
 # variable is the difference between that and one export.
 ACCESS_HEADERS=()
 
+# The host of a URL: no scheme, no credentials, no port, no path. Bracketed IPv6
+# keeps its brackets, which is the form `URL.hostname` produces on the TS side.
+url_host() {
+  local rest="${1#*://}"
+  rest="${rest##*@}"
+  rest="${rest%%/*}"
+  case "$rest" in
+    \[*\]*) printf '%s]' "${rest%%\]*}" ;;
+    *) printf '%s' "${rest%%:*}" ;;
+  esac
+}
+
+# MIRROR of `isLoopbackHostname` in packages/contract/src/access-service-token.ts.
+# A shell script cannot import that module, so the list is spelled twice and both
+# spellings carry a test row per form. `127.[0-9]*.[0-9]*.[0-9]*` also matches a
+# hostname like `127.0.0.1.example.com`; that direction is the safe one — it
+# refuses rather than sends.
+is_loopback_url() {
+  case "$(url_host "$1")" in
+    localhost|*.localhost|'[::1]'|'[::]'|0.0.0.0) return 0 ;;
+    127.[0-9]*.[0-9]*.[0-9]*) return 0 ;;
+  esac
+  return 1
+}
+
+# The same asymmetry the TS callers apply: a probe pointed at this machine is
+# behind no Access application, so a token declared against one is refused by
+# name rather than sent. Refused and not silently dropped, because a dropped
+# credential is indistinguishable from a broken one at the far end.
+refuse_token_against_loopback() {
+  local url
+  for url in "$BASE_URL" "$WEB_URL"; do
+    if is_loopback_url "$url"; then
+      fail "CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are set while probing $url: staging's Access service token is never sent to a loopback origin"
+    fi
+  done
+}
+
 read_access_service_token() {
   local id="${CF_ACCESS_CLIENT_ID:-}" secret="${CF_ACCESS_CLIENT_SECRET:-}"
   if [ -n "$id" ] && [ -n "$secret" ]; then
+    refuse_token_against_loopback
     ACCESS_HEADERS=(-H "CF-Access-Client-Id: $id" -H "CF-Access-Client-Secret: $secret")
     return
   fi

@@ -61,13 +61,17 @@ chmod +x "$TMP/bin/curl"
 # recorded. `env -u` makes every case hermetic: an operator with a real Access
 # token exported would otherwise change what the "no token" cases assert.
 run() { # run <label> <want-exit> [env...]
-  local label="$1" want="$2"; shift 2
+  run_at "https://staging.example.test" "$@"
+}
+
+run_at() { # run_at <url> <label> <want-exit> [env...]
+  local url="$1" label="$2" want="$3"; shift 3
   local out rc
   rm -rf "$LAST_STATE_DIR"
   LAST_STATE_DIR="$(mktemp -d)"
   out="$(env -u CF_ACCESS_CLIENT_ID -u CF_ACCESS_CLIENT_SECRET "$@" \
     STUB_STATE_DIR="$LAST_STATE_DIR" PATH="$TMP/bin:$PATH" \
-    bash "$SCRIPT" https://staging.example.test 2>&1)" && rc=0 || rc=$?
+    bash "$SCRIPT" "$url" 2>&1)" && rc=0 || rc=$?
   if [ "$rc" -eq "$want" ]; then
     printf 'PASS %-60s exit=%s\n' "$label" "$rc"
   else
@@ -128,6 +132,38 @@ run "only the client id declared fails closed" 1 \
 expect_sent "and sends nothing, rather than half a token" 0 "CF-Access-Client-"
 run "only the client secret declared fails closed" 1 \
   SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 CF_ACCESS_CLIENT_SECRET=not-a-real-secret
+
+echo
+echo "=== the token is never sent to this machine (PR #1498 review) ==="
+# One row per form of `isLoopbackHostname` in
+# packages/contract/src/access-service-token.ts, which this script mirrors in a
+# `case` pattern. A gap in either spelling hands staging's real service token to
+# whatever is listening on that port.
+for target in \
+  http://localhost:3000 \
+  http://app.localhost:3000 \
+  http://127.0.0.1:8787 \
+  http://127.0.0.2:3000 \
+  "http://[::1]:3000" \
+  http://0.0.0.0:8080
+do
+  run_at "$target" "a declared token against $target is refused" 1 \
+    SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 \
+    CF_ACCESS_CLIENT_ID=id.access CF_ACCESS_CLIENT_SECRET=not-a-real-secret
+  expect_sent "and $target is sent no Access header" 0 "CF-Access-Client-"
+done
+
+# The control for the block above. If the predicate answered "loopback" for
+# everything, every row would pass while every real staging probe went out bare.
+run_at "https://staging.example.test" "a remote target still gets the token" 0 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0 \
+  CF_ACCESS_CLIENT_ID=id.access CF_ACCESS_CLIENT_SECRET=not-a-real-secret
+expect_sent "and a remote target keeps its client id header" 1 "CF-Access-Client-Id: id.access"
+
+# The loopback probe is only refused when a token is declared: an ordinary
+# `wrangler dev` smoke run has no credential to leak and must still work.
+run_at "http://localhost:3000" "an undeclared token against the loopback still passes" 0 \
+  SMOKE_ATTEMPTS=1 SMOKE_RETRY_DELAY=0
 
 echo
 if [ "$fail" -eq 0 ]; then

@@ -38,7 +38,10 @@
  */
 import assert from "node:assert/strict";
 
-import { accessServiceTokenHeaders } from "@animichi/contract/access-service-token";
+import {
+  accessServiceTokenHeaders,
+  isLoopbackHostname,
+} from "@animichi/contract/access-service-token";
 
 /** Read at CALL time, not at import time: a lane that resolved its
  * environment once at module load could not be driven through both its
@@ -56,9 +59,14 @@ function environment(): { origin?: string; bearer?: string; gate?: string } {
  * header needs no cookie jar, which is the whole reason these lanes use it. */
 const GATE_HEADER = "x-staging-key";
 
-/** The loopback, the one origin that is not behind the staging gate. */
+/** The loopback, the one origin that is not behind the staging gate.
+ *
+ * Delegates rather than spelling the hostnames again: this door checked
+ * `localhost` and `127.0.0.1` only, so `https://[::1]` took the credentialed
+ * staging path and was handed both the gate token and the Access service token
+ * (PR #1498 review). The one list lives with the credential it protects. */
 function isLoopback(url: URL): boolean {
-  return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  return isLoopbackHostname(url.hostname);
 }
 
 /** Where a lane may talk to, and what it must present to get in. */

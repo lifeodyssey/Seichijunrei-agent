@@ -579,6 +579,9 @@ duration `8760h`) and exports two stack outputs:
 | `stagingAccessClientId` | `CF_ACCESS_CLIENT_ID` (`environmentVariables`) | `CF-Access-Client-Id` |
 | `stagingAccessClientSecret` | `CF_ACCESS_CLIENT_SECRET` (`environmentVariables`) | `CF-Access-Client-Secret` |
 
+**That token expires after one year** and nothing alerts on it — the deadline, the two renewal
+paths and who is (not) warned are in `secrets.md`, "It expires. Nothing tells you."
+
 The ESC environment imports them through its `pulumi-stacks` provider once the
 `stage-foundation` apply has published them, so no value is copied by hand. Renaming either
 output empties the ESC key silently — `infra/topology-staging.test.ts` pins both names for

@@ -21,6 +21,7 @@ import {
   PartialAccessServiceTokenError,
   accessServiceTokenFrom,
   accessServiceTokenHeaders,
+  isLoopbackHostname,
 } from "../src/access-service-token.ts";
 
 /** A complete token, as ESC hands one to a job. */
@@ -96,5 +97,40 @@ describe("half a token", () => {
     // mechanism: whatever the refusal is spelled as, no half-token may leave
     // this module as headers.
     expect(() => accessServiceTokenHeaders({ CF_ACCESS_CLIENT_ID: "id.access" })).toThrow();
+  });
+});
+
+describe("the hostnames a credential never leaves this machine to reach", () => {
+  // One row per form, because there were three disagreeing spellings of this
+  // list and each gap was a way to hand staging's service token to whatever was
+  // listening on a laptop port (PR #1498 review). `.github/scripts/staging-smoke-check.sh`
+  // mirrors the list in a `case` pattern and carries the same rows.
+  it.each([
+    "localhost",
+    "app.localhost",
+    "127.0.0.1",
+    "127.0.0.2",
+    "127.1.2.3",
+    "[::1]",
+    "::1",
+    "[::]",
+    "::",
+    "0.0.0.0",
+  ])("%s is this machine", (hostname) => {
+    expect(isLoopbackHostname(hostname)).toBe(true);
+  });
+
+  it.each([
+    "staging.animichi.com",
+    "animichi-staging.zhenjiazhou0127.workers.dev",
+    "127.0.0.1.example.com",
+    "notlocalhost",
+    "1270.0.0.1",
+    "example.com",
+  ])("%s is somewhere else", (hostname) => {
+    // The control. A predicate that answered true for everything would satisfy
+    // the block above no matter what the code did, and would silently strip the
+    // token from every real staging run.
+    expect(isLoopbackHostname(hostname)).toBe(false);
   });
 });

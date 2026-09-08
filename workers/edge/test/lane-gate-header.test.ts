@@ -67,13 +67,45 @@ void test("a caller cannot substitute its own gate credential", () => {
   assert.equal(laneHeaders({ "x-staging-key": "something-else" }).get("x-staging-key"), SENTINEL);
 });
 
-void test("a local dev origin is never handed the staging credential", () => {
+void test("a local dev origin still gets what the call itself asked for", () => {
+  // Withholding the credentials must not withhold the caller's own headers —
+  // the per-form cases below own the "neither credential" half.
   useLoopbackOrigin();
-  assert.equal(laneHeaders().get("x-staging-key"), null);
-  assert.equal(laneHeaders().get("cf-access-client-id"), null);
-  assert.equal(laneHeaders().get("cf-access-client-secret"), null);
   assert.equal(laneHeaders({ "x-locale": "ja" }).get("x-locale"), "ja");
 });
+
+/** Every form of "this machine" an operator actually types.
+ *
+ * PR #1498 review: the door recognised `localhost` and `127.0.0.1` only, so
+ * `https://[::1]` and the rest of `127.0.0.0/8` took the CREDENTIALED path and
+ * were handed both the gate token and the Access service token. The list now
+ * lives once, as `isLoopbackHostname` in the contract package. One case per
+ * form rather than a loop with assertions inside it, so a regression names the
+ * form it lost.
+ */
+const LOOPBACK_ORIGINS = [
+  "http://localhost:8787",
+  "http://app.localhost:8787",
+  "http://127.0.0.1:8787",
+  "http://127.0.0.2:8787",
+  "http://[::1]:8787",
+  "http://0.0.0.0:8787",
+];
+
+for (const origin of LOOPBACK_ORIGINS) {
+  void test(`${origin} is handed neither credential`, () => {
+    process.env.CATALOG_API_ORIGIN = origin;
+    process.env.STAGING_GATE_TOKEN = SENTINEL;
+    useAccessToken(true);
+    const headers = laneHeaders();
+    assert.deepEqual(
+      ["x-staging-key", "cf-access-client-id", "cf-access-client-secret"].map((name) =>
+        headers.get(name),
+      ),
+      [null, null, null],
+    );
+  });
+}
 
 void test("every request the door builds for staging carries the Access service token", () => {
   // D3 #1369. Both halves or neither: Access answers a one-header request with a

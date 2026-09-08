@@ -17,8 +17,11 @@
 #               that spread it regardless would send staging's real service
 #               token to whatever is listening on a laptop port, which is the
 #               asymmetry `workers/edge/api-test/lane-origin.ts` already
-#               refuses. Playwright's config is not executed by any unit lane,
-#               so this reads it the way the lane contracts above read the
+#               refuses — and `extraHTTPHeaders` rides `context.request` too, so
+#               a live cross-origin call (`web-neon-login.spec.ts` signs in
+#               against the Neon Auth origin) would carry it off the staging
+#               host entirely. Playwright's config is not executed by any unit
+#               lane, so this reads it the way the lane contracts above read the
 #               workflow
 #
 # `animichi-e2e` is one of the three projects `test_ci_workflow_contract.rb`
@@ -51,8 +54,19 @@ ACCESS_TOKEN_READER = "accessServiceTokenHeaders(process.env)"
 # token declared while the run points at the loopback is refused rather than
 # dropped — a silently dropped credential is how an operator who forgot to
 # repoint E2E_WEB_BASE_URL spends an afternoon reading an Access login page.
-ACCESS_TOKEN_LANE_GUARD = "if (!isLoopbackTarget(baseUrl)) return #{ACCESS_TOKEN_READER};"
-ACCESS_TOKEN_LOOPBACK_REFUSAL = /throw new Error\(\s*`CF_ACCESS_CLIENT_ID \/ CF_ACCESS_CLIENT_SECRET are set/
+ACCESS_TOKEN_LANE_GUARD = "if (isLoopbackTarget(baseUrl)) throw new Error(loopbackRefusal());"
+ACCESS_TOKEN_LOOPBACK_REFUSAL = /function loopbackRefusal\(\): string \{/
+# `use.extraHTTPHeaders` is context-wide: it rides `context.request` calls too,
+# and `web-neon-login.spec.ts` posts a live sign-in to the Neon Auth origin
+# through exactly that API. Scoping the token to `baseUrl` alone therefore
+# scoped nothing (PR #1498 review). Every base-URL variable the suite reads has
+# to be the same host as the target, or the run is refused before it starts.
+CROSS_ORIGIN_REFUSAL = "if (foreign.length > 0) throw new Error(crossOriginRefusal(foreign));"
+# Kept in step with `rg -o 'process\.env\.[A-Z0-9_]+' e2e`: any variable naming
+# an origin the browser can reach must be in the config's own list.
+CROSS_ORIGIN_VARS = %w[NEON_AUTH_BASE_URL VITE_NEON_AUTH_BASE_URL].freeze
+# One definition of "this machine", in the package that owns the credential.
+LOOPBACK_RULE_MODULE = "isLoopbackHostname"
 
 @log = ViolationLog.new
 @ci = WorkflowDocument.load(CI_FILE)
@@ -90,6 +104,7 @@ def assert_the_suite_presents_the_staging_access_token
                    "e2e/playwright.config.ts: the token must ride on use.extraHTTPHeaders, " \
                    "or every staging navigation answers with the Access login page")
   assert_the_token_is_scoped_to_a_staging_target(config)
+  assert_the_token_cannot_leave_the_target_origin(config)
 end
 
 def assert_the_token_is_scoped_to_a_staging_target(config)
@@ -99,6 +114,31 @@ def assert_the_token_is_scoped_to_a_staging_target(config)
   @log.unless_true(config.match?(ACCESS_TOKEN_LOOPBACK_REFUSAL),
                    "e2e/playwright.config.ts: a token declared against a loopback target must be " \
                    "refused by name, not silently dropped")
+  @log.unless_true(config.include?(LOOPBACK_RULE_MODULE),
+                   "e2e/playwright.config.ts: \"this machine\" must come from #{LOOPBACK_RULE_MODULE} " \
+                   "in #{ACCESS_TOKEN_MODULE}, not a second spelling that can disagree")
+end
+
+def assert_the_token_cannot_leave_the_target_origin(config)
+  @log.unless_true(config.include?(CROSS_ORIGIN_REFUSAL),
+                   "e2e/playwright.config.ts: use.extraHTTPHeaders is context-wide — the run must be " \
+                   "refused when a configured origin sits off the target host")
+  declared = cross_origin_vars_of(config)
+  CROSS_ORIGIN_VARS.each do |name|
+    @log.unless_true(declared.include?(name),
+                     "e2e/playwright.config.ts: #{name} names an origin the browser reaches, so it " \
+                     "must be in CROSS_ORIGIN_BASE_URL_VARS (got #{declared.join(', ')})")
+  end
+end
+
+# The names inside the config's OWN list, not anywhere in the file: several of
+# these variables also appear in `webServer.env`, so a bare `include?` stayed
+# green when a name was deleted from the list that matters.
+def cross_origin_vars_of(config)
+  literal = config[/const CROSS_ORIGIN_BASE_URL_VARS = \[(.*?)\]/m, 1]
+  return [] if literal.nil?
+
+  literal.scan(/"([A-Z0-9_]+)"/).flatten
 end
 
 def main

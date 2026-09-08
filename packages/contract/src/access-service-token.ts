@@ -31,6 +31,34 @@ export const ACCESS_CLIENT_ID_HEADER = "CF-Access-Client-Id";
 /** The header Access reads the client secret from. */
 export const ACCESS_CLIENT_SECRET_HEADER = "CF-Access-Client-Secret";
 
+/**
+ * The hostnames a request never leaves this machine to reach, and so the ones
+ * that can never be behind a Cloudflare Access application.
+ *
+ * ONE definition, because there were three and they disagreed (PR #1498 review):
+ * the Playwright config recognised `127.0.0.1` but not the rest of `127.0.0.0/8`,
+ * the lane door omitted IPv6 `[::1]`, and the CD smoke probe checked nothing at
+ * all. Each gap sends staging's real service token to whatever is listening on
+ * a laptop port. `.github/scripts/staging-smoke-check.sh` mirrors this list in a
+ * `case` pattern because a shell script cannot import it; both suites carry a
+ * row per form.
+ *
+ * Takes `URL.hostname`, which is why IPv6 arrives bracketed (`[::1]`) — that is
+ * the form the WHATWG parser produces, and the bare form is accepted too for a
+ * caller that split a host string itself. `0.0.0.0` and `::` are the unspecified
+ * addresses: they are not loopback in the strict sense, but as a REQUEST
+ * DESTINATION they reach this machine, which is the property that matters here.
+ *
+ * `*.localhost` is included per RFC 6761 §6.3 — browsers resolve it to loopback,
+ * and `app.localhost` is a shape this suite could plausibly grow.
+ */
+export function isLoopbackHostname(hostname: string): boolean {
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true;
+  if (hostname === "[::1]" || hostname === "::1") return true;
+  if (hostname === "[::]" || hostname === "::" || hostname === "0.0.0.0") return true;
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
+}
+
 /** One Cloudflare Access service token, both halves present. */
 export interface AccessServiceToken {
   readonly clientId: string;
