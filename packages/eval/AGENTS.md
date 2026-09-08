@@ -167,6 +167,12 @@ project's own, ported from `evaluators.py`.
   (`evaluator_oracle_cases.py::SCENARIOS`, `gate_oracle.py`, `strata_oracle.py`), then that list —
   then `bash packages/eval/scripts/export-fixtures.sh`. The pin is deliberately not exported
   alongside the scenarios; a list Python writes would move with the deletion and prove nothing.
+  **`SCENARIOS` is a roster, and two of its families live next door (#1493).** The bypass and place
+  selections are `evaluator_oracle_selection_cases.py`, the `resolve_reply_language` decision points
+  are `evaluator_oracle_reply_language_cases.py`, and the roster splices each list back in at the
+  position it always held — the exported fixture's case ORDER is what the drift gate compares, so
+  the roster, never the family module, decides it. Touching one of those two families is a
+  three-file change: the family, the pin, and the export.
 - `EVALUATOR_VERSION = 'official-v2'` mirrors `evaluators.py` and rides on every instance as
   `evaluatorVersion`. Bump both sides together or the two runners' baselines stop being comparable.
 
@@ -279,7 +285,8 @@ re-proving the round trip in the same change.
   declares them as `Mapping[str, object] | None` — mirroring it is the point.
 - Fixtures are generated. Never hand-edit one; change the canonical dataset in
   `apps/agent/src/animichi/tests/eval/datasets/` (or, for the oracle, its scenarios in
-  `apps/agent/src/animichi/tests/eval/evaluator_oracle_cases.py`) and re-export. The one file that
+  `apps/agent/src/animichi/tests/eval/evaluator_oracle_cases.py`, or the family module it splices
+  in) and re-export. The one file that
   is not generated — and must move in the same change — is the scenario pin
   `test/expected-oracle-scenarios.ts` (above).
 - Nothing under `src/evaluators/` may derive an expected score. Python decides the numbers; the
@@ -439,7 +446,7 @@ door's environment. `test/staging-door.test.ts` holds all of that.
 
 **Cases that need a starting point (E-1 #1380).** Five cases — all of `phase1c_selection_v1` —
 carry `inputs.seeded_pending`, a clarification their measured turn REPLIES to. Python set that
-state directly on an in-process session (`eval_harness._selection_task`); over HTTP a session's
+state directly on an in-process session (`agent_eval_task.selection_task`); over HTTP a session's
 state is the trace of its turns, so `CaseLifecycle.setup()` posts a frozen prefix to the edge's
 staging-only seeding procedure before the task runs, and the task then sends the case's turns to
 that session (`SeededSessions`, keyed on the case's own `inputs` object — the one reference the
@@ -531,7 +538,8 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   file — Python's `NoEvaluatedCases`, which also persists nothing.
 - **The breakdown groups by answered intent and requested locale.** There is no
   `metadata.intent` to read and no per-intent summary in `eval_harness.py`;
-  what Python has is `exec_tiers.CaseRow`, which writes `intent` off the
+  what Python has is `results_payload.CaseRow`, filled by `report_case_rows`,
+  which writes `intent` off the
   `AgentResult` and `locale` off the inputs onto every row. `score-breakdown.ts`
   groups by exactly those two, and each group's numbers come from
   `logfire/evals`' own `computeAverages` — so a metric only some cases carry

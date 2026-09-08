@@ -208,4 +208,30 @@ not apples-to-apples with the old contract; 15/655 errored cases (~2.3 %) also d
 calibration-only: the official-first switch changes metric semantics and requires a fresh uncapped
 baseline. Per-case results land in `src/animichi/tests/eval/results/`.
 
+**Module layout, and the file cap that keeps it (#1493).** `src/animichi/tests/eval/` is one flat
+package, and every `.py` in it is held to the 1-10-50 file cap by
+`src/animichi/tests/unit/test_eval_file_line_cap.py` — a 301-line module there turns it red. Seven
+modules were split by ownership to get under it, so reach for the right neighbour:
+
+| Concept | Module |
+|---|---|
+| dataset file → `Case`, and a case's replayed message history | `agent_eval_cases.py` |
+| the three routes one case takes (two bypasses, the agent) | `agent_eval_task.py` |
+| the run itself: case selection, evaluators, tracing, `evaluate_target` | `eval_harness.py` |
+| behavior-family strata read off a dataset | `case_strata.py` |
+| the bootstrap / Clopper-Pearson arithmetic | `stats.py` |
+| the results-file schema | `results_payload.py` |
+| a finished report read into those rows | `report_case_rows.py` |
+| the execution tier, the case cap, writing the results file | `exec_tiers.py` |
+| a report's trajectories, classified errors, expectations | `report_gate_evidence.py` |
+| gate policy: capped / smoke / uncapped, and the baseline | `eval_gate_flow.py` |
+| the deterministic project evaluators | `evaluators.py` |
+| the L3 outcome judges (`EVAL_L3=1`) | `l3_judges.py` |
+| offline catalog fixtures: the anime / the places | `mock_catalog_fixtures.py` / `mock_geocode_fixtures.py` |
+| the oracle scenario roster, and the two families it splices in | `evaluator_oracle_cases.py` + `evaluator_oracle_selection_cases.py` / `evaluator_oracle_reply_language_cases.py` |
+
+The cap gate stops at that package on purpose: **24** more files under `src/animichi` are still over
+300 lines (31 before this split), and a gate that starts red is a gate nobody keeps. Widening it —
+and adding the oxlint `max-lines` rule the TypeScript side has never had — is #1519.
+
 ## TDD: invoke `/backend-tdd` before writing Python.

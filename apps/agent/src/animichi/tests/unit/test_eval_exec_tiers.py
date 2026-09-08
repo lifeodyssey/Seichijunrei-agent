@@ -13,8 +13,6 @@ from pydantic_evals import Case, Dataset
 from animichi.agents.agent_result import AgentResult
 from animichi.agents.runtime_models import SearchResponseModel
 from animichi.tests.eval.exec_tiers import (
-    CaseRow,
-    ResultsPayload,
     cap_cases,
     is_fullstack,
     read_max_cases,
@@ -22,6 +20,7 @@ from animichi.tests.eval.exec_tiers import (
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
 from animichi.tests.eval.null_database import NullDatabase
+from animichi.tests.eval.results_payload import CaseRow, ResultsPayload
 from animichi.tests.streaming_function_model import streaming_function_model
 
 EvalTaskFactory = Callable[[object, Callable[[], MockCatalogClient], object], object]

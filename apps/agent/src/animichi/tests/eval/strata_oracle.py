@@ -15,7 +15,7 @@ Written through ``stats_oracle.py``, the module that owns the output file.
 
 from __future__ import annotations
 
-from animichi.tests.eval.stats import (
+from animichi.tests.eval.case_strata import (
     CaseStrata,
     MalformedEvalDataset,
     case_strata_from_text,

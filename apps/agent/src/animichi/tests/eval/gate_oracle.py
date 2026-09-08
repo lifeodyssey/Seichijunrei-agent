@@ -30,6 +30,7 @@ from animichi.tests.eval.baseline_oracle import (
     record_json,
     synthetic_record,
 )
+from animichi.tests.eval.case_strata import load_case_strata
 from animichi.tests.eval.gate import (
     BaselineRecord,
     CaseScores,
@@ -41,7 +42,6 @@ from animichi.tests.eval.provider_outage import (
     CAPPED_LANE_CEILING,
     provider_outage_failure,
 )
-from animichi.tests.eval.stats import load_case_strata
 
 DATASET_PATH = EVAL_DIR / "datasets" / "agent_eval_v3.json"
 SUBSET_SIZE = 40

@@ -31,6 +31,13 @@ StepOrigin = Literal["model", "server"]
 """Who asked for the call, in the vocabulary the frames publish (#1462).
 `StepRecord.model_initiated` said as the wire says it."""
 
+#: The two queries and two replies every scenario is written against, shared so
+#: the scenario roster and its split-out families cannot drift apart (#1493).
+JA_QUERY = "涼宮ハルヒの聖地はどこですか"
+JA_REPLY = "西宮市の聖地はこちらです。"
+EN_QUERY = "Where is the pilgrimage spot?"
+EN_REPLY = "The spots are in Nishinomiya."
+
 
 @dataclass(frozen=True)
 class OracleStep:

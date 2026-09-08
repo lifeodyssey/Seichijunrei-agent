@@ -6,10 +6,9 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-from animichi.agents.agent_result import AgentResult
 from animichi.tests.eval.baseline_mint import mint_baseline
+from animichi.tests.eval.case_strata import CaseStrata
 from animichi.tests.eval.direct_gates import (
-    TrajectoryCase,
     direct_thrash_gate,
     print_direct_thrash_metrics,
 )
@@ -25,11 +24,9 @@ from animichi.tests.eval.eval_harness import (
     AgentReport,
 )
 from animichi.tests.eval.eval_report import print_scores
-from animichi.tests.eval.evaluators import accepted_chains_for_case
 from animichi.tests.eval.exec_tiers import (
     EvalTierTarget,
     build_results_payload,
-    collect_case_scores,
     save_results,
 )
 from animichi.tests.eval.gate import (
@@ -40,18 +37,20 @@ from animichi.tests.eval.gate import (
 )
 from animichi.tests.eval.gate_input import GateInput
 from animichi.tests.eval.provider_outage import starved_case_ids
+from animichi.tests.eval.report_case_rows import collect_case_scores
+from animichi.tests.eval.report_gate_evidence import (
+    classified_errors,
+    trajectory_cases,
+    trajectory_expectations,
+)
 from animichi.tests.eval.run_scores import ScoreMap, scores_for_run
 from animichi.tests.eval.smoke_errors import (
-    SmokeError,
     SmokeErrorSummary,
-    classify_error,
     format_transport_notice,
     smoke_error_failures,
     summarize_errors,
 )
-from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.trajectory_assertions import (
-    TrajectoryExpectation,
     print_trajectory_assertions,
     trajectory_assertion_failures,
 )
@@ -258,37 +257,11 @@ def _report_gate_input(
         len(report.cases),
         scores,
         collect_case_scores(report),
-        errors=_classified_errors(report),
-        trajectories=_trajectory_cases(report),
-        expectations=_expectations(report),
+        errors=classified_errors(report),
+        trajectories=trajectory_cases(report),
+        expectations=trajectory_expectations(report),
         strata=None if CAPPED else strata.by_case,
         starved=starved_case_ids(report),
-    )
-
-
-def _expectations(report: AgentReport) -> tuple[TrajectoryExpectation, ...]:
-    return tuple(
-        TrajectoryExpectation.from_case(
-            TrajectoryCase.from_result(str(case.name), case.output),
-            accepted_chains_for_case(case.metadata),
-        )
-        for case in report.cases
-        if isinstance(case.output, AgentResult)
-    )
-
-
-def _classified_errors(report: AgentReport) -> tuple[SmokeError, ...]:
-    return tuple(
-        classify_error(str(failure.name), failure.error_message)
-        for failure in report.failures
-    )
-
-
-def _trajectory_cases(report: AgentReport) -> tuple[TrajectoryCase, ...]:
-    return tuple(
-        TrajectoryCase.from_result(str(case.name), case.output)
-        for case in report.cases
-        if isinstance(case.output, AgentResult)
     )
 
 

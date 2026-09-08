@@ -26,8 +26,8 @@ from animichi.tests.eval.evaluators import (
     LocaleMatch,
     NonemptyResults,
     _available_data_keys,
-    build_l3_evaluators,
 )
+from animichi.tests.eval.l3_judges import build_l3_evaluators
 from animichi.tests.unit.eval_evaluator_fixtures import JA, ctx, result, steps
 
 

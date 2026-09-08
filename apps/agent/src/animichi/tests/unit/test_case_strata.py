@@ -16,9 +16,7 @@ from pydantic_evals.reporting import EvaluationReport
 
 from animichi.tests.eval import eval_gate_flow
 from animichi.tests.eval.baseline_oracle import EVAL_DIR
-from animichi.tests.eval.eval_gate_flow import finish_cli_report
-from animichi.tests.eval.exec_tiers import EvalTierTarget
-from animichi.tests.eval.stats import (
+from animichi.tests.eval.case_strata import (
     UNSTRATIFIED,
     CaseStrata,
     MalformedEvalDataset,
@@ -26,6 +24,8 @@ from animichi.tests.eval.stats import (
     load_case_strata,
     pooled_stratum_warning,
 )
+from animichi.tests.eval.eval_gate_flow import finish_cli_report
+from animichi.tests.eval.exec_tiers import EvalTierTarget
 from animichi.tests.eval.strata_first_run import (
     evaluate_after_strata,
     preflight_strata,

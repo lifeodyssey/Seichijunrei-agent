@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from animichi.tests.eval.exec_tiers import collect_case_scores
 from animichi.tests.eval.gate import (
     BaselineRecord,
     bootstrap_gate,
@@ -23,6 +22,7 @@ from animichi.tests.eval.gate import (
     write_baseline_record,
 )
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
+from animichi.tests.eval.report_case_rows import collect_case_scores
 from animichi.tests.eval.translation_eval_cases import (
     CASES,
     make_translation_task,

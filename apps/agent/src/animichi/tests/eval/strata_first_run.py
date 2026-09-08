@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TypeVar
 
-from animichi.tests.eval.stats import CaseStrata, load_case_strata
+from animichi.tests.eval.case_strata import CaseStrata, load_case_strata
 
 logger = logging.getLogger(__name__)
 

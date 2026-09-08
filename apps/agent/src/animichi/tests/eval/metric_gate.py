@@ -30,8 +30,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from animichi.tests.eval.baseline_record import BaselineRecord
+from animichi.tests.eval.case_strata import UNSTRATIFIED
 from animichi.tests.eval.stats import (
-    UNSTRATIFIED,
     Comparison,
     PairedScore,
     stratified_paired_comparison,

@@ -12,14 +12,15 @@ from pydantic_evals.reporting import EvaluationReport, ReportCase, ReportCaseFai
 
 from animichi.agents.agent_result import AgentResult
 from animichi.tests.eval import eval_gate_flow, run_scores
+from animichi.tests.eval.case_strata import CaseStrata
 from animichi.tests.eval.eval_gate_flow import finish_cli_report
 from animichi.tests.eval.eval_harness import AgentReport
 from animichi.tests.eval.evaluators import AgentExpected, AgentInput
-from animichi.tests.eval.exec_tiers import CaseRow, EvalTierTarget, ResultsPayload
+from animichi.tests.eval.exec_tiers import EvalTierTarget
 from animichi.tests.eval.gate import BaselineRecord, baseline_path
+from animichi.tests.eval.results_payload import CaseRow, ResultsPayload
 from animichi.tests.eval.run_agent_eval import _finish_report
 from animichi.tests.eval.run_scores import NoEvaluatedCases
-from animichi.tests.eval.stats import CaseStrata
 from animichi.tests.eval.test_agent_eval import _assert_report
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "eval_gate"

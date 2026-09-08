@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import cast
 
 from animichi.clients.geocode import GeocodeKind
-from animichi.tests.eval.mock_catalog_fixtures import GEOCODE_FIXTURES, POINT_SEEDS
+from animichi.tests.eval.mock_catalog_fixtures import POINT_SEEDS
+from animichi.tests.eval.mock_geocode_fixtures import GEOCODE_FIXTURES
 
 DATASET = Path(__file__).parents[1] / "eval" / "datasets" / "agent_eval_v3.json"
 SUFFIX_CASES = {"C2_ja_005", "C2_zh_004", "C2_zh_006"}

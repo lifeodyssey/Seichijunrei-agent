@@ -13,6 +13,7 @@ from animichi.infrastructure.persistence.repositories.composite import (
     PersistenceRepos,
 )
 from animichi.tests.eval import eval_gate_flow, run_agent_eval
+from animichi.tests.eval.case_strata import CaseStrata
 from animichi.tests.eval.eval_gate_flow import finish_cli_report, gate_exit_code
 from animichi.tests.eval.eval_harness import (
     DATASET_PATH,
@@ -45,7 +46,6 @@ from animichi.tests.eval.run_agent_eval import (
     _main,
     _parse_args,
 )
-from animichi.tests.eval.stats import CaseStrata
 
 
 def test_fullstack_db_url_prefers_secret_test_database_url(

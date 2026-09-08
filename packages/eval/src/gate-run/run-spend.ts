@@ -9,10 +9,10 @@ import { TURN_SECONDS_ATTRIBUTE } from '../staging-turn-task.ts';
  *
  * TOKENS AND DOLLARS ARE NOT HERE, and that is a measurement, not an omission.
  * Python reads them off `AgentResult.usage` — an in-process object
- * (`exec_tiers._output_usage`). The SD-9 stream publishes no usage part and
- * `GET /v1/conversations/{id}/messages` carries a run status and nothing about
- * cost, so a TS run against the deployed edge has no honest token count to
- * write down. The dollar figure for a double run comes from the provider
+ * (`report_case_rows._output_usage`). The SD-9 stream publishes no usage part
+ * and `GET /v1/conversations/{id}/messages` carries a run status and nothing
+ * about cost, so a TS run against the deployed edge has no honest token count
+ * to write down. The dollar figure for a double run comes from the provider
  * dashboard; inventing a number here would make the result file look like it
  * had measured one.
  *

@@ -6,9 +6,10 @@ import type { EvaluationReport, ReportCase, ReportCaseAggregate } from 'logfire/
  *
  * WHERE THE TWO DIMENSIONS COME FROM. Python does not aggregate by either one;
  * what it does is write them onto every per-case row —
- * `exec_tiers.CaseRow.intent = _output_intent(output)`, read off the
+ * `results_payload.CaseRow.intent = _output_intent(output)`, read off the
  * `AgentResult` the turn produced, and `CaseRow.locale = _input_locale(inputs)`,
- * the locale the case ASKED for. This groups by exactly those two facts:
+ * the locale the case ASKED for — both written by `report_case_rows`. This
+ * groups by exactly those two facts:
  * `TranscriptResult.intent` is the wire twin of the first (`turn-transcript.ts`),
  * and `ExportedAgentInput.locale` is literally the second. There is no
  * `metadata.intent` to read — `AgentExpected` carries acceptable stages, data
