@@ -52,7 +52,23 @@ subject on `main`), so a subject that passes locally passes there. It rejects un
 scopes, subjects over 72 characters, generic outcomes (`wip`, `checkpoint`, `update`, …), a subject
 that starts with anything but a lowercase verb, an issue reference in the subject, and
 Claude/Anthropic/Codex/OpenAI `Co-Authored-By` or `Generated with` trailers. Legitimate human and
-Dependabot co-authors survive, and `Merge …` / `Revert "…"` subjects are exempt.
+Dependabot co-authors survive, and `Merge …` / `Revert "…"` subjects are exempt. Body and footer
+lines over 100 characters are rejected too — that pair comes from `@commitlint/config-conventional`,
+which the config extends, not from a rule written here.
+
+Two ways to check a message without committing:
+
+```bash
+pnpm install                              # the hook brings its own CLI; this one is yours
+pnpm exec commitlint --edit path/to/draft # one drafted message
+pnpm exec commitlint --from origin/main   # every commit on the branch
+```
+
+**Not** `pre-commit run commitlint --hook-stage commit-msg`. The upstream hook is
+`entry: commitlint --edit` with `pass_filenames: false`, so pre-commit discards the value of the
+`--commit-msg-filename` it nonetheless demands, and commitlint always lints whatever sits in
+`$(git rev-parse --git-dir)/COMMIT_EDITMSG`. Aimed at a file holding `wip` while `COMMIT_EDITMSG`
+held a valid subject, it reports Passed — that run says nothing about the file you named.
 
 ## pre-push (`scripts/local-gates/pre-push-affected.sh`)
 
