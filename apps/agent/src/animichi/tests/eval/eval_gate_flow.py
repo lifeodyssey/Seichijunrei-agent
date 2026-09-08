@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
 
 from animichi.agents.agent_result import AgentResult
+from animichi.tests.eval.baseline_mint import mint_baseline
 from animichi.tests.eval.direct_gates import (
     TrajectoryCase,
     direct_thrash_gate,
@@ -26,10 +25,7 @@ from animichi.tests.eval.eval_harness import (
     AgentReport,
 )
 from animichi.tests.eval.eval_report import print_scores
-from animichi.tests.eval.evaluators import (
-    EVALUATOR_VERSION,
-    accepted_chains_for_case,
-)
+from animichi.tests.eval.evaluators import accepted_chains_for_case
 from animichi.tests.eval.exec_tiers import (
     EvalTierTarget,
     build_results_payload,
@@ -41,8 +37,9 @@ from animichi.tests.eval.gate import (
     bootstrap_gate,
     error_rate_gate,
     read_baseline_record,
-    write_baseline_record,
 )
+from animichi.tests.eval.gate_input import GateInput
+from animichi.tests.eval.provider_outage import starved_case_ids
 from animichi.tests.eval.run_scores import ScoreMap, scores_for_run
 from animichi.tests.eval.smoke_errors import (
     SmokeError,
@@ -58,28 +55,6 @@ from animichi.tests.eval.trajectory_assertions import (
     print_trajectory_assertions,
     trajectory_assertion_failures,
 )
-
-CaseScores: TypeAlias = dict[str, ScoreMap]
-
-
-@dataclass(frozen=True)
-class GateInput:
-    model: str
-    dataset: str
-    tier: str
-    case_count: int
-    evaluated_count: int
-    scores: ScoreMap
-    cases: CaseScores
-    errors: tuple[SmokeError, ...] = ()
-    trajectories: tuple[TrajectoryCase, ...] = ()
-    expectations: tuple[TrajectoryExpectation, ...] = ()
-    strata: dict[str, str] | None = None
-
-    @property
-    def errored_count(self) -> int:
-        """Single source of truth: the classified errors are the errored cases."""
-        return len(self.errors)
 
 
 def gate_exit_code(failures: list[str] | None) -> int:
@@ -112,20 +87,6 @@ def persist_report(
     )
 
 
-def _new_baseline(gate_input: GateInput) -> BaselineRecord:
-    return BaselineRecord(
-        model=gate_input.model,
-        dataset=gate_input.dataset,
-        tier=gate_input.tier,
-        evaluator_version=EVALUATOR_VERSION,
-        case_count=gate_input.case_count,
-        evaluated_count=gate_input.evaluated_count,
-        errored_count=gate_input.errored_count,
-        scores=gate_input.scores,
-        cases=gate_input.cases,
-    )
-
-
 def _baseline(
     layer: str, model_id: str, case_count: int, baselines_dir: Path
 ) -> BaselineRecord | None:
@@ -135,14 +96,6 @@ def _baseline(
         baselines_dir=baselines_dir,
         expected_case_count=case_count,
         expected_metrics=METRIC_NAMES,
-    )
-
-
-def _write_baseline(
-    record: BaselineRecord, layer: str, model_id: str, baselines_dir: Path
-) -> None:
-    write_baseline_record(
-        record, layer=layer, model_id=model_id, baselines_dir=baselines_dir
     )
 
 
@@ -248,12 +201,9 @@ def _run_uncapped_gate(
     failures = _gate_failures(gate_input, baseline, enforce_direct=enforce_direct)
     if failures:
         return failures
-    if baseline is None:
-        _write_baseline(
-            _new_baseline(gate_input), layer, gate_input.model, baselines_dir
-        )
-        return None
-    return []
+    if baseline is not None:
+        return []
+    return mint_baseline(gate_input, layer=layer, baselines_dir=baselines_dir)
 
 
 def _print_direct_metrics(
@@ -272,7 +222,12 @@ def _gate_failures(
 ) -> list[str]:
     direct = direct_thrash_gate(gate_input.trajectories)
     bootstrap = (
-        bootstrap_gate(gate_input.cases, baseline, strata=gate_input.strata)
+        bootstrap_gate(
+            gate_input.cases,
+            baseline,
+            strata=gate_input.strata,
+            starved=gate_input.starved,
+        )
         if baseline
         else []
     )
@@ -307,6 +262,7 @@ def _report_gate_input(
         trajectories=_trajectory_cases(report),
         expectations=_expectations(report),
         strata=None if CAPPED else strata.by_case,
+        starved=starved_case_ids(report),
     )
 
 

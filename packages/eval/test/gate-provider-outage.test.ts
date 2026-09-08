@@ -34,7 +34,7 @@ for (const name of OUTAGE_ROWS.map((row) => row.name)) {
     const row = oracleEntryNamed(OUTAGE_ROWS, name);
 
     assert.equal(
-      providerOutageFailure(row.starved, row.evaluated, row.answered_by),
+      providerOutageFailure(row.starved, row.evaluated, row.answered_by, row.ceiling),
       row.failure,
     );
   });
@@ -43,7 +43,28 @@ for (const name of OUTAGE_ROWS.map((row) => row.name)) {
 void test('the ceiling is the one Python published its rows against', () => {
   const atCeiling = oracleEntryNamed(OUTAGE_ROWS, 'at_ceiling');
 
+  assert.equal(atCeiling.ceiling, PROVIDER_OUTAGE_CEILING);
   assert.equal(atCeiling.starved / atCeiling.evaluated, PROVIDER_OUTAGE_CEILING);
+});
+
+/**
+ * Python's second ceiling has no counterpart here, and that is a decision
+ * rather than an omission: `gate-exit-code.ts` says this runner never writes
+ * the record it is judged by, so the lower ceiling — which exists to stop a
+ * starved run MINTING a baseline — would guard a write that never happens
+ * (#1499). The rows still carry it, so both lanes' sentences replay here.
+ */
+void test('the lower ceiling belongs to a lane this runner does not have', () => {
+  const baselineLane = oracleEntryNamed(OUTAGE_ROWS, 'baseline_lane_at_ceiling');
+
+  assert.ok(baselineLane.ceiling < PROVIDER_OUTAGE_CEILING);
+  assert.equal(
+    providerOutageFailure(3, 100, DEPLOYED_AGENT_TIER, PROVIDER_OUTAGE_CEILING),
+    null,
+  );
+  assert.ok(
+    providerOutageFailure(3, 100, DEPLOYED_AGENT_TIER, baselineLane.ceiling) !== null,
+  );
 });
 
 /** A run of `starved` crashed turns and `answered` ordinary ones. */
@@ -72,7 +93,7 @@ void test('a wholly starved run fails, naming the share and the surface', () => 
   const result = gateRunResultOf(reportOf(10, 0), settings(10));
 
   assert.deepEqual(result.failures, [
-    providerOutageFailure(10, 10, DEPLOYED_AGENT_TIER),
+    providerOutageFailure(10, 10, DEPLOYED_AGENT_TIER, PROVIDER_OUTAGE_CEILING),
   ]);
 });
 
@@ -135,7 +156,9 @@ void test('a starved run reports the outage, not the column it starved', () => {
 
   const result = gateRunResultOf(report, { ...settings(10), metricNames: metrics });
 
-  assert.deepEqual(result.failures, [providerOutageFailure(10, 10, DEPLOYED_AGENT_TIER)]);
+  assert.deepEqual(result.failures, [
+    providerOutageFailure(10, 10, DEPLOYED_AGENT_TIER, PROVIDER_OUTAGE_CEILING),
+  ]);
   assert.deepEqual(result.scores, {});
   assert.deepEqual(result.metrics, []);
 });

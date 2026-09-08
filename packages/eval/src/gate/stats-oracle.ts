@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import type { BaselineRecord } from './baseline-record.ts';
-import type { CaseScores } from './bootstrap-gate.ts';
+import type { CaseScores } from './metric-gate.ts';
 import type { Comparison, Interval } from './paired-bootstrap.ts';
 
 /**
@@ -53,6 +53,9 @@ export interface OracleGateCase {
   readonly current_cases: CaseScores;
   readonly baseline: BaselineRecord;
   readonly strata: Readonly<Record<string, string>>;
+  /** The run's starved case ids, sorted — empty for every row but
+   * `starved_pairs` (`gate_oracle._starved_gate_case`). */
+  readonly starved: readonly string[];
   readonly iterations: number;
   readonly min_paired: number;
   readonly failures: readonly string[];
@@ -69,12 +72,17 @@ export interface OracleErrorRateCase {
 }
 
 /** One `provider_outage_failure` answer: the counts, the party the sentence
- * blames, and Python's sentence. */
+ * blames, the ceiling it was judged against, and Python's sentence.
+ *
+ * The ceiling is a column because Python has two of them and this runner has
+ * one (`gate-run/provider-outage.ts`); each row publishes the one it was
+ * written with, so both lanes replay here without this side claiming both. */
 export interface OracleProviderOutageCase {
   readonly name: string;
   readonly starved: number;
   readonly evaluated: number;
   readonly answered_by: string;
+  readonly ceiling: number;
   readonly failure: string | null;
 }
 

@@ -1,7 +1,7 @@
 import { averages } from 'logfire/evals';
 import type { EvaluationReport, ReportCase } from 'logfire/evals';
 
-import type { CaseScores } from './bootstrap-gate.ts';
+import type { CaseScores } from './metric-gate.ts';
 
 /**
  * What the gates need out of a finished `logfire/evals` report — the TS side of

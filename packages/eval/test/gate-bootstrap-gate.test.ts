@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { BaselineRecord } from '../src/gate/baseline-record.ts';
+import { bootstrapGate } from '../src/gate/bootstrap-gate.ts';
 import {
-  bootstrapGate,
   metricGateResults,
   type BootstrapGateOptions,
   type CaseScores,
   type GateOutcome,
-} from '../src/gate/bootstrap-gate.ts';
+} from '../src/gate/metric-gate.ts';
 import type { Interval } from '../src/gate/paired-bootstrap.ts';
 import {
   oracleEntryNamed,
@@ -24,6 +24,7 @@ function makeGateOutcome(entry: OracleGateCase, overrides: BootstrapGateOptions 
   return bootstrapGate(entry.current_cases, entry.baseline, {
     iterations: entry.iterations,
     strata: entry.strata,
+    starved: new Set(entry.starved),
     ...overrides,
   });
 }
@@ -67,6 +68,31 @@ void test('too few paired cases is skipped, never guessed at', () => {
     failures: [],
     warnings: ['Skipping metric: only 5 paired cases, need 10'],
   });
+});
+
+/**
+ * The pairs an outage emptied are not a small sample (#1499).
+ *
+ * Twelve of the row's twenty cases came back as the boundary's payload, so they
+ * carry the columns a starved turn still scores and not the one the baseline
+ * pairs on. Eight pairs are left — under `minPaired`, exactly where the gate
+ * used to log a skip and wave the run through.
+ */
+void test('a metric starvation emptied is failed, not skipped', () => {
+  const outcome = makeGateOutcome(oracleEntryNamed(oracle, 'starved_pairs'));
+
+  assert.deepEqual(outcome.warnings, []);
+  assert.match(outcome.failures.join('\n'), /12 of the missing pairs came back/);
+});
+
+/** The control: the same shortfall, with nobody starved, is still a warning. */
+void test('the same eight pairs are a skip when no case was starved', () => {
+  const entry = oracleEntryNamed(oracle, 'starved_pairs');
+
+  const outcome = makeGateOutcome(entry, { starved: new Set() });
+
+  assert.deepEqual(outcome.failures, []);
+  assert.deepEqual(outcome.warnings, ['Skipping metric: only 8 paired cases, need 10']);
 });
 
 void test('an indeterminate metric is reported without blocking', () => {
