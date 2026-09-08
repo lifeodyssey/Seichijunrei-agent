@@ -24,11 +24,26 @@
 #   smoke     the two staging surfaces and the retry window.
 #
 # Concurrency is per job, not per workflow: `cd-staging` for the five stages and
-# the smoke probe, `cd-production` for the promotion. A run parked at the
-# production approval gate no longer holds the staging lane (#1204 / #1325), and
-# `queue: max` orders up to 100 pending jobs per group instead of cancelling the
-# one already waiting (owner decision, spec §六 #3). actionlint has no schema
-# entry for `queue` — see .github/actionlint.yaml.
+# the smoke probe, `cd-production` for the promotion, and `cd-build-<sha>` for
+# `plan` and `build`. A run parked at the production approval gate no longer
+# holds the staging lane (#1204 / #1325), and `queue: max` orders up to 100
+# pending jobs per group instead of cancelling the one already waiting (owner
+# decision, spec §六 #3). actionlint has no schema entry for `queue` — see
+# .github/actionlint.yaml.
+#
+# `plan` and `build` are keyed on the commit rather than sharing a lane: the
+# only run that can ever wait is a rerun of the same commit, and what it waits
+# for is the run already holding that commit's `release-<sha>` artifact name.
+# Two different pushes still never queue behind each other, which is exactly
+# what a workflow-level group would reintroduce — there is still none, and
+# .github/scripts/test_cd_shape_contract.rb still asserts that (owner decision
+# 2026-09-08).
+#
+# The four Worker-publishing stages and the promotion pass
+# `package-manager-cache: false` to setup-node. Those jobs never install; they
+# hand the deploy to `wrangler-action`, and a restored package-manager cache is
+# build state anything holding a `GITHUB_TOKEN` can write to (zizmor
+# `cache-poisoning`, high). The jobs that only build keep their cache.
 #
 # This file holds no credential (#1367). Every job that needs one proves who it
 # is instead: `environment:` puts `environment:<name>` into the job's OIDC
@@ -53,12 +68,18 @@ jobs:
   plan:
     name: CD / plan
     runs-on: ubuntu-latest
+    # Per commit, so the only run that can ever wait is a rerun of the one
+    # already holding this commit's `release-<sha>` artifact name.
+    concurrency:
+      group: cd-build-${{ github.sha }}
+      cancel-in-progress: false
+      queue: max
     timeout-minutes: 5
     # `actions: read` is the one addition to the workflow default: the range
     # step below asks the Actions API which commit CD last published.
     permissions:
       contents: read
-      actions: read
+      actions: read  # the range step reads CD's own run history
     outputs:
       packages: ${{ steps.pnpm.outputs.packages }}
       deploy: ${{ steps.pnpm.outputs.deploy }}
@@ -243,12 +264,18 @@ jobs:
     # present an `environment:` subject (§3.5), and `staging` is the one without
     # an approval gate — production's reviewer must not be woken up to build.
     environment: staging
+    # Per commit, so the only run that can ever wait is a rerun of the one
+    # already holding this commit's `release-<sha>` artifact name.
+    concurrency:
+      group: cd-build-${{ github.sha }}
+      cancel-in-progress: false
+      queue: max
     timeout-minutes: 30
     permissions:
       contents: read
       # The registry push needs a Cloudflare token, and this job opens it from
       # ESC with its own OIDC identity rather than reading a stored one.
-      id-token: write
+      id-token: write  # opens the registry push token from ESC
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -453,7 +480,7 @@ jobs:
       contents: read
       # Pulumi Cloud login is OIDC (#1077), not a stored access token; the same
       # identity opens the ESC environment holding the Pulumi-plane tokens.
-      id-token: write
+      id-token: write  # the Pulumi Cloud login, then its ESC environment
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -538,7 +565,7 @@ jobs:
       contents: read
       # The migrator Worker verifies this job's own OIDC token; CI never holds a
       # database credential, not even a short-lived one (decision 6).
-      id-token: write
+      id-token: write  # the migrator Worker verifies this job's token
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -553,6 +580,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Log into Pulumi Cloud with GitHub OIDC
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
@@ -646,7 +674,7 @@ jobs:
       contents: read
       # The publish token is opened from ESC with this job's own OIDC identity;
       # no step here holds a stored credential.
-      id-token: write
+      id-token: write  # opens this stage's publish token from ESC
     steps:
       # The tree, not just the artifact: `.pulumi.version` is the repository's
       # CLI pin and the ESC step below reads it from the checkout.
@@ -663,6 +691,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Log into Pulumi Cloud with GitHub OIDC
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
@@ -720,7 +749,7 @@ jobs:
       contents: read
       # The publish token is opened from ESC with this job's own OIDC identity;
       # no step here holds a stored credential.
-      id-token: write
+      id-token: write  # opens this stage's publish token from ESC
     steps:
       # The tree, not just the artifact: `.pulumi.version` is the repository's
       # CLI pin and the ESC step below reads it from the checkout.
@@ -737,6 +766,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Log into Pulumi Cloud with GitHub OIDC
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
@@ -783,7 +813,7 @@ jobs:
       contents: read
       # The publish token is opened from ESC with this job's own OIDC identity;
       # no step here holds a stored credential.
-      id-token: write
+      id-token: write  # opens this stage's publish token from ESC
     steps:
       # The tree, not just the artifact: `.pulumi.version` is the repository's
       # CLI pin and the ESC step below reads it from the checkout.
@@ -800,6 +830,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Log into Pulumi Cloud with GitHub OIDC
         uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
         with:
@@ -854,7 +885,7 @@ jobs:
       contents: read
       # Only to prove the environment subject is the one the issuer policy
       # accepts; card D3 turns that token into Access headers for the probe.
-      id-token: write
+      id-token: write  # proves the environment subject to the issuer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -904,7 +935,7 @@ jobs:
       contents: read
       # One identity for the whole promotion: the Pulumi Cloud login, the
       # production ESC environment, and the migrator's own OIDC door.
-      id-token: write
+      id-token: write  # Pulumi Cloud, production ESC, the migrator door
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -931,6 +962,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Install the pinned Pulumi CLI
         if: ${{ needs.plan.outputs.infra == 'true' }}
         uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
