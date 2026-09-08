@@ -96,15 +96,25 @@ jobs:
           # happens to touch the same packages (9598144f7, #1506). This is the
           # deployment record spec decision 3 said CD did not have.
           #
-          # It cannot be `status=success` on the run: the repository policy
-          # auto-rejects every `production` approval, so `promote production`
-          # fails and NO run on main is ever `conclusion=success`. That filter
-          # returns nothing and the base falls silently back to `before` —
-          # the bug this step exists to fix, reintroduced by its own query. The
-          # staging record is the `CD / staging smoke` job, the last staging
-          # stage: it runs only after all five publish steps and probes the
-          # deployed surfaces, so its success means that head is live on
-          # staging whatever production later did.
+          # It cannot be `status=success` on the run, which is an inverted
+          # signal here. A run ends `success` exactly when it deployed nothing:
+          # `plan` selected no package, every later job skipped, and a skipped
+          # job counts as a green run. A run that did deploy ends `failure`,
+          # because the repository policy auto-rejects the `production`
+          # approval and `promote production` fails after staging is already
+          # published. Measured over the 15 newest completed runs on main
+          # (2026-09-08): six ended `success` and all six had
+          # `CD / staging smoke: skipped`. So `status=success&per_page=1` does
+          # not come back empty — it comes back with a head nothing was ever
+          # published from (34185204327 on 71998d47), which is worse than the
+          # `before` it replaced.
+          #
+          # The staging record is the `CD / staging smoke` job, the last
+          # staging stage: it runs only after all five publish steps and probes
+          # the deployed surfaces, so its success means that head is live on
+          # staging whatever production later did. Its name is pinned against
+          # the selector below by `test_cd_publish_contract.rb` — a rename or a
+          # typo empties this lookup instead of failing it.
           base=""
           reason=""
           # Newest first, bounded: 15 completed runs is a fortnight of main at

@@ -46,10 +46,20 @@ forbids re-running that run — the diff is stranded (#1506).
 `plan` finds the base by walking the 15 newest **completed** `cd.yml` runs on `main`, newest
 `created_at` first, and taking the first whose `CD / staging smoke` job concluded `success` (`plan`
 holds `actions: read` for those two API reads). Smoke is the last staging stage, so its success
-means that head is live on staging. The run's own conclusion is deliberately not the test: the
-repository policy auto-rejects every `production` approval, so `promote production` fails and no run
-on main is ever `conclusion=success` — a `status=success` filter would match nothing and silently
-reinstate the bug. A candidate is used only when this push's history still descends from it
+means that head is live on staging.
+
+The run's own conclusion is deliberately not the test, because on this repository it is an inverted
+signal. A CD run ends `success` exactly when it deployed nothing — `plan` selected no package and
+every later job skipped, and skipped jobs make a green run. A run that *did* deploy ends `failure`,
+because the repository policy auto-rejects the `production` approval and `promote production` fails
+after staging has already been published. Over the 15 newest completed runs on `main` (measured
+2026-09-08) six ended `success`, and all six had `CD / staging smoke: skipped`. A
+`status=success&per_page=1` filter therefore does not come back empty; it comes back with a head
+nothing was ever published from, which is worse than the `github.event.before` it replaced. The
+smoke job's name and `plan`'s jq selector are pinned to each other by
+`test_cd_publish_contract.rb`, since a rename or a typo would empty the lookup rather than fail it.
+
+A candidate is used only when this push's history still descends from it
 (`git merge-base --is-ancestor`). If none qualifies the base falls back to `github.event.before`,
 and then to `HEAD~1` when `before` is zero or unreachable (first push, force push, rewritten
 history). The step prints the chosen run id, base and reason into the job summary, and an Actions

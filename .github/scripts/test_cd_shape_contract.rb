@@ -56,12 +56,10 @@ ZERO_SHA = "0000000000000000000000000000000000000000"
 HEAD_GUARD = "git ls-remote origin refs/heads/main"
 # `github.event.before` is the previous *push*, not the previous *deployment*, so
 # a failed run's cohort is stranded (#1506). The base is the newest head CD put
-# on staging — a *job* question, because the policy auto-rejects every
-# `production` approval and no run on main is ever `conclusion=success`. The
-# reasoning is in the step; these are the four spellings it may not lose.
+# on staging, which is a question about a job rather than about a run — the
+# reasoning is in the step, and the two spellings that carry it between `plan`
+# and `smoke` are pinned by `test_cd_publish_contract.rb`, which owns that job.
 DEPLOYED_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=completed\b}
-SMOKE_JOB = "CD / staging smoke"
-RUN_JOBS_QUERY = %r{actions/runs/\$\{?run_id\}?/jobs}
 ANCESTOR_CHECK = "git merge-base --is-ancestor"
 # Without it a stage runs on a push whose `build` was skipped — no artifact.
 BUILD_GUARD = "needs.build.result == 'success'"
@@ -169,8 +167,6 @@ end
 def assert_plan_guards
   @log.unless_true(plan_script.match?(DEPLOYED_QUERY) && plan_script.include?("head_sha"),
                    "cd.yml:plan: must base its range on a completed run's head, not on the previous push")
-  @log.unless_true(plan_script.include?(SMOKE_JOB) && plan_script.match?(RUN_JOBS_QUERY),
-                   "cd.yml:plan: must read each candidate run's `#{SMOKE_JOB}` job to know that head reached staging")
   @log.unless_true(plan_script.include?(ANCESTOR_CHECK),
                    "cd.yml:plan: must reject a candidate base this head does not descend from")
   @log.unless_true(plan_script.include?("$EVENT_BEFORE"),
