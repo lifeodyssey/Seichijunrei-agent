@@ -1,3 +1,4 @@
+import { EXPORTED_DATASETS } from '../dataset-sets.ts';
 import { parsedCaseScores, parsedMetricScores } from '../gate/baseline-record.ts';
 
 /**
@@ -45,6 +46,22 @@ export function unreadableResultRefusal(path: string): string {
 }
 
 /**
+ * The refusal for a file that parsed but names a set nobody exports — one
+ * sentence, like the read failure above, because a dataset that does not exist
+ * and a path that does not open are the same typo to whoever typed the flag.
+ * Naming the six is what makes it actionable, exactly as `checkedDatasetName`'s
+ * RangeError does for a runner's own flag.
+ */
+export function unknownDatasetRefusal(dataset: string): string {
+  const known = EXPORTED_DATASETS.map((set) => set.name).join(', ');
+  return (
+    `refusing to write a baseline from a run of "${dataset}": this package ` +
+    'exports no such dataset, so what an uncapped run of it counts is unknown. ' +
+    `One of: ${known}.`
+  );
+}
+
+/**
  * A committed `GateRunResult` read back as a capture candidate — total, like
  * `parseBaselineRecord`, so the script that calls it is the one place that
  * decides what an unreadable file MEANS. A result file written before #1515
@@ -53,9 +70,15 @@ export function unreadableResultRefusal(path: string): string {
  */
 export function parseBaselineCandidate(text: string): BaselineCandidate | null {
   const raw = jsonObject(text);
-  if (raw === null) {
-    return null;
-  }
+  return raw === null ? null : candidateFrom(raw);
+}
+
+/**
+ * The five readings one finished run is, folded into it. Each is total and any
+ * one of them saying `null` answers for the whole file: a candidate missing a
+ * field is not a run with a gap in it, it is a file this cannot judge.
+ */
+function candidateFrom(raw: Record<string, unknown>): BaselineCandidate | null {
   const scores = parsedMetricScores(raw.scores);
   const cases = parsedCaseScores(raw.case_scores);
   const named = candidateNames(raw);

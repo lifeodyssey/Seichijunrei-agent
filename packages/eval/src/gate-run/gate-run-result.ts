@@ -38,8 +38,9 @@ import { runSpendOf, type RunSpend } from './run-spend.ts';
  * intervals have to survive the session.
  *
  * FIELD NAMES ARE snake_case, for the same reason `baseline-record.ts`'s are:
- * this is the file's own shape, it sits next to Python-written records, and a
- * camelCase mirror would only be a mapping layer to get wrong.
+ * this is the file's own shape, it sits next to the baseline records
+ * `baseline-record.ts` writes, and a camelCase mirror would only be a mapping
+ * layer to get wrong.
  *
  * WHAT IT DOES NOT DO IS WRITE A BASELINE. Python's uncapped run creates one
  * when none is found (`_run_uncapped_gate`); this runner never does. A runner
@@ -128,7 +129,7 @@ export interface GateRunResult {
   readonly scores: Readonly<Record<string, number>>;
   /** The columns that are reported and NOT gated (`report-only-metrics.ts`).
    * Its own field rather than a ninth entry in `scores`, because `scores` is
-   * positionally aligned with the Python baseline. */
+   * positionally aligned with the committed baseline. */
   readonly report_only: ReportOnlyMetrics;
   /** Where each FAILED case first left the rails (E-4 #1383,
    * `failure-attribution.ts`). Report-only by the same mechanism `report_only`

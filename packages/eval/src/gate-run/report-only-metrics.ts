@@ -4,11 +4,15 @@
  *
  * WHY THEY ARE NOT IN `scores`. `GateRunResult.scores` is `metricNames()`
  * applied to the report, and that list is aligned BY POSITION with the
- * committed Python baseline and the report tables (`metric-names.ts`). Inserting
- * a ninth column there would shift every baseline comparison by one and the
- * double run would stop being a comparison at all — so a metric with no Python
- * twin gets its own field, next to the scores and outside the gate. The owner
- * decides after a full baseline cycle whether it graduates (#1303).
+ * committed baseline and the report tables (`metric-names.ts`). Inserting a
+ * ninth column there would shift every baseline comparison by one, and a run
+ * would stop being comparable against the record that judges it — since the
+ * owner's 2026-09-08 decision on #1303 that record is the TS tier's own uncapped
+ * staging run, minted by `eval:baseline:capture` (`baseline-capture.ts`), and a
+ * column no committed record carries would break its own successor's comparison
+ * as surely as it breaks this one. So a metric the baseline has no column for
+ * gets its own field, next to the scores and outside the gate. The owner decides
+ * after a full baseline cycle whether it graduates (#1303).
  *
  * WHY IT IS COMPUTED HERE AND NOT BY AN EVALUATOR. An evaluator emits into
  * `report.cases[].scores`, which is what `caseScoresFromReport` hands the

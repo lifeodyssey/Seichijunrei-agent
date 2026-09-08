@@ -6,7 +6,7 @@
  * is the precedent and this is the same shape of thing, not a second one: a
  * function the gate run calls over the FINISHED report, landing in its own field
  * of `GateRunResult` beside `report_only`. It therefore cannot reach
- * `metricNames()` (positionally aligned with the committed Python baseline), it
+ * `metricNames()` (positionally aligned with the committed baseline), it
  * cannot reach `caseScoresFromReport` (what the bootstrap gate compares), and it
  * cannot reach the exit code. It has a field of its own rather than a key inside
  * `report_only` only because that map is typed as metric COLUMNS and an
@@ -30,7 +30,7 @@
  *   (`bestOverChains`' `_best(..., empty=1.0)`, `StepEfficiency`'s cap,
  *   `MaxToolCalls`' budget). Anything less is the evaluator's own record of a
  *   deviation. An unmeasured metric is `{}` and is absent, never a zero.
- *   Measured against the committed 657-case Python baseline this makes 312 cases
+ *   Measured against the committed 657-case baseline this makes 312 cases
  *   failed and 345 perfect, so it is a real split and not "everything".
  *
  * Letting the report-only column decide a case is failed does not put it in the

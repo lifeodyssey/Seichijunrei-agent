@@ -2,9 +2,9 @@
  * The report-only column, and the four places it must NOT appear (E-3 #1382,
  * spec §十 10.3 「先 report-only」).
  *
- * A ninth entry in `metricNames()` would shift the committed Python baseline by
- * one position and the W3-5 double run would stop being a comparison
- * (`metric-names.ts`), so the metric is reported beside the scores and outside
+ * A ninth entry in `metricNames()` would shift the committed baseline by one
+ * position and a run would stop being comparable against the record that judges
+ * it (`metric-names.ts`), so the metric is reported beside the scores and outside
  * every gate: not in `metricNames()`, not in `scores`, not among the verdict
  * rows, and not in the exit code.
  *

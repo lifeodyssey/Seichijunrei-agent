@@ -8,7 +8,7 @@
  * module-level variable as its context, so a write made after the wait lands on
  * whichever case entered that fallback last, or on nobody once the storage
  * exists. Measured on this very set-up: with the old write, the seeded case
- * below comes back unmarked. That is why the 2026-09-07 double run reported the
+ * below comes back unmarked. That is why the 2026-09-07 staging run reported the
  * attribute on no case at all (#1303).
  *
  * WHY THREE CASES. The first case of a process is the one that awaits the

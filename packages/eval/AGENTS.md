@@ -8,10 +8,13 @@ staging door named under “Talking to staging” below. Root guide: `../../AGEN
 It owns three things proven against Python's own answers: the **file contract** between the Python
 exporter and `logfire/evals`, the **eight evaluators** (`src/evaluators/`) scoring identically to
 their originals, and the **`gate.py` statistics port** (`src/gate/`) reaching bit-identical
-intervals. The two halves of the W3-5 double run sit on top: the **staging task**
-(`src/staging-turn-task.ts`), which turns one case into real turns, and the **gate runner**
+intervals. W3-5 is no longer one run of each language beside the other: the owner's 2026-09-08
+decision on #1303 retires the Python record, so the TS tier's own uncapped staging run IS the
+baseline every later run is judged against. Two runners sit on top of those three: the **staging
+task** (`src/staging-turn-task.ts`), which turns one case into real turns, and the **gate runner**
 (`src/gate-run/`, `pnpm run eval:gate`), which turns a finished run into a verdict and a committed
-result file. Neither has met a live staging turn yet.
+result file — the file `pnpm run eval:baseline:capture` mints that baseline from. Neither has met a
+live staging turn yet.
 
 ## Commands (from `packages/eval/`)
 
@@ -561,8 +564,8 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   and the history read carries a run status and nothing about cost. `spend`
   therefore records what the wire can witness: `turns_planned`, the
   `POST /v1/chat` submissions the cases call for (`caseSubmissionsOf` is pure,
-  so history replays are counted exactly), and `task_seconds`. A double run's
-  dollar figure comes from the provider dashboard.
+  so history replays are counted exactly), and `task_seconds`. The dollar figure
+  comes from the provider dashboard.
   **`task_seconds` is the turns' own seconds, and cannot be `task_duration`
   (#1476).** The driver takes that difference around the whole task call, which
   this task enters `InFlightTurns` inside, so every case reported its queue wait
@@ -630,7 +633,15 @@ floor a decision rather than a default.
 - **A file it cannot read is the fifth refusal and reads like the other four**: one stderr line,
   exit 1. A path that does not open and a file that does not parse are the same mistake to whoever
   typed the flag, and an ENOENT stack trace says less than the sentence
-  (`unreadableResultRefusal`).
+  (`unreadableResultRefusal`). **Three more refuse the same way and only the script reaches them**,
+  because only it has seen the command line and asked what set the file names: no `--result` at all,
+  a flag this command does not have (`parseArgs` throws on one; the throw is caught), and a result
+  file naming a set nobody exports. The first two sentences are the script's own; the third is
+  `baseline-candidate.ts`' `unknownDatasetRefusal`, beside the read failure it reads like, and
+  `knownCaseCount` is total so that it can be given rather than thrown — where a runner's
+  `checkedDatasetName` still throws at the flag it just read.
+  `test/eval-baseline-capture.test.ts` runs the real script for each of the three and asserts ONE
+  line, so a stack trace fails the assertion.
 - **The result file carries what a capture needs, and that is why it grew.** `GateRunResult` gained
   `case_scores` (`caseScoresFromReport`, the same map the metric gate compares and a record's
   `cases` is), `starved_cases` (ids, not a count — the refusal names them) and `evaluator_version`.
@@ -640,7 +651,7 @@ floor a decision rather than a default.
   it is EMPTY for a starved run for the same reason `scores` is (`run-judgement.ts`) — an outage's
   per-case numbers must not be reachable as a floor at all.
 - **Uncapped means the set's pinned count**, `dataset-sets.ts`' own tripwire asked a new question
-  (`exportedCaseCount`), not a second reading of the dataset file. `--limit 3` therefore refuses at
+  (`knownCaseCount`), not a second reading of the dataset file. `--limit 3` therefore refuses at
   capture as well as going ungated at the gate.
 - **The record says where it came from.** `note` — free text pydantic defaults to `None` and no gate
   reads — carries `captured from the TS tier's <set> gate run of <generated_at> (#1515)`. A TS-born

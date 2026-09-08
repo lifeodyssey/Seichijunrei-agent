@@ -65,7 +65,7 @@ void test('the run\'s per-case scores are what the gate pairs against', async ()
   assert.deepEqual(scored, real.current_cases);
 });
 
-void test('a Python-written baseline gates that TS report', async () => {
+void test('a real committed baseline gates that TS report', async () => {
   const report = await runDataset(subjectCases());
   const outcome = bootstrapGate(gateInputFromReport(report).cases, real.baseline, {
     iterations: real.iterations,

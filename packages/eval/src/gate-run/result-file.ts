@@ -12,8 +12,8 @@ import type { GateRunResult } from './gate-run-result.ts';
  * result that only ever existed on the runner's laptop cannot be evidence for
  * an exit gate. Nothing here is a secret: scores, intervals and case counts.
  *
- * NAMED FOR THE DATE AND THE SET, so the six sets of a double run sit side by
- * side and a re-run of the same set on the same day overwrites rather than
+ * NAMED FOR THE DATE AND THE SET, so one run of each of the six sets sits side
+ * by side and a re-run of the same set on the same day overwrites rather than
  * accumulating near-identical files. The date is the record's own
  * `generated_at`, not a second reading of the clock.
  */

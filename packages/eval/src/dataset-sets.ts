@@ -35,12 +35,18 @@ export function checkedDatasetName(name: string): string {
 
 /**
  * How many cases an UNCAPPED run of a set evaluates — the pinned count above,
- * not a second reading of the file. `gate-run/baseline-capture.ts` compares a
- * finished run's `case_count` against it to tell a full run from a `--limit`
- * one, which is the same tripwire this list already is, asked a new question.
+ * not a second reading of the file — or `null` for a name nobody exports.
+ * `gate-run/baseline-capture.ts` compares a finished run's `case_count` against
+ * it to tell a full run from a `--limit` one, which is the same tripwire this
+ * list already is, asked a new question.
+ *
+ * Total, where `checkedDatasetName` throws, because its caller is asking a
+ * different question. A runner validates the name a flag just gave it and dies
+ * on the spot; a capture reads the name out of a COMMITTED FILE, long after
+ * anyone could retype it, so an unexported set there is answered in one
+ * sentence (`unknownDatasetRefusal`) like the capture's other refusals.
  */
-export function exportedCaseCount(name: string): number {
-  const set = EXPORTED_DATASETS.find((one) => one.name === checkedDatasetName(name));
-  if (set === undefined) throw new RangeError(`unknown dataset "${name}"`);
-  return set.caseCount;
+export function knownCaseCount(name: string): number | null {
+  const set = EXPORTED_DATASETS.find((one) => one.name === name);
+  return set === undefined ? null : set.caseCount;
 }
