@@ -6,9 +6,9 @@ went in with no record anywhere of what it does.
 
 Since #1367 no workflow reads a GitHub secret. The three GitHub secret stores — repository,
 `staging`, `production` — still hold their values: emptying them is the owner's last step in that
-card, taken only after one green staging deploy and one green nightly have run on the ESC path, so
-that a wrong ESC value is recoverable. Until then this file describes two homes at once: the one
-every consumer reads from (below), and a GitHub copy nothing reads.
+card, tracked as #1081, taken only after one green staging deploy and one green nightly have run
+on the ESC path, so that a wrong ESC value is recoverable. Until then this file describes two homes
+at once: the one every consumer reads from (below), and a GitHub copy nothing reads.
 
 Companion to [`deployment.md`](./deployment.md), which covers non-secret runtime config
 (`LOG_LEVEL`, `CACHE_TTL_SECONDS`, and the rest of `CONTAINER_ENV_KEYS` that never touch a
@@ -47,12 +47,15 @@ there. The same-name override rule this section used to explain — an environme
 same-named repository secret — still describes how GitHub would resolve a name, but nothing asks it
 to resolve one. The stores themselves are emptied at the end of #1367, after the two green runs.
 
-Where the two kinds of credential live now:
+There are exactly two ESC environments, `lifeodyssey/animichi/staging` and
+`lifeodyssey/animichi/prod`, and a job opens only its own stage's one. Where the three kinds of
+credential live now:
 
 | Kind | Home | Reached by |
 |---|---|---|
 | CI-plane (`CLOUDFLARE_API_TOKEN`, `NEON_API_KEY`, `ZEN_GO_API_KEY`) | Pulumi ESC, under `environmentVariables` in `lifeodyssey/animichi/staging` and `…/prod` | the job's own GitHub OIDC identity → `pulumi/auth-actions` → `pulumi/esc-action`. The job's `environment:` is what makes its OIDC subject one the Pulumi Cloud issuer policy accepts (`deployment.md`, "Pulumi state, encryption, and CI identity") |
 | Edge runtime (the eight names in chain 1 below) | Pulumi ESC, under `pulumiConfig` as `fn::secret`, and on the Worker itself | Pulumi, never CI. `pulumi/esc-action` exports `environmentVariables` and `files` only, so a value under `pulumiConfig` cannot reach a publishing job at all |
+| Staging Access (`CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`) | Pulumi ESC, under `environmentVariables` of the staging environment only — but nobody sets the value: the environment imports two stack outputs through its `pulumi-stacks` provider | `pulumi/esc-action` in `cd.yml`'s `smoke` job; `esc env open` locally. Full section below, because these two were never GitHub secrets and so are outside the tables' scope |
 
 `CLOUDFLARE_ACCOUNT_ID` left this file entirely: it is an account identifier, not a credential. The
 repository variable `vars.CLOUDFLARE_ACCOUNT_ID` was created 2026-09-08 and is what the workflows
@@ -108,8 +111,9 @@ so it no longer has a Live row here — see its "Referenced by nothing" row belo
 
 Found by grepping every secret name across `.github/workflows/` and `CONTAINER_ENV_KEYS` against
 every source tree in the repo, against a read-only `gh secret list` name snapshot taken 2026-08-01.
-#1367's final owner step deletes every GitHub secret at once, these rows included, so the action
-column is now the record of *why* each is safe to delete rather than a per-row backlog.
+#1367's final owner step deletes every GitHub secret at once (tracked as #1081), these rows
+included, so the action column is now the record of *why* each is safe to delete rather than a
+per-row backlog.
 **They were never one kind of finding** — read it before treating them as one:
 
 | Secret | Finding | Owner action |

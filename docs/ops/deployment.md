@@ -234,8 +234,9 @@ Required:
   `showcase_denied` before any binding is touched, while `/healthz`, `/img/*`, `/tiles/*` stay
   reachable. Strict boolean like `VITE_SHOWCASE_MODE`: only the literal `"false"` opens the
   backend — unset/empty/malformed values fail closed (deny) with a one-per-isolate warning. Pinned
-  by `workers/edge/test/container-env.test.ts`. Until automatic smoke debt is repaid, the owner
-  verifies the same denial during the manual staging/production smoke.
+  by `workers/edge/test/container-env.test.ts`. CD's `smoke` job is automatic but does not probe
+  this: it asks staging for `/healthz` and the SSR shell, both of which stay reachable in showcase
+  mode by design. Production's 403 is the owner's own check after a promotion.
 
 Production is temporarily MiMo-only while the DeepSeek account has insufficient balance. After
 recharging DeepSeek, set `FALLBACK_AGENT_MODEL=deepseek:deepseek-v4-flash` to re-enable the already

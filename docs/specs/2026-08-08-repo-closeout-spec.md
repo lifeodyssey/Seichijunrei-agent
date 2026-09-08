@@ -7,7 +7,7 @@
 ## Confirmed decisions
 
 1. One merged campaign (ADR 0004); waves ordered by dependency, not document numbering.
-2. Branch discipline (ADR 0005): merge-based updates, GitHub rebase-merge, force-push banned on all branches except owner-authorized rewrite windows.
+2. Branch discipline (ADR 0005): merge-based updates, GitHub squash-merge (the ruleset's `allowed_merge_methods`, amended from rebase on 2026-08-08 — the same day as this spec), force-push banned on all branches except owner-authorized rewrite windows.
 3. W1 docs/ reorg uses a **fresh inventory** of the current tree, not the 08-06 mapping.
 4. Secrets architecture (ADR 0003): Neon-hosted role passwords, Pulumi `neon.Role` IaC, Cloudflare Secrets Store for worker runtime, connection strings composed by Pulumi, GitHub secrets only for CI-consumed values.
 5. IaC stack is Pulumi only (no Terraform; Neon via bridged provider).

@@ -4,7 +4,7 @@ Two documents written the same day (2026-08-06) describe overlapping end-states:
 
 ## Decision
 
-One merged campaign — the **repo close-out** — with a single definition of done: GOAL W0–W8 checkboxes all `[x]` **and** restructure spec §5 verification all green **and** issues #829/#845 closed. Waves are re-ordered by dependency, not by either document's numbering; every wave keeps the common gates (local hooks → PR → two-path comment gate → rebase-merge).
+One merged campaign — the **repo close-out** — with a single definition of done: GOAL W0–W8 checkboxes all `[x]` **and** restructure spec §5 verification all green **and** issues #829/#845 closed. Waves are re-ordered by dependency, not by either document's numbering; every wave keeps the common gates (local hooks → PR → two-path comment gate → squash-merge).
 
 ## Why
 

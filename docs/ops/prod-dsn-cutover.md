@@ -68,9 +68,11 @@ operator rather than committed. Steps:
    - `neonBranchId`: the **production** branch (`main` compute).
    - `cloudflareAccountId` / `secretsStoreId` / `neonApiKey`: see the store question below.
    - `pulumi stack init production` (passphrase provider, same R2 backend)
-     followed by the **adopt** step: import the four `neon.Role`s by ID so Pulumi owns the
-     passwords without recreating them (`database-access-adopt.sh` pattern; the provider key is
-     fed at import time — import does not execute the stack program).
+     followed by the **adopt** step: `pulumi import` the four `neon.Role`s by ID so Pulumi owns
+     the passwords without recreating them (the provider key is fed at import time — import does
+     not execute the stack program). Staging's adopt ran once by hand in 2026-08 from a script
+     that #1372 deleted after the fact; its shape is in the history of
+     `.github/scripts/database-access-adopt.sh`, and this list is the record that survives it.
 2. **Store strategy (HITL, decided before `pulumi up`)** — the account's plan refused a
    second Secrets Store (`maximum_stores_exceeded`, code 1003), which is why staging
    imports the account's built-in `default_secrets_store`. Secrets are global per account,
