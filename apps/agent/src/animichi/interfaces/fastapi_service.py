@@ -54,6 +54,7 @@ from animichi.interfaces.routes.feedback import router as feedback_router
 from animichi.interfaces.routes.health import router as health_router
 from animichi.interfaces.routes.photo_search import router as photo_search_router
 from animichi.interfaces.routes.search_preview import router as search_preview_router
+from animichi.utils.logger import configure_structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -216,6 +217,7 @@ def create_fastapi_app(
     session_store: SessionStore | None = None,
 ) -> FastAPI:
     """Build the FastAPI service app for the runtime."""
+    configure_structlog()
     resolved_settings = settings or get_settings()
 
     @asynccontextmanager

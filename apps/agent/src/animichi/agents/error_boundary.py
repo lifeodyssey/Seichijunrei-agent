@@ -15,8 +15,6 @@ hook re-raises them unchanged and only converts genuinely unclassified failures.
 
 from __future__ import annotations
 
-from traceback import format_exception
-
 import httpx
 import structlog
 from pydantic_ai import RunContext
@@ -93,13 +91,13 @@ async def _on_run_error(
     ):
         raise error
     # pydantic-ai calls this hook after the exception state is cleared, so
-    # `logger.exception` renders no traceback. `exc_info=` would restore it but
-    # structlog is unconfigured here, so its rich renderer walks the agent-run
-    # frames: measured at ~32 s per logged error. Format the frames ourselves.
+    # `logger.exception` renders no traceback; naming the error in `exc_info=`
+    # restores it. The process-wide chain in `animichi.utils.logger` renders it
+    # with `format_exc_info`, not the rich console formatter (issue #1502).
     logger.error(
         "animichi_run_error",
         error_type=type(error).__name__,
-        traceback="".join(format_exception(error)),
+        exc_info=error,
     )
     payload = map_exception_to_error_response(error, ctx.deps.locale)
     return AgentRunResult(output=payload)

@@ -2,14 +2,24 @@
 
 ``_on_run_error`` swallows a genuinely unclassified exception into a localized
 ``ErrorResponseModel``. Before #1496 that was the one exception path in the
-runtime that left no trace at all, so a converted failure was invisible.
+runtime that left no trace at all, so a converted failure was invisible; #1502
+made that trace affordable by configuring structlog once at process start.
 """
 
 from __future__ import annotations
 
+import json
+import signal
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from types import FrameType
 from unittest.mock import MagicMock
 
-from pydantic_ai import RunContext
+import pytest
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import ModelMessage, ModelResponse
+from pydantic_ai.models.function import AgentInfo
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 from structlog import testing
@@ -18,6 +28,14 @@ from animichi.agents import error_boundary
 from animichi.agents.runtime_deps import RuntimeDeps
 from animichi.agents.runtime_models import ErrorResponseModel
 from animichi.tests.eval.mock_catalog_client import MockCatalogClient
+from animichi.tests.streaming_function_model import streaming_function_model
+
+# One logged agent-loop error costs 4 ms under the configured chain and 3.1 s
+# under structlog's default rich renderer for the stack built below (91 s for a
+# full runner stack). The budget sits ~100x above the former and ~6x below the
+# latter; the alarm turns a regression into a fast failure instead of a wait.
+_LOG_BUDGET_SECONDS = 0.5
+_LOG_ALARM_SECONDS = 2.0
 
 
 def make_run_context() -> RunContext[RuntimeDeps]:
@@ -35,6 +53,39 @@ def make_raised_runtime_error() -> RuntimeError:
         return raised
 
 
+async def make_deep_agent_run_error() -> RuntimeError:
+    """Build an error whose traceback crosses the real pydantic-ai run frames.
+
+    The renderer's cost scales with those frames' source files and locals, so
+    the timing below only means something on a genuine agent-run stack.
+    """
+
+    def fail(_messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+        raise RuntimeError("the model backend misbehaved")
+
+    try:
+        await Agent(streaming_function_model(fail)).run("hello")
+    except RuntimeError as raised:
+        return raised
+    raise AssertionError("the agent run was expected to raise")
+
+
+@contextmanager
+def fail_fast_after(seconds: float) -> Iterator[None]:
+    """Interrupt the block once *seconds* of wall clock have passed."""
+
+    def on_alarm(_signum: int, _frame: FrameType | None) -> None:
+        raise TimeoutError(f"the logged traceback took longer than {seconds}s")
+
+    previous = signal.signal(signal.SIGALRM, on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+
 async def test_unclassified_run_error_is_logged_before_conversion() -> None:
     error = RuntimeError("the model backend misbehaved")
 
@@ -48,19 +99,36 @@ async def test_unclassified_run_error_is_logged_before_conversion() -> None:
     assert isinstance(result.output, ErrorResponseModel)
 
 
-async def test_run_error_log_carries_the_formatted_traceback() -> None:
+async def test_run_error_log_renders_the_traceback_as_plain_text(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     """pydantic-ai runs this hook after the exception state is cleared, so the
-    traceback survives only when the error object is read explicitly. It is
-    formatted here rather than handed to `exc_info=`: structlog is unconfigured,
-    and its rich renderer costs ~32 s walking the agent-run frames."""
+    traceback survives only when the error object is named in ``exc_info=``.
+    The process-wide chain renders it through ``format_exc_info``: one plain,
+    untruncated string on a JSON line."""
     error = make_raised_runtime_error()
 
-    with testing.capture_logs() as captured:
-        await error_boundary._on_run_error(make_run_context(), error=error)
+    await error_boundary._on_run_error(make_run_context(), error=error)
 
-    [event] = captured
-    assert "RuntimeError: the model backend misbehaved" in event["traceback"]
-    assert "make_raised_runtime_error" in event["traceback"]
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["event"] == "animichi_run_error"
+    assert "RuntimeError: the model backend misbehaved" in payload["exception"]
+    assert "make_raised_runtime_error" in payload["exception"]
+
+
+async def test_run_error_log_of_a_deep_agent_stack_stays_within_budget() -> None:
+    """The one assertion in this suite that reads a real clock on purpose: the
+    defect it guards (issue #1502) is wall-clock cost. Unconfigured, structlog
+    hands each agent-run frame to rich, which re-reads and highlights that
+    frame's source file and pretty-prints its locals."""
+    error = await make_deep_agent_run_error()
+
+    with fail_fast_after(_LOG_ALARM_SECONDS):
+        started = time.perf_counter()
+        await error_boundary._on_run_error(make_run_context(), error=error)
+        elapsed = time.perf_counter() - started
+
+    assert elapsed < _LOG_BUDGET_SECONDS
 
 
 async def test_reraised_run_error_logs_nothing() -> None:
