@@ -54,6 +54,11 @@ jobs:
     name: CD / plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `actions: read` is the one addition to the workflow default: the range
+    # step below asks the Actions API which commit CD last published.
+    permissions:
+      contents: read
+      actions: read
     outputs:
       packages: ${{ steps.pnpm.outputs.packages }}
       deploy: ${{ steps.pnpm.outputs.deploy }}
@@ -66,25 +71,53 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      # No `cache: pnpm` here: this job only runs `pnpm ls`, which reads the
+      # workspace manifests and never installs, so the store path setup-node's
+      # save phase points at is never created and the post step fails the job
+      # with `Path Validation Error` (run 34186376453, both attempts). The
+      # cached installs live in the jobs that actually install; the same
+      # reasoning already keeps the cache off `pr-verification.yml`'s plan job.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
       - name: Resolve the deployable range and refuse a superseded head
         id: range
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_BEFORE: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          base="$EVENT_BEFORE"
+          # The range starts at the last tree CD actually published, not at the
+          # previous push. When a run fails, its cohort is never deployed, and
+          # `before..sha` on the next push excludes that diff outright while the
+          # stale-head guard below forbids re-running the superseded run — so
+          # the cohort is stranded until something else happens to touch the
+          # same packages (9598144f7, #1506). The last successful run's head is
+          # the deployment record spec decision 3 said CD did not have.
+          base=""
+          reason=""
+          last_success="$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/cd.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null || true)"
+          # An ancestor check, not just reachability: a success recorded on a
+          # history this push rewrote away would widen the range to a diff that
+          # no longer describes anything.
+          if [ -n "$last_success" ] && git cat-file -e "$last_success^{commit}" 2>/dev/null &&
+             git merge-base --is-ancestor "$last_success" "$HEAD_SHA"; then
+            base="$last_success"
+            reason="head of the last successful CD run on main"
+          fi
           # A first push and every force push report a 40-zero `before`; a
           # rewritten history reports one this clone does not have. Both fall
-          # back to the parent commit. CD's range is `before..sha` and nothing
-          # else — there is no deployment-record baseline (spec decision 3).
-          if [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-            base="$(git rev-parse HEAD~1)"
+          # back to the parent commit.
+          if [ -z "$base" ]; then
+            base="$EVENT_BEFORE"
+            reason="this push's github.event.before — the API named no usable successful run"
+            if [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              base="$(git rev-parse HEAD~1)"
+              reason="HEAD~1 — before is zero or unreachable, and the API named no usable successful run"
+            fi
           fi
           # A rerun of a run a newer push has already overtaken would publish an
           # older tree over a newer one. `queue: max` orders the live runs; this
@@ -95,6 +128,7 @@ jobs:
             exit 1
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "Base $base — $reason" >> "$GITHUB_STEP_SUMMARY"
       # `migrations/neon` and `infra/database-access` sit outside the pnpm
       # project graph, and `apps/agent` is a pnpm project whose deploy unit is a
       # container image rather than a Worker bundle — all three are routed by

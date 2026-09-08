@@ -10,8 +10,9 @@
 #                that artifact without rebuilding anything
 #   propagation  every stage lists every earlier stage in `needs`, so a failure
 #                two hops back cannot evaporate into a `skipped` result
-#   guards       `plan` falls back off a zero `before` and refuses a head that
-#                origin/main has already moved past
+#   guards       `plan` starts its range at the last tree CD published, falls
+#                back off a zero `before` and refuses a head that origin/main
+#                has already moved past
 #   concurrency  the staging lane and the production lane are separate job-level
 #                groups that queue instead of cancelling
 #   trigger      a push to main is the only way in — no tag, no dispatch
@@ -54,6 +55,15 @@ REBUILD_MARKERS = [
 ].freeze
 ZERO_SHA = "0000000000000000000000000000000000000000"
 HEAD_GUARD = "git ls-remote origin refs/heads/main"
+# `github.event.before` is the previous *push*, not the previous *deployment*: a
+# failed run's cohort falls outside the next push's range and the head guard
+# below forbids re-running it, so the diff is stranded (#1506). The range starts
+# at the head of the last successful CD run instead, and only when this push's
+# history still descends from it — a widened range over a rewritten history
+# describes nothing, and mere reachability would not catch that.
+LAST_SUCCESS_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=success\b}
+LAST_SUCCESS_SHA = "head_sha"
+ANCESTOR_CHECK = "git merge-base --is-ancestor"
 # Without it a stage runs on a push whose `build` was skipped — no artifact.
 BUILD_GUARD = "needs.build.result == 'success'"
 # Two units take their inputs from outside their own pnpm project: the edge
@@ -158,6 +168,15 @@ def plan_script
 end
 
 def assert_plan_guards
+  @log.unless_true(plan_script.match?(LAST_SUCCESS_QUERY) && plan_script.include?(LAST_SUCCESS_SHA),
+                   "cd.yml:plan: must take its range base from the head of the last successful CD " \
+                   "run on main, not from the previous push")
+  @log.unless_true(plan_script.include?(ANCESTOR_CHECK),
+                   "cd.yml:plan: must fall back when the last successful sha is not an ancestor of this head")
+  @log.unless_true(plan_script.include?("$EVENT_BEFORE"),
+                   "cd.yml:plan: must fall back to `github.event.before` when the API names no usable run")
+  @log.unless_true(@cd.dig("jobs", "plan", "permissions").to_h["actions"] == "read",
+                   "cd.yml:plan: reading the Actions API needs `actions: read` on the job")
   @log.unless_true(plan_script.include?(ZERO_SHA),
                    "cd.yml:plan: must fall back off a zero `before` instead of failing the push")
   @log.unless_true(plan_script.include?(HEAD_GUARD),

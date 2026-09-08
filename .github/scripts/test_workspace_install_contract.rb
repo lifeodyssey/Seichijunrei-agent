@@ -28,6 +28,13 @@
 # <sealed tree>` provisions someone else's tree and is neither a use nor a
 # provider.
 #
+# And the converse, which is the same premise read backwards: `actions/setup-node`
+# with `cache: pnpm` restores and then *saves* the pnpm store, and its save phase
+# fails the job outright when the store path does not exist. Only an install
+# creates it, so declaring the cache in a job that never installs turns a cache
+# miss into a red job — which is exactly how `cd.yml`'s `plan` blocked every
+# staging deploy (#1506, run 34186376453, both attempts).
+#
 # The repository-wide meta-invariants (timeouts, permissions, pinning, ESC) are
 # `test_workflow_invariants.rb`; the CI file's own shape is
 # `test_ci_workflow_contract.rb`.
@@ -39,6 +46,8 @@ require_relative "workflow_document"
 ROOT = repository_root
 WORKFLOW_DIR = File.join(ROOT, ".github", "workflows")
 PNPM_USE = /\bpnpm (?!ls\b|install\b)\S/
+SETUP_NODE = "actions/setup-node"
+PNPM_CACHE = "pnpm"
 INSTALL = /pnpm install --frozen-lockfile --ignore-scripts/
 INSTALL_NAME = "pnpm install --frozen-lockfile --ignore-scripts"
 # Decided by reading every `*.sh` under `scripts/` and `.github/scripts/` and
@@ -112,19 +121,38 @@ def assert_named_scripts_are_committed
   end
 end
 
+def caches_the_pnpm_store?(step)
+  return false unless step.is_a?(Hash)
+  return false unless step["uses"].to_s.start_with?("#{SETUP_NODE}@")
+
+  step.dig("with", "cache").to_s == PNPM_CACHE
+end
+
+def assert_the_cached_store_is_one_this_job_creates(file, id, steps)
+  cached = steps.index { |step| caches_the_pnpm_store?(step) }
+  return if cached.nil?
+
+  installs = steps.any? { |step| step_text(step).match?(/pnpm install/) }
+  @log.unless_true(installs,
+                   "#{file}:#{id}: `#{SETUP_NODE}` asks to cache the pnpm store, but no step in " \
+                   "this job installs — the store path never exists and the save phase fails the job")
+end
+
 def check_workflow(path)
   file = File.basename(path)
   WorkflowDocument.load(path).jobs.each do |id, job|
     next unless job.is_a?(Hash)
 
     assert_install_precedes_the_first_use(file, id, Array(job["steps"]))
+    assert_the_cached_store_is_one_this_job_creates(file, id, Array(job["steps"]))
   end
 end
 
 def main
   assert_named_scripts_are_committed
   Dir.glob(File.join(WORKFLOW_DIR, "*.yml")).sort.each { |path| check_workflow(path) }
-  @log.report("workspace install contract: every workspace-using step has an install before it")
+  @log.report("workspace install contract: every workspace-using step has an install before it, " \
+              "and every cached pnpm store is one its own job installs")
 end
 
 main if $PROGRAM_NAME == __FILE__

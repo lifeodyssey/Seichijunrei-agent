@@ -38,10 +38,16 @@ dependencies with `always()` and fail on any failed or cancelled one.
 
 ### Build once, promote the same artifact
 
-On a `main` push, `CD` selects the affected set from the exact `github.event.before..github.sha`
-range with the same pnpm filter. Two guards sit in front of it: a zero or unreachable `before`
-(first push, force push, rewritten history) falls back to `HEAD~1`, and `github.sha` must still be
-the head of `origin/main`, so re-running a run that a newer push has overtaken deploys nothing.
+On a `main` push, `CD` selects the affected set with the same pnpm filter, over the range from the
+last tree CD actually published to `github.sha`. That base is the `head_sha` of the most recent
+successful `cd.yml` run on `main`, read from the Actions API (`plan` holds `actions: read` for it),
+and it is used only when this push's history still descends from it. Otherwise the base falls back
+to `github.event.before`, and then to `HEAD~1` when `before` is zero or unreachable (first push,
+force push, rewritten history); the step prints which base it chose and why. The previous push is
+the wrong base because a failed run's cohort is never deployed and then falls outside the next
+push's range, while the head guard forbids re-running it — the diff is stranded (#1506). That guard
+is unchanged: `github.sha` must still be the head of `origin/main`, so re-running a run that a newer
+push has overtaken deploys nothing.
 
 One `build` job produces ONE artifact, `release-<sha>`, a tar of everything this push deploys: the
 web output, the four Worker bundles with their deploy-time configs, the migration chain, and the
