@@ -193,6 +193,7 @@ def make_fake_agent(
         title_translator: object | None = None,
         memory_store: object | None = None,
         user_id: str | None = None,
+        model_settings: object | None = None,
     ) -> AgentResult:
         del (
             text,
@@ -205,6 +206,7 @@ def make_fake_agent(
             title_translator,
             memory_store,
             user_id,
+            model_settings,
         )
         return (
             result_fn(locale=locale)
@@ -248,6 +250,7 @@ def make_run_agent_stub(
         title_translator: object | None = None,
         memory_store: object | None = None,
         user_id: str | None = None,
+        model_settings: object | None = None,
     ) -> AgentResult:
         call: dict[str, object] = {
             "text": text,
@@ -261,6 +264,7 @@ def make_run_agent_stub(
             "title_translator": title_translator,
             "memory_store": memory_store,
             "user_id": user_id,
+            "model_settings": model_settings,
         }
         if capture is not None:
             capture.update(call)

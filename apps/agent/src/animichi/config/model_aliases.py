@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 _DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 _MIMO_MODEL_NAME = "mimo-v2.5"
+_ZEN_GATEWAY_DOMAIN = "opencode.ai"
 
 
 class ProviderKind(StrEnum):
@@ -70,7 +71,7 @@ def _host_matches(base_url: str, domain: str) -> bool:
 _CREDENTIAL_DOMAINS = (
     ("xiaomimimo.com", CredentialRef.MIMO_API_KEY),
     ("deepseek.com", CredentialRef.DEEPSEEK_API_KEY),
-    ("opencode.ai", CredentialRef.ZEN_GO_API_KEY),
+    (_ZEN_GATEWAY_DOMAIN, CredentialRef.ZEN_GO_API_KEY),
 )
 
 
@@ -80,6 +81,15 @@ def credential_ref_for_base_url(base_url: str) -> CredentialRef:
         if _host_matches(base_url, domain):
             return credential_ref
     return CredentialRef.OPENAI_COMPAT_API_KEY
+
+
+def routes_by_opencode_session(base_url: str) -> bool:
+    """Whether the host routes a conversation by its ``x-opencode-session`` id.
+
+    The opencode zen/go gateway rejects a request without that header
+    (400 ``MissingSessionID``); no other provider accepts it.
+    """
+    return _host_matches(base_url, _ZEN_GATEWAY_DOMAIN)
 
 
 def credential_value(credential_ref: CredentialRef) -> str | None:

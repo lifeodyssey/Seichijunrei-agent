@@ -35,7 +35,11 @@ from animichi.agents.animichi_runner import (
     to_model_turn_usage,
     translation_usage,
 )
-from animichi.agents.base import ModelAliasError, resolve_model
+from animichi.agents.base import (
+    ModelAliasError,
+    conversation_routing_settings,
+    resolve_model,
+)
 from animichi.agents.error_boundary import (
     is_byok_credential_rejection,
     is_provider_error,
@@ -365,6 +369,9 @@ class _RuntimeTurnExecution:
             text=kind.text,
             db=cast(CatalogLookup, self._api._db),
             model=resolved,
+            model_settings=conversation_routing_settings(
+                resolved, self._request.session_id
+            ),
             locale=kind.locale,
             context=context,
             message_history=deserialize_message_history(history),
