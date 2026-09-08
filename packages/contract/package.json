@@ -18,6 +18,7 @@
     "./staging-prefix-path": "./src/staging-prefix-path.ts",
     "./access-service-token": "./src/access-service-token.ts",
     "./agent-paths": "./src/agent-paths.ts",
+    "./agent-step-origin": "./src/agent-step-origin.ts",
     "./agent-tool-parameters": "./src/agent-tool-parameters.ts",
     "./agent-tool-schemas": "./src/agent-tool-schemas.ts",
     "./internal-binding": "./src/internal-binding.ts",

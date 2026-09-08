@@ -80,7 +80,8 @@
             "params": {
               "title": "涼宮ハルヒ"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -90,7 +91,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -151,7 +153,8 @@
             "params": {
               "query": "nishinomiya"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -213,7 +216,8 @@
             "params": {
               "title": "ハルヒ"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -223,7 +227,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -356,7 +361,8 @@
                 "p2"
               ]
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "server"
           }
         ],
         "response": {
@@ -379,7 +385,6 @@
         "runStatus": "succeeded"
       },
       "scores": {
-        "argument_correctness": 0.0,
         "tool_correctness": 1.0,
         "trajectory_match": 1.0,
         "max_tool_calls": 1.0,
@@ -434,7 +439,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -444,7 +450,8 @@
             "params": {
               "bangumi_id": "b2"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "plan_route",
@@ -454,7 +461,8 @@
             "params": {
               "result_ref": "r1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "plan_route",
@@ -464,7 +472,8 @@
             "params": {
               "result_ref": "r2"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -540,7 +549,8 @@
                 "c2"
               ]
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "server"
           }
         ],
         "response": {
@@ -562,7 +572,6 @@
         "runStatus": "succeeded"
       },
       "scores": {
-        "argument_correctness": 0.0,
         "tool_correctness": 1.0,
         "trajectory_match": 1.0,
         "max_tool_calls": 1.0,
@@ -615,7 +624,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "geocode",
@@ -625,7 +635,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -691,7 +702,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "geocode",
@@ -701,7 +713,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_nearby",
@@ -711,7 +724,8 @@
             "params": {
               "place": "西宮市"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -908,7 +922,8 @@
             "params": {
               "title": "凉宫"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -918,7 +933,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1022,7 +1038,8 @@
             "params": {
               "query": "spot"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1080,7 +1097,8 @@
             "params": {
               "title": "ハルヒ"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -1090,7 +1108,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "error"
+            "status": "error",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1151,7 +1170,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "unsettled"
+            "status": "unsettled",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1210,7 +1230,8 @@
             "params": {
               "query": "a"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "web_search",
@@ -1220,7 +1241,8 @@
             "params": {
               "query": "b"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1272,7 +1294,8 @@
             "toolName": "web_search",
             "args": {},
             "params": {},
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1332,7 +1355,8 @@
             "params": {
               "title": "ハルヒ"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "search_bangumi",
@@ -1342,7 +1366,8 @@
             "params": {
               "bangumi_id": "b1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           },
           {
             "toolName": "plan_route",
@@ -1352,7 +1377,8 @@
             "params": {
               "result_ref": "r1"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1420,7 +1446,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1485,7 +1512,8 @@
             "params": {
               "bangumi_id": 12345
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1550,7 +1578,8 @@
             "params": {
               "place": "西宮"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {
@@ -1612,13 +1641,13 @@
         "trajectory": [
           {
             "toolName": "search_nearby",
-            "args": {
-              "place": "宇治"
-            },
+            "args": {},
             "params": {
-              "place": "宇治"
+              "candidate_id": "seed:uji",
+              "radius_m": 3000
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "server"
           }
         ],
         "response": {
@@ -1634,7 +1663,6 @@
         "runStatus": "succeeded"
       },
       "scores": {
-        "argument_correctness": 1.0,
         "tool_correctness": 1.0,
         "trajectory_match": 1.0,
         "max_tool_calls": 1.0,
@@ -1732,7 +1760,8 @@
             "params": {
               "title": "ハルヒ"
             },
-            "status": "ok"
+            "status": "ok",
+            "origin": "model"
           }
         ],
         "response": {

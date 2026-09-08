@@ -29,6 +29,7 @@ from animichi.tests.eval.evaluator_oracle_context import evaluator_context
 from animichi.tests.eval.evaluator_oracle_scenarios import (
     OracleScenario,
     OracleStep,
+    StepOrigin,
     StepStatus,
 )
 from animichi.tests.eval.evaluators import (
@@ -84,6 +85,10 @@ class _WireStep(BaseModel):
     # is what `GET /v1/conversations/{id}/messages` publishes for the same call.
     params: dict[str, object]
     status: StepStatus
+    # Who asked for the call (#1462): `StepRecord.model_initiated` as the frames
+    # publish it, which the shaper resolves for every step — absent on the wire
+    # means the model asked, and `TranscriptStep.origin` is never absent.
+    origin: StepOrigin
 
 
 class _WireAnswer(BaseModel):
@@ -167,6 +172,7 @@ def _wire_step(step: OracleStep) -> _WireStep:
         args=dict(step.args),
         params=step.settled_params,
         status=step.status,
+        origin="model" if step.model_initiated else "server",
     )
 
 

@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { dataKeysOf } from "../src/turn-transcript.ts";
+import { dataKeysOf } from "../src/answer-data-keys.ts";
 import {
   answeredCaptureNames,
   pythonEvaluatorView,

@@ -87,6 +87,14 @@ fallback (#1005 AC3) was deleted in #1347 once every branch was post-cut.
   and — through that door — `packages/eval`, none of which should load zod to learn two
   header names. `test/access-service-token.test.ts` holds it; the values come from the
   `infra` stack output, never from anything checked in.
+- `src/agent-step-origin.ts` — who asked for a step: `serverStepOrigin()`, the marker
+  `workers/edge`'s `serverStepOpened` writes onto a deterministic bypass's `tool-input-start`
+  frame, and `stepOriginOf()`, the one reader of it (#1462). Import-free for the same reason as
+  the three modules above — the edge writes it inside the Worker bundle and `packages/eval`'s
+  transcript shaper reads it — and it is the SD-9 frame surface's one additive exception, granted
+  in the rewrite spec §10.2.1. It rides in `toolMetadata`, the protocol's own free-form slot on
+  the two chunk types a step opens with, and ABSENT means `model`, so every frame recorded before
+  it keeps its meaning. `test/agent-step-origin.test.ts` holds that pair of properties.
 - `src/contract.ts` — catalog procedures and error attachments.
 - `src/users-contract.ts` — users-service procedures and errors.
 - `src/errors.ts` — canonical catalog error registry.

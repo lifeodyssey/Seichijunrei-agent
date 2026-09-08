@@ -142,17 +142,18 @@ function starvedRun(count: number) {
 /**
  * The whole point, as a run rather than as an argument.
  *
- * A starved turn's transcript read still publishes a `steps` array — an EMPTY
- * one counts (`settled-params.ts::paramsRecordedIn`) — so `runMetricNames`
- * keeps `argument_correctness` while no case scored it. The run's own derived
- * list therefore names a column no case carries, and `aggregateScores` throws
- * `Missing metric(s)` on it: the nightly's failure, reproduced on this side.
- * The gate has to be reached BEFORE that, so a starved run is not aggregated.
+ * The column no case scored is not the run's to report — `runMetricNames` reads
+ * the emitted scores (#1462), so the list a starved run derives for itself
+ * carries the seven above and not the eighth. That closes the nightly's throw
+ * (`Missing metric(s): argument_correctness` out of `aggregateScores`, which is
+ * strict on purpose) at its source; the outage gate still has to be reached
+ * BEFORE the comparison, because a starved run must be reported rather than
+ * compared — its numbers measure the outage, not the agent (#1496, #1510).
  */
 void test('a starved run reports the outage, not the column it starved', () => {
   const report = starvedRun(10);
   const metrics = runMetricNames({ report, hasNonemptyCases: true, l3Enabled: false });
-  assert.ok(metrics.includes('argument_correctness'));
+  assert.ok(!metrics.includes('argument_correctness'));
 
   const result = gateRunResultOf(report, { ...settings(10), metricNames: metrics });
 

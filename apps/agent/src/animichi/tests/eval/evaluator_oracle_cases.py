@@ -3,13 +3,22 @@
 Each scenario pins one branch the TypeScript port has to reproduce: the ANY-of-N
 chain disjunction and its ties, the two selection stages that accept the empty
 chain, the place selection that does not, the deterministic bypass as the WIRE
-publishes it — one tool part named for the stage, opened with no arguments, once
-per bypass stage (#1454, #1461, measured on staging 2026-09-07) — every branch of
+publishes it — one tool part named for the stage, opened with no arguments and
+carrying its own origin, once per bypass stage (#1454, #1461, #1462, measured on
+staging 2026-09-07) — every branch of
 `_acceptable_min_steps`, the `{}` (no metric) returns — including the zero-step
 turn on a case that required a step (#1439) — the
 `resolve_reply_language` decision points, and — since #1381 — both answers
 `argument_correctness` can give: every call whose params equal its arguments
 scores 1.0, and the two calls the runtime settled differently score 0.0.
+
+The three bypass scenarios are where that metric gives its THIRD answer (#1462).
+Each opens with `{}` and settles with the request the visitor made, so its two
+witnesses disagree by construction — and neither runner scores it, because
+neither runner's evaluator looks at a step the model did not ask for. The
+disagreement is left in the scenarios on purpose: it is what makes the skip
+visible, since a bypass written with matching witnesses would score 1.0 whether
+the filter ran or not.
 """
 
 from __future__ import annotations
@@ -85,7 +94,10 @@ SCENARIOS: list[OracleScenario] = [
         acceptable_stages=["plan_selected"],
         steps=[
             OracleStep(
-                tool="plan_selected", args={}, params={"point_ids": ["p1", "p2"]}
+                tool="plan_selected",
+                args={},
+                params={"point_ids": ["p1", "p2"]},
+                model_initiated=False,
             )
         ],
         data_keys=["route"],
@@ -120,7 +132,10 @@ SCENARIOS: list[OracleScenario] = [
         acceptable_stages=["plan_multi"],
         steps=[
             OracleStep(
-                tool="plan_multi", args={}, params={"candidate_ids": ["c1", "c2"]}
+                tool="plan_multi",
+                args={},
+                params={"candidate_ids": ["c1", "c2"]},
+                model_initiated=False,
             )
         ],
         data_keys=["results", "route"],
@@ -331,7 +346,14 @@ SCENARIOS: list[OracleScenario] = [
         intent="search_nearby",
         message=_EN_REPLY,
         acceptable_stages=["search_nearby"],
-        steps=[OracleStep(tool="search_nearby", args={"place": "\u5b87\u6cbb"})],
+        steps=[
+            OracleStep(
+                tool="search_nearby",
+                args={},
+                params={"candidate_id": "seed:uji", "radius_m": 3000},
+                model_initiated=False,
+            )
+        ],
         data_keys=["results"],
         expect_nonempty=True,
         selected_candidate_ids=["seed:uji"],

@@ -26,14 +26,18 @@ type Judgement = Pick<GateRunResult, 'scores' | 'metrics' | 'failures' | 'warnin
 /**
  * The outage gate runs BEFORE the aggregation, and that order is the fix.
  *
- * `aggregateScores` is strict, and a starved run is exactly the report that
- * makes it throw: the transcript read of a crashed turn still publishes a
- * `steps` array — an empty one counts (`settled-params.ts::paramsRecordedIn`) —
- * so `runMetricNames` keeps `argument_correctness` in the run's own list while
- * `ArgumentCorrectness` scored nobody. Aggregating first threw
+ * `aggregateScores` is strict, and a starved run used to be exactly the report
+ * that made it throw: `runMetricNames` kept `argument_correctness` in the run's
+ * own list while `ArgumentCorrectness` scored nobody, so aggregating first threw
  * `Missing metric(s): argument_correctness` out of this function and the outage
  * sentence never reached the result — the 2026-09-08 nightly's failure mode,
  * rebuilt on this side by the gate meant to replace it (#1496).
+ *
+ * That column is now dropped at its source too (#1462 made `runMetricNames`
+ * read the emitted score), so the throw has a second guard. The ORDER is still
+ * the decision this function takes, and for the reason it was always for: a
+ * starved run must be reported rather than compared, or its numbers reach the
+ * baseline as a measurement of the agent (#1510).
  */
 export function judgement(
   report: AgentEvalReport,

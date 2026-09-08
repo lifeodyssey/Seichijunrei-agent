@@ -60,6 +60,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
 import type { ExportedAgentExpected, ExportedAgentInput } from '../dataset-roundtrip.ts';
+import { modelAsked } from '../evaluators/transcript-view.ts';
 import type { TranscriptResult, TranscriptStep } from '../turn-transcript.ts';
 import { chainDivergenceOf } from './chain-divergence.ts';
 import { decidedClaimsOf, type DecidedClaim } from './unsourced-claims.ts';
@@ -181,14 +182,21 @@ function wrongArgumentsAt(toolName: string, index: number): Deviation {
  * published no `params` scores 0, and so does one whose `params` are not deeply
  * equal to the `args` the stream carried. When the transcript read offered no
  * second witness at all (`paramsRecorded` false) the metric emits nothing, so
- * there is nothing to place either.
+ * there is nothing to place either, and a step the RUNTIME opened for itself is
+ * not scored by that metric and so cannot be blamed by this one (#1462): a
+ * deterministic bypass opens with `{}` and settles with the visitor's request,
+ * which would have named every successful selection turn as mis-argued.
  */
 function misArguedSteps(output: TranscriptResult): Deviation[] {
   if (!output.paramsRecorded) return [];
   return output.trajectory
     .map((step, index) => ({ step, index }))
-    .filter((placed) => placed.step.status === 'ok' && !settledAsAsked(placed.step))
+    .filter((placed) => misArgued(placed.step))
     .map((placed) => wrongArgumentsAt(placed.step.toolName, placed.index));
+}
+
+function misArgued(step: TranscriptStep): boolean {
+  return step.status === 'ok' && modelAsked(step) && !settledAsAsked(step);
 }
 
 function settledAsAsked(step: TranscriptStep): boolean {

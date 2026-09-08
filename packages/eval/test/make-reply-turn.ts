@@ -45,18 +45,18 @@ export interface ReplyTurn {
 }
 
 function settledCall(output: ToolReturn, index: number): TranscriptStep {
-  return { toolName: `tool_${String(index)}`, args: {}, params: null, status: "ok", output };
+  return { toolName: `tool_${String(index)}`, args: {}, params: null, status: "ok", output, origin: "model" };
 }
 
 /** A call whose ARGUMENTS are what the test is about; it answered nothing
  * nameable. `params` is null on the stream-only side, exactly as a prior run's
  * call is — the settled pairing covers the measured run alone. */
 function calledWith(args: ToolReturn, index: number): TranscriptStep {
-  return { toolName: `asked_${String(index)}`, args, params: null, status: "ok", output: {} };
+  return { toolName: `asked_${String(index)}`, args, params: null, status: "ok", output: {}, origin: "model" };
 }
 
 function settledWith(params: ToolReturn, index: number): TranscriptStep {
-  return { toolName: `settled_${String(index)}`, args: {}, params, status: "ok", output: {} };
+  return { toolName: `settled_${String(index)}`, args: {}, params, status: "ok", output: {}, origin: "model" };
 }
 
 function replayedHistory(prompts: readonly string[] | undefined): ExportedAgentInput["context"] {
