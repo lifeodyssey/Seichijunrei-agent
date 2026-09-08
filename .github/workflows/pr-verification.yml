@@ -120,7 +120,7 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
-      id-token: write
+      id-token: write  # tokenless coverage upload (codecov `use_oidc`)
     strategy:
       fail-fast: false
       matrix:
@@ -346,7 +346,7 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
-      id-token: write
+      id-token: write  # tokenless coverage upload (codecov `use_oidc`)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -586,26 +586,30 @@ jobs:
       # SARIF upload stays off: CodeQL default setup (B3) blocks third-party
       # code-scanning uploads, and a red job is the signal this lane needs.
       #
-      # persona pedantic, because the default persona suppresses
-      # `unpinned-uses` — measured 2026-09-06 with zizmor 1.5.2 offline: an
-      # unpinned `dorny/paths-filter@v4` is "No findings (1 suppressed)" at
-      # `regular` and exit 12 at `pedantic`, while `pedantic` on the five
-      # committed workflows reports nothing at all.
+      # persona pedantic, because two of the audits the three committed
+      # workflows are written to satisfy only run there — measured 2026-09-08
+      # with 1.30.0 offline: `concurrency-limits`, which wants every job
+      # covered by a concurrency group, and `undocumented-permissions`, which
+      # wants a comment on the line of every permission wider than the default.
+      # The pin gate no longer depends on the persona: 1.30.0 hash-pins under a
+      # blanket policy, so an unpinned `actions/checkout@v4` is a high
+      # `unpinned-uses` finding at `regular` too. `pedantic` is kept because it
+      # is strictly wider and the workflows are clean at it.
       #
-      # annotations off: the action turns them into `--format github`, which
-      # zizmor 1.5.2 rejects (`invalid value 'github'`, exit 2 — run
-      # 34001151283). Today's 1.30.0 does accept it, but its newer
-      # `self-repository` audit reports 16 low findings across our committed
-      # workflows, `cd.yml` among them; that bump is its own change (#1425),
-      # not a B1 fix. Without annotations the action passes no
-      # `--format` and still propagates zizmor's exit code, so a finding is
-      # still a red job.
+      # `annotations: true` is spelled out because the action's own default is
+      # `false` (v0.6.3 action.yml) — dropping the input would leave them off,
+      # not turn them on. It becomes `--format github`, which is why this job
+      # ran without annotations while it was pinned to 1.5.2: that build knew
+      # only `plain`, `json` and `sarif` and exited 2 on anything else (run
+      # 34001151283). 1.30.0 accepts it, so a finding lands on the diff instead
+      # of only in the job log. `advanced-security: false` above is the
+      # precondition the action requires before it will honour the input.
       - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
-          version: "1.5.2"
+          version: "1.30.0"
           persona: pedantic
           advanced-security: false
-          annotations: false
+          annotations: true
 
   sqlfluff:
     name: CI / security (sqlfluff)

@@ -58,6 +58,17 @@ MATRIX_TOOLCHAINS = [
   ["infra", "pulumi/actions"]
 ].freeze
 AGGREGATE_GUARD = "contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')"
+ZIZMOR_ACTION = "zizmorcore/zizmor-action"
+# The two inputs that decide what the zizmor lane is worth, both of which
+# default to something weaker than what this repository runs, so dropping
+# either narrows the gate silently instead of failing loudly (#1425).
+# `persona` picks which audits run at all: `concurrency-limits` and
+# `undocumented-permissions` are pedantic-only, and every committed workflow is
+# written to satisfy them, so `regular` — the action's default — would stop
+# checking what they assert. `annotations` decides whether a finding reaches
+# the diff at all; the action's own default is `false`, and with the SARIF
+# upload off it is the only place a finding surfaces besides the exit code.
+ZIZMOR_INPUTS = { "persona" => "pedantic", "annotations" => true }.freeze
 # The `commits` job holds two commitlint runs with different subjects, and one
 # `commitlint` anywhere in the job vouched for both until #1500 — deleting the
 # title step, the only gate on the squash-merge subject, left this file green.
@@ -286,11 +297,28 @@ def assert_aggregates
   assert_commits_gate_replaces_codeql
 end
 
+def zizmor_step
+  @ci.steps_of("zizmor").find { |step| step["uses"].to_s.start_with?("#{ZIZMOR_ACTION}@") }
+end
+
+def assert_zizmor_runs_at_full_strength
+  step = zizmor_step
+  @log.unless_true(step, "pr-verification.yml:zizmor: no #{ZIZMOR_ACTION} step to configure")
+  return unless step
+
+  ZIZMOR_INPUTS.each do |input, expected|
+    @log.unless_true(step.dig("with", input) == expected,
+                     "pr-verification.yml:zizmor: #{input} must be #{expected} — the action's own " \
+                     "default is weaker, so leaving it out narrows the gate instead of failing it")
+  end
+end
+
 def main
   assert_affected_lane
   assert_guards_are_reachable
   assert_aggregates
   assert_image_builds_resolve_one_tag
+  assert_zizmor_runs_at_full_strength
   @log.report("CI workflow contract: all assertions hold")
 end
 
