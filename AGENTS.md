@@ -77,9 +77,13 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - Never add Claude/Anthropic/Codex/OpenAI `Co-Authored-By` trailers or a `Generated with Claude Code`
   footer. Human and Dependabot attribution remains valid.
 - `commitlint.config.js` is the machine source of truth for local commit messages and squash-merge
-  PR titles: the commit-msg hook and CI's `commits` job read that one file. Install all hooks with
+  PR titles: the commit-msg hook (`.pre-commit-config.yaml`) and CI's `commits` job read that one
+  file. It pins the type and scope tables above, `header-max-length` 72, and — inherited from
+  `@commitlint/config-conventional` — body and footer lines ≤100 characters. Install all hooks with
   `pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push`; never
-  bypass them with `--no-verify`.
+  bypass them with `--no-verify`. Check a drafted message by hand with `pnpm exec commitlint --edit
+  <file>`, or a whole branch with `pnpm exec commitlint --from origin/main` (both need
+  `pnpm install`).
 
 ## Authoritative docs (read the matching one when doing that work)
 
