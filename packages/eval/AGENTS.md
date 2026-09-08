@@ -142,6 +142,25 @@ project's own, ported from `evaluators.py`.
   with the wire transcript the TS side reads for the same turn. Changing an
   evaluator on either side means re-running `export-fixtures.sh` and re-proving the numbers in the
   same change; the drift gate is what forces it.
+- **The scenario set is pinned by hand, in a second file (#1463).** Both oracles are read in a loop
+  that generates one test per entry, so a scenario deleted from its Python producer and re-exported
+  used to take its own test away with it and leave the suite green — a hole in the one guard that
+  exists to catch Python/TS divergence. `test/expected-oracle-scenarios.ts` is the committed id list
+  and `test/oracle-scenario-pin.test.ts` compares it, by set difference, against what the fixtures
+  carry: `evaluator-oracle.json`'s `cases`, and `stats-oracle.json`'s five named case lists
+  (`paired_comparisons`, `bootstrap_gates`, `error_rate_gates`, `baseline_staleness`, and
+  `strata_oracle.py`'s `case_strata` — one id set for both of `gate-case-strata.test.ts`' loops,
+  since the loaded and the refused entries partition it). Its rows that
+  Python never names — `clopper_pearson_intervals`, `proportion_comparisons`, `baseline_paths`,
+  `written_records`, the three `number_text` tables and the four `random_stream` draws — are pinned
+  by exact row count instead, which is the same guard for a list with no ids to difference. The
+  `random_stream` counts close a variant of the same hole: `gate-python-random.test.ts` sizes its
+  own draws from `<list>.length`, so a truncated list shortens both sides of the deep-equal and
+  passes. That file's other two numbers (662 cases, 66 families) were already pinned in place.
+  **Adding or removing a scenario is therefore a two-file change by design**: the Python producer
+  (`evaluator_oracle_cases.py::SCENARIOS`, `gate_oracle.py`, `strata_oracle.py`), then that list —
+  then `bash packages/eval/scripts/export-fixtures.sh`. The pin is deliberately not exported
+  alongside the scenarios; a list Python writes would move with the deletion and prove nothing.
 - `EVALUATOR_VERSION = 'official-v2'` mirrors `evaluators.py` and rides on every instance as
   `evaluatorVersion`. Bump both sides together or the two runners' baselines stop being comparable.
 
@@ -236,7 +255,9 @@ re-proving the round trip in the same change.
   declares them as `Mapping[str, object] | None` — mirroring it is the point.
 - Fixtures are generated. Never hand-edit one; change the canonical dataset in
   `apps/agent/src/animichi/tests/eval/datasets/` (or, for the oracle, its scenarios in
-  `apps/agent/src/animichi/tests/eval/evaluator_oracle_scenarios.py`) and re-export.
+  `apps/agent/src/animichi/tests/eval/evaluator_oracle_cases.py`) and re-export. The one file that
+  is not generated — and must move in the same change — is the scenario pin
+  `test/expected-oracle-scenarios.ts` (above).
 - Nothing under `src/evaluators/` may derive an expected score. Python decides the numbers; the
   tests only compare.
 
@@ -249,7 +270,9 @@ originals, and every module here is asserted against it. Regenerate it with the
 rest of the fixtures — `bash packages/eval/scripts/export-fixtures.sh` writes it
 last, so
 `scripts/local-gates/eval-fixture-drift.sh` fails when `stats.py` or `gate.py`
-moved and this file did not.
+moved and this file did not. Its named cases and anonymous rows are pinned by
+`test/oracle-scenario-pin.test.ts` under the same two-file rule as the evaluator
+oracle (above).
 
 Three CPython behaviours had to come along for the numbers to agree, each one
 found by a red test rather than by reading:
@@ -323,7 +346,8 @@ Notes for the rest of W3:
   refusal message are Python's own answers under `case_strata` in
   `stats-oracle.json`; `test/gate-case-strata.test.ts` replays them through
   `caseStrataFromText`. Change one side only and the parity test or the drift gate
-  goes red. The Python-side tests live in `apps/agent/src/animichi/tests/unit/test_case_strata.py`, not
+  goes red; DELETE one and `test/oracle-scenario-pin.test.ts` names it (#1463).
+  The Python-side tests live in `apps/agent/src/animichi/tests/unit/test_case_strata.py`, not
   under `tests/eval/`: that directory is in no gate — `make test` is
   `tests/unit/` alone and its collection needs `ZEN_GO_API_KEY`.
 - **Assertions are folded into the case scores as 1/0.** Python's evaluators all
