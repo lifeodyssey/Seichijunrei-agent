@@ -23,6 +23,7 @@ const ROUTE = "cloudflare:index/workersRoute:WorkersRoute";
 const DNS = "cloudflare:index/dnsRecord:DnsRecord";
 const RULESET = "cloudflare:index/ruleset:Ruleset";
 const ZONE_DNSSEC = "cloudflare:index/zoneDnssec:ZoneDnssec";
+const SERVICE_TOKEN = "cloudflare:index/zeroTrustAccessServiceToken:ZeroTrustAccessServiceToken";
 const ZONE_SETTING = "cloudflare:index/zoneSetting:ZoneSetting";
 
 test("the apex serves the web Worker, not the edge Worker", () => {
@@ -156,4 +157,11 @@ test("production declares no R2 custom domain, so all buckets stay private", () 
   // the edge/catalog Workers, never directly.
   const customDomains = ofType(built, "cloudflare:index/r2CustomDomain:R2CustomDomain");
   assert.deepEqual(customDomains, []);
+});
+
+test("production mints no Access service token", () => {
+  // D3 #1369: only staging goes behind Cloudflare Access. A token minted for a
+  // door that does not exist is a live credential sitting in production state
+  // with no consumer and nobody rotating it.
+  assert.deepEqual(ofType(built, SERVICE_TOKEN), []);
 });

@@ -59,7 +59,7 @@ void test("the door refuses to run against staging with no gate credential", () 
 
 void test("the loopback is answered before the gate credential is even read", () => {
   const check = destinationCheck();
-  assert.match(check, /if \(isLoopback\(url\)\) return \{ origin, gate: null \};/);
+  assert.match(check, /if \(isLoopback\(url\)\) return \{ origin, gate: null, access: \{\} \};/);
   assert.ok(
     check.indexOf("isLoopback(url)") < check.indexOf("assert.ok(\n    gate,"),
     "a local dev origin must never be handed the staging credential",
@@ -98,6 +98,27 @@ void test("the door presents the gate credential on every request it makes", () 
   assert.match(DOOR, /const GATE_HEADER = "x-staging-key";/);
   assert.match(DOOR, /headers: laneHeaders\(init\.headers\)/);
   assert.match(DOOR, /headers\.set\(GATE_HEADER, gate\)/);
+});
+
+void test("the door reads the Access service token in one shared place, not for itself", () => {
+  // D3 #1369. The two variable names and the two header names live in
+  // `@animichi/contract/access-service-token` because four callers present the
+  // same credential — the CI smoke script, this door, the Playwright suite and
+  // (through this door) the eval runner. A door that spelled the headers itself
+  // would be the fourth spelling nobody diffs.
+  assert.match(DOOR, /from "@animichi\/contract\/access-service-token"/);
+  assert.ok(
+    !/CF_ACCESS_CLIENT_(ID|SECRET)|CF-Access-Client-/.test(DOOR),
+    "the door must not spell the variable or header names a second time",
+  );
+});
+
+void test("the loopback is answered before the Access token is read, too", () => {
+  const check = destinationCheck();
+  assert.ok(
+    check.indexOf("isLoopback(url)") < check.indexOf("accessServiceTokenHeaders("),
+    "a local dev origin must never be handed staging's Access service token",
+  );
 });
 
 void test("no request the door makes may follow a redirect off the origin", () => {

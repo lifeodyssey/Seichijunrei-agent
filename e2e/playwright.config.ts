@@ -1,4 +1,9 @@
 import { defineConfig } from "@playwright/test";
+import {
+  accessServiceTokenFrom,
+  accessServiceTokenHeaders,
+  isLoopbackHostname,
+} from "@animichi/contract/access-service-token";
 
 // Staging credentials are written to a host-scoped cookie by global setup so
 // browser requests to third-party origins never receive the gate token.
@@ -52,6 +57,88 @@ const emittedWorkerRuntimeConfig = JSON.stringify({
 if (servesEmittedWorker)
   process.env.E2E_WEB_BASE_URL = emittedWorkerOrigin;
 
+// The one target the whole run agrees on, resolved AFTER the line above so the
+// emitted-Worker lane is included. Issue #537 retired the legacy Next.js
+// frontend, so `apps/web` is the only browser surface left; specs still set
+// their own `E2E_WEB_BASE_URL` base (see web-404.spec.ts) and this is the
+// shared default they agree with. Empty-string exports must fall back too —
+// and the type-aware lint forbids bare `||` on possibly-undefined values, so
+// the empty check is spelled out (issue #1236 review).
+const baseUrl = process.env.E2E_WEB_BASE_URL?.trim()
+  ? process.env.E2E_WEB_BASE_URL
+  : "http://localhost:3000";
+
+/** The origins that are behind no Access application, and never will be.
+ *
+ * Delegates to the one definition in `@animichi/contract/access-service-token`.
+ * Spelling it here recognised `127.0.0.1` but nothing else in `127.0.0.0/8`, so
+ * a run against `http://127.0.0.2:3000` was handed the token (PR #1498 review). */
+function isLoopbackTarget(rawUrl: string): boolean {
+  return isLoopbackHostname(new URL(rawUrl).hostname);
+}
+
+/**
+ * The other origins this suite can turn into a REAL network request.
+ *
+ * `use.extraHTTPHeaders` is context-wide: it rides every request the browser
+ * context makes, `context.request` calls included — and `web-neon-login.spec.ts`
+ * posts a live sign-in to the Neon Auth origin through exactly that API. So
+ * scoping the token to `baseUrl` alone was not scoping it at all (PR #1498
+ * review): a run against staging with a live Neon Auth origin configured sent
+ * staging's service token to Neon Auth on every login case.
+ *
+ * Playwright has no per-origin header option, so the choice was a `context.route`
+ * interceptor or a refusal. This is the refusal, deliberately: an interceptor has
+ * to be correct on every request forever, adds a runtime hook to every spec, and
+ * fails OPEN when it is wrong. A config that will not start cannot leak.
+ */
+const CROSS_ORIGIN_BASE_URL_VARS = ["NEON_AUTH_BASE_URL", "VITE_NEON_AUTH_BASE_URL"] as const;
+
+function otherConfiguredOrigins(targetHost: string): readonly string[] {
+  const declared = CROSS_ORIGIN_BASE_URL_VARS.map((name) => process.env[name] ?? "");
+  return declared.filter((raw) => raw.trim() !== "" && new URL(raw).host !== targetHost);
+}
+
+// The Cloudflare Access service token (D3 #1369). Unlike the gate cookie above
+// this is a pair of REQUEST HEADERS, so it rides on `use.extraHTTPHeaders`
+// rather than a storage state — Access reads it off the request, and a browser
+// context has no place to keep it.
+//
+// It is scoped to the TARGET, the same asymmetry `workers/edge/api-test/lane-origin.ts`
+// applies: a local `wrangler dev` or `make dev-local` is behind no Access
+// application, and `extraHTTPHeaders` is unconditional, so a config that spread
+// the pair regardless would put staging's real service token on every request
+// to whatever is listening on a laptop port. The loopback therefore REFUSES a
+// declared token rather than dropping it silently — dropping it is how an
+// operator who exported the pair and forgot to repoint `E2E_WEB_BASE_URL`
+// spends an afternoon reading a login page. A half-declared token throws for
+// its own reason, from the shared reader, on either branch.
+function loopbackRefusal(): string {
+  return (
+    `CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are set while E2E_WEB_BASE_URL is ${baseUrl}: ` +
+    "staging's Access service token is never sent to a loopback origin — unset them, or point the suite at staging"
+  );
+}
+
+function crossOriginRefusal(origins: readonly string[]): string {
+  return (
+    `CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are set while ${origins.join(", ")} ` +
+    `${origins.length === 1 ? "is" : "are"} configured off the target origin ${baseUrl}: ` +
+    "use.extraHTTPHeaders is context-wide, so the token would ride every request to those origins too " +
+    "— unset the token, or point every configured origin at the same host"
+  );
+}
+
+function stagingAccessHeaders(): Readonly<Record<string, string>> {
+  if (accessServiceTokenFrom(process.env) === null) return {};
+  if (isLoopbackTarget(baseUrl)) throw new Error(loopbackRefusal());
+  const foreign = otherConfiguredOrigins(new URL(baseUrl).host);
+  if (foreign.length > 0) throw new Error(crossOriginRefusal(foreign));
+  return accessServiceTokenHeaders(process.env);
+}
+
+const accessHeaders = stagingAccessHeaders();
+
 export default defineConfig({
   globalSetup: "./global-setup.ts",
   testDir: ".",
@@ -90,19 +177,14 @@ export default defineConfig({
       }
     : {}),
   use: {
-    // Issue #537 retired the legacy Next.js frontend, so `apps/web` is the only
-    // browser surface left. Specs still set their own `E2E_WEB_BASE_URL` base
-    // (see web-404.spec.ts); this is the shared default they agree with.
-    // Empty-string exports must fall back too — and the type-aware lint
-    // forbids bare `||` on possibly-undefined values, so the empty check is
-    // spelled out (issue #1236 review).
-    baseURL: process.env.E2E_WEB_BASE_URL?.trim()
-      ? process.env.E2E_WEB_BASE_URL
-      : "http://localhost:3000",
+    // Resolved above, so `baseURL` and the Access decision cannot disagree
+    // about which origin this run is talking to.
+    baseURL: baseUrl,
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     ...(stagingGateToken ? { storageState: "./.auth/staging-gate.json" } : {}),
+    extraHTTPHeaders: accessHeaders,
   },
   projects: [
     // seed.spec.ts is a zero-assertion scaffold the generator agents seed from

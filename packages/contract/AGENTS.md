@@ -79,6 +79,14 @@ fallback (#1005 AC3) was deleted in #1347 once every branch was post-cut.
   edge re-reads the same body by hand (`workers/edge/src/agent/session/trajectory-prefix.ts`, no zod in the
   bundle), and `workers/edge/test/trajectory-prefix-body.test.ts` parses one body through both
   readers so they cannot drift.
+- `src/access-service-token.ts` — the Cloudflare Access service token every automated
+  caller presents at staging (D3 #1369): the two variable names, the two header names,
+  and the fail-closed reader that refuses a HALF-declared token. Import-free, like
+  `staging-prefix-path.ts`, because its consumers are a Playwright config
+  (`e2e/playwright.config.ts`), a Node lane door (`workers/edge/api-test/lane-origin.ts`)
+  and — through that door — `packages/eval`, none of which should load zod to learn two
+  header names. `test/access-service-token.test.ts` holds it; the values come from the
+  `infra` stack output, never from anything checked in.
 - `src/contract.ts` — catalog procedures and error attachments.
 - `src/users-contract.ts` — users-service procedures and errors.
 - `src/errors.ts` — canonical catalog error registry.

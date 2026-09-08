@@ -2,7 +2,8 @@
 
 Opt-in, never in CI, never in a deploy unit. Four suites, one per question, over one
 shared door — `lane-origin.ts`, which resolves `CATALOG_API_ORIGIN`,
-`AGENT_TURN_BEARER` and `STAGING_GATE_TOKEN` for all of them, requires HTTPS of every
+`AGENT_TURN_BEARER`, `STAGING_GATE_TOKEN` and the Cloudflare Access service token
+(`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`) for all of them, requires HTTPS of every
 non-loopback origin before a credential is sent, and makes every request itself
 (`laneFetch`) so neither the gate header nor the no-redirect rule can be forgotten by
 one call site. `http://localhost` and `http://127.0.0.1` are the one exception —
@@ -49,15 +50,44 @@ fails if one starts to.
 CATALOG_API_ORIGIN=https://staging.animichi.com \
 AGENT_TURN_BEARER="$(cat ~/.animichi/staging-access-token)" \
 STAGING_GATE_TOKEN="$(cat ~/.animichi/staging-gate-token)" \
+CF_ACCESS_CLIENT_ID="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_ID --format string)" \
+CF_ACCESS_CLIENT_SECRET="$(esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_SECRET --format string)" \
 pnpm --filter edge-worker run test:catalog-api
 ```
 
-All three variables fail closed: without `CATALOG_API_ORIGIN` the lane refuses to
-guess an origin, without `AGENT_TURN_BEARER` the turn cases refuse to run, and
-without `STAGING_GATE_TOKEN` the lane refuses to talk to a non-loopback origin at
-all. Run it only after a deploy that carries `AGENT_TURN_ROUTE = "edge"` — against
+Every variable fails closed: without `CATALOG_API_ORIGIN` the lane refuses to
+guess an origin, without `AGENT_TURN_BEARER` the turn cases refuse to run, without
+`STAGING_GATE_TOKEN` the lane refuses to talk to a non-loopback origin at all, and
+with exactly ONE of the two Access variables it refuses before building a request.
+The two Access variables are the only ones that may be absent together — that is
+every run against a target with no Access application in front of it.
+
+Run it only after a deploy that carries `AGENT_TURN_ROUTE = "edge"` — against
 the container the turn is answered by `apps/agent`, which emits no
 `x-session-id` header and the first assertion fails.
+
+## The Cloudflare Access service token (D3 #1369)
+
+Staging is moving behind Cloudflare Access. Automation gets in with a **service
+token**: two request headers, `CF-Access-Client-Id` and `CF-Access-Client-Secret`,
+which `lane-origin.ts` attaches to every non-loopback request the same way it
+attaches the gate header. The values are a Pulumi stack output
+(`infra/src/staging-access.ts`), carried into the ESC environment
+`lifeodyssey/animichi/staging` by the `pulumi-stacks` provider; read them with the
+`esc env open` lines in the recipe above and never write them to a file in this repo.
+It is `open`, not `get`, on purpose: `get` prints the environment's *definition* —
+for these two keys that is the `pulumi-stacks` import expression, and for a static
+secret it is ciphertext unless `--show-secrets` is passed. `open` is what resolves a
+provider, which is also what `pulumi/esc-action` does for CI. Use
+`esc env get lifeodyssey/animichi/staging environmentVariables` when you only need to
+confirm the two keys EXIST, which prints no value.
+
+Both variables or neither. Access answers a request carrying one of the two headers
+exactly as it answers one carrying neither — a 302 to the identity provider's login
+page — so half a token arrives as an HTML login page where the lane expected JSON,
+and reads as a broken app. `@animichi/contract/access-service-token` refuses that
+case by name before the request is built. Leaving both unset is the ordinary state
+until the Access application exists (PR 2 of that card).
 
 ## The staging gate (#1294)
 

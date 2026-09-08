@@ -562,6 +562,67 @@ Deleting the GitHub secrets themselves is the owner's step in #1367 (#1081), tak
 staging deploy and one green nightly on the ESC path — deleting `R2_ACCESS_KEY_ID` /
 `R2_SECRET_ACCESS_KEY` is what closes this rollback window for good.
 
+## Staging access (Cloudflare Access, D3 #1369)
+
+Staging runs the same app as production **with anonymous access on**, so there is no login
+keeping strangers out; a Cloudflare WAF custom rule (`infra/src/staging.ts`) does that today.
+Card #1369 replaces it with Cloudflare Access — humans sign in through an identity policy,
+automation presents a **service token** — and ships in two parts so nothing is locked out
+mid-rollout.
+
+**What is live now (PR 1).** `infra/src/staging-access.ts` mints one
+`ZeroTrustAccessServiceToken` on the staging stack (Cloudflare name `animichi-staging-ci`,
+duration `8760h`) and exports two stack outputs:
+
+| Stack output | ESC key in `lifeodyssey/animichi/staging` | Request header |
+|---|---|---|
+| `stagingAccessClientId` | `CF_ACCESS_CLIENT_ID` (`environmentVariables`) | `CF-Access-Client-Id` |
+| `stagingAccessClientSecret` | `CF_ACCESS_CLIENT_SECRET` (`environmentVariables`) | `CF-Access-Client-Secret` |
+
+**That token expires after one year** and nothing alerts on it — the deadline, the two renewal
+paths and who is (not) warned are in `secrets.md`, "It expires. Nothing tells you."
+
+The ESC environment imports them through its `pulumi-stacks` provider once the
+`stage-foundation` apply has published them, so no value is copied by hand. Renaming either
+output empties the ESC key silently — `infra/topology-staging.test.ts` pins both names for
+exactly that reason. Production mints no token: it has no Access application.
+
+Every automated caller already sends the pair when both variables are set, and refuses when
+exactly one is: the CD smoke probe (`.github/scripts/staging-smoke-check.sh`), the Playwright
+suite (`e2e/playwright.config.ts`, `use.extraHTTPHeaders`), the staging lanes
+(`workers/edge/api-test/lane-origin.ts`) and, through that same door, `packages/eval`. The
+names and the refusal live once, in `packages/contract/src/access-service-token.ts`. Access
+answers a request carrying one header exactly as it answers one carrying neither — a 302 to
+the login page — so a half-declared token would surface as "the app is broken", which is why
+it fails closed by name instead.
+
+`cd.yml`'s `smoke` job deliberately does **not** export the two keys from ESC yet: they do not
+exist in the environment until the first `stage-foundation` apply publishes them, and
+`pulumi/esc-action` fails a job that asks for a name the environment has no value for. The
+probe therefore runs unauthenticated in this transitional state, which is correct while there
+is still no Access application in front of staging.
+
+**What PR 2 adds.** The `ZeroTrustAccessApplication` covering `staging.animichi.com` and the
+`animichi-staging` / `animichi-web-staging` workers.dev hosts, an identity `allow` policy for
+the owner plus a `nonIdentity` (Service Auth) policy carrying this token, the two ESC exports
+on the `smoke` job, and the deletion of the WAF gate, `workers/edge/src/staging-gate/**`,
+`scripts/setup-staging-gate.sh` and the `stagingGate*` stack config. Access enforcement is
+eventually consistent — re-probe a few minutes after the apply.
+
+**Locally.** Read the values from ESC rather than a file:
+
+```sh
+esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_ID --format string
+esc env open lifeodyssey/animichi/staging environmentVariables.CF_ACCESS_CLIENT_SECRET --format string
+```
+
+`open` and not `get`: `get` prints the environment's *definition*, which for these two keys is
+the `pulumi-stacks` import expression rather than the resolved value (and, for a static secret,
+ciphertext unless `--show-secrets` is passed). So
+`esc env get lifeodyssey/animichi/staging environmentVariables` is what to run when you only need
+to see that the two keys are declared and where they come from — it shows the import expression,
+never the token.
+
 ## WAF and Edge Hardening
 
 Manual Cloudflare dashboard steps live in `docs/ops/cloudflare-hardening.md`.

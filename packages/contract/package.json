@@ -16,6 +16,7 @@
     "./session-history-contract": "./src/session-history-contract.ts",
     "./staging-prefix-contract": "./src/staging-prefix-contract.ts",
     "./staging-prefix-path": "./src/staging-prefix-path.ts",
+    "./access-service-token": "./src/access-service-token.ts",
     "./agent-paths": "./src/agent-paths.ts",
     "./agent-tool-parameters": "./src/agent-tool-parameters.ts",
     "./agent-tool-schemas": "./src/agent-tool-schemas.ts",

@@ -28,6 +28,31 @@ It needs nothing running beforehand; every other script targets `:3000` (or what
 - Start `make dev-local` first if you want the real backend behind the stubbed edges, then run
   setup/tests. The setup script does not launch the backend.
 - `E2E_WEB_BASE_URL` targets `apps/web` (default `:3000`, CI wrangler `:8799`).
+- **Reaching staging (D3 #1369).** When the target is staging rather than a local or
+  emitted Worker, the suite presents a Cloudflare Access **service token**:
+  `CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET`, turned into the
+  `CF-Access-Client-Id` / `CF-Access-Client-Secret` request headers on
+  `use.extraHTTPHeaders` by `playwright.config.ts`. It is headers and not a storage
+  state because Access reads the credential off each request; the `STAGING_GATE_TOKEN`
+  cookie `global-setup.ts` writes is the older WAF gate and is unrelated. Both
+  variables or neither — half a token is answered with the Access login page, and
+  `@animichi/contract/access-service-token` refuses it by name before any spec starts.
+  It is scoped to the TARGET, and the scoping is a **refusal**, not a filter, because
+  `use.extraHTTPHeaders` is context-wide — it rides `context.request` calls too, and
+  `web-neon-login.spec.ts` posts a live sign-in to the Neon Auth origin through exactly
+  that API. So the config refuses to start when a token is declared and either (a) the
+  target is this machine (`isLoopbackHostname` in the contract package owns that list:
+  `localhost`, `*.localhost`, all of `127.0.0.0/8`, `[::1]`, `0.0.0.0`, `::`), or (b) any
+  other configured origin the suite can reach — `NEON_AUTH_BASE_URL`,
+  `VITE_NEON_AUTH_BASE_URL` — sits on a different host from the target. Playwright has no
+  per-origin header option; a `context.route` interceptor was the alternative and was
+  rejected because it has to be right on every request forever and fails OPEN when it is
+  not, whereas a config that will not start cannot leak. Add any new origin variable to
+  `CROSS_ORIGIN_BASE_URL_VARS` when you add it to a spec.
+  Get the values with `esc env open lifeodyssey/animichi/staging
+  environmentVariables.CF_ACCESS_CLIENT_ID --format string` (and the secret likewise);
+  CI takes them from the same ESC environment. `.github/scripts/test_browser_lane_contract.rb`
+  fails if the config stops presenting them.
 - Keep browser assertions user-visible and locale-aware; failure screenshots are automatic.
 
 ## Key files + entrypoints

@@ -16,8 +16,69 @@ RETRY_DELAY="${SMOKE_RETRY_DELAY:-10}"
 
 fail() { echo "::error title=staging smoke::$*"; exit 1; }
 
+# The Cloudflare Access service token this probe presents (D3 #1369). Empty
+# until the ESC environment carries the pair, which is the whole transitional
+# state PR 1 ships in: staging has no Access application in front of it yet, so
+# an unset token is the ordinary case and not a failure.
+#
+# Half a token IS a failure, and a loud one. Access answers a request carrying
+# one of the two headers exactly as it answers one carrying neither — a 302 to
+# the identity provider's login page — so the probe would read an HTML login
+# page where it expected JSON and report a broken deploy. Naming the missing
+# variable is the difference between that and one export.
+ACCESS_HEADERS=()
+
+# The host of a URL: no scheme, no credentials, no port, no path. Bracketed IPv6
+# keeps its brackets, which is the form `URL.hostname` produces on the TS side.
+url_host() {
+  local rest="${1#*://}"
+  rest="${rest##*@}"
+  rest="${rest%%/*}"
+  case "$rest" in
+    \[*\]*) printf '%s]' "${rest%%\]*}" ;;
+    *) printf '%s' "${rest%%:*}" ;;
+  esac
+}
+
+# MIRROR of `isLoopbackHostname` in packages/contract/src/access-service-token.ts.
+# A shell script cannot import that module, so the list is spelled twice and both
+# spellings carry a test row per form. `127.[0-9]*.[0-9]*.[0-9]*` also matches a
+# hostname like `127.0.0.1.example.com`; that direction is the safe one — it
+# refuses rather than sends.
+is_loopback_url() {
+  case "$(url_host "$1")" in
+    localhost|*.localhost|'[::1]'|'[::]'|0.0.0.0) return 0 ;;
+    127.[0-9]*.[0-9]*.[0-9]*) return 0 ;;
+  esac
+  return 1
+}
+
+# The same asymmetry the TS callers apply: a probe pointed at this machine is
+# behind no Access application, so a token declared against one is refused by
+# name rather than sent. Refused and not silently dropped, because a dropped
+# credential is indistinguishable from a broken one at the far end.
+refuse_token_against_loopback() {
+  local url
+  for url in "$BASE_URL" "$WEB_URL"; do
+    if is_loopback_url "$url"; then
+      fail "CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are set while probing $url: staging's Access service token is never sent to a loopback origin"
+    fi
+  done
+}
+
+read_access_service_token() {
+  local id="${CF_ACCESS_CLIENT_ID:-}" secret="${CF_ACCESS_CLIENT_SECRET:-}"
+  if [ -n "$id" ] && [ -n "$secret" ]; then
+    refuse_token_against_loopback
+    ACCESS_HEADERS=(-H "CF-Access-Client-Id: $id" -H "CF-Access-Client-Secret: $secret")
+    return
+  fi
+  if [ -n "$id" ]; then fail "CF_ACCESS_CLIENT_SECRET is unset while CF_ACCESS_CLIENT_ID is set: Cloudflare Access takes both headers or neither"; fi
+  if [ -n "$secret" ]; then fail "CF_ACCESS_CLIENT_ID is unset while CF_ACCESS_CLIENT_SECRET is set: Cloudflare Access takes both headers or neither"; fi
+}
+
 http_body_and_code() {
-  curl -sS --max-time 15 -w '\n%{http_code}' "$1"
+  curl -sS --max-time 15 -w '\n%{http_code}' ${ACCESS_HEADERS[@]+"${ACCESS_HEADERS[@]}"} "$1"
 }
 
 healthz_ok() {
@@ -42,6 +103,7 @@ run_checks() { healthz_ok && shell_ok; }
 
 main() {
   local attempt=1
+  read_access_service_token
   while ! run_checks; do
     [ "$attempt" -lt "$ATTEMPTS" ] || fail "staging smoke check failed after $ATTEMPTS attempts"
     echo "staging smoke check attempt $attempt failed; retrying in ${RETRY_DELAY}s" >&2

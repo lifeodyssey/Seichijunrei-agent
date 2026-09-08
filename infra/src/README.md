@@ -9,7 +9,8 @@ Thin composition root is `../index.ts` (stable public exports for topology tests
 | `web-routes.ts` | Flag-gated Custom Domains, edge Worker routes, www + legacy DNS redirects |
 | `hardening.ts` | Prod zone DNSSEC, CAA, API rate limit, HSTS |
 | `staging.ts` | Staging WAF gate, IP helpers, per-host config settings |
-| `outputs.ts` | Stack outputs (bucket names) |
+| `staging-access.ts` | The staging Cloudflare Access service token (D3 #1369) and the two outputs ESC imports |
+| `outputs.ts` | Stack outputs (bucket names, Access service token) |
 
 ## TODOs left intentionally
 
