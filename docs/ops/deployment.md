@@ -39,15 +39,24 @@ dependencies with `always()` and fail on any failed or cancelled one.
 ### Build once, promote the same artifact
 
 On a `main` push, `CD` selects the affected set with the same pnpm filter, over the range from the
-last tree CD actually published to `github.sha`. That base is the `head_sha` of the most recent
-successful `cd.yml` run on `main`, read from the Actions API (`plan` holds `actions: read` for it),
-and it is used only when this push's history still descends from it. Otherwise the base falls back
-to `github.event.before`, and then to `HEAD~1` when `before` is zero or unreachable (first push,
-force push, rewritten history); the step prints which base it chose and why. The previous push is
-the wrong base because a failed run's cohort is never deployed and then falls outside the next
-push's range, while the head guard forbids re-running it — the diff is stranded (#1506). That guard
-is unchanged: `github.sha` must still be the head of `origin/main`, so re-running a run that a newer
-push has overtaken deploys nothing.
+last tree CD actually put on staging to `github.sha`. The previous push is the wrong base: a failed
+run's cohort is never deployed and then falls outside the next push's range, while the head guard
+forbids re-running that run — the diff is stranded (#1506).
+
+`plan` finds the base by walking the 15 newest **completed** `cd.yml` runs on `main`, newest
+`created_at` first, and taking the first whose `CD / staging smoke` job concluded `success` (`plan`
+holds `actions: read` for those two API reads). Smoke is the last staging stage, so its success
+means that head is live on staging. The run's own conclusion is deliberately not the test: the
+repository policy auto-rejects every `production` approval, so `promote production` fails and no run
+on main is ever `conclusion=success` — a `status=success` filter would match nothing and silently
+reinstate the bug. A candidate is used only when this push's history still descends from it
+(`git merge-base --is-ancestor`). If none qualifies the base falls back to `github.event.before`,
+and then to `HEAD~1` when `before` is zero or unreachable (first push, force push, rewritten
+history). The step prints the chosen run id, base and reason into the job summary, and an Actions
+API outage degrades to the `before` fallback rather than failing the push.
+
+The head guard is unchanged: `github.sha` must still be the head of `origin/main`, so re-running a
+run that a newer push has overtaken deploys nothing.
 
 One `build` job produces ONE artifact, `release-<sha>`, a tar of everything this push deploys: the
 web output, the four Worker bundles with their deploy-time configs, the migration chain, and the

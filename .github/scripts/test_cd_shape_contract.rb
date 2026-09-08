@@ -10,9 +10,8 @@
 #                that artifact without rebuilding anything
 #   propagation  every stage lists every earlier stage in `needs`, so a failure
 #                two hops back cannot evaporate into a `skipped` result
-#   guards       `plan` starts its range at the last tree CD published, falls
-#                back off a zero `before` and refuses a head that origin/main
-#                has already moved past
+#   guards       `plan` ranges from the last tree CD put on staging, falls back
+#                off a zero `before`, refuses a head origin/main has moved past
 #   concurrency  the staging lane and the production lane are separate job-level
 #                groups that queue instead of cancelling
 #   trigger      a push to main is the only way in — no tag, no dispatch
@@ -55,14 +54,14 @@ REBUILD_MARKERS = [
 ].freeze
 ZERO_SHA = "0000000000000000000000000000000000000000"
 HEAD_GUARD = "git ls-remote origin refs/heads/main"
-# `github.event.before` is the previous *push*, not the previous *deployment*: a
-# failed run's cohort falls outside the next push's range and the head guard
-# below forbids re-running it, so the diff is stranded (#1506). The range starts
-# at the head of the last successful CD run instead, and only when this push's
-# history still descends from it — a widened range over a rewritten history
-# describes nothing, and mere reachability would not catch that.
-LAST_SUCCESS_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=success\b}
-LAST_SUCCESS_SHA = "head_sha"
+# `github.event.before` is the previous *push*, not the previous *deployment*, so
+# a failed run's cohort is stranded (#1506). The base is the newest head CD put
+# on staging — a *job* question, because the policy auto-rejects every
+# `production` approval and no run on main is ever `conclusion=success`. The
+# reasoning is in the step; these are the four spellings it may not lose.
+DEPLOYED_QUERY = %r{actions/workflows/cd\.yml/runs\?[^"']*\bstatus=completed\b}
+SMOKE_JOB = "CD / staging smoke"
+RUN_JOBS_QUERY = %r{actions/runs/\$\{?run_id\}?/jobs}
 ANCESTOR_CHECK = "git merge-base --is-ancestor"
 # Without it a stage runs on a push whose `build` was skipped — no artifact.
 BUILD_GUARD = "needs.build.result == 'success'"
@@ -168,13 +167,14 @@ def plan_script
 end
 
 def assert_plan_guards
-  @log.unless_true(plan_script.match?(LAST_SUCCESS_QUERY) && plan_script.include?(LAST_SUCCESS_SHA),
-                   "cd.yml:plan: must take its range base from the head of the last successful CD " \
-                   "run on main, not from the previous push")
+  @log.unless_true(plan_script.match?(DEPLOYED_QUERY) && plan_script.include?("head_sha"),
+                   "cd.yml:plan: must base its range on a completed run's head, not on the previous push")
+  @log.unless_true(plan_script.include?(SMOKE_JOB) && plan_script.match?(RUN_JOBS_QUERY),
+                   "cd.yml:plan: must read each candidate run's `#{SMOKE_JOB}` job to know that head reached staging")
   @log.unless_true(plan_script.include?(ANCESTOR_CHECK),
-                   "cd.yml:plan: must fall back when the last successful sha is not an ancestor of this head")
+                   "cd.yml:plan: must reject a candidate base this head does not descend from")
   @log.unless_true(plan_script.include?("$EVENT_BEFORE"),
-                   "cd.yml:plan: must fall back to `github.event.before` when the API names no usable run")
+                   "cd.yml:plan: must fall back to `github.event.before` when no candidate run qualifies")
   @log.unless_true(@cd.dig("jobs", "plan", "permissions").to_h["actions"] == "read",
                    "cd.yml:plan: reading the Actions API needs `actions: read` on the job")
   @log.unless_true(plan_script.include?(ZERO_SHA),

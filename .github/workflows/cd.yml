@@ -88,35 +88,57 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          # The range starts at the last tree CD actually published, not at the
-          # previous push. When a run fails, its cohort is never deployed, and
-          # `before..sha` on the next push excludes that diff outright while the
-          # stale-head guard below forbids re-running the superseded run — so
-          # the cohort is stranded until something else happens to touch the
-          # same packages (9598144f7, #1506). The last successful run's head is
-          # the deployment record spec decision 3 said CD did not have.
+          # The range starts at the last tree CD actually deployed to staging,
+          # not at the previous push. When a run fails, its cohort is never
+          # deployed, and `before..sha` on the next push excludes that diff
+          # outright while the stale-head guard below forbids re-running the
+          # superseded run — so the cohort is stranded until something else
+          # happens to touch the same packages (9598144f7, #1506). This is the
+          # deployment record spec decision 3 said CD did not have.
+          #
+          # It cannot be `status=success` on the run: the repository policy
+          # auto-rejects every `production` approval, so `promote production`
+          # fails and NO run on main is ever `conclusion=success`. That filter
+          # returns nothing and the base falls silently back to `before` —
+          # the bug this step exists to fix, reintroduced by its own query. The
+          # staging record is the `CD / staging smoke` job, the last staging
+          # stage: it runs only after all five publish steps and probes the
+          # deployed surfaces, so its success means that head is live on
+          # staging whatever production later did.
           base=""
           reason=""
-          last_success="$(gh api \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/cd.yml/runs?branch=main&status=success&per_page=1" \
-            --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null || true)"
-          # An ancestor check, not just reachability: a success recorded on a
-          # history this push rewrote away would widen the range to a diff that
-          # no longer describes anything.
-          if [ -n "$last_success" ] && git cat-file -e "$last_success^{commit}" 2>/dev/null &&
-             git merge-base --is-ancestor "$last_success" "$HEAD_SHA"; then
-            base="$last_success"
-            reason="head of the last successful CD run on main"
-          fi
+          # Newest first, bounded: 15 completed runs is a fortnight of main at
+          # this repository's rate, and a base older than that is one the
+          # `before` fallback below covers just as well.
+          completed="$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/cd.yml/runs?branch=main&status=completed&per_page=15" \
+            --jq '.workflow_runs | sort_by(.created_at) | reverse | .[] | "\(.id) \(.head_sha)"' \
+            2>/dev/null || true)"
+          while read -r run_id run_head; do
+            [ -n "$run_id" ] || continue
+            smoke="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs" \
+              --jq '.jobs[] | select(.name == "CD / staging smoke") | .conclusion' 2>/dev/null || true)"
+            # `skipped` is not a deployment: on a push that selected nothing,
+            # smoke never ran and that head was never published.
+            [ "$smoke" = "success" ] || continue
+            # An ancestor check, not just reachability: a run recorded on a
+            # history this push rewrote away would widen the range to a diff
+            # that no longer describes anything.
+            git cat-file -e "$run_head^{commit}" 2>/dev/null || continue
+            git merge-base --is-ancestor "$run_head" "$HEAD_SHA" || continue
+            base="$run_head"
+            reason="head of run $run_id, the newest whose \`CD / staging smoke\` passed"
+            break
+          done <<< "$completed"
           # A first push and every force push report a 40-zero `before`; a
           # rewritten history reports one this clone does not have. Both fall
           # back to the parent commit.
           if [ -z "$base" ]; then
             base="$EVENT_BEFORE"
-            reason="this push's github.event.before — the API named no usable successful run"
+            reason="this push's github.event.before — no recent run reached a green staging smoke"
             if [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
               base="$(git rev-parse HEAD~1)"
-              reason="HEAD~1 — before is zero or unreachable, and the API named no usable successful run"
+              reason="HEAD~1 — before is zero or unreachable, and no recent run reached a green staging smoke"
             fi
           fi
           # A rerun of a run a newer push has already overtaken would publish an
