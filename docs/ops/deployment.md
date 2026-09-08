@@ -44,9 +44,9 @@ run's cohort is never deployed and then falls outside the next push's range, whi
 forbids re-running that run — the diff is stranded (#1506).
 
 `plan` finds the base by walking the **completed** `cd.yml` runs on `main`, newest `created_at`
-first, and taking the first whose `CD / staging smoke` job concluded `success` (`plan` holds
-`actions: read` for those two API reads). Smoke is the last staging stage, so its success means that
-head is live on staging. The walk is paged — five pages of 30, a hard cap of 150 runs, stopping at
+first, and taking the first whose `CD / staging` job has a `staging smoke` step that concluded
+`success` (`plan` holds `actions: read` for those two API reads). Smoke is the last step of the
+staging job, so its success means that head is live on staging. The walk is paged — five pages of 30, a hard cap of 150 runs, stopping at
 the first qualifying run — because a single page is not a window: a stretch of red CI longer than
 one page would find no green smoke and send the base back to `github.event.before`, stranding the
 cohorts this mechanism exists to rescue.
@@ -56,13 +56,13 @@ signal. A CD run ends `success` exactly when it deployed nothing — `plan` sele
 every later job skipped, and skipped jobs make a green run. A run that *did* deploy ends `failure`,
 because the repository policy auto-rejects the `production` approval and `promote production` fails
 after staging has already been published. Over the 15 newest completed runs on `main` (measured
-2026-09-08) six ended `success` and all six had `CD / staging smoke: skipped`, while six of the nine
-that ended `failure` had `CD / staging smoke: success` — the signal is not merely weak, it is
-inverted. A `status=success&per_page=1` filter therefore does not come back empty; it comes back
-with a head nothing was ever published from, which is worse than the `github.event.before` it
-replaced. The
-smoke job's name and `plan`'s jq selector are pinned to each other by
-`test_cd_publish_contract.rb`, since a rename or a typo would empty the lookup rather than fail it.
+2026-09-08, while the chain was still six jobs) six ended `success` and all six had a skipped
+staging smoke, while six of the nine that ended `failure` had it `success` — the signal is not
+merely weak, it is inverted. A `status=success&per_page=1` filter therefore does not come back
+empty; it comes back with a head nothing was ever published from, which is worse than the
+`github.event.before` it replaced. The staging job's name, the smoke step's name and `plan`'s
+two-hop jq selector are pinned to each other by `test_cd_publish_contract.rb`, since a rename or a
+typo would empty the lookup rather than fail it.
 
 A candidate is used only when this push's history still descends from it, and the same test applies
 to the `github.event.before` fallback: `git cat-file -e` alone asks only whether the clone can
@@ -85,28 +85,40 @@ shipped Wrangler config once, at build time, and never re-tagged. Its `artifact-
 in the job summary. Staging and production both download that one artifact —
 `promote-production` has no build step at all.
 
-The ordered stages are foundation, migration, services, edge, and web, each publishing with
-`cloudflare/wrangler-action` and `deploy … --tag sha-<sha>` so `wrangler versions list` names the
-commit a running version came from. A stage whose unit was not affected is skipped without
-weakening the order; every stage lists every earlier stage in `needs`, so a real failure cannot
-evaporate into a skip on the way down the chain. `smoke` then probes the two staging surfaces
-(#1198), and one `production` environment approval releases the same artifact.
+One `stage` job runs the ordered units — foundation, migration, services, edge, web — each
+publishing with `cloudflare/wrangler-action` and `deploy … --tag sha-<sha>` so
+`wrangler versions list` names the commit a running version came from. A unit whose deploy target
+was not affected is a skipped step, which weakens neither the order nor the failure path: a red step
+fails the job, and the job's own `!failure() && !cancelled()` guard is what keeps that out of
+production. Its last step, `staging smoke`, probes the two staging surfaces (#1198), and one
+`production` environment approval releases the same artifact.
 
-Three contracts guard this, each owning one question.
+The chain is one job rather than six because a job-level concurrency group is held only while its
+own job runs. Spread over five stages and a smoke job, `cd-staging` was six queues wearing one name:
+between run A's foundation finishing and its migration starting, run B's foundation could take the
+group and put an older tree under a newer one. One job holds the group from the foundation apply
+through the smoke probe (#1468); `test_cd_shape_contract.rb` fails if a stage is split back out.
+
+Four contracts guard this, each owning one question.
 `.github/scripts/test_cd_shape_contract.rb` is the job graph: one build, one artifact, the `needs`
 chains, the concurrency groups, the pairing rules, and push-to-main as the only trigger.
+`test_cd_staging_chain_contract.rb` is what the one staging job must contain and in what order:
+that it alone takes `cd-staging`, that every unit publishes from a step of it rather than a job of
+its own, that the probe is the last step, and where the schema reset sits.
 `test_cd_publish_contract.rb` is how it publishes: the pinned Wrangler, the `sha-<sha>` tag, the
 environment each job may target — through the action **and** through a shell, because
 `pnpm exec wrangler deploy … --env production` in a staging stage would go live with no approval
-and touch no action input — and that the smoke probe's exit code is what decides its job.
+and touch no action input — and that the smoke probe's exit code, under the default success
+condition, is what decides its job.
 `test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type,
-each stage's ESC export list, that every Wrangler deploy authenticates with the token ESC just
-opened, no retired backend credential, no runtime-secret upload. That no workflow reads a GitHub
+the ESC export list, which step of the staging job may spend which of the names it opens, that
+every Wrangler deploy authenticates with the token ESC just opened, no retired backend credential,
+no runtime-secret upload. That no workflow reads a GitHub
 secret at all, and that every job asking Pulumi Cloud for a token declares an `environment:`, are
 repository-wide rules and live in `test_workflow_invariants.rb`. All of them run in CI's
 `contracts` job, which is unconditional — no path filter selects it.
 
-Concurrency is per job, not per workflow: `cd-staging` covers the five stages and the smoke probe,
+Concurrency is per job, not per workflow: `cd-staging` covers the one `stage` job,
 `cd-production` covers the promotion. A run parked at the production approval gate no longer holds
 the staging lane (#1204, #1325). Both groups set `cancel-in-progress: false` and `queue: max`, so up
 to 100 pending jobs queue in order instead of cancelling the one already waiting.
@@ -278,8 +290,8 @@ Common runtime config:
   (`https://animichi-web-staging.zhenjiazhou0127.workers.dev`) as a plain (non-secret) value, not a
   GitHub secret — a domain name isn't a secret, and this needs no owner action to provision. Do
   **not** add a `CORS_ALLOWED_ORIGIN` secret to the `staging` GitHub Environment: it is no longer
-  uploaded to the edge Worker: CD uploads no runtime secret at all since #1364, and `stage-edge`
-  runs `wrangler deploy`, which leaves a secret its config does not declare alone. The eight edge
+  uploaded to the edge Worker: CD uploads no runtime secret at all since #1364, and the edge deploy
+  step runs `wrangler deploy`, which leaves a secret its config does not declare alone. The eight edge
   runtime secrets are still the owner's `wrangler secret put` values until #1370 moves them into the
   Cloudflare Secrets Store — only `AGENT_SVC_DATABASE_URL` arrives through a
   `secrets_store_secrets` binding today ([`secrets.md`](./secrets.md) chains 1 and 2). So such a
@@ -375,8 +387,8 @@ construction. The full authoring/apply boundary is [`migrations.md`](./migration
 ### Migration promotion
 
 The artifact carries the committed `migrations/neon/` chain and `atlas.sum` under
-`release/migrations/`. Staging applies it through the **migrator Worker**: `stage-migration` runs
-`scripts/delivery/migrate-through-worker.sh staging`, which reads the sealed head, exchanges the
+`release/migrations/`. Staging applies it through the **migrator Worker**: the `CD / staging` job's
+migration unit runs `scripts/delivery/migrate-through-worker.sh staging`, which reads the sealed head, exchanges the
 job's GitHub OIDC identity for a token scoped to `animichi:github-actions:migrator`, and POSTs
 `/migrate` with that head. CI holds no database credential on this path, not even a short-lived one.
 
@@ -387,8 +399,9 @@ recreates `public` when staging has fallen below that baseline. It reaches Neon'
 through `neonctl` on `NEON_API_KEY`, and takes the project and branch ids from the checkout's
 `infra/database-access/Pulumi.staging.yaml` rather than the sealed release, because they are stack
 config rather than built bytes. Both the step and the job around it are selected by the same
-`migrations` output, so a push carrying no schema change can never reach it (#1216) and a
-migrations-only push can never skip it (#1469); `test_cd_shape_contract.rb` fails if either half
+`migrations` output — the step's `if:`, and the union the job's own `if` is built from — so a push
+carrying no schema change can never reach it (#1216) and a migrations-only push can never skip it
+(#1469); `test_cd_shape_contract.rb` fails if either half
 drifts. Production has no counterpart — the reset is staging-only by construction.
 
 Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
@@ -418,28 +431,29 @@ database state from a green build.
 
 A push to `main` is the only deployment trigger. `plan` resolves the range and the affected package
 set (see "Build once, promote the same artifact" above); `build` produces the single
-`release-<sha>` artifact; the five stages publish it to staging in order; `smoke` probes staging;
-`promote-production` publishes the same artifact after the approval.
+`release-<sha>` artifact; the one `stage` job publishes it to staging unit by unit and then probes
+it; `promote-production` publishes the same artifact after the approval.
 
-Which stage runs is three pairing rules and nothing else:
+Which unit runs is three pairing rules and nothing else. Each is a step-level `if:` inside `stage`,
+and the job's own `if` is their union — any unit selected:
 
-| stage | runs when |
+| unit | its steps run when |
 |---|---|
-| `stage-foundation` | `infra/**` changed |
-| `stage-migration` | the `migrator` package is affected, **or** `migrations/neon/**` changed — the migrator image bakes the chain (`workers/migrator/Dockerfile`), so a migrations-only push rebuilds and redeploys the Worker rather than POSTing a new head to one carrying the old chain |
-| `stage-services` | the `catalog` or `users` package is affected |
-| `stage-edge` | the `edge-worker` package is affected, **or** `apps/agent/**` changed — the edge Worker carries the agent container image, so the two ship together until W4 removes the image |
-| `stage-web` | the `web` package is affected |
+| foundation | `infra/**` changed |
+| migration | the `migrator` package is affected, **or** `migrations/neon/**` changed — the migrator image bakes the chain (`workers/migrator/Dockerfile`), so a migrations-only push rebuilds and redeploys the Worker rather than POSTing a new head to one carrying the old chain |
+| services | the `catalog` or `users` package is affected |
+| edge | the `edge-worker` package is affected, **or** `apps/agent/**` changed — the edge Worker carries the agent container image, so the two ship together until W4 removes the image |
+| web | the `web` package is affected |
 
 A push that deploys nothing (documentation, a library package with no deployable dependent) skips
-`build` and every stage, so it never reaches the production approval.
+`build` and the whole `stage` job, so it never reaches the production approval.
 
 The two `**or**` rows above are the pipeline's only pairing rules, and they exist because those
 units take an input from outside their own pnpm project. Every step that publishes one carries both
-halves of its condition, not just the job — a migrator image built without the migrations half would
-be the old chain under a new tag. `test_cd_shape_contract.rb` fails if either half goes missing.
+halves of its condition — a migrator image built without the migrations half would be the old chain
+under a new tag. `test_cd_shape_contract.rb` fails if either half goes missing.
 
-`smoke` probes `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` and the SSR shell at
+The `staging smoke` step probes `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` and the SSR shell at
 `https://animichi-web-staging.zhenjiazhou0127.workers.dev/`, retrying 8 times at 15s. It probes
 workers.dev rather than the zone hostname because GitHub-runner IPs get a managed challenge at the
 zone front door and Bot Fight Mode cannot be skipped on the Free plan. The container cold-starts on
@@ -470,7 +484,7 @@ hold their values and nothing reads them; emptying them is the owner's last step
 after one green staging deploy and one green nightly on the ESC path (`secrets.md` says the same).
 Every job that needs a credential proves who it is instead, in the same three steps:
 
-1. `environment:` — `staging` for `build`, the five staging stages, `smoke` and the nightly eval;
+1. `environment:` — `staging` for `build`, `stage` and the nightly eval;
    `production` for `promote-production`. This is not decoration: GitHub sets the OIDC subject to
    `repo:lifeodyssey/animichi:environment:<name>` only when the job declares one, and to
    `repo:lifeodyssey/animichi:ref:refs/heads/<branch>` otherwise. The issuer policy lists only the
@@ -491,8 +505,8 @@ longer read anywhere on the delivery lane.
 
 | ESC key | Exported into | What reads it |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | every job that publishes: `build` (the container-registry push), the five staging stages, `promote-production` | the Cloudflare provider in both Pulumi programs, and `cloudflare/wrangler-action` for every Worker deploy. The key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
-| `NEON_API_KEY` | `stage-migration` and `promote-production` only | `neonctl` in the staging baseline reset. Not the Neon provider in `infra/database-access`: it is constructed from the `neonApiKey` stack config, which is why `stage-foundation` stopped opening the key when the reset left it (#1469) |
+| `CLOUDFLARE_API_TOKEN` | every job that publishes: `build` (the container-registry push), `stage`, `promote-production` | the Cloudflare provider in both Pulumi programs, and `cloudflare/wrangler-action` for every Worker deploy. The key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
+| `NEON_API_KEY` | `stage` and `promote-production` only | `neonctl` in the staging baseline reset, which is the only step of `stage` allowed to reach for it. Not the Neon provider in `infra/database-access`: it is constructed from the `neonApiKey` stack config, which is why the foundation unit has no reader for the key since the reset left it (#1469) |
 | `ZEN_GO_API_KEY` | `agent-eval-nightly.yml` | the nightly L1 eval's model gateway |
 
 `CLOUDFLARE_ACCOUNT_ID` is not in that table and is not a secret: it is an account identifier. The
@@ -519,13 +533,15 @@ need it read. Five properties are worth stating:
   version `pulumi/actions` just installed. Given the same version it detects the existing install
   and downloads nothing, so a small step resolves `.pulumi.version` into the action's `version`
   input rather than duplicating the number.
-- **`smoke` opens the one environment it needs and nothing else.** It publishes nothing, so it
-  holds neither `CLOUDFLARE_API_TOKEN` nor `NEON_API_KEY`; it opens `CF_ACCESS_CLIENT_ID` /
-  `CF_ACCESS_CLIENT_SECRET` because staging is behind Cloudflare Access and the probe has to get
-  through the door (#1369). The Pulumi Cloud login stays, because that exchange is what proves the
-  `environment:staging` subject works. `test_cd_credential_boundary_contract.rb` pins the pairing
-  in both directions: no other job may export those two names, and no other job may so much as
-  mention them.
+- **The staging job opens the union its units spend, and the boundary is per step.** One job runs
+  every unit (#1468), so it opens `CLOUDFLARE_API_TOKEN`, `NEON_API_KEY` and the
+  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` pair staging's Cloudflare Access door needs
+  (#1369) in a single ESC step. Since the export list was never the trust boundary — see the first
+  property above — widening it costs nothing; what replaces the old per-job list is a per-step rule
+  in `test_cd_credential_boundary_contract.rb`: the publish token belongs to the five deploy steps,
+  `NEON_API_KEY` to the baseline reset, the Access pair to `staging smoke`, and a step reaching for
+  a key outside its own unit fails the contract. The other direction is still a job rule: no job but
+  `stage` may so much as mention the Access pair.
 
 **Provisioning state, and what is still owed.** `CLOUDFLARE_API_TOKEN` and `NEON_API_KEY` are in
 both ESC environments under `environmentVariables`, and staging's have been in use by the
@@ -666,9 +682,9 @@ request carrying one header exactly as it answers one carrying neither — a 302
 name instead.
 
 **Enforcement is eventually consistent.** An Access application starts refusing traffic a minute
-or two after the apply, not at the apply. On the run that first creates it, `stage-foundation`
-and `smoke` are minutes apart in the same run, so that smoke can pass without ever having been
-checked — the evidence that the door is live is the NEXT push's smoke, plus a `curl` with no
+or two after the apply, not at the apply. On the run that first creates it, the foundation apply
+and `staging smoke` are minutes apart in the same job, so that smoke can pass without ever having
+been checked — the evidence that the door is live is the NEXT push's smoke, plus a `curl` with no
 headers answering 302 or 403.
 
 **What this replaced.** A WAF custom rule blocking traffic without an allowlisted source IP, the
@@ -798,10 +814,10 @@ never verify a rollback with `versions list` alone.
 
 Then check health on a route that actually exists for that Worker:
 
-- edge: `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` — the same URL `CD`'s `smoke`
-  job probes.
-- web: `https://animichi-web-staging.zhenjiazhou0127.workers.dev/` — the SSR shell, `smoke`'s second
-  probe.
+- edge: `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` — the same URL `CD`'s
+  `staging smoke` step probes.
+- web: `https://animichi-web-staging.zhenjiazhou0127.workers.dev/` — the SSR shell, that step's
+  second probe.
 - migrator: `GET $MIGRATOR_STAGING_URL/healthz` (the workflow variable of that name). Today it
   answers `{status, service, env}` (`workers/migrator/src/create-app.ts`) — it does not yet say which
   migration chain the Worker carries; #1365 adds `bundleHead` to that response.
@@ -878,7 +894,7 @@ export` writes the *latest* checkpoint, which after a failed update is the broke
 is not optional. Follow the import with a reviewed reconciliation — the pre-apply R2 export is
 retired (#1077). Never place a state export in a public GitHub artifact.
 
-`CD`'s own `smoke` job does not run on a recovery, so the owner must manually check health and the
+`CD`'s own `staging smoke` step does not run on a recovery, so the owner must manually check health and the
 affected user journey after one.
 
 ## Known Limitations

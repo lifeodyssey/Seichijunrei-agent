@@ -6,6 +6,18 @@ import { URL, fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (path: string): string => readFileSync(`${ROOT}${path}`, "utf8");
 
+// One job's own text, cut at the next line indented like a job key. A `[\s\S]*`
+// from a job header runs to end of file, so `stage:[\s\S]*id-token: write` was
+// satisfied by `promote-production`'s copy of that permission and would have
+// stayed green with `stage`'s deleted.
+const jobBlock = (workflow: string, id: string): string => {
+  const start = workflow.indexOf(`\n  ${id}:\n`);
+  assert.notEqual(start, -1, `cd.yml has no ${id} job`);
+  const body = workflow.slice(start + 1);
+  const end = body.search(/\n {2}[A-Za-z]/);
+  return end === -1 ? body : body.slice(0, end);
+};
+
 void test("Atlas files are the only Neon migration authority", () => {
   const files = readdirSync(`${ROOT}migrations/neon`).filter((file) => file.endsWith(".sql"));
   const sum = read("migrations/neon/atlas.sum");
@@ -41,11 +53,17 @@ void test("Drizzle schemas cannot become migration runners", () => {
 void test("both environments migrate through the migrator Worker on an OIDC identity", () => {
   const cd = read(".github/workflows/cd.yml");
   const handshake = read("scripts/delivery/migrate-through-worker.sh");
-  assert.match(cd, /stage-migration:[\s\S]*id-token: write/);
-  assert.match(cd, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_STAGING_URL \}\}/);
-  assert.match(cd, /migrate-through-worker\.sh staging/);
-  assert.match(cd, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_PRODUCTION_URL \}\}/);
-  assert.match(cd, /migrate-through-worker\.sh production/);
+  // #1468 collapsed the five staging stages into one `stage` job, so the job
+  // that proves an identity to the migrator is that one; what this pins is
+  // unchanged — the staging migration runs under an `id-token: write` job.
+  const stage = jobBlock(cd, "stage");
+  assert.match(stage, /id-token: write/);
+  assert.match(stage, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_STAGING_URL \}\}/);
+  assert.match(stage, /migrate-through-worker\.sh staging/);
+  const production = jobBlock(cd, "promote-production");
+  assert.match(production, /id-token: write/);
+  assert.match(production, /MIGRATOR_URL: \$\{\{ vars\.MIGRATOR_PRODUCTION_URL \}\}/);
+  assert.match(production, /migrate-through-worker\.sh production/);
   assert.match(handshake, /audience=animichi:github-actions:migrator/);
   assert.doesNotMatch(cd, /NEON_DATABASE_URL/);
 });

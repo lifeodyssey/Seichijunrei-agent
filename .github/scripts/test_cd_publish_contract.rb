@@ -13,12 +13,16 @@
 #   version    every publish pins the workspace Wrangler and tags the version
 #              `sha-<sha>`, so `wrangler versions list` names the commit — the
 #              shell route included, for the reason the target rule covers it
-#   smoke      the staging gate probes the two real surfaces, and its exit code
-#              is what decides the job — a discarded one promotes a broken
-#              staging, which is the #1198 failure the job exists to prevent
-#   record     this job's `name` is also CD's staging-deployment record: `plan`
-#              reads it back off the API to find the last head that reached
-#              staging, so the name and the lookup are pinned to one another
+#   smoke      the staging gate probes the two real surfaces, its exit code is
+#              what decides the job and it keeps the default success condition —
+#              a discarded result or an `always()` each promote a staging nothing
+#              probed, the #1198 failure the gate exists to prevent. That nothing
+#              runs AFTER it is step order, and belongs to
+#              `test_cd_staging_chain_contract.rb` with the rest of that
+#   record     the smoke step's `name`, inside the staging job's `name`, is CD's
+#              staging-deployment record: `plan` reads both back off the API to
+#              find the last head that reached staging, so the two spellings and
+#              the lookup are pinned to one another (#1468 made it two hops)
 #   migration  every environment reaches the database only through the migrator
 #              Worker, and the staging-only baseline is refused BEFORE the
 #              production migration rather than after it
@@ -38,9 +42,7 @@ DEPLOY_TAG = "--tag sha-${{ github.sha }}"
 # No stage may publish where another job is the gate: a staging stage carrying
 # `--env production` would go live without the production approval at all. A job
 # absent from this map may not publish by any route.
-DEPLOY_TARGETS = { "stage-migration" => "staging", "stage-services" => "staging",
-                   "stage-edge" => "staging", "stage-web" => "staging",
-                   "promote-production" => "production" }.freeze
+DEPLOY_TARGETS = { "stage" => "staging", "promote-production" => "production" }.freeze
 # `--dry-run` builds a bundle; everything else publishes. The exemption is
 # per COMMAND, not per line: a lookahead over the whole line let a later dry run
 # excuse an earlier real publish (`… --env production && … --dry-run`), and a
@@ -58,23 +60,34 @@ SMOKE_SURFACES = ["https://animichi-staging.zhenjiazhou0127.workers.dev",
 # assertion about the probe's text while discarding its result; the third is
 # banned repository-wide and named here so the smoke job says why.
 SMOKE_ESCAPES = ["|| true", "set +e", %w[continue on error].join("-")].freeze
-# `plan` decides its range base by asking the API which run last had this job
-# conclude `success` (#1506). That makes the job's display name an interface
-# between two jobs, and a string on each side of an API call is exactly the
-# coupling nothing type-checks: rename the job, or misspell the jq selector,
-# and the lookup returns empty, the base falls silently back to
-# `github.event.before`, and the stranded-cohort bug is back with every
-# contract green. Both spellings are pinned here, together, because either one
-# alone is worthless — and the plan step's own comment names the job, so the
-# selector has to be read out of the commands rather than the step text.
-SMOKE_JOB_NAME = "CD / staging smoke"
-SMOKE_LOOKUP = %(select(.name == "#{SMOKE_JOB_NAME}"))
+# A step with no `if:` runs only when every step before it in the job succeeded,
+# and that default is most of what makes the probe a gate. `if: ${{ always() }}`
+# leaves every assertion in this file holding — the run text is untouched, the
+# step is still last, its own exit code still decides — while letting a run
+# whose edge publish FAILED reach the probe, pass it against the version still
+# deployed, and record this head as one that reached staging. So the absence is
+# asserted, together with the two spellings that mean the same thing.
+DEFAULT_SUCCESS = ["${{ success() }}", "success()"].freeze
+# `plan` decides its range base by asking the API which run last concluded the
+# smoke probe `success` (#1506). Since the staging chain became one job (#1468)
+# that is a two-hop lookup — the job's display name, then the step's — and each
+# hop is a string on one side of an API call, exactly the coupling nothing
+# type-checks: rename either, or misspell the jq selector, and the lookup
+# returns empty, the base falls silently back to `github.event.before`, and the
+# stranded-cohort bug is back with every contract green. All three spellings
+# are pinned here, together, because any one alone is worthless — and the plan
+# step's own comment names both, so the selector has to be read out of the
+# commands rather than the step text.
+STAGING_JOB = "stage"
+STAGE_JOB_NAME = "CD / staging"
+SMOKE_STEP = "staging smoke"
+SMOKE_LOOKUP = %(select(.name == "#{STAGE_JOB_NAME}") | .steps[]? | select(.name == "#{SMOKE_STEP}"))
 # C3 (#1365) retired the transitional Atlas step: production migrates the way
 # staging always has. What is left to pin is that no job applies the chain
 # itself — doing so is holding a database credential by definition — and that
 # each job names the migrator its own environment gates.
 MIGRATION_SCRIPT = "bash scripts/delivery/migrate-through-worker.sh"
-MIGRATION_TARGETS = { "stage-migration" => ["staging", "vars.MIGRATOR_STAGING_URL"],
+MIGRATION_TARGETS = { "stage" => ["staging", "vars.MIGRATOR_STAGING_URL"],
                       "promote-production" => ["production", "vars.MIGRATOR_PRODUCTION_URL"] }.freeze
 BASELINE_GUARD = "release/migrations/STAGING_ONLY_BASELINE"
 DIRECT_APPLY = ["atlas migrate apply", "ariga/setup-atlas"].freeze
@@ -159,15 +172,24 @@ def assert_shell_publishes_obey_the_same_rules
   end
 end
 
+# The probe is one step of the staging job now, so every rule below is read off
+# that step alone: the job around it publishes, and a `|| true` in a publish
+# step is a different question from one in the gate.
+def smoke_step
+  @cd.steps_of(STAGING_JOB).find { |step| step["name"] == SMOKE_STEP }.to_h
+end
+
 def assert_smoke_probes_the_real_surfaces
-  text = run_text("smoke")
-  @log.unless_true(text.include?(SMOKE_PROBE), "cd.yml:smoke: must run #{SMOKE_PROBE}")
-  SMOKE_SURFACES.each { |url| @log.unless_true(text.include?(url), "cd.yml:smoke: must probe #{url}") }
+  text = smoke_step["run"].to_s
+  @log.unless_true(text.include?(SMOKE_PROBE), "cd.yml:#{SMOKE_STEP}: must run #{SMOKE_PROBE}")
+  SMOKE_SURFACES.each do |url|
+    @log.unless_true(text.include?(url), "cd.yml:#{SMOKE_STEP}: must probe #{url}")
+  end
 end
 
 def smoke_suppressor_keys
   suppressor = SMOKE_ESCAPES.last
-  (@cd.steps_of("smoke").map { |step| step[suppressor] } << @cd.dig("jobs", "smoke", suppressor)).compact
+  [smoke_step[suppressor], @cd.dig("jobs", STAGING_JOB, suppressor)].compact
 end
 
 def last_command(text)
@@ -177,19 +199,22 @@ end
 # #1198 exists because a staging deploy was verified by exit code alone. A probe
 # whose exit code is discarded is the same thing wearing the probe's name.
 def assert_smoke_failure_is_decisive
-  text = run_text("smoke")
+  text = smoke_step["run"].to_s
   SMOKE_ESCAPES.each do |escape|
-    @log.unless_true(!text.include?(escape), "cd.yml:smoke: `#{escape}` would let a broken staging promote")
+    @log.unless_true(!text.include?(escape),
+                     "cd.yml:#{SMOKE_STEP}: `#{escape}` would let a broken staging promote")
   end
-  @log.unless_true(smoke_suppressor_keys.empty?, "cd.yml:smoke: nothing here may survive a failed probe")
+  @log.unless_true(smoke_suppressor_keys.empty?,
+                   "cd.yml:#{SMOKE_STEP}: nothing here may survive a failed probe")
   last = last_command(text)
   # Both ends. Ending at the URL alone leaves the line open to a prefix that
   # discards it — `: bash …` keeps every substring this file looks for while the
   # shell's `:` builtin runs nothing at all.
   @log.unless_true(last.start_with?(SMOKE_PROBE),
-                   "cd.yml:smoke: the last command must BE the probe, not merely mention it")
+                   "cd.yml:#{SMOKE_STEP}: the last command must BE the probe, not merely mention it")
   @log.unless_true(last.end_with?(SMOKE_SURFACES.last),
-                   "cd.yml:smoke: nothing may follow the probe, or its result is not what decides")
+                   "cd.yml:#{SMOKE_STEP}: nothing may follow the probe in it, or its result is not " \
+                   "what decides")
 end
 
 def migration_step(job, environment)
@@ -233,13 +258,25 @@ def commands_of(job)
   run_text(job).lines.grep_v(/\A\s*#/).join
 end
 
-def assert_plan_reads_the_smoke_job_by_name
-  @log.unless_true(@cd.dig("jobs", "smoke", "name") == SMOKE_JOB_NAME,
-                   "cd.yml:smoke: `name` must stay `#{SMOKE_JOB_NAME}` — `plan` reads it back off " \
-                   "the API, and a rename empties that lookup instead of failing it")
+def assert_plan_reads_the_smoke_step_by_name
+  @log.unless_true(@cd.dig("jobs", STAGING_JOB, "name") == STAGE_JOB_NAME,
+                   "cd.yml:#{STAGING_JOB}: `name` must stay `#{STAGE_JOB_NAME}` — `plan` reads it " \
+                   "back off the API, and a rename empties that lookup instead of failing it")
+  @log.unless_true(!smoke_step.empty?,
+                   "cd.yml:#{STAGING_JOB}: the probe's step must stay named `#{SMOKE_STEP}` — that " \
+                   "name is the second hop of `plan`'s lookup, not decoration")
   @log.unless_true(commands_of("plan").include?(SMOKE_LOOKUP),
-                   "cd.yml:plan: must select the smoke job with `#{SMOKE_LOOKUP}` — a comment naming " \
-                   "the job is not the lookup, and a misspelt selector returns empty rather than red")
+                   "cd.yml:plan: must select the probe with `#{SMOKE_LOOKUP}` — a comment naming the " \
+                   "job and the step is not the lookup, and a misspelt selector returns empty rather " \
+                   "than red")
+end
+
+def assert_the_probe_keeps_the_default_success_condition
+  condition = smoke_step["if"]
+  @log.unless_true(condition.nil? || DEFAULT_SUCCESS.include?(condition.to_s.strip),
+                   "cd.yml:#{SMOKE_STEP}: must keep the default success condition — `#{condition}` " \
+                   "lets a run whose publish failed probe the version already deployed and record " \
+                   "this head as live on staging")
 end
 
 def main
@@ -249,7 +286,8 @@ def main
   assert_shell_publishes_obey_the_same_rules
   assert_smoke_probes_the_real_surfaces
   assert_smoke_failure_is_decisive
-  assert_plan_reads_the_smoke_job_by_name
+  assert_the_probe_keeps_the_default_success_condition
+  assert_plan_reads_the_smoke_step_by_name
   assert_every_environment_migrates_through_the_worker
   assert_no_job_applies_the_chain_itself
   assert_baseline_guard_precedes_the_production_migration
