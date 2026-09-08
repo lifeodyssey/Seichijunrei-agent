@@ -42,7 +42,7 @@ bindings remain in Wrangler; route ownership stays here. Root guide: `../AGENTS.
 - `database-access/` — database roles, per-service DSNs, and Auth access material. Its Pulumi project name remains the stable persisted state identity until an explicit cross-project stack migration. Its Neon provider SDK is generated at release time and gitignored, so no test can build this program; `topology-prod-database-access.test.ts` pins the prod stack's role/secret derivations from the source instead.
 - `src/staging-access.ts` — the whole staging front door (D3 #1369): one
   `ZeroTrustAccessApplication` over `stagingDomain` plus the two `animichi-*-staging`
-  workers.dev origins, a `nonIdentity` (Service Auth) policy carrying the
+  workers.dev origins, a `non_identity` (Service Auth) policy carrying the
   `animichi-staging-ci` service token, an `allow` policy built from the
   `stagingAccessAllowedEmails` stack config, the `onetimepin`
   `ZeroTrustAccessIdentityProvider` that policy's humans sign in through (an **account-level**

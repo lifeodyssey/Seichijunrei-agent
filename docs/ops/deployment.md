@@ -614,7 +614,7 @@ before a request reaches the Worker.
   origins. All three, because CD's smoke probe deliberately uses the workers.dev origins —
   GitHub-runner IPs get a managed challenge at the zone front door — and a staging surface CI
   can reach that Access cannot see is the hole (#539) this closes;
-- a `nonIdentity` (**Service Auth**) policy including the service token, first in precedence.
+- a `non_identity` (**Service Auth**) policy including the service token, first in precedence.
   Service Auth is the only decision that answers a service token; under a plain `allow` the CD
   probe is redirected to an identity provider and reads the login page as a broken deploy;
 - an `allow` policy with one include rule per address in the `stagingAccessAllowedEmails` stack

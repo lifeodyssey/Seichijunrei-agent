@@ -200,12 +200,25 @@ function oneTimePinProvider(): cloudflare.ZeroTrustAccessIdentityProvider {
   });
 }
 
-/** Service Auth: the token, and nothing else, gets in without an identity. */
+/**
+ * Service Auth: the token, and nothing else, gets in without an identity.
+ *
+ * `non_identity` is the API's spelling, NOT the `nonIdentity` the installed
+ * `.d.ts` prints for this attribute. `decision` is a bare `string` there, and
+ * that "Available values" line is a per-language doc span the SDK generator
+ * renders: the provider schema carries `pulumi-lang-nodejs=""nonIdentity""` …
+ * `pulumi-lang-hcl=""non_identity""` for this one value, so the TS docs show a
+ * name nothing converts on the way out (`pulumi-resource-cloudflare` v6.19.0
+ * embedded schema). Only the apply says so — the mocked topology tests never
+ * reach a validator, and the preflight preview builds no staging resources:
+ * `decision value must be one of: ["allow" "deny" "non_identity" "bypass"]`
+ * (#1369 landing run). That is what the pinned literal below is guarding.
+ */
 function serviceAuthPolicy(token: cloudflare.ZeroTrustAccessServiceToken): cloudflare.ZeroTrustAccessPolicy {
   return new cloudflare.ZeroTrustAccessPolicy("staging-ci-service-auth", {
     accountId,
     name: "staging CI service token",
-    decision: "nonIdentity",
+    decision: "non_identity",
     includes: [{ serviceToken: { tokenId: token.id } }],
   });
 }
@@ -224,7 +237,7 @@ function ownerSignInPolicy(): cloudflare.ZeroTrustAccessPolicy {
  * Both policies, in evaluation order.
  *
  * Service Auth first so automation is decided without ever being offered an
- * identity provider: `decision: "nonIdentity"` is the only action that answers
+ * identity provider: `decision: "non_identity"` is the only action that answers
  * a service token, and an `allow` policy reached first would redirect the CD
  * smoke probe to a login page it cannot read (issue #1369, "policy action 必须
  * 是 Service Auth，否则 Access 会要求 IdP 登录").

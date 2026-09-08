@@ -114,11 +114,11 @@ test("the application offers that provider, and only that provider", () => {
 });
 
 test("automation is admitted by the service token, under Service Auth", () => {
-  // `nonIdentity` is the only decision that answers a service token. Under
+  // `non_identity` is the only decision that answers a service token. Under
   // `allow` the CD smoke probe is redirected to an identity provider and reads
   // the login page as a broken deploy (issue #1369).
   const policy = policyNamed("staging-ci-service-auth");
-  assert.equal(policy.inputs.decision, "nonIdentity");
+  assert.equal(policy.inputs.decision, "non_identity");
   assert.equal(policy.inputs.accountId, "acct");
   const includes = policy.inputs.includes as { serviceToken?: { tokenId: string } }[];
   assert.deepEqual(includes.map((rule) => rule.serviceToken?.tokenId), ["staging-ci-id"]);
@@ -132,6 +132,29 @@ test("the humans in stack config are admitted, one include rule each", () => {
     "owner@example.test",
     "second@example.test",
   ]);
+});
+
+test("every decision is spelled the way the Access API accepts, not the way the SDK docs print it", () => {
+  // The one assertion the mocks could not make for us. `setMocks` hands back
+  // whatever string the program passed, so a decision the API rejects is a
+  // green test suite and a failed apply — which is exactly how `nonIdentity`
+  // reached `stage-foundation` on the #1369 landing run:
+  //
+  //   ZeroTrustAccessPolicy 'staging-ci-service-auth' has a problem: Invalid
+  //   Attribute Value Match. Attribute decision value must be one of:
+  //   ["allow" "deny" "non_identity" "bypass"]
+  //
+  // `nonIdentity` is not a typo, it is what the installed `.d.ts` documents:
+  // the provider schema tags this value with a per-language doc span
+  // (`pulumi-lang-nodejs=""nonIdentity""`, `pulumi-lang-hcl=""non_identity""`)
+  // and the TypeScript SDK renders the node spelling while sending the string
+  // through untouched. So the four literals below are copied from the
+  // validator's own message, and both spellings are pinned against them.
+  const ACCEPTED = ["allow", "deny", "non_identity", "bypass"];
+  const decisions = new Map(ofType(built, POLICY).map((p) => [p.name, String(p.inputs.decision)]));
+  assert.equal(decisions.get("staging-ci-service-auth"), "non_identity");
+  assert.equal(decisions.get("staging-owner-sign-in"), "allow");
+  assert.deepEqual([...decisions].filter(([, d]) => !ACCEPTED.includes(d)), []);
 });
 
 test("both policies are attached to the application, Service Auth evaluated first", () => {
