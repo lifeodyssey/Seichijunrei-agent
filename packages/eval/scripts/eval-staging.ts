@@ -26,7 +26,7 @@
  *   CF_ACCESS_CLIENT_ID=… CF_ACCESS_CLIENT_SECRET=… \
  *   NEON_AUTH_BASE_URL=… \
  *   QA_NEON_USER_EMAIL=… QA_NEON_USER_PASSWORD=… \
- *   pnpm --filter @animichi/eval run eval:staging -- --dataset agent_eval_heldout_v1 --limit 3
+ *   pnpm --filter @animichi/eval run eval:staging --dataset agent_eval_heldout_v1 --limit 3
  */
 import { parseArgs } from "node:util";
 

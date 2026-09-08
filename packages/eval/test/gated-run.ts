@@ -8,9 +8,9 @@ import { baselinePath } from '../src/gate/baseline-store.ts';
 import { canonicalDatasetPath, loadCaseStrata } from '../src/gate/case-strata.ts';
 import type { AgentEvalReport, GateRunSettings } from '../src/gate-run/gate-run-result.ts';
 import {
-  PYTHON_BASELINE_MODEL,
-  pythonBaselineLocation,
-} from '../src/gate-run/python-baseline.ts';
+  BASELINE_MODEL,
+  baselineLocation,
+} from '../src/gate-run/baseline-identity.ts';
 import { metricNames } from '../src/metric-names.ts';
 import type { TranscriptResult } from '../src/turn-transcript.ts';
 
@@ -39,11 +39,13 @@ export interface GatedRun {
   readonly settings: GateRunSettings;
 }
 
-/** The committed Python record, read the way the runner reads it. */
-export function pythonBaseline(): BaselineRecord {
-  const record = parseBaselineRecord(readFileSync(baselinePath(pythonBaselineLocation()), 'utf8'));
+/** The committed record, read the way the runner reads it. Python wrote it
+ * until #1515's first capture; the shape and this reader are the same either
+ * way, which is the point of `baselineRecordText`' byte parity. */
+export function committedBaseline(): BaselineRecord {
+  const record = parseBaselineRecord(readFileSync(baselinePath(baselineLocation()), 'utf8'));
   if (record === null) {
-    throw new Error('the committed Python baseline no longer parses');
+    throw new Error('the committed baseline no longer parses');
   }
   return record;
 }
@@ -56,7 +58,7 @@ export function pythonBaseline(): BaselineRecord {
  * test about verdicts wants to be measuring by accident.
  */
 export function baselineParityScores(count: number): CaseScoreMap {
-  const baseline = pythonBaseline();
+  const baseline = committedBaseline();
   const width = metricNames({
     hasNonemptyCases: true,
     hasParamsRecorded: true,
@@ -193,8 +195,8 @@ export function makeGateRunSettings(scores: CaseScoreMap): GateRunSettings {
       hasMeasuredSteps: someCaseScored(scores, 'step_efficiency'),
       l3Enabled: false,
     }),
-    baseline: pythonBaseline(),
-    baselineModel: PYTHON_BASELINE_MODEL,
+    baseline: committedBaseline(),
+    baselineModel: BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
     strata: loadCaseStrata(canonicalDatasetPath(GATED_DATASET)).byCase,

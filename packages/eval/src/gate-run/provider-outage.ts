@@ -34,11 +34,14 @@ import type { AgentEvalReport } from './gate-run-result.ts';
  * `smoke_errors.TRANSPORT_RATE_CEILING`'s) and the uncapped lane drops to 0.02,
  * because that lane MINTS the record every later run is judged against and a
  * fifth-starved run minting the floor is a permanent lie rather than one bad
- * report. This runner has nothing to protect there: `gate-exit-code.ts:10` —
- * "this runner never writes the record it is judged by" — so the lower ceiling
- * would guard a write that does not happen. The oracle rows carry the ceiling
- * each was written with, so both lanes' sentences are replayed here without
- * this side pretending it runs both.
+ * report. This gate has nothing to protect there: `gate-exit-code.ts:10` — "this
+ * runner never writes the record it is judged by" — so the lower ceiling would
+ * guard a write that does not happen here. Minting DOES happen on this side
+ * since #1515, in a separate command over the committed result file, and it is
+ * guarded by a rule stricter than any ceiling: ANY starved case refuses
+ * (`baseline-capture.ts`). The oracle rows carry the ceiling each was written
+ * with, so both lanes' sentences are replayed here without this side pretending
+ * it runs both.
  */
 export const PROVIDER_OUTAGE_CEILING = 0.2;
 
@@ -46,7 +49,7 @@ export const PROVIDER_OUTAGE_CEILING = 0.2;
  * What this runner can honestly blame, and it is not a model.
  *
  * The deploy answers with whatever model it is configured with and publishes
- * none of it on the wire — `python-baseline.ts` says so of the one model name
+ * none of it on the wire — `baseline-identity.ts` says so of the one model name
  * this package holds, which is the BASELINE's identity. `gateRunResultOf` is a
  * pure function over a finished report and the door's origin lives in
  * `scripts/eval-gate.ts`, so the surface is named rather than resolved. Python

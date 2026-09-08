@@ -1,5 +1,5 @@
 /**
- * Gate one staging run against the committed Python baseline (W3-5 prep #1327).
+ * Gate one staging run against the committed baseline (W3-5 #1327 / #1303).
  *
  * `eval-staging.ts` runs a set and prints what came back; this runs the same
  * set and DECIDES about it — `bootstrapGate` + `errorRateGate` on the paired
@@ -13,11 +13,17 @@
  * rather than reimplemented (#1291, #1294) — see `staging-turn-task.ts`.
  *
  * IT NEVER WRITES A BASELINE. Python's uncapped run creates one when it finds
- * none; the whole point of the double run is to be judged by the Python
- * numbers, so a missing or stale baseline here is a warning and an ungated
- * report, never a fresh record to pass against. A baseline that is committed and
- * no longer parses is the one exception, and it exits 1 (`baseline-store.ts`):
- * damage that nobody can fix by re-running is not an ungated run.
+ * none; this entry does not, because the run being judged must not be able to
+ * write what judges it. A missing or stale baseline here is a warning and an
+ * ungated report, never a fresh record to pass against. A baseline that is
+ * committed and no longer parses is the one exception, and it exits 1
+ * (`baseline-store.ts`): damage that nobody can fix by re-running is not an
+ * ungated run.
+ *
+ * The record it compares against is TS-born since 2026-09-08: the owner's
+ * decision on #1303 retired Python's and dropped the Python-versus-TS double
+ * run (#1480), so what a later run is judged by is an earlier run of THIS
+ * entry, minted by `scripts/eval-baseline-capture.ts` (#1515).
  *
  * COST. `--dataset` defaults to the set the baseline covers, which is 662 cases
  * and every one of them a real staging turn on the QA identity. Use `--limit`
@@ -31,7 +37,12 @@
  *   CF_ACCESS_CLIENT_ID=… CF_ACCESS_CLIENT_SECRET=… \
  *   NEON_AUTH_BASE_URL=… \
  *   QA_NEON_USER_EMAIL=… QA_NEON_USER_PASSWORD=… \
- *   pnpm --filter @animichi/eval run eval:gate -- --dataset agent_eval_heldout_v1 --limit 3
+ *   pnpm --filter @animichi/eval run eval:gate --dataset agent_eval_heldout_v1 --limit 3
+ *
+ * NO `--` BEFORE THE FLAGS: pnpm 10 forwards that separator rather than eating
+ * it, and `parseArgs` reads everything after a `--` as a positional, so the
+ * older `run eval:gate -- --dataset …` form throws
+ * `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL` before any option is read.
  */
 import { parseArgs } from "node:util";
 
@@ -51,7 +62,7 @@ import { analyseFailures } from "../src/gate-run/failure-attribution.ts";
 import { gateRunSettingsFromBaseline } from "../src/gate-run/baseline-gated-settings.ts";
 import { gateExitCode } from "../src/gate-run/gate-exit-code.ts";
 import { gateRunResultOf, type AgentEvalReport, type GateRunResult } from "../src/gate-run/gate-run-result.ts";
-import { pythonBaselineLocation } from "../src/gate-run/python-baseline.ts";
+import { baselineLocation } from "../src/gate-run/baseline-identity.ts";
 import { writeGateRunResult } from "../src/gate-run/result-file.ts";
 import { runMetricNames } from "../src/gate-run/run-metric-names.ts";
 import { evaluateAfterStrata } from "../src/gate-run/strata-first-run.ts";
@@ -62,7 +73,7 @@ import { SeededSessions } from "../src/seeded-sessions.ts";
 import { DEFAULT_MAX_CONCURRENCY, StagingTurnTask } from "../src/staging-turn-task.ts";
 import type { TranscriptResult } from "../src/turn-transcript.ts";
 
-/** The set the committed Python baseline describes; `run_agent_eval.py`'s default too. */
+/** The set the committed baseline describes; `run_agent_eval.py`'s default too. */
 const DEFAULT_DATASET = "agent_eval_v3";
 
 /** No L3 judge on this side: `build_l3_evaluators` is model-backed and the eight
@@ -149,7 +160,7 @@ function gatedResult(
 ): GateRunResult {
   return gateRunResultOf(
     report,
-    gateRunSettingsFromBaseline(pythonBaselineLocation(), {
+    gateRunSettingsFromBaseline(baselineLocation(), {
       dataset: args.dataset,
       caseCount,
       metricNames: metrics,

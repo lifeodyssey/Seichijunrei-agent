@@ -337,13 +337,15 @@ Notes for the rest of W3:
   `report.failures`. `src/gate-run/provider-outage.ts` gates on the share of those (ceiling 20%,
   `provider_outage.CAPPED_LANE_CEILING`'s, itself `smoke_errors`') and leads
   `GateRunResult.failures` with one sentence naming the share and the party to blame. Python has a
-  second, far lower ceiling for the lane that MINTS a baseline (#1499); this runner has one because
-  it never writes the record it is judged by (`src/gate-run/gate-exit-code.ts`), so the oracle rows
+  second, far lower ceiling for the lane that MINTS a baseline (#1499); this runner keeps ONE
+  because the gate still never writes the record it is judged by
+  (`src/gate-run/gate-exit-code.ts`) — minting moved to a separate command with a stricter rule
+  than any ceiling (**Capturing the baseline**, below: ANY starved case refuses). The oracle rows
   publish the ceiling each was written with and both lanes' sentences replay here. Under the
   ceiling, `src/gate/metric-gate.ts` FAILS a metric whose pairs starvation emptied instead of
   logging the small-sample skip — `metric_gate.py`'s twin. That party is
   `DEPLOYED_AGENT_TIER`, not a model: the deploy publishes nothing about what answered, and
-  `PYTHON_BASELINE_MODEL` is the baseline record's identity (`python-baseline.ts`), so a sentence
+  `BASELINE_MODEL` is the baseline record's identity (`baseline-identity.ts`), so a sentence
   interpolating it would be a claim the wire never made. Python names its own `model_id`, which its
   runner does know. The sentence FORMAT and the ceiling are pinned by `stats-oracle.json`'s
   `provider_outage_gates`, so the two runners cannot drift on either; the blamed string is each
@@ -370,11 +372,13 @@ Notes for the rest of W3:
   of a damaged file, so it must not look like an ungated run. Whether `gate.py`
   should stop warning and follow this side is #1351; until it does, the two
   runners disagree on this one answer by design, not by drift.
-- **`baselines/` holds Python-written records.** `baselineRecordText` reproduces
-  `model_dump_json(indent=2)` byte for byte, so a record written by either side is
-  a no-op diff for the other; the committed
-  `agent_l4_trajectory_openai-mimo-v2.5-…json` (662 cases) is the record W3-5
-  compares against.
+- **`baselines/` holds ONE record, and since 2026-09-08 this side writes it.**
+  `baselineRecordText` reproduces `model_dump_json(indent=2)` byte for byte, so a
+  record written by either language is a no-op diff for the other; the committed
+  `agent_l4_trajectory_openai-mimo-v2.5-…json` (662 cases) is what every run is
+  compared against. It was Python-written until the owner's decision on #1303
+  made the TS tier's own uncapped staging run the baseline (#1515) — see
+  **Capturing the baseline** below for how it is replaced and by what rule.
 - **Strata come from the canonical dataset, not the exported fixture** (a W3-1
   finding, measured on `fixtures/agent_eval_v3.json`): `Dataset.to_file` keeps only
   `AgentExpected`, so a row's `path` does not survive the export. `case-strata.ts`
@@ -430,7 +434,7 @@ made. That split is why the task can be tested with a fake fetch at all.
 | `src/staging-turn-task.ts` | the `Dataset.evaluate` task: submit, retry policy, concurrency bound, read back |
 | `src/prefix-seeding-lifecycle.ts` · `src/trajectory-prefix-case.ts` · `src/seeded-sessions.ts` | the `CaseLifecycle` that seeds a case's frozen prefix before its turn (E-1 #1380) |
 | `src/staging-bearer.ts` · `src/neon-auth-bearer.ts` | the 15-minute Neon Auth JWT, minted and re-minted on age |
-| `scripts/eval-staging.ts` | `pnpm run eval:staging -- --dataset <set> --limit <n>`; prints `renderReport` |
+| `scripts/eval-staging.ts` | `pnpm run eval:staging --dataset <set> --limit <n>`; prints `renderReport` |
 | `scripts/record-captures.sh` | re-record `fixtures/captures/` from live turns, once the Access service token is to hand |
 
 **One door.** Every staging request goes through `workers/edge/api-test/lane-origin.ts`
@@ -494,7 +498,7 @@ say so immediately if it did.
 
 ## Gating a run (`src/gate-run/`, `scripts/eval-gate.ts`, #1327)
 
-`pnpm run eval:gate -- --dataset <set> --limit <n> --concurrency <n>` is
+`pnpm run eval:gate --dataset <set> --limit <n> --concurrency <n>` is
 `eval:staging` with a verdict: the same `StagingTurnTask` run, then W3-4's two
 gates on the paired scores, a result file, and `run_agent_eval.py`'s exit code.
 Two entries rather than one flagged entry, because "look at a run" and "block on
@@ -506,13 +510,19 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   gitignored: a verdict that only ever existed on the runner's laptop cannot be
   the evidence for a wave exit. Same date, same set, same filename — a re-run
   overwrites rather than accumulating near-identical files.
-- **The baseline is pinned in `python-baseline.ts`, and never written.** Layer
-  `agent_l4_trajectory` and model `openai:mimo-v2.5@https://api.xiaomimimo.com/v1`
-  are constants, not flags: a gate whose baseline can be pointed elsewhere on the
-  command line can always be made to pass by pointing it somewhere easier.
-  Python's uncapped run *creates* a record when it finds none
-  (`_run_uncapped_gate`); this runner never does, because the run being judged
-  must not be able to write what judges it.
+- **The baseline is pinned in `baseline-identity.ts`, and this gate never writes
+  it.** Layer `agent_l4_trajectory`, tier `trajectory` and model
+  `openai:mimo-v2.5@https://api.xiaomimimo.com/v1` are constants, not flags: a
+  gate whose baseline can be pointed elsewhere on the command line can always be
+  made to pass by pointing it somewhere easier. Python's uncapped run *creates* a
+  record when it finds none (`_run_uncapped_gate`); `eval:gate` never does,
+  because the run being judged must not be able to write what judges it. Minting
+  is a second command over the committed result file — **Capturing the
+  baseline**, below. The module was `python-baseline.ts` while the record was
+  Python's; the constants name the record's IDENTITY, which was never a fact
+  about Python, and the model string is unchanged (it is staging's own
+  `DEFAULT_AGENT_MODEL`, `workers/edge/wrangler.toml`), so `baseline_oracle.py`
+  and the oracle's pinned rows did not move with the rename.
   **The 2026-09-07 refresh (#1303) moved two variables at once** — the evaluator
   vocabulary to `official-v2` and the endpoint off `https://opencode.ai/zen/go/v1`,
   which began refusing every request without an `x-opencode-session` header — so
@@ -563,6 +573,79 @@ to `agent_eval_v3`, which is 662 real staging turns on the QA identity.
   repeats per case out of `AgentResult`; neither number crosses the wire. It is
   report-only in Python too (`DIRECT_GATE_ENFORCE`), so nothing that blocked
   there stopped blocking here.
+
+### Capturing the baseline (`eval:baseline:capture`, #1515)
+
+**The baseline is TS-born from 2026-09-08.** The owner's decision on #1303 that day: keep zen/go
+`mimo-v2.5`, make the TS tier's own uncapped staging run the record every later run is judged
+against, and drop the Python-versus-TS paired comparison (#1480). Python's committed record is
+retired by the first capture — it is not a second floor kept alongside, because the two runners
+score the same vocabulary and one path holds one record.
+
+**How to re-capture**, and it is two commands rather than one flag:
+
+```
+pnpm --filter @animichi/eval run eval:gate            # uncapped, all 662 cases
+pnpm --filter @animichi/eval run eval:baseline:capture \
+  --result results/<date>-agent_eval_v3.json --replace
+```
+
+`--result` is read from `packages/eval/`, which is where `pnpm --filter … run` puts the working
+directory — a repo-root-relative path there is an ENOENT nobody typed.
+
+**No `--` before the flags.** pnpm 10 forwards that separator to the script instead of eating it,
+and `parseArgs` reads everything after it as a positional, so the `pnpm … run x -- --flag` form
+these entries used to carry dies with `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL` before the first
+option is read. Measured 2026-09-08 on pnpm 10.33.2 / Node 24; the flags go straight after the
+script name.
+
+The gate still never writes what judges it (`gate-exit-code.ts` keeps its two answers). The capture
+reads the COMMITTED result file, so what mints the baseline is an artifact someone can read in the
+diff, not a side effect of the run in flight — and `--replace` is what makes retiring the standing
+floor a decision rather than a default.
+
+- **Four refusals, and the first is Python's own rule.** `src/gate-run/baseline-capture.ts` decides
+  and `src/gate-run/baseline-candidate.ts` reads the file; the script only does the IO. ANY starved
+  case refuses the write, word for word as `baseline_mint.py::baseline_mint_refusal` does (#1499):
+  under the outage ceiling a run is *judgeable* — few enough boundary answers to trust what the rest
+  measured — but a record minted from it carries those cases' green columns as the standing floor,
+  and every later run is then compared against an outage. Judgeable is not mintable. The other
+  three are this side's own, and they follow from minting out of a FILE: a **capped** run describes
+  a subset and is stale on arrival for every uncapped run after it; an **occupied** path is the
+  floor somebody is being judged against right now; and a **red** run may not mint unless every one
+  of its failures is a metric regressing against the record being replaced. That last one is
+  Python's `_run_uncapped_gate` condition ("nothing failed") with the one exception a first capture
+  needs — the TS run IS red against the retired Python record, and that red is the measurement, not
+  a fault. It is an ALLOW list, not a deny list: a failure counts as a regression only when one of
+  the run's own `metrics` rows has `verdict: "fail"` and the sentence starts with that metric's
+  `comparisonSentencePrefix` (`metric-gate.ts` owns the one literal, and
+  `test/gate-run-baseline-capture.test.ts` pins it against the oracle's `real_baseline_subset` row).
+  An outage, an error rate over the ceiling, a metric starvation emptied, a damaged or foreign
+  baseline — none of those are explained by a row, so none of them mint, and a family invented
+  tomorrow will not mint either. `error_rate` is refused without being named: its sentence is
+  comparison-shaped, but no baseline names it as a metric, so no row explains it.
+  None of the four sentences is pinned by `stats-oracle.json` — it carries no baseline-mint
+  section, because until this card only one language could write a record — so the starved sentence
+  is kept in step with Python's by hand, as the outage gate's blamed string is.
+- **A file it cannot read is the fifth refusal and reads like the other four**: one stderr line,
+  exit 1. A path that does not open and a file that does not parse are the same mistake to whoever
+  typed the flag, and an ENOENT stack trace says less than the sentence
+  (`unreadableResultRefusal`).
+- **The result file carries what a capture needs, and that is why it grew.** `GateRunResult` gained
+  `case_scores` (`caseScoresFromReport`, the same map the metric gate compares and a record's
+  `cases` is), `starved_cases` (ids, not a count — the refusal names them) and `evaluator_version`.
+  The vocabulary is read from the FILE and never from this checkout's constant: a record stamped
+  with today's `EVALUATOR_VERSION` would claim a vocabulary that never touched those scores (#1303).
+  `case_scores` is last in the file because it is larger than everything above it put together, and
+  it is EMPTY for a starved run for the same reason `scores` is (`run-judgement.ts`) — an outage's
+  per-case numbers must not be reachable as a floor at all.
+- **Uncapped means the set's pinned count**, `dataset-sets.ts`' own tripwire asked a new question
+  (`exportedCaseCount`), not a second reading of the dataset file. `--limit 3` therefore refuses at
+  capture as well as going ungated at the gate.
+- **The record says where it came from.** `note` — free text pydantic defaults to `None` and no gate
+  reads — carries `captured from the TS tier's <set> gate run of <generated_at> (#1515)`. A TS-born
+  baseline byte-identical to the Python-written one it replaced would otherwise leave its own
+  provenance to a doc nobody diffs.
 
 ### Where a failed case first went wrong (E-4 #1383)
 

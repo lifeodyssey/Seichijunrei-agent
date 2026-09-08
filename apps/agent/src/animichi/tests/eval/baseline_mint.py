@@ -14,9 +14,13 @@ run, and the next clean uncapped run mints the record instead. The refusal is
 returned as a gate failure rather than raised: the run reached the end, produced
 numbers, and is red for a reason worth printing next to the others.
 
-Python-only. ``packages/eval`` never writes a baseline (``gate-exit-code.ts:10``
-— "this runner never writes the record it is judged by"), so this sentence
-crosses no language boundary and is pinned by nothing in ``stats-oracle.json``.
+The TS side has the rule too since #1515. Its ``eval:gate`` still never writes
+the record it is judged by (``gate-exit-code.ts:10``); a separate command mints
+from the committed result file, and ``baseline-capture.ts`` refuses on any
+starved case with this sentence, word for word. Nothing in ``stats-oracle.json``
+pins either copy — there is no baseline-mint section, because until that card
+only this module could write a record — so the two are kept in step by hand, as
+the outage gate's blamed string is.
 """
 
 from __future__ import annotations

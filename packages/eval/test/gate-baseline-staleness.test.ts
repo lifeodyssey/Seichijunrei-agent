@@ -15,15 +15,17 @@ import {
 import {
   oracleEntryAt,
   oracleEntryNamed,
-  PYTHON_BASELINE_LAYER,
-  PYTHON_BASELINE_MODEL,
   readStatsOracle,
   type OracleStalenessCase,
 } from '../src/gate/stats-oracle.ts';
+import { BASELINE_LAYER, BASELINE_MODEL } from '../src/gate-run/baseline-identity.ts';
 
 const oracle = readStatsOracle();
-const LAYER = PYTHON_BASELINE_LAYER;
-const MODEL = PYTHON_BASELINE_MODEL;
+/** `baseline_oracle.py`'s `STALE_LAYER` / `STALE_MODEL`, which are the same two
+ * strings the identity module pins. The oracle's warnings interpolate them, so
+ * reading them from one place is what keeps the replayed text identical. */
+const LAYER = BASELINE_LAYER;
+const MODEL = BASELINE_MODEL;
 
 function scratchLocation(): BaselineLocation {
   const baselinesDir = mkdtempSync(join(tmpdir(), 'animichi-staleness-'));

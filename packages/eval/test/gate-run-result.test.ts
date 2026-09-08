@@ -14,7 +14,7 @@ import {
   baselineParityScores,
   makeFallenOverRun,
   makeGatedRun,
-  pythonBaseline,
+  committedBaseline,
   withRegressedMetric,
   type CaseScoreMap,
 } from './gated-run.ts';
@@ -41,7 +41,7 @@ const regressedResult = await gateRun(regressed);
 /** The same comparison made by the gate the port already pins to Python. */
 async function directGate(scores: CaseScoreMap) {
   const run = await makeGatedRun(scores);
-  return bootstrapGate(gateInputFromReport(run.report).cases, pythonBaseline(), {
+  return bootstrapGate(gateInputFromReport(run.report).cases, committedBaseline(), {
     strata: run.settings.strata,
   });
 }

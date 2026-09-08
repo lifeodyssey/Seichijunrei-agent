@@ -19,7 +19,7 @@ import { gateExitCode } from '../src/gate-run/gate-exit-code.ts';
 import { analyseFailures } from '../src/gate-run/failure-attribution.ts';
 import type { Deviation } from '../src/gate-run/first-deviation.ts';
 import { gateRunResultOf, type GateRunResult } from '../src/gate-run/gate-run-result.ts';
-import { PYTHON_BASELINE_MODEL } from '../src/gate-run/python-baseline.ts';
+import { BASELINE_MODEL } from '../src/gate-run/baseline-identity.ts';
 import { makeCannedReport, type CannedCaseSpec } from './canned-report.ts';
 import { GATED_DATASET, GENERATED_AT, makeFallenOverRun, baselineParityScores } from './gated-run.ts';
 import { makeAttributedTurn } from './make-attributed-turn.ts';
@@ -32,7 +32,7 @@ function resultOf(specs: readonly CannedCaseSpec[]): GateRunResult {
     caseCount: specs.length,
     metricNames: [],
     baseline: null,
-    baselineModel: PYTHON_BASELINE_MODEL,
+    baselineModel: BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},

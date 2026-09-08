@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { EXPORTED_DATASETS } from '../src/dataset-sets.ts';
+import { EXPORTED_DATASETS, exportedCaseCount } from '../src/dataset-sets.ts';
 import { EVALUATOR_NAMES } from '../src/evaluator-names.ts';
 import { caseViewPath, loadExportedDataset } from '../src/dataset-roundtrip.ts';
 
@@ -43,6 +43,13 @@ function pythonView(setName: string): DatasetView {
 }
 
 for (const { caseCount, name } of EXPORTED_DATASETS) {
+  /** The count an UNCAPPED run of this set has, which is what
+   * `gate-run/baseline-capture.ts` tells a full run from a `--limit` one by
+   * (#1515). It answers off this list rather than off the file. */
+  void test(`${name}: exportedCaseCount answers the pinned count`, () => {
+    assert.equal(exportedCaseCount(name), caseCount);
+  });
+
   void test(`${name}: loads through Dataset.fromFile with the exported case count`, async () => {
     const dataset = await loadExportedDataset(name);
 
@@ -89,3 +96,7 @@ for (const { caseCount, name } of EXPORTED_DATASETS) {
     );
   });
 }
+
+void test('a set nobody exported has no case count to answer with', () => {
+  assert.throws(() => exportedCaseCount('agent_eval_v4'), RangeError);
+});

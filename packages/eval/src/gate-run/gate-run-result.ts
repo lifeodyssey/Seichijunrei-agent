@@ -1,6 +1,7 @@
 import type { EvaluationReport } from 'logfire/evals';
 
 import type { ExportedAgentExpected, ExportedAgentInput } from '../dataset-roundtrip.ts';
+import { EVALUATOR_VERSION } from '../evaluators/agent-evaluator.ts';
 import type { BaselineRecord } from '../gate/baseline-record.ts';
 import { DEFAULT_MIN_PAIRED } from '../gate/metric-gate.ts';
 import { DEFAULT_PROPORTION_MIN_EFFECT } from '../gate/clopper-pearson.ts';
@@ -20,6 +21,7 @@ import {
   attributionRecordOf,
   type RunFailureAttribution,
 } from './failure-attribution.ts';
+import { starvedCaseIdsOf } from './provider-outage.ts';
 import { reportOnlyMetricsOf, type ReportOnlyMetrics } from './report-only-metrics.ts';
 import { scoreBreakdownOf, type ScoreBreakdown } from './score-breakdown.ts';
 import { judgement } from './run-judgement.ts';
@@ -40,11 +42,18 @@ import { runSpendOf, type RunSpend } from './run-spend.ts';
  * camelCase mirror would only be a mapping layer to get wrong.
  *
  * WHAT IT DOES NOT DO IS WRITE A BASELINE. Python's uncapped run creates one
- * when none is found (`_run_uncapped_gate`); this runner never does. The whole
- * point of the double run is to compare against the Python numbers, and a
- * runner that could write the record it is judged by is a runner that can make
- * itself pass — the failure mode `apps/agent/AGENTS.md` names as "never refresh
- * a baseline merely to pass a gate".
+ * when none is found (`_run_uncapped_gate`); this runner never does. A runner
+ * that could write the record it is judged by is a runner that can make itself
+ * pass — the failure mode `apps/agent/AGENTS.md` names as "never refresh a
+ * baseline merely to pass a gate".
+ *
+ * WHAT IT DOES DO, SINCE #1515, IS CARRY EVERYTHING A CAPTURE NEEDS: the
+ * per-case scores, the starved case ids and the evaluator vocabulary. The
+ * owner's 2026-09-08 decision on #1303 makes this tier's own uncapped run the
+ * next baseline, and `scripts/eval-baseline-capture.ts` mints it — from this
+ * committed file, in a second command a person runs, never from the run in
+ * flight. A result file that could not say what each case scored could not be
+ * that input, and could not be re-audited either.
  */
 
 /** The report one staging run produces: exported cases in, wire transcripts out. */
@@ -97,6 +106,11 @@ export interface GateRunResult {
   readonly generated_at: string;
   readonly dataset: string;
   readonly baseline_model: string;
+  /** The evaluator vocabulary these numbers were scored in
+   * (`evaluators/agent-evaluator.ts`). Recorded rather than re-read from the
+   * code at capture time: a record stamped from a later checkout's constant
+   * would claim a vocabulary that never touched these scores (#1303). */
+  readonly evaluator_version: string;
   readonly seed: number;
   readonly iterations: number;
   readonly confidence: number;
@@ -106,6 +120,11 @@ export interface GateRunResult {
   readonly case_count: number;
   readonly evaluated_count: number;
   readonly errored_count: number;
+  /** The evaluated cases whose turn published no answer at all
+   * (`provider-outage.ts`). Reported even when the run was under the ceiling
+   * and therefore judged: the outage gate's own numerator, and the fact
+   * `baseline-capture.ts` refuses a mint on (#1499). */
+  readonly starved_cases: readonly string[];
   readonly scores: Readonly<Record<string, number>>;
   /** The columns that are reported and NOT gated (`report-only-metrics.ts`).
    * Its own field rather than a ninth entry in `scores`, because `scores` is
@@ -122,6 +141,11 @@ export interface GateRunResult {
   readonly warnings: readonly string[];
   readonly breakdown: ScoreBreakdown;
   readonly spend: RunSpend;
+  /** Every evaluated case's own scores — `caseScoresFromReport`, the same map
+   * the metric gate compares and a baseline record's `cases` is. LAST in the
+   * file because it is larger than everything above it put together, and empty
+   * for a starved run for the reason `scores` is (`run-judgement.ts`). */
+  readonly case_scores: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 export function gateRunResultOf(
@@ -130,13 +154,17 @@ export function gateRunResultOf(
 ): GateRunResult {
   const identity = runIdentity(settings);
   const input = gateInputFromReport(report);
+  // `case_scores` is pulled out of the judgement and re-attached at the end:
+  // it is the one field a reader scrolls past rather than reads.
+  const { case_scores, ...judged } = judgement(report, settings, input);
   return {
     ...identity,
     ...pinnedGateSettings(),
     case_count: settings.caseCount,
     evaluated_count: input.evaluatedCount,
     errored_count: input.erroredCount,
-    ...judgement(report, settings, input),
+    starved_cases: [...starvedCaseIdsOf(report)],
+    ...judged,
     report_only: reportOnlyMetricsOf(report),
     failure_attribution: attributionRecordOf(
       analyseFailures(report),
@@ -144,17 +172,22 @@ export function gateRunResultOf(
     ),
     breakdown: scoreBreakdownOf(report),
     spend: runSpendOf(report),
+    case_scores,
   };
 }
 
 function runIdentity(
   settings: GateRunSettings,
-): Pick<GateRunResult, 'schema_version' | 'generated_at' | 'dataset' | 'baseline_model'> {
+): Pick<
+  GateRunResult,
+  'schema_version' | 'generated_at' | 'dataset' | 'baseline_model' | 'evaluator_version'
+> {
   return {
     schema_version: 1,
     generated_at: settings.now().toISOString(),
     dataset: settings.dataset,
     baseline_model: settings.baselineModel,
+    evaluator_version: EVALUATOR_VERSION,
   };
 }
 

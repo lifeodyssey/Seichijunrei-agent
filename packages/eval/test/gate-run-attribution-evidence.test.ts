@@ -28,7 +28,7 @@ import {
 import { UNKNOWN_TOOL_NAME } from '../src/gate-run/declared-tool-name.ts';
 import { analyseFailures } from '../src/gate-run/failure-attribution.ts';
 import { gateRunResultOf } from '../src/gate-run/gate-run-result.ts';
-import { PYTHON_BASELINE_MODEL } from '../src/gate-run/python-baseline.ts';
+import { BASELINE_MODEL } from '../src/gate-run/baseline-identity.ts';
 import { gateRunResultText } from '../src/gate-run/result-file.ts';
 import { makeCannedReport } from './canned-report.ts';
 import { GATED_DATASET, GENERATED_AT } from './gated-run.ts';
@@ -58,7 +58,7 @@ const result = gateRunResultOf(report, {
   caseCount: 1,
   metricNames: [],
   baseline: null,
-  baselineModel: PYTHON_BASELINE_MODEL,
+  baselineModel: BASELINE_MODEL,
   baselineFailures: [],
   baselineWarnings: [],
   strata: {},

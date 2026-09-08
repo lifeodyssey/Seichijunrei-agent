@@ -32,3 +32,15 @@ export function checkedDatasetName(name: string): string {
   if (known.includes(name)) return name;
   throw new RangeError(`unknown dataset "${name}" — one of: ${known.join(", ")}`);
 }
+
+/**
+ * How many cases an UNCAPPED run of a set evaluates — the pinned count above,
+ * not a second reading of the file. `gate-run/baseline-capture.ts` compares a
+ * finished run's `case_count` against it to tell a full run from a `--limit`
+ * one, which is the same tripwire this list already is, asked a new question.
+ */
+export function exportedCaseCount(name: string): number {
+  const set = EXPORTED_DATASETS.find((one) => one.name === checkedDatasetName(name));
+  if (set === undefined) throw new RangeError(`unknown dataset "${name}"`);
+  return set.caseCount;
+}

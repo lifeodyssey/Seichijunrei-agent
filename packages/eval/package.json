@@ -9,6 +9,7 @@
     "lint:oxlint": "oxlint --type-aware --deny-warnings .",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"test/*.test.ts\" && pnpm run test:fixture-drift",
+    "eval:baseline:capture": "node scripts/eval-baseline-capture.ts",
     "eval:gate": "node scripts/eval-gate.ts",
     "eval:staging": "node scripts/eval-staging.ts",
     "test:fixture-drift": "bash scripts/export-fixtures.sh && bash ../../scripts/local-gates/eval-fixture-drift.sh"

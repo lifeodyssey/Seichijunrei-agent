@@ -99,7 +99,7 @@
 | W0 | spike S1–S5 + kill-switch 裁决 | 已回填（#1249） |
 | W1 | 核心环路（全部在 `workers/edge` 内）：intake + AgentSession DO（alarm 内跑回合）+ pi + mimo + 4 个 catalog 工具 + 连接在时的 SSE + `GET …/messages` 加 run 状态 + 配额结算 | staging 匿名可完整对话；切走再回来拉到完整结果（手动验证，无自动 eval） |
 | W2 | parity：web 工具×2、route 工具、BYOK、上下文与记忆（fact_ledger 适配；按 §九 = 跨轮结构化重放 + 写入时冻结的工具返回摘要 + 阈值批量压缩 + `<agent_status>` 状态栏，**不是**每轮滑动窗口再压缩） | 功能对等清单逐项勾（手动验证）+ 同一 session 两轮的系统提示词字节相同 |
-| W3 | eval 搬到 TS：框架用 `logfire/evals`（与 pydantic-evals 同数据模型与文件格式，`run_agent_eval.py:133` 的 `Dataset.to_file` 导出 → TS `Dataset.fromFile` 读取；"零迁移"的前提：导出文件里序列化的 8 个评估器名必须以 TS 实现通过 `customEvaluators` 注册、runner 在 Node/Bun/Deno 跑（Workers 内无文件 helper）、两侧包版本钉死；W3 第一张卡 = Python 导出 → TS 导入的 round-trip fixture，跑通前不得声称零迁移）；task = 对 staging 的 HTTP 调用；自写 8 个评估器（4 个官方 agentic：ToolCorrectness / TrajectoryMatch / ArgumentCorrectness / MaxToolCalls，TS 版无内置，轨迹从转录取；4 个自定义照抄 `evaluators.py:162-215`）+ 移植 `gate.py` 的分层配对 bootstrap 统计门 + ANY-of-N + 662 case 双跑；**评估装置按 §十**：staging-only 环境初始化（先建机制 + 5 个 `seeded_pending` 用例；把 76 个用例改造成轨迹前缀任务需 owner 确认并同批重做 Python 基线）、取回面发布已结算参数让 `argument_correctness` 恢复两见证人比较，二者在双跑前；终局答复验证器与失败归因 report-only，在双跑后 | 双跑无回归（8/29 note 硬条件 3）；#1380 / #1381 在双跑前合入 |
+| W3 | eval 搬到 TS：框架用 `logfire/evals`（与 pydantic-evals 同数据模型与文件格式，`run_agent_eval.py:133` 的 `Dataset.to_file` 导出 → TS `Dataset.fromFile` 读取；"零迁移"的前提：导出文件里序列化的 8 个评估器名必须以 TS 实现通过 `customEvaluators` 注册、runner 在 Node/Bun/Deno 跑（Workers 内无文件 helper）、两侧包版本钉死；W3 第一张卡 = Python 导出 → TS 导入的 round-trip fixture，跑通前不得声称零迁移）；task = 对 staging 的 HTTP 调用；自写 8 个评估器（4 个官方 agentic：ToolCorrectness / TrajectoryMatch / ArgumentCorrectness / MaxToolCalls，TS 版无内置，轨迹从转录取；4 个自定义照抄 `evaluators.py:162-215`）+ 移植 `gate.py` 的分层配对 bootstrap 统计门 + ANY-of-N + 662 case 双跑；**评估装置按 §十**：staging-only 环境初始化（先建机制 + 5 个 `seeded_pending` 用例；把 76 个用例改造成轨迹前缀任务需 owner 确认并同批重做 Python 基线）、取回面发布已结算参数让 `argument_correctness` 恢复两见证人比较，二者在铸基线那一跑之前；终局答复验证器与失败归因 report-only，在其之后 | **出口判据 2026-09-08 按 owner 在 #1303 上的决定改写**：不再做 Python × TS 双跑对照（#1480 取消，理由是两侧同一套 `official-v2` 词表、同一条 mimo-v2.5，双跑量的是同一件事）。改为三步：① TS 层对 staging 跑一次 **uncapped** 全量（662 例、seed 固定、结果文件提交在 `packages/eval/results/`）；② 用 `eval:baseline:capture`（#1515）把那次运行铸成新基线 —— 任一 starved 用例即拒铸（#1499），capped 的跑与未加 `--replace` 的覆写同样拒；③ 第二次同样的跑对新基线各指标无回归（`eval:gate` 退出 0）。Python 基线随第一次捕获退役。#1380 / #1381 在①之前合入（已合） |
 | W4 | 删除 `apps/agent` + uv CI 臂 + 容器构建 + `[[containers]]`/`RuntimeContainer`/#1239 等待逻辑；CD/文档里的 `root` 旧名统一为 edge；空壳 jobs Worker 处置（DONE，#1316）；docs/AGENTS.md/coverage floors 更新；launch 链（#1181/#1183/#1184）接上新架构 | repo 无 Python agent 残留 |
 
 ## 六、验收标准
@@ -108,7 +108,7 @@
 - [ ] **(integration)** staging 全链：POST → DO → Neon → GET 取回，run 状态机 running/succeeded/failed 各可达。
 - [ ] **(browser)** staging 实测断线续跑：回合中切走 → 回来 GET 拿到完整结果（owner 的核心场景）。
 - [ ] **(security)** BYOK/egress 红线全绿（S5 清单逐项）+ 无 Supabase-auth/下游自验证引入。
-- [ ] **(eval)** 662 case × 8 evaluator（4 官方 agentic + 4 自定义，与 §五 W3 同一清单）+ 统计门按现行阈值无回归；model-backed，非 faux provider。
+- [ ] **(eval)** 662 case × 8 evaluator（4 官方 agentic + 4 自定义，与 §五 W3 同一清单）+ 统计门按现行阈值无回归；model-backed，非 faux provider。基线自 2026-09-08 起由 TS 层自己的 uncapped 跑铸成（#1515），对照对象是它而不是 Python 的记录。
 - [ ] **(unit)** bundler 产物 smoke 执行门在 CI 常驻。
 - [ ] **(api)** 生产行为契约：edge 转发的受信身份 = 唯一身份来源；契约包 zod surface 未破坏。
 - [ ] W4 后：`make check` 无 uv 臂；CD 无 agent 容器构建；全仓 `pnpm` 单流水线。
@@ -120,7 +120,7 @@
 - eval 搬迁成本降为 M（`logfire/evals` 与 pydantic-evals 同数据模型与文件格式，框架与数据集零成本）；剩余成本 = 8 个评估器 + `gate.py` 统计门的移植，照抄不重发明。
 - 上游 `AgentHarness` 未来落地 → 我们的 DO/Neon 编排以 core Agent 为界，保持可平移。
 - **2026-09-01 14:33 staging 的一次 D5（前端 110s 看门狗超时）不在容器层**：容器当时已休眠、Logfire 无 POST 记录，请求在到达 DO 之前就挂在 edge 侧（候选：Turnstile siteverify / `RATE_LIMITER` DO fail-closed / 身份流程）。重写不解决它，不得计入重写收益；需 edge 侧 Workers Logs 定位（现有 API token 无 observability 权限）。
-- W1/W2 无自动 eval（owner 接受）→ 这段时间的回归只能靠 staging 手动发现；W3 双跑是 Python 退役的硬前置，不可再往后挪。
+- W1/W2 无自动 eval（owner 接受）→ 这段时间的回归只能靠 staging 手动发现；W3 的基线捕获（#1515：uncapped 全量跑 + 铸基线 + 复跑无回归）是 Python 退役的硬前置，不可再往后挪。
 - eval 只对真实环境测 → 依赖 staging 可用且 CD 队列畅通；#1204 的 prod 审批门阻塞问题在 W3 前必须修，否则每次合并都要手动拒一次才能跑 eval。
 
 ## 附录 A · W0-S1 实测（2026-09-02，#1244 / PR #1260）
@@ -292,7 +292,7 @@ DO 计费实数与并发模型（S4 出数）；typebox↔zod 桥的落点代码
 
 ## 十、评估（owner 2026-09-05，依李博杰第 7 章）
 
-裁决入口 #1309（111 处 in-process 会话种子没有 wire 形态）与 #1311（`argument_correctness` 在线上只有一个见证人）。参考书为《深入理解 AI Agent》第 7 章，下文按其小节标题引用。§五 W3 的出口判据（662 例双跑无回归）不变；本节改的是**评估装置**本身 —— 用例怎么回到同一起点、由谁核实、失败之后说得出为什么。
+裁决入口 #1309（111 处 in-process 会话种子没有 wire 形态）与 #1311（`argument_correctness` 在线上只有一个见证人）。参考书为《深入理解 AI Agent》第 7 章，下文按其小节标题引用。§五 W3 的出口判据在 2026-09-08 由 owner 在 #1303 上改写（双跑 → 自铸基线 + 复跑无回归，见 §五）；本节改的是**评估装置**本身 —— 用例怎么回到同一起点、由谁核实、失败之后说得出为什么。
 
 书「一条评估任务的解剖」把一个可重复运行的评估环境拆成五个要素：数据集、环境状态、工具接口、评分标准、执行协议。本仓今天有其中三个 —— 数据集是导出的六个集合（`packages/eval/src/dataset-sets.ts:15-22`），工具接口是 edge 的六个模型工具，执行协议是 `StagingTurnTask`（`packages/eval/src/staging-turn-task.ts:105-126`）。缺的是**环境状态可重置**（10.1）与**评分标准里的独立核实**（10.2 / 10.3），失败之后的可读性（10.4）则是书「失败归因」要求的第四件事。
 

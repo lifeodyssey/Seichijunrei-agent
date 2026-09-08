@@ -19,7 +19,7 @@ import {
   providerOutageFailure,
   starvedCasesOf,
 } from '../src/gate-run/provider-outage.ts';
-import { PYTHON_BASELINE_MODEL } from '../src/gate-run/python-baseline.ts';
+import { BASELINE_MODEL } from '../src/gate-run/baseline-identity.ts';
 import { runMetricNames } from '../src/gate-run/run-metric-names.ts';
 import { oracleEntryNamed, readStatsOracle } from '../src/gate/stats-oracle.ts';
 import { CRASHED_INTENT } from '../src/turn-transcript.ts';
@@ -51,8 +51,10 @@ void test('the ceiling is the one Python published its rows against', () => {
  * Python's second ceiling has no counterpart here, and that is a decision
  * rather than an omission: `gate-exit-code.ts` says this runner never writes
  * the record it is judged by, so the lower ceiling — which exists to stop a
- * starved run MINTING a baseline — would guard a write that never happens
- * (#1499). The rows still carry it, so both lanes' sentences replay here.
+ * starved run MINTING a baseline — would guard a write this gate never makes
+ * (#1499). The capture command that does mint refuses on ANY starved case,
+ * which is stricter than either ceiling (#1515). The rows still carry both, so
+ * both lanes' sentences replay here.
  */
 void test('the lower ceiling belongs to a lane this runner does not have', () => {
   const baselineLane = oracleEntryNamed(OUTAGE_ROWS, 'baseline_lane_at_ceiling');
@@ -97,21 +99,31 @@ void test('a wholly starved run fails, naming the share and the surface', () => 
   ]);
 });
 
-/** `PYTHON_BASELINE_MODEL` names the record this run is COMPARED against, and
+/** `BASELINE_MODEL` names the record this run is COMPARED against, and
  * the deploy publishes nothing about what actually answered it
- * (`python-baseline.ts`). A sentence blaming it would be a claim the wire never
+ * (`baseline-identity.ts`). A sentence blaming it would be a claim the wire never
  * made. */
 void test('the sentence blames a surface, never the baseline record\'s model', () => {
   const result = gateRunResultOf(reportOf(10, 0), settings(10));
 
-  assert.equal(result.baseline_model, PYTHON_BASELINE_MODEL);
-  assert.ok(!result.failures[0]?.includes(PYTHON_BASELINE_MODEL));
+  assert.equal(result.baseline_model, BASELINE_MODEL);
+  assert.ok(!result.failures[0]?.includes(BASELINE_MODEL));
 });
 
 void test('one starved case in ten leaves the run judgeable', () => {
   const result = gateRunResultOf(reportOf(1, 9), settings(10));
 
   assert.deepEqual(result.failures, []);
+});
+
+/** Judgeable is not mintable (#1499, #1515). A run under the ceiling is
+ * compared, so it publishes every case's scores — and it names the starved ones
+ * beside them, which is the fact `baseline-capture.ts` refuses a capture on. */
+void test('a judgeable run still names the cases the provider starved', () => {
+  const result = gateRunResultOf(reportOf(1, 9), settings(10));
+
+  assert.deepEqual(result.starved_cases, ['starved-0']);
+  assert.equal(Object.keys(result.case_scores).length, 10);
 });
 
 /**
@@ -162,6 +174,9 @@ void test('a starved run reports the outage, not the column it starved', () => {
   ]);
   assert.deepEqual(result.scores, {});
   assert.deepEqual(result.metrics, []);
+  // The same reason, one step further (#1515): an outage's per-case numbers
+  // must not be reachable as the floor a capture mints.
+  assert.deepEqual(result.case_scores, {});
 });
 
 function settings(caseCount: number) {
@@ -170,7 +185,7 @@ function settings(caseCount: number) {
     caseCount,
     metricNames: [],
     baseline: null,
-    baselineModel: PYTHON_BASELINE_MODEL,
+    baselineModel: BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},

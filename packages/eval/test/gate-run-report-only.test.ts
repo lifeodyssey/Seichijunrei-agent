@@ -19,7 +19,7 @@ import type { ExportedAgentExpected, ExportedAgentInput } from "../src/dataset-r
 import { REPLY_CLAIM_METRIC } from "../src/evaluators/reply-claim-verifier.ts";
 import { gateExitCode } from "../src/gate-run/gate-exit-code.ts";
 import { gateRunResultOf, type AgentEvalReport } from "../src/gate-run/gate-run-result.ts";
-import { PYTHON_BASELINE_MODEL } from "../src/gate-run/python-baseline.ts";
+import { BASELINE_MODEL } from "../src/gate-run/baseline-identity.ts";
 import { metricNames } from "../src/metric-names.ts";
 import type { TranscriptResult } from "../src/turn-transcript.ts";
 import { baselineParityScores, GATED_DATASET, GENERATED_AT, makeGatedRun } from "./gated-run.ts";
@@ -74,7 +74,7 @@ function ungatedResultOf(report: AgentEvalReport) {
     caseCount: report.cases.length,
     metricNames: [],
     baseline: null,
-    baselineModel: PYTHON_BASELINE_MODEL,
+    baselineModel: BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},
