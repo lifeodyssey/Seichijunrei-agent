@@ -123,13 +123,24 @@ def step_index(job, marker)
   @cd.steps_of(job).index { |step| "#{step['name']}#{step['uses']}#{step['run']}".include?(marker) }
 end
 
-# `pulumi package add` generates the SDK the sealed program imports, so the CLI
+# `pulumi install` reproduces the committed SDK pins, so the CLI
 # has to be installed before the seal step, not merely present in the job.
 def assert_build_installs_pulumi_before_sealing
   cli = step_index("build", "pulumi/actions")
-  seal = step_index("build", "pulumi package add")
+  seal = step_index("build", "pulumi install")
   @log.unless_true(!cli.nil? && !seal.nil? && cli < seal,
                    "cd.yml:build: the pinned Pulumi CLI must be installed before the SDK is generated")
+end
+
+def assert_neon_sdk_uses_committed_provider_versions
+  project = YAML.safe_load(File.read(File.join(ROOT, "infra/database-access/Pulumi.yaml")))
+  expected = { "source" => "terraform-provider", "version" => "1.4.0",
+               "parameters" => ["kislerdm/neon", "0.17.0"] }
+  @log.unless_true(project.dig("packages", "neon") == expected,
+                   "Pulumi.yaml: pin both the Terraform bridge and the Neon provider versions")
+  build = @cd.steps_of("build").map { |step| step["run"] }.compact.join("\n")
+  @log.unless_true(!build.include?("pulumi package add"),
+                   "cd.yml:build: install committed provider pins instead of resolving them again")
 end
 
 def rebuild_markers_in(job)
@@ -239,6 +250,7 @@ ASSERTIONS = %i[
   assert_push_to_main_is_the_only_trigger assert_one_build_one_artifact
   assert_every_stage_downloads_the_artifact assert_production_never_rebuilds
   assert_build_installs_pulumi_before_sealing assert_skip_propagation
+  assert_neon_sdk_uses_committed_provider_versions
   assert_stages_run_only_on_a_built_artifact assert_plan_guards assert_immutable_pairs
   assert_delivery_concurrency assert_environments assert_no_build_time_environment_values
 ].freeze
