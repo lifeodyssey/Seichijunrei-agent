@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { server } from "./node";
 
 /** What one case boundary did to the requests MSW had open across it. */
@@ -101,8 +102,9 @@ server.events.on("unhandledException", ({ requestId }) => {
 const NOTHING_IN_FLIGHT: DrainOutcome = { settled: 0, abandoned: [], declared: 0, timedOut: false };
 let closedTheLastCase: DrainOutcome = NOTHING_IN_FLIGHT;
 
-/** Await every in-flight mocked request the live case did not declare, bounded. */
+/** Include requests started by cold imports before observing the MSW boundary. */
 export async function drainInFlightRequests(timeoutMs = 2000): Promise<DrainOutcome> {
+  await vi.dynamicImportSettled();
   closedTheLastCase = await inFlight.drain(timeoutMs);
   return closedTheLastCase;
 }

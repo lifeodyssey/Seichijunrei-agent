@@ -91,10 +91,7 @@ describe("the shared header path waits for the widget", () => {
   it("resolves headers straight away when this build renders no widget", async () => {
     vi.stubGlobal(RUNTIME_CONFIG_GLOBAL_KEY, DEFAULT_RUNTIME_CONFIG);
     vi.stubEnv("DEV", false);
-    let wasSettled = false;
-    void sessionHeaders().then(() => { wasSettled = true; });
-    await flush();
-    expect(wasSettled).toBe(true);
+    await expect(sessionHeaders()).resolves.toEqual({});
   });
 
 });
