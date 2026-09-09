@@ -424,6 +424,35 @@ Worker rollback does not reverse an applied migration. For provisioning or recov
 [`migrations.md`](./migrations.md) and [`neon-backup-rpo.md`](./neon-backup-rpo.md); do not infer
 database state from a green build.
 
+### Read-only migration preflight (#1575)
+
+The migrator candidate adds authenticated `POST /preflight` for the later #1564
+controller. A caller sends only `{expectedHead, atlasSum, stagingOnlyBaseline}`
+from its verified artifact, with a main-ref GitHub OIDC token for the existing
+environment-selected migrator policy. `expectedHead` is the final filename without
+`.sql`. The endpoint accepts a selected chain newer than its own bundle, reads the
+complete revision ledger using native Neon `readOnly: true` / `RepeatableRead`, and
+returns `200 {compatible:true, expectedHead, appliedHead, pendingCount}` only for a
+completed matching prefix. Unknown metadata or database history fails closed.
+
+An authenticated missing/empty ledger returns `422 ledger_missing` / `ledger_empty`;
+partial history, hash divergence, native baseline/resolved rows, newer schema and a
+production staging-only baseline flag also return stable refusals. Missing identity
+is 401, disallowed identity 403, malformed metadata 400 (oversized input 413), and
+secret/driver unavailability 503. Responses are `Cache-Control: no-store` and contain
+no database credentials or driver messages. `/healthz` still describes the bundle.
+
+Bootstrap uses the existing authorized main-push CD path. Record the deployed
+version, artifact identity, environment, request metadata digest and sanitized
+HTTP status/body for a signed read-only call plus unauthenticated and wrong-environment
+refusals. A state refusal is evidence of the endpoint and that state, not permission
+to reset or apply. Record production observations separately after its environment
+approval. These platform observations remain pending until actually performed.
+#1564 must not activate while either target returns 404/unavailable; it must repeat
+the comparison inside the existing apply lock before mutation. Preflight alone does
+not protect against a later apply racing this snapshot, and #1575 leaves `/migrate`
+semantics and the current controller unchanged.
+
 ### Main-only affected promotion (`.github/workflows/cd.yml`)
 
 A push to `main` is the only deployment trigger. `plan` resolves the range and the affected package
