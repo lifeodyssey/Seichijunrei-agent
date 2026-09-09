@@ -4,8 +4,8 @@
  * following `topology-neon-auth.test.ts`: nothing here imports a Pulumi
  * program. `infra/database-access` is a SECOND Pulumi program and it cannot be
  * built through the harness at all — its Neon provider is a bridged SDK
- * generated at release time (`pulumi package add terraform-provider
- * kislerdm/neon`) and deliberately kept out of the repo
+ * generated at release time (`pulumi install`) from Pulumi.yaml's pins and
+ * deliberately kept out of the repo
  * (`infra/database-access/.gitignore`), so there is no `@pulumi/neon` for a
  * test process to import. What CAN be pinned without it is the pair of
  * derivations that decide what the prod stack emits — the role list and the

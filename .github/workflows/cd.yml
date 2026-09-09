@@ -433,7 +433,7 @@ jobs:
         run: |
           set -euo pipefail
           ( cd infra/database-access
-            pulumi package add terraform-provider kislerdm/neon
+            pulumi install --no-dependencies --no-plugins --non-interactive
             git restore package.json
             pnpm install --frozen-lockfile )
           out=release/foundation
