@@ -1,0 +1,778 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.agent_admissions",
+    "label": "Create table \"agent_admissions\"",
+    "summary": "Creates table \"agent_admissions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"agent_admissions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"agent_admissions\"",
+        "sql": "CREATE TABLE \"public\".\"agent_admissions\" (\n  \"client_message_id\" text NOT NULL,\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" uuid DEFAULT (uuidv7()) NOT NULL,\n  \"identity_id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"operation_id\" text,\n  \"payer\" text NOT NULL,\n  \"quota_refunded_at\" timestamptz,\n  \"quota_reserved_at\" timestamptz,\n  \"quota_usage_date\" date,\n  \"rejection_reason\" text,\n  \"request_digest\" text NOT NULL,\n  \"session_id\" text NOT NULL,\n  \"state\" text DEFAULT 'pending' NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"agent_admissions_anon_reservation_6033223e\" CHECK (quota_reserved_at IS NULL OR (payer = 'anon' AND kind = 'model')),\n  CONSTRAINT \"agent_admissions_kind_c9a3d3de\" CHECK (kind IN ('model', 'selection')),\n  CONSTRAINT \"agent_admissions_operation_eb16a5ca\" CHECK ((kind = 'model') = (operation_id IS NOT NULL)),\n  CONSTRAINT \"agent_admissions_payer_e16f03f2\" CHECK (payer IN ('anon', 'user', 'byok')),\n  CONSTRAINT \"agent_admissions_refund_01ca6412\" CHECK (quota_refunded_at IS NULL OR quota_reserved_at IS NOT NULL),\n  CONSTRAINT \"agent_admissions_reservation_703b91eb\" CHECK ((quota_usage_date IS NULL) = (quota_reserved_at IS NULL)),\n  CONSTRAINT \"agent_admissions_state_68032317\" CHECK (state IN ('pending', 'accepted', 'settled', 'void'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"agent_admissions\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.agent_open_operations",
+    "label": "Create table \"agent_open_operations\"",
+    "summary": "Creates table \"agent_open_operations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "agent_open_operations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"agent_open_operations\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_open_operations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"agent_open_operations\"",
+        "sql": "CREATE TABLE \"public\".\"agent_open_operations\" (\n  \"created_at\" timestamptz DEFAULT (now()) NOT NULL,\n  \"operation_id\" text NOT NULL,\n  PRIMARY KEY (\"operation_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"agent_open_operations\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_open_operations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.agent_settlements",
+    "label": "Create table \"agent_settlements\"",
+    "summary": "Creates table \"agent_settlements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "agent_settlements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"agent_settlements\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_settlements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"agent_settlements\"",
+        "sql": "CREATE TABLE \"public\".\"agent_settlements\" (\n  \"last_usage_seq\" int8 DEFAULT '-1'::int8 NOT NULL,\n  \"operation_id\" text NOT NULL,\n  \"settled_at\" timestamptz,\n  PRIMARY KEY (\"operation_id\"),\n  CONSTRAINT \"agent_settlements_last_usage_seq_6e9ae59f\" CHECK (last_usage_seq >= -1)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"agent_settlements\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_settlements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.pi_list_values",
+    "label": "Create table \"pi_list_values\"",
+    "summary": "Creates table \"pi_list_values\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "pi_list_values"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pi_list_values\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_list_values\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pi_list_values\"",
+        "sql": "CREATE TABLE \"public\".\"pi_list_values\" (\n  \"key\" text NOT NULL,\n  \"namespace\" text NOT NULL,\n  \"seq\" int8 NOT NULL,\n  \"session_id\" text NOT NULL,\n  \"value\" jsonb,\n  PRIMARY KEY (\"session_id\", \"namespace\", \"key\", \"seq\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pi_list_values\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_list_values\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.pi_records",
+    "label": "Create table \"pi_records\"",
+    "summary": "Creates table \"pi_records\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "pi_records"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pi_records\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pi_records\"",
+        "sql": "CREATE TABLE \"public\".\"pi_records\" (\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"payload\" jsonb NOT NULL,\n  \"seq\" int8 NOT NULL,\n  \"session_id\" text NOT NULL,\n  PRIMARY KEY (\"session_id\", \"id\"),\n  CONSTRAINT \"pi_records_kind_check_a2fad22d\" CHECK (\"kind\" IN ('entry', 'usage')),\n  CONSTRAINT \"pi_records_payload_id_94d9123f\" CHECK ((payload->>'id') IS NOT DISTINCT FROM id),\n  CONSTRAINT \"pi_records_payload_seq_9ea7b271\" CHECK (((payload->>'seq')::bigint) IS NOT DISTINCT FROM seq)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pi_records\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.pi_scalar_values",
+    "label": "Create table \"pi_scalar_values\"",
+    "summary": "Creates table \"pi_scalar_values\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "pi_scalar_values"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pi_scalar_values\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_scalar_values\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pi_scalar_values\"",
+        "sql": "CREATE TABLE \"public\".\"pi_scalar_values\" (\n  \"key\" text NOT NULL,\n  \"namespace\" text NOT NULL,\n  \"seq\" int8 NOT NULL,\n  \"session_id\" text NOT NULL,\n  \"value\" jsonb,\n  PRIMARY KEY (\"session_id\", \"namespace\", \"key\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pi_scalar_values\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_scalar_values\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.pi_sessions",
+    "label": "Create table \"pi_sessions\"",
+    "summary": "Creates table \"pi_sessions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "pi_sessions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"pi_sessions\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_sessions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"pi_sessions\"",
+        "sql": "CREATE TABLE \"public\".\"pi_sessions\" (\n  \"id\" text NOT NULL,\n  \"metadata\" jsonb NOT NULL,\n  \"next_seq\" int8 DEFAULT '0'::int8 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"pi_sessions_metadata_id_d12aedca\" CHECK ((metadata->>'id') IS NOT DISTINCT FROM id),\n  CONSTRAINT \"pi_sessions_next_seq_4a7f17e3\" CHECK (next_seq >= 0)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"pi_sessions\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"pi_sessions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.agent_admissions.agent_admissions_operation_id_key",
+    "label": "Add unique constraint on \"agent_admissions\" (operation_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "agent_admissions_operation_id_key",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"agent_admissions_operation_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_operation_id_key",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"agent_admissions_operation_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"agent_admissions\" ADD CONSTRAINT \"agent_admissions_operation_id_key\" UNIQUE (\"operation_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"agent_admissions_operation_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_operation_id_key",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.agent_admissions.agent_admissions_session_id_client_message_id_key",
+    "label": "Add unique constraint on \"agent_admissions\" (session_id, client_message_id)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "agent_admissions_session_id_client_message_id_key",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"agent_admissions_session_id_client_message_id_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_session_id_client_message_id_key",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"agent_admissions_session_id_client_message_id_key\"",
+        "sql": "ALTER TABLE \"public\".\"agent_admissions\" ADD CONSTRAINT \"agent_admissions_session_id_client_message_id_key\" UNIQUE (\"session_id\", \"client_message_id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"agent_admissions_session_id_client_message_id_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_session_id_client_message_id_key",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.pi_records.pi_records_session_id_seq_key",
+    "label": "Add unique constraint on \"pi_records\" (session_id, seq)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "pi_records_session_id_seq_key",
+        "table": "pi_records"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"pi_records_session_id_seq_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_records_session_id_seq_key",
+          "public",
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"pi_records_session_id_seq_key\"",
+        "sql": "ALTER TABLE \"public\".\"pi_records\" ADD CONSTRAINT \"pi_records_session_id_seq_key\" UNIQUE (\"session_id\", \"seq\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"pi_records_session_id_seq_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_records_session_id_seq_key",
+          "public",
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.agent_admissions.agent_admissions_unresolved_4731a1b2",
+    "label": "Create index \"agent_admissions_unresolved_4731a1b2\" on \"agent_admissions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "agent_admissions_unresolved_4731a1b2",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"agent_admissions_unresolved_4731a1b2\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_admissions_unresolved_4731a1b2\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"agent_admissions_unresolved_4731a1b2\"",
+        "sql": "CREATE INDEX \"agent_admissions_unresolved_4731a1b2\" ON \"public\".\"agent_admissions\" (\"kind\", \"created_at\") WHERE (state IN ('pending', 'accepted'))",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"agent_admissions_unresolved_4731a1b2\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_admissions_unresolved_4731a1b2\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.agent_settlements.agent_settlements_unsettled_3325215f",
+    "label": "Create index \"agent_settlements_unsettled_3325215f\" on \"agent_settlements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "agent_settlements_unsettled_3325215f",
+        "table": "agent_settlements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"agent_settlements_unsettled_3325215f\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_settlements_unsettled_3325215f\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"agent_settlements_unsettled_3325215f\"",
+        "sql": "CREATE INDEX \"agent_settlements_unsettled_3325215f\" ON \"public\".\"agent_settlements\" (\"operation_id\") WHERE (settled_at IS NULL)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"agent_settlements_unsettled_3325215f\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agent_settlements_unsettled_3325215f\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.agent_admissions.agent_admissions_session_id_fkey",
+    "label": "Add foreign key \"agent_admissions_session_id_fkey\" on \"agent_admissions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "agent_admissions_session_id_fkey",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"agent_admissions_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_session_id_fkey",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"agent_admissions_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"agent_admissions\"\nADD CONSTRAINT \"agent_admissions_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"pi_sessions\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"agent_admissions_session_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_session_id_fkey",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.agent_open_operations.agent_open_operations_operation_id_fkey",
+    "label": "Add foreign key \"agent_open_operations_operation_id_fkey\" on \"agent_open_operations\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "agent_open_operations_operation_id_fkey",
+        "table": "agent_open_operations"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"agent_open_operations_operation_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_open_operations_operation_id_fkey",
+          "public",
+          "\"public\".\"agent_open_operations\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"agent_open_operations_operation_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"agent_open_operations\"\nADD CONSTRAINT \"agent_open_operations_operation_id_fkey\"\nFOREIGN KEY (\"operation_id\")\nREFERENCES \"public\".\"agent_admissions\" (\"operation_id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"agent_open_operations_operation_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_open_operations_operation_id_fkey",
+          "public",
+          "\"public\".\"agent_open_operations\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.agent_settlements.agent_settlements_operation_id_fkey",
+    "label": "Add foreign key \"agent_settlements_operation_id_fkey\" on \"agent_settlements\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "agent_settlements_operation_id_fkey",
+        "table": "agent_settlements"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"agent_settlements_operation_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_settlements_operation_id_fkey",
+          "public",
+          "\"public\".\"agent_settlements\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"agent_settlements_operation_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"agent_settlements\"\nADD CONSTRAINT \"agent_settlements_operation_id_fkey\"\nFOREIGN KEY (\"operation_id\")\nREFERENCES \"public\".\"agent_admissions\" (\"operation_id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"agent_settlements_operation_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_settlements_operation_id_fkey",
+          "public",
+          "\"public\".\"agent_settlements\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pi_list_values.pi_list_values_session_id_fkey",
+    "label": "Add foreign key \"pi_list_values_session_id_fkey\" on \"pi_list_values\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "pi_list_values_session_id_fkey",
+        "table": "pi_list_values"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pi_list_values_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_list_values_session_id_fkey",
+          "public",
+          "\"public\".\"pi_list_values\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pi_list_values_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"pi_list_values\"\nADD CONSTRAINT \"pi_list_values_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"pi_sessions\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pi_list_values_session_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_list_values_session_id_fkey",
+          "public",
+          "\"public\".\"pi_list_values\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pi_records.pi_records_session_id_fkey",
+    "label": "Add foreign key \"pi_records_session_id_fkey\" on \"pi_records\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "pi_records_session_id_fkey",
+        "table": "pi_records"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pi_records_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_records_session_id_fkey",
+          "public",
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pi_records_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"pi_records\"\nADD CONSTRAINT \"pi_records_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"pi_sessions\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pi_records_session_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_records_session_id_fkey",
+          "public",
+          "\"public\".\"pi_records\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.pi_scalar_values.pi_scalar_values_session_id_fkey",
+    "label": "Add foreign key \"pi_scalar_values_session_id_fkey\" on \"pi_scalar_values\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "pi_scalar_values_session_id_fkey",
+        "table": "pi_scalar_values"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"pi_scalar_values_session_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_scalar_values_session_id_fkey",
+          "public",
+          "\"public\".\"pi_scalar_values\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"pi_scalar_values_session_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"pi_scalar_values\"\nADD CONSTRAINT \"pi_scalar_values_session_id_fkey\"\nFOREIGN KEY (\"session_id\")\nREFERENCES \"public\".\"pi_sessions\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"pi_scalar_values_session_id_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "pi_scalar_values_session_id_fkey",
+          "public",
+          "\"public\".\"pi_scalar_values\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agent-service-access",
+    "label": "Grant agent service access to native agent tables",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [
+      {
+        "description": "require the existing agent service role",
+        "sql": "SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = 'agent_svc') AS result"
+      }
+    ],
+    "execute": [
+      {
+        "description": "grant mutable session, value and business records",
+        "sql": "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.pi_sessions, public.pi_scalar_values, public.pi_list_values, public.agent_admissions, public.agent_open_operations, public.agent_settlements TO agent_svc"
+      },
+      {
+        "description": "grant append-only native entry and usage access",
+        "sql": "GRANT SELECT, INSERT ON TABLE public.pi_records TO agent_svc"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify mutable table access and append-only history",
+        "sql": "SELECT bool_and(has_table_privilege('agent_svc', name, 'SELECT') AND has_table_privilege('agent_svc', name, 'INSERT') AND has_table_privilege('agent_svc', name, 'UPDATE') AND has_table_privilege('agent_svc', name, 'DELETE')) AND has_table_privilege('agent_svc', 'pi_records', 'SELECT') AND has_table_privilege('agent_svc', 'pi_records', 'INSERT') AND NOT has_table_privilege('agent_svc', 'pi_records', 'UPDATE') AND NOT has_table_privilege('agent_svc', 'pi_records', 'DELETE') AS result FROM unnest(ARRAY['pi_sessions','pi_scalar_values','pi_list_values','agent_admissions','agent_open_operations','agent_settlements']) AS name"
+      }
+    ]
+  }
+]

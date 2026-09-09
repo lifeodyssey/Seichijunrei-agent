@@ -1,3 +1,5 @@
+import { validPrismaRef } from "./prisma-target";
+
 export const MAX_PREFLIGHT_BYTES = 65_536;
 
 export interface MigrationChecksum {
@@ -10,12 +12,14 @@ export interface PreflightMetadata {
   expectedHead: string;
   stagingOnlyBaseline: boolean;
   entries: readonly MigrationChecksum[];
+  expectedPrismaRef?: string;
 }
 
 interface MetadataBody {
   expectedHead: string;
   atlasSum: string;
   stagingOnlyBaseline: boolean;
+  expectedPrismaRef?: string;
 }
 
 /** Atlas stores bare SHA-256 base64; the HTTP executor adds only `h1:`. */
@@ -48,9 +52,14 @@ function ordered(entries: readonly MigrationChecksum[]): boolean {
   return entries.every((entry, index) => index === 0 || entry.version > (entries[index - 1]?.version ?? ""));
 }
 
+function metadataKeys(value: object): boolean {
+  const keys = Object.keys(value).filter((key) => key !== "expectedPrismaRef");
+  if (keys.sort().join(",") !== "atlasSum,expectedHead,stagingOnlyBaseline") return false;
+  return !("expectedPrismaRef" in value) || validPrismaRef(value.expectedPrismaRef);
+}
+
 function metadataBody(value: unknown): value is MetadataBody {
-  if (typeof value !== "object" || value === null) return false;
-  if (Object.keys(value).sort().join(",") !== "atlasSum,expectedHead,stagingOnlyBaseline") return false;
+  if (typeof value !== "object" || value === null || !metadataKeys(value)) return false;
   return "expectedHead" in value && typeof value.expectedHead === "string" &&
     "atlasSum" in value && typeof value.atlasSum === "string" &&
     "stagingOnlyBaseline" in value && typeof value.stagingOnlyBaseline === "boolean";
@@ -62,7 +71,8 @@ function decodeBody(value: unknown): PreflightMetadata | undefined {
   const last = entries?.at(-1);
   if (!entries || !last || !ordered(entries)) return undefined;
   if (value.expectedHead !== `${last.version}_${last.description}`) return undefined;
-  return { expectedHead: value.expectedHead, stagingOnlyBaseline: value.stagingOnlyBaseline, entries };
+  return { expectedHead: value.expectedHead, stagingOnlyBaseline: value.stagingOnlyBaseline, entries,
+    ...(value.expectedPrismaRef === undefined ? {} : { expectedPrismaRef: value.expectedPrismaRef }) };
 }
 
 /** Decode verified-artifact metadata, never SQL or caller-selected connectivity. */

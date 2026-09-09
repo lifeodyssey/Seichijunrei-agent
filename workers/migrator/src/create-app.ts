@@ -10,6 +10,10 @@ import { runMigration, type ContainerOutcome, type MigrationRunResult } from "./
 import { authenticateRequest } from "./request-auth";
 import { registerPreflight } from "./preflight";
 import { resolveDsn } from "./database-url";
+import { hasPrismaSnapshot, PRISMA_TARGET } from "./prisma-target";
+import { parsePreflightMetadata } from "./preflight-metadata";
+import type { SelectedExecutor, SelectedMetadata, SelectedMigration } from "./selected-migration";
+import { selectedExecutor } from "./selected-executor";
 
 /**
  * #1051 / #1124 — the migrator's Hono application + environment, kept free of
@@ -39,6 +43,9 @@ export interface MigratorDeps {
   readAppliedHead?: (dsn: string) => Promise<string | null>;
   /** The chain this Worker carries; the handshake answers from it. */
   chain?: ChainSource;
+  /** Native filesystem and locked executor seams for disposable PostgreSQL tests. */
+  migrationsDir?: string;
+  selected?: SelectedExecutor;
 }
 
 /**
@@ -70,6 +77,7 @@ function healthz(c: Context<{ Bindings: Env }>, bundle: BundleHandshake): Respon
     service: "migrator",
     env: c.env.ENVIRONMENT ?? "unknown",
     bundleHead: bundle.head,
+    prismaTarget: PRISMA_TARGET,
   });
 }
 
@@ -78,7 +86,14 @@ function parseJson(raw: string): unknown {
   return JSON.parse(raw) as unknown;
 }
 
-type ParsedBody = { ok: true; expectedHead: string | undefined } | { ok: false };
+type ParsedBody = { ok: true; expectedHead: string | undefined; selected?: SelectedMetadata } | { ok: false };
+
+function selectedBody(raw: string): ParsedBody {
+  const metadata = parsePreflightMetadata(raw);
+  if (metadata?.expectedPrismaRef === undefined) return { ok: false };
+  return { ok: true, expectedHead: metadata.expectedHead,
+    selected: { ...metadata, expectedPrismaRef: metadata.expectedPrismaRef } };
+}
 
 function expectedHeadOf(parsed: object): string | undefined {
   if (!("expectedHead" in parsed)) return undefined;
@@ -91,6 +106,7 @@ async function parseBody(request: Request): Promise<ParsedBody> {
     const raw = await request.text();
     const parsed = parseJson(raw.length === 0 ? "{}" : raw);
     if (typeof parsed !== "object" || parsed === null) return { ok: false };
+    if ("expectedPrismaRef" in parsed) return selectedBody(raw);
     return { ok: true, expectedHead: expectedHeadOf(parsed) };
   } catch {
     return { ok: false };
@@ -117,12 +133,13 @@ function mismatchResponse(result: Extract<MigrationRunResult, { kind: "head_mism
   );
 }
 
-function successResponse(result: Extract<MigrationRunResult, { kind: "success" }>): Response {
+function successResponse(result: Extract<SelectedMigration, { kind: "success" }>): Response {
   return Response.json({
     success: true,
     exitCode: 0,
     appliedHead: result.appliedHead,
     pathVerification: result.pathVerification,
+    ...(result.prisma === undefined ? {} : { prisma: result.prisma }),
   });
 }
 
@@ -150,7 +167,7 @@ function refusedResponse(result: Extract<MigrationRunResult, { kind: "refused" }
   return Response.json({ success: false, appliedHead: null, error: result.reason }, { status: 422 });
 }
 
-function outcomeResponse(result: MigrationRunResult): Response {
+function outcomeResponse(result: SelectedMigration): Response {
   if (result.kind === "failure") return Response.json(failureBody(result), { status: 500 });
   if (result.kind === "refused") return refusedResponse(result);
   if (result.kind === "timeout") return timeoutResponse(result);
@@ -184,7 +201,7 @@ function httpApplyBound(
 }
 
 type Guarded =
-  | { ok: true; expectedHead: string | undefined }
+  | { ok: true; expectedHead: string | undefined; selected?: SelectedMetadata }
   | { ok: false; response: Response };
 
 /** Identity, then body shape, then the bundle handshake — all before any DSN. */
@@ -200,10 +217,16 @@ async function guardRequest(
   }
   const body = await parseBody(c.req.raw);
   if (!body.ok) return { ok: false, response: c.json({ error: "invalid request body" }, 400) };
+  if (body.selected !== undefined && !await hasPrismaSnapshot(body.selected.expectedPrismaRef, deps.migrationsDir)) {
+    return { ok: false, response: c.json({ error: "stale_prisma_bundle", prismaTarget: PRISMA_TARGET }, 409) };
+  }
+  if (body.selected?.stagingOnlyBaseline && c.env.MIGRATOR_OIDC_POLICY === "production") {
+    return { ok: false, response: c.json({ error: "staging_only_baseline" }, 422) };
+  }
   if (bundle.stale(body.expectedHead)) {
     return { ok: false, response: c.json({ error: "stale_bundle", bundleHead: bundle.head }, 409) };
   }
-  return { ok: true, expectedHead: body.expectedHead };
+  return body;
 }
 
 async function handleMigrate(
@@ -216,6 +239,9 @@ async function handleMigrate(
   const dsn = await resolveDsn(c.env);
   if (dsn === undefined) return c.json({ error: "migrator database not configured" }, 503);
   try {
+    if (guard.selected !== undefined) {
+      return outcomeResponse(await selectedExecutor(c.env, deps).migrate(dsn, guard.selected));
+    }
     const runContainer = await runContainerFor(c.env, deps);
     const readAppliedHead = deps.readAppliedHead ??
       ((value: string) => new NeonMigrationsLedger().readAppliedHead(value));

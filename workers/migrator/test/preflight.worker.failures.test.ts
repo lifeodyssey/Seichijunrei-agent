@@ -50,6 +50,7 @@ it("keeps healthz as public bundle metadata without reading the ledger", async (
   const { app, env } = await signedApp();
   const get = vi.fn(() => Promise.reject(new Error(privateMessage)));
   const response = await app.request("/healthz", undefined, { ...env, MIGRATOR_DATABASE_URL: { get } });
-  expect(await response.json()).toEqual({ status: "ok", service: "migrator", env: "staging", bundleHead: "20251201000000_old" });
+  expect(await response.json()).toEqual({ status: "ok", service: "migrator", env: "staging", bundleHead: "20251201000000_old",
+    prismaTarget: "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a" });
   expect(get).not.toHaveBeenCalled();
 });

@@ -1,4 +1,5 @@
 import type { ContainerOutcome } from "./migration";
+import type { SelectedExecutor, SelectedMetadata, SelectedMigration, SelectedPreflight } from "./selected-migration";
 
 /** Fixed-name Durable Object mutex (not per-run `migrator-job-*`). */
 export const APPLY_LOCK_NAME = "migrator-apply-lock";
@@ -37,4 +38,14 @@ export function productionApply(
 ): (dsn: string, expectedHead?: string) => Promise<ContainerOutcome> {
   const stub = namespace.get(namespace.idFromName(APPLY_LOCK_NAME)) as unknown as ApplyStub;
   return (dsn, expectedHead) => stub.run(dsn, expectedHead ?? null);
+}
+
+interface SelectedStub {
+  preflight(dsn: string, metadata: SelectedMetadata): Promise<SelectedPreflight>;
+  migrate(dsn: string, metadata: SelectedMetadata): Promise<SelectedMigration>;
+}
+
+export function productionSelected(namespace: DurableObjectNamespace): SelectedExecutor {
+  const stub = namespace.get(namespace.idFromName(APPLY_LOCK_NAME)) as unknown as SelectedStub;
+  return { preflight: (dsn, metadata) => stub.preflight(dsn, metadata), migrate: (dsn, metadata) => stub.migrate(dsn, metadata) };
 }

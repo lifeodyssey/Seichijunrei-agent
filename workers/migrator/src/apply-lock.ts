@@ -3,6 +3,7 @@ import { productionChain } from "./bundled-chain";
 import { applyChain } from "./http-apply";
 import type { ContainerOutcome } from "./migration";
 import { neonClient } from "./sql";
+import { migrateSelected, preflightSelected, type SelectedMetadata, type SelectedMigration, type SelectedPreflight } from "./selected-migration";
 
 /**
  * Fixed-name Durable Object mutex for Option 2 HTTP apply. Incoming `run`
@@ -14,6 +15,14 @@ import { neonClient } from "./sql";
 export class MigratorApplyLock extends DurableObject {
   async run(dsn: string, expectedHead: string | null): Promise<ContainerOutcome> {
     return this.ctx.blockConcurrencyWhile(() => applyWithBundle(dsn, expectedHead));
+  }
+
+  preflight(dsn: string, metadata: SelectedMetadata): Promise<SelectedPreflight> {
+    return this.ctx.blockConcurrencyWhile(() => preflightSelected(dsn, metadata));
+  }
+
+  migrate(dsn: string, metadata: SelectedMetadata): Promise<SelectedMigration> {
+    return this.ctx.blockConcurrencyWhile(() => migrateSelected(dsn, metadata));
   }
 }
 

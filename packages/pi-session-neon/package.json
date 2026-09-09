@@ -1,0 +1,34 @@
+{
+  "name": "@animichi/pi-session-neon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contract": "./src/contract.json",
+    "./migrations": "./migrations",
+    "./migrations/*": "./migrations/*",
+    "./types": "./src/contract.d.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --type-aware --deny-warnings .",
+    "typecheck": "tsc --noEmit",
+    "test:integration": "mkdir -p coverage && cd ../.. && node --test --test-isolation=none --experimental-test-coverage --test-coverage-include='packages/pi-session-neon/src/**/*.ts' --test-coverage-lines=95 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=packages/pi-session-neon/coverage/lcov.info \"packages/pi-session-neon/test/*.db.test.ts\"",
+    "contract:emit": "prisma contract emit",
+    "test": "node --test test/contract-types.test.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.85.1",
+    "@prisma/orm-postgres": "8.0.0-rc.9",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@animichi/test-postgres": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
+    "pg": "^8.22.0",
+    "typescript": "^7.0.2",
+    "prisma": "8.0.0-rc.13",
+    "@prisma/cli-engine": "0.3.0"
+  }
+}

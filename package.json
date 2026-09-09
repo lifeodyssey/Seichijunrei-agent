@@ -34,6 +34,9 @@
       "@ai-sdk/provider-utils>undici": "7.29.0",
       "tmp": ">=0.2.6",
       "browserslist": ">=4.28.7"
+    },
+    "patchedDependencies": {
+      "@prisma/orm-target-postgres@8.0.0-rc.9": "packages/pi-session-neon/patches/@prisma__orm-target-postgres@8.0.0-rc.9.patch"
     }
   },
   "devDependencies": {

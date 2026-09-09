@@ -1,0 +1,16 @@
+diff --git a/dist/runtime-BJrfP1e8.mjs b/dist/runtime-BJrfP1e8.mjs
+index 62dc5036ad5630145bdcc617440406f54835f662..5ec73ec55060b0db284182f6c7fd041dd2619fe3 100644
+--- a/dist/runtime-BJrfP1e8.mjs
++++ b/dist/runtime-BJrfP1e8.mjs
+@@ -73,4 +73,7 @@ var NamedCursor = class extends Cursor {
+ };
++// JSON codecs own the JSON-text decode; pg must only parse SQL array framing.
++const JSON_SCALAR_OIDS = new Set([114, 3802]);
++const JSON_ARRAY_OIDS = new Set([199, 3807]);
+ const DATE_OID = 1082;
+ const TIME_OID = 1083;
+ const TIMESTAMP_OID = 1114;
+@@ -104,1 +107,3 @@ function parseTextArray(value) {
+ const temporalTextTypes = { getTypeParser(oid, format) {
++	if (format !== "binary" && JSON_SCALAR_OIDS.has(oid)) return serverText;
++	if (format !== "binary" && JSON_ARRAY_OIDS.has(oid)) return parseTextArray;
