@@ -57,7 +57,7 @@ const COMPLETE_ADDRESS = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
  * rule this replaces.
  *
  * These are the literal hostnames `cd.yml`'s smoke job probes (pinned there by
- * `.github/scripts/test_cd_publish_contract.rb`), and CD probes them rather
+ * `.github/test/cd-stage-smoke.test.rb`), and CD probes them rather
  * than the zone hostname because GitHub-runner IPs get a managed challenge at
  * the zone front door. A staging surface CI can reach and Access cannot see is
  * the hole #539 opened; listing them here is what closes it.

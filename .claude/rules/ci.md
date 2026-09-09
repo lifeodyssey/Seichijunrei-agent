@@ -1,47 +1,49 @@
 ---
 paths:
   - ".github/workflows/**"
+  - ".github/actions/**"
+  - ".github/test/**"
+  - "test/repo-config/**"
 ---
 # GitHub Actions authoring rules
 
-Three workflows, no reusables and no composites: `pr-verification.yml` (`pull_request` +
-`merge_group`), `cd.yml` (push to `main`), `agent-eval-nightly.yml` (cron). #1364 and #1367 wrote
-the last shared steps out into the jobs that run them, so the step you are looking for is in the
-file you are editing — there is no layer above it and no `uses: ./…` to follow.
+The entry workflows are `pr-verification.yml` (`pull_request` + `merge_group`), `cd.yml`
+(push to `main`) and `agent-eval-nightly.yml` (cron). Share genuinely identical step sequences
+with native composites backed by official actions. `.github/actions/setup-workspace/action.yml`
+owns Node/pnpm/cache/frozen install for six PR jobs; checkout and lane-specific tools stay in callers.
+The plan reads manifests without installing or caching. Route action changes alongside workflow changes.
+Use GitHub's `$/` self-repository reference for committed local actions, resolved from the workflow
+revision rather than mutable checkout state.
 
-- **`pr-verification.yml` is lanes behind two required contexts.** `plan` picks the affected
-  workspace packages with pnpm's dependent-closure filter and `affected` runs each one's own
-  package scripts as a matrix; beside them sit the `contracts`, `docs`, `agent`, `e2e`, `db` and
-  `commits` lanes and the security jobs. `security` and `aggregate` run `always()` and fail on a
-  failed or cancelled dependency — they are the two contexts the ruleset requires, so a new lane
-  only gates anything once it is one of their `needs`.
-- **`cd.yml` is `plan` → `build` → five staging stages → `smoke` → `promote-production`.** One
-  build produces one `release-<sha>` artifact and every later job publishes those same bytes; a
-  stage runs only when its pairing rule selects it, and the single `production` environment
-  approval sits in front of the last job. A push to `main` is the only trigger — no tag, no
-  `workflow_dispatch`, no deploy from a workstation.
-- **A check no job invokes is a check nothing runs.** Every `test_*.rb` beside these workflows,
-  every `*.test.sh` under `scripts/` and `.github/scripts/`, and every other file in
-  `.github/scripts` has to be named by a `run:` line after an interpreter.
-  `test_ci_workflow_contract.rb` checks exact invocation paths in both directions: committed
-  checks must run, and invoked repository scripts must exist. `test_workflow_invariants.rb`
-  also catches orphaned files that no invoked script requires. Add or remove a check and its
-  invocation in the same change.
-- **Pin every third-party action by full 40-char commit SHA** + a trailing `# vX.Y.Z`; never a
-  floating tag or branch, and never a `docker://` image without a `sha256:` digest. A `./`-prefixed
-  `uses:` must name a composite that is actually in the tree.
-- **No `continue-on-error`, anywhere.** `test_workflow_invariants.rb` rejects the string outright;
-  the warn-only exception this file used to grant died with the `agnix` lint it was written for.
-- **Least privilege**: the workflow default is exactly `contents: read`, widened per job. Every job
-  declares `timeout-minutes`. A job that asks Pulumi Cloud for a token must also declare an
-  `environment:`, or its OIDC subject is a shape the issuer policy does not list and the exchange
-  fails at deploy time rather than in review.
-- **Nothing reads a GitHub secret** — not `${{ secrets.X }}`, not `secrets: inherit` (#1367). Every
-  credential is opened from Pulumi ESC with the job's own OIDC identity, and each opened name gets
-  a one-line emptiness guard, because `pulumi/esc-action` only warns on a missing value and exits
-  0.
-- **Run what a workflow change actually reaches before claiming it is valid**: `actionlint` on the
-  touched files, then the Ruby contracts (`ruby .github/scripts/test_*.rb`) and
-  `pnpm run test:worker` — several `workers/edge/test/*.test.ts` assert on workflow text (migration
-  boundaries, container env, JWKS mappings) and actionlint cannot see any of that. Lesson: #751
-  merged green on 5 gates and still broke `main`'s worker tests.
+- **Use a reusable workflow for a coherent shared job graph**, with evidence for unchanged required
+  contexts, outputs, event routing and permissions. Do not wrap every official action or add flags
+  that make one composite run unrelated lanes. Deployment extraction also needs caller/callee OIDC
+  claims and concurrency proof; this setup extraction changes neither CD identities nor locks.
+- **`pr-verification.yml` is lanes behind two required contexts.** `plan` selects the affected
+  workspace packages with pnpm's dependent-closure filter. `affected` runs their package scripts;
+  dedicated jobs own contracts, docs, Python, browser, schema and commits. `security` and `aggregate`
+  run `always()` and fail on failed or cancelled dependencies. Add new required lanes to their `needs`.
+- **`cd.yml` builds once and promotes the same artifact.** Its single `stage` job holds the staging
+  lock through foundation, migration, services, web and smoke. Production has its own environment
+  approval and lock. Only a push to `main` deploys; no local, manual or tag-triggered deploy path.
+- **Tests follow the actual SUT and responsibility.** Workflow/action tests live in `.github/test/`;
+  repository configuration tests live in `test/repo-config/`. Name each `*.test.rb` for its SUT and
+  state that SUT in the opening sentence. Use Minitest/Psych directly, keep files ≤200 lines and
+  assertions ≤10 lines, and avoid a custom assertion framework or generic workflow interpreter.
+- **A check no job invokes is a check nothing runs.** `workflow-invocations.test.rb` requires a real
+  interpreter invocation for every new Ruby test and every repository `*.test.sh`, verifies invoked
+  paths exist, and rejects orphaned `.github/scripts` files. Add/remove checks and invocations together.
+- **Pin third-party actions to full commit SHAs**, with version comments; pin Docker actions by
+  digest. Full-strength zizmor owns action-pinning and permission audits. Its test retains the
+  pedantic persona, scanner version and annotation settings. Local action manifests must exist.
+- **No failure suppression.** `workflow-execution.test.rb` rejects `continue-on-error` in workflows.
+  Every runner job has a timeout. PR supersession cancels old PR runs; deployment queues do not.
+- **Least privilege and environment-bound identity.** The workflow default is `contents: read`,
+  widened per job. Jobs asking Pulumi Cloud for tokens declare an `environment`. No workflow or
+  action reads a GitHub secret, including `secrets: inherit`; values come from Pulumi ESC under the
+  job's OIDC identity. Guard every exported name because the ESC action only warns on missing values.
+- **Validate actual consumers.** Run actionlint on workflows and zizmor with pedantic persona and
+  strict collection on workflows/composite metadata. Run the native Ruby tests using the explicit
+  commands in the `contracts` job and `pnpm run test:worker`; the edge suite also reads deployment
+  workflow behavior. Actionlint validates workflow syntax; it does not lint composite metadata as a
+  standalone workflow. A real PR run verifies the required contexts after composition changes.

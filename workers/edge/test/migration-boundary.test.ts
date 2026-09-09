@@ -44,8 +44,8 @@ void test("Drizzle schemas cannot become migration runners", () => {
 // about a workflow's shape asserted from the edge package made the edge lane
 // fail for a workflow's reasons. The PR lane's — which job validates, in what
 // order, and that no job applies — went to
-// .github/scripts/test_schema_lane_contract.rb with B5 (#1363); the CD lane's —
-// which job needs which — went to .github/scripts/test_cd_shape_contract.rb
+// .github/test/pr-verification-schema.test.rb with B5 (#1363); the CD lane's —
+// which job needs which — went to .github/test/cd-delivery-jobs.test.rb
 // with C1 (#1364). What stays here is the boundary itself: who may migrate, and
 // from what source. Both environments reach the database only through the
 // migrator Worker on each job's own OIDC identity — C3 (#1365) moved production

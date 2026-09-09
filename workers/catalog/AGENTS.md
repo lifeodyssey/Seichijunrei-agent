@@ -75,7 +75,7 @@ Root guide: `../../AGENTS.md`.
   its own step of the `catalog` matrix lane (`Run the catalog spike against the offline Postgres
   image`, `.github/workflows/pr-verification.yml`, right after the step that builds the
   `animichi-test-postgres` image) and in `make check-full`.
-  `.github/scripts/test_package_test_segments.rb` pins three things about that arrangement: `test`
+  `test/repo-config/package-test-segments.test.rb` pins three things about that arrangement: `test`
   must not chain `test:spike`, those two files must each name `pnpm --filter catalog run test:spike`,
   and `test:spike` itself must still run `vitest.spike.config.ts` — a lane emptied out from any of
   the three ends goes red. Whether the container actually boots is `test/spike-db-global.ts`'s job.

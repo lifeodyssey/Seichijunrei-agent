@@ -15,7 +15,7 @@
  * A `run:` can source the declaration, so that step keeps no copy either, and
  * this package no longer reads `.github/workflows/pr-verification.yml` to find
  * out (card B2 / #1360): pipeline text is the CI contract's to read, and
- * `.github/scripts/test_ci_workflow_contract.rb` reads the declaration too, so
+ * `.github/test/pr-verification-affected.test.rb` reads the declaration too, so
  * neither side holds a second copy of the tag.
  *
  * test-type: unit (reads checked-in files and one `bash -c`; no network).

@@ -93,7 +93,7 @@ void test("reset SQL has one exact destructive target", () => {
 // text assertion about it stayed green, so the shipped script is executed
 // against a real payload rather than read. This file owns the guard's
 // BEHAVIOUR only. That CD still reaches it is the other half, and it lives
-// where the workflow does: `test_cd_publish_contract.rb` pins that this script
+// where the workflow does: `cd-migrations.test.rb` pins that this script
 // exists, that a `promote-production` step's `run` BEGINS with
 // `bash <this script> <this marker>` (a mere mention of the marker path is not
 // a run — an `echo` of it once satisfied a substring search), and that the step

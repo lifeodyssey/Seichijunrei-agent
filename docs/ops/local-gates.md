@@ -14,7 +14,7 @@ definition to drift from, so nothing has to prove local and CI agree (#1371).
    never carries a weaker copy. One suite is deliberately kept out: the catalog spike boots a Docker
    Postgres container, and chaining it into `test` started that container on every catalog push
    (#1473, the #1322 flake class), so `test:spike` is a script of its own that CI's `catalog` lane
-   and `make check-full` run. `.github/scripts/test_package_test_segments.rb` pins the arrangement
+   and `make check-full` run. `test/repo-config/package-test-segments.test.rb` pins the arrangement
    from three ends: `test` must not chain it, the workflow and the `Makefile` must each name
    `pnpm --filter catalog run test:spike`, and that script must still run `vitest.spike.config.ts`.
 3. **Fail closed on the unknown.** A changed path that maps to no package, no bucket and no
@@ -151,7 +151,7 @@ Paths outside every pnpm project would otherwise be invisible to the join:
 Paths that need no package gate, because another hook or a CI job already owns them:
 
 ```text
-docs/**  .claude/**  .github/**  .semgrep*  scripts/**
+docs/**  .claude/**  .github/**  .semgrep*  scripts/**  test/repo-config/**
 root-level *.md  codecov.yml  .pre-commit-config.yaml  commitlint.config.js  Makefile
 ```
 
@@ -203,10 +203,10 @@ passed 43/43 on its own (2026-09-08).
   `workers/catalog`. Kept out of that package's `test` so no pre-push starts a container for it
   (#1473); CI's `catalog` matrix lane runs it as a step of its own, and `make check-full` runs it
   locally.
-- **The repository contracts** (`.github/scripts/test_*.rb`) and the gate scripts' own behavioral
+- **The repository tests** (`.github/test/*.test.rb` and `test/repo-config/*.test.rb`) and the gate scripts' own behavioral
   tests — CI's `contracts` job runs them unconditionally, on every pull request, so pre-push does
-  not need a copy. `test_ci_workflow_contract.rb` asserts that every committed check under
-  `scripts/` and `.github/scripts/` is invoked by its exact path, and that every invoked
+  not need a copy. `workflow-invocations.test.rb` asserts that every Ruby test in those directories and every
+  shell check under `scripts/` and `.github/scripts/` is invoked by its exact path, and that every invoked
   repository script still exists. Deleting a check also requires deleting its CI invocation.
 
 ## Prerequisites
