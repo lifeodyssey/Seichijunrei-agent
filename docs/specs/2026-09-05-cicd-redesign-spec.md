@@ -8,13 +8,19 @@
 > Workspace identity amendment (#1538): the Python workspace is now `@animichi/agent-python`;
 > `@animichi/agent` names the TypeScript domain library consumed by edge. Current CI/CD selection
 > follows those distinct identities. Earlier dated decisions below retain their original names.
+>
+> 2026-09-09 CD 修订（#1564）：主线 push 只构建完整不可变 snapshot；可信 main-only CD dispatch
+> 显式选择 artifact ID，经 staging 验证后在实际 production job 审批并晋级同一 digest。
+> A→B→C 可直接选择 B，A 不必单独部署、C 不自动发布。CD 目标以 §3.4、
+> [ADR 0007](../adr/0007-selected-release-artifacts.md) 和部署 runbook 为准；下文带日期的旧 CD
+> 定案、W-C 验收和修订记录保留为历史，旧 affected-only/最新 head/queue:max 目标已退役。
 
 - Status: Approved — owner sign-off 2026-09-05（Fable 四轮评审；Codex 席 owner 免除）
 - 修订 3（席 A 三轮评审 + owner 定案后，改动记录见文末）。grilling 已完成，§二 与各卡引用的决策 1–16 都是 owner 2026-09-05 定的；两轮评审提出的修正请求里，owner 已定：并发组加 `queue: max`（§六 第 3 条）、PR 时的 L0 eval lane 随 B1 删（§七 #21）、staging 的门 = Cloudflare Access 罩住 `staging.animichi.com` 与两个 workers.dev URL + ESC 里的 service token（§七 #12）、semgrep 只留六条自定义规则（#5）、edge 运行时密钥直接进 Secrets Store（#17，新卡 D4）、web 的 `RUNTIME_CONFIG` 按环境提交（#18）、三个文档卫生脚本留下（#19）。没有待 owner 的项了；owner 免去席 B（Codex）评审，本修订后直接签核。§七 是最终的待核清单。
 - 事实基线：现状图 `docs/iterations/cicd-redesign-2026-09/current-state.html`，文字版是同日的 cicd-map（HEAD `357d0bf24`）。本文的 `file:line` 已对 worktree HEAD `212506fef` 复核：两者之间 `cd.yml`、`pr-verification.yml`、`.github/actions/**` 无改动；`scripts/local-gates/pre-push.sh` 在 `gate_eval` 之后插入了 9 行 `gate_test-postgres`（#1335），其后行号 +9；`.github/ci/components.json` 多了 `test-postgres` 组件。
 - 输入审计：tooling 审计 T-01…T-29、architecture 审计 ARCH-02 / ARCH-05 / ARCH-09 / ARCH-10、`docs/specs/2026-09-05-repo-smell-audit.md` §7.2 战役 B（B1–B9，owner 已把它们排进本次重设计）。
 - 前置：#1077 的 Pulumi Cloud 迁移已于 2026-09-05 ~06:00Z 由 orchestrator 执行完（commit `8b757fcb5`，分支 `card/1077-pulumi-cloud-oidc`：两个项目的四个 stack 都在 Pulumi Cloud 的 `lifeodyssey/{staging,prod}` 下，两个 staging stack `pulumi preview` 无 passphrase 干净，config 已重加密；R2 里的旧 state 留作回退直到 #1081）。剩下的前置只是 OIDC 探针 run 绿后合 PR #1329 / #1330，本文的卡在其上进行（§五 W-A）。
-- 后继：Atlas→Drizzle 的替换发生在 migrator Worker 内部，属之后的 Drizzle spec（owner 2026-09-05：与本 spec 定案后合写）。
+- 数据库归属（owner 2026-09-10）：新 agent contract 直接使用 Prisma 8 原生迁移；既有 Atlas 历史及对象保持原归属。两者都在 OIDC migrator Worker 内执行，CI 不持有数据库凭据。
 
 ## 一、动机
 
@@ -40,13 +46,13 @@ owner 明确否掉的方案，本文不再讨论：
 
 | 否掉的 | owner 2026-09-05 的口径 |
 |---|---|
-| GitOps（部署状态存仓库、reconciler 收敛） | 骨架保留为 push main → build 一次 → staging 五段 → smoke → `environment: production` 审批 → 同一 artifact 晋级（决策 2） |
-| 独立的晋级 workflow（doorbell、`workflow_dispatch` 晋级，#1079 一类） | 同一 run 内晋级同一 artifact；没有第二条部署路径 |
-| 部署记录基线（`resolve-cd-base.sh` 那种"找上一次成功 run 的 head"） | CD 的受影响范围就是 `github.event.before..sha`；中途失败的 run 用 `gh run rerun --failed` 补发（决策 3） |
-| 全量幂等发布（每次把所有单元都发一遍） | 只发受影响的；pnpm 图是唯一的受影响判定 |
+| GitOps（部署状态存仓库、reconciler 收敛） | 不引入。主线构建完整 artifact，操作者显式选已有 ID，经唯一 CD controller 晋级（#1564，ADR 0007） |
+| 第二条部署路径 | 只有 main-only `cd.yml` dispatch；builder 从不部署。同一次 controller run 内 staging→production 晋级同一 artifact |
+| 按上一成功部署计算 delta | 不需要。选择完整 snapshot，B 包含累积 A，既不依赖最新 main head，也不重建 artifact |
+| 全量 snapshot 发布 | #1564 接受：每次选择部署完整 release；CI 继续用 pnpm affected 图，CD 不再选择 cohort |
 | artifact attestation / provenance | 不加；`actions/upload-artifact` 的不可变 + 摘要够用（决策 4） |
 | 删 migrator Worker、CI 直接持有 DSN 做迁移 | CI 永远不持有数据库凭据，短期的也不行；staging 与 production 都经 migrator（决策 6） |
-| `cancel-in-progress: true` | 正在发的发完；生产门口的 run 由 owner 手动批/拒，看守退役（决策 5）。评审后 owner 追加：`cd-staging` 与 `cd-production` 都加 `queue: max`，排队按序、不取消（§六 第 3 条） |
+| 取消正在部署的链 | 不允许。每环境 whole-chain job 设置 `cancel-in-progress: false`，采用原生 single pending；`queue: max` 退役 |
 | CI 对 staging 不设门（2026-08-27 接受过的 workers.dev 裸探） | owner 要求只有固定的人和固定的自动化能到 staging；定案 = Cloudflare Access 罩住 `staging.animichi.com` 与两个 staging workers.dev URL，人登录，CI 与本地自动化带 ESC 里的 service token（决策 13，§七 #12 已定） |
 | CI 把运行时密钥推给 Worker（`wrangler secret bulk`，或 wrangler-action 的 `secrets:` 输入） | 运行时密钥一律 Pulumi → Secrets Store，edge 的 8 个也是（决策 12 的延伸，owner 2026-09-05，§七 #17）；CI 永不上传运行时密钥 |
 | 自己写一道门 | owner 定的原则：**门交给平台的访问层；只有平台没有原生机制的地方才自验 OIDC**——Pulumi Cloud 有原生的 GitHub OIDC 联邦，就用它；Workers 没有联邦机制，migrator 才自验 OIDC；staging 有 Access，就不再自验（§3.5） |
@@ -60,7 +66,7 @@ owner 明确否掉的方案，本文不再讨论：
 | workflow | 触发 | job（按依赖顺序） | 手写残留 |
 |---|---|---|---|
 | `pr-verification.yml`（name `CI`） | `pull_request`、`merge_group` | `plan`（`pnpm ls -r --depth -1 --json --filter "...[<merge-base>]"` 出包名，减去根项目与 `@animichi/agent`；`dorny/paths-filter` 出 `agent` / `web` / `migrations` / `deps` 四个布尔）→ `affected`（`if: packages != '[]'`；matrix = 包名；`pnpm --filter <pkg> run --if-present` 依次 `lint`、`typecheck`、`test`、`test:integration`；需要 Postgres 镜像的包先构建镜像；catalog 另加一步 `test:spike`——它起容器，而 `test` 正是 pre-push 对每个受影响包都要跑的东西（#1473）；`codecov/codecov-action` 按包打 flag）∥ `agent`（Python 一臂，`make check`）∥ `db`（schema 闸）∥ `e2e`（browser）∥ `commits`（commitlint）∥ `docs`（三个文档卫生脚本，`affected` 之外）∥ 六个安全 job（B1 期间外加一个过渡 `codeql` job，B3 删）→ `Security` → `PR Verification` | `plan` 的十来行；两个汇总 job 各一行表达式；三个文档卫生脚本（业务） |
-| `cd.yml`（name `CD`） | `push: main` | `plan`（同上，ref = `github.event.before`，首推全零时退到 `HEAD~1`；paths-filter 出 `agent` / `migrations` / `infra`）→ `build`（一次；`tar` → `upload-artifact`）→ `stage-foundation` → `stage-migration` → `stage-services` → `stage-edge` → `stage-web` → `smoke` → `promote-production` | 配对规则各两三行 `if:`；迁移握手 `scripts/delivery/migrate-through-worker.sh`（≈25 行）；smoke 的两个 URL；`plan` 的两行 base 守卫与 head 守卫 |
+| `release-build.yml` / `cd.yml` | builder: `push: main`；controller: main-only `workflow_dispatch` + artifact ID | 完整构建并上传 → 显式选 ID → `select` 验证 → whole-chain `stage` → approval-protected `promote-production`，无 rebuild | 完整 snapshot、来源/摘要、真实 registry 和 ledger preflight、环境锁、实际部署收据（#1564 / #1575） |
 | `agent-eval-nightly.yml` | cron | 不变；`agent-eval` composite 在 D1 内联；`ZEN_GO_API_KEY` 改自 ESC；随 W4 删除 | — |
 | `codeql.yml` | — | 删除（B3），改 GitHub CodeQL default setup | — |
 | `rollback.yml` | — | 删除（C1），回退 = `wrangler rollback` | — |
@@ -98,115 +104,51 @@ ADR 0003 修订：删掉 "No Pulumi Cloud dependency" 与 "CI-only 值留 GitHub
 
 OIDC subject：job 引用了 environment 时 GitHub 的 `sub` 是 `repo:lifeodyssey/animichi:environment:<name>`，否则是 `repo:lifeodyssey/animichi:ref:refs/heads/main`[^gh-oidc]。PR #1329 的 runbook 只写了"用 job 的 GitHub OIDC 身份换 organization token"，既没有记录 Pulumi Cloud 侧 issuer policy 绑定的是哪种 subject，写的 token 类型也是错的：2026-09-05 在分支 `ci-test/pulumi-oidc-probe` 上跑的探针 run 以 `401 … policy authorization error: Org tokens are not supported for non enterprise organizations` 失败——`requested-token-type: urn:pulumi:token-type:access_token:organization` 只在 Team / Enterprise / Business Critical 版可用，`team` 只在 Enterprise / Business Critical，`personal`（`urn:pulumi:token-type:access_token:personal` 配 `scope: user:lifeodyssey`）在所有版本可用[^pl-oidc]；Pulumi org `lifeodyssey` 是个人版，所以本文一律换 personal token（Pulumi 用户名 `lifeodyssey`）（分支 `card/1077-pulumi-cloud-oidc` 的 `docs/ops/deployment.md` "Pulumi state, encryption, and CI identity (#1077)" 段）。本文把每个要 token 的 job 都挂上 environment（`smoke` 与 nightly 用 `environment: staging`，staging 环境无审批人），policy 里只留 §3.5 列的两个 environment subject；D1 的验收把 policy 原文贴进卡（§七 N1）。
 
-### 3.4 `cd.yml` 骨架示意
+### 3.4 选择完整 artifact 的 CD 目标（#1564）
 
-```yaml
-name: CD
-on: { push: { branches: [main] } }
-permissions: { contents: read }
+`release-build.yml` 在每个 main push 构建完整 web、catalog/users/edge/migrator、agent/migrator
+镜像、完整 Atlas chain（含 baseline marker）、原样 Prisma contract/迁移图及 Pulumi 程序和生成的 Neon SDK，只发布
+`release-snapshot-<source-sha>-<attempt>` artifact。镜像必须已真实推送并固定 registry manifest digest。
 
-jobs:
-  plan:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      packages: ${{ steps.pnpm.outputs.packages }}   # 例 ["catalog","edge-worker","web"]
-      agent: ${{ steps.paths.outputs.agent }}
-      migrations: ${{ steps.paths.outputs.migrations }}
-      infra: ${{ steps.paths.outputs.infra }}
-    steps:
-      - uses: actions/checkout            # fetch-depth: 0
-      - uses: pnpm/action-setup
-      - uses: actions/setup-node          # cache: pnpm
-      - id: pnpm
-        env: { BASE: "${{ github.event.before }}", HEAD_SHA: "${{ github.sha }}" }
-        run: |
-          # 首推 / 强推的 before 是 40 个 0 或不在历史里 → 退到 HEAD~1（不查 run 历史，决策 3 不变）
-          if [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git cat-file -e "$BASE"; then BASE=$(git rev-parse HEAD~1); fi
-          # 旧 run 的 rerun 不得覆盖更新的 main（§六 第 3 条）
-          [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$HEAD_SHA" ] || { echo "::error::main has moved past $HEAD_SHA"; exit 1; }
-          # 根项目与 Python 的 apps/agent 都是 pnpm 项目，但都不走 matrix（§六 第 8 条）
-          echo "packages=$(pnpm ls -r --depth -1 --json --filter "...[$BASE]" | jq -c '[.[].name] - ["animichi-cloudflare-worker","@animichi/agent"]')" >> "$GITHUB_OUTPUT"
-      - id: paths
-        uses: dorny/paths-filter
-        with:
-          filters: |
-            agent: ['apps/agent/**']
-            migrations: ['migrations/neon/**']
-            infra: ['infra/**']
+`cd.yml` 只接受 main 上的 `workflow_dispatch.artifact_id`。controller checkout 固定本次 dispatch
+SHA，artifact 只能提供被验证的发布内容；不能提供 controller/action/script。GitHub 原生 API 和
+upload/download actions 负责 artifact identity、跨 run 下载和摘要核验；仓库仅补充成功 main-push
+producer attempt、精确 workflow、repository/source closure、完整组件、expiry 和 digest 的业务约束。
 
-  build:
-    needs: plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      # 受影响的单元各自构建：web `pnpm --filter web build`；四个 Worker `wrangler deploy --dry-run --outdir`；
-      # migrations/ 与 infra/ 原样复制；agent / migrator 镜像：docker/build-push-action（load: true，tag sha-<sha>）
-      # → wrangler containers push；一行把镜像引用写进 wrangler 配置（W4 前）
-      - run: tar -cf release.tar release/              # 保权限
-      - uses: actions/upload-artifact
-        with: { name: release-${{ github.sha }}, path: release.tar, retention-days: 14, if-no-files-found: error }
+A→B→C 可以选 B，B 必须包含 A 的累积前置；不要求 B 是当前 main head。不部署 A、不选 C 都合法。
+每个目标环境一个完整 job 从 preflight 持锁至 receipt：`cd-staging` 与 `cd-production` 独立，
+`cancel-in-progress: false` 保留正在发布的链，原生 single-pending 可替换尚未执行的选择。
+production 审批在实际取凭据和执行的 job 上，不占 staging 锁。
 
-  stage-foundation:
-    needs: [plan, build]
-    if: ${{ !failure() && !cancelled() && needs.plan.outputs.infra == 'true' }}
-    environment: staging
-    concurrency: { group: cd-staging, cancel-in-progress: false, queue: max }
-    permissions: { contents: read, id-token: write }
-    timeout-minutes: 20
-    steps:
-      - uses: actions/download-artifact  # name: release-${{ github.sha }}
-      - uses: pulumi/auth-actions        # organization: lifeodyssey；requested-token-type: urn:pulumi:token-type:access_token:personal；scope: user:lifeodyssey
-      - uses: pulumi/esc-action          # environment: lifeodyssey/animichi/staging
-      - uses: pulumi/actions             # command: up, stack-name: lifeodyssey/staging, work-dir: release/infra
+任何 Pulumi/deploy/migration 之前，必须验证远端镜像存在、digest、linux/amd64，并通过既存 migrator
+读取实际 ledger 的只读 `/preflight`；production baseline marker 守卫也在全部 mutation 之前。
+404、缺失/空 ledger、partial、hash/前缀分叉、database ahead、未知 baseline 都拒绝。#1575 endpoint
+必须先通过旧 CD bootstrap；#1564 的实际 apply 还需在既有固定锁内复核兼容性。
 
-  stage-migration:
-    needs: [plan, build, stage-foundation]
-    if: ${{ !failure() && !cancelled() && (contains(fromJSON(needs.plan.outputs.packages), 'migrator') || needs.plan.outputs.migrations == 'true') }}
-    environment: staging
-    concurrency: { group: cd-staging, cancel-in-progress: false, queue: max }
-    permissions: { contents: read, id-token: write }
-    timeout-minutes: 20
-    steps:
-      - uses: actions/download-artifact
-      - uses: pulumi/auth-actions
-      - uses: pulumi/esc-action
-      - uses: cloudflare/wrangler-action  # command: deploy release/migrator/index.js --no-bundle --config … --env staging --tag sha-${{ github.sha }}
-      - run: bash scripts/delivery/migrate-through-worker.sh staging   # 轮询 bundleHead == 期望 head，再 POST /migrate {expectedHead}
+Atlas 预检通过后，先发布所选 migrator，再核对 Atlas bundle head 与 Prisma storageHash 并调用
+Prisma 原生只读 plan API；旧 executor 无法读取尚未携带的新迁移图。应用 foundation、DDL 和
+服务发布仍在该原生预检之后，保持同一个环境锁。请求 expectedPrismaRef 来自所选原生 contract，
+apply 在固定锁内复核当前状态并调用官方 control client。收据必须同时证明 Atlas head、原生
+marker 与选定 contract 一致，两者均无待执行迁移。不得把配置图的 contractHash 当成已应用目标。
 
-  stage-services:   # needs: [plan, build, stage-foundation, stage-migration]；if 看 packages 是否含 'catalog' / 'users'；每个 Worker 一步 wrangler-action deploy --tag；同样的 concurrency
-  stage-edge:       # needs 列出全部前序；if 含 'edge-worker' || needs.plan.outputs.agent == 'true'   ← agent+edge 同发，W4 后删这半句
-  stage-web:        # needs 列出全部前序；if 含 'web'
-  smoke:
-    needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge, stage-web]
-    if: ${{ !failure() && !cancelled() }}
-    environment: staging               # 让 OIDC subject 落在 environment:staging（§3.3）
-    concurrency: { group: cd-staging, cancel-in-progress: false, queue: max }
-    permissions: { contents: read, id-token: write }
-    timeout-minutes: 10
-    steps:
-      - uses: pulumi/auth-actions
-      - uses: pulumi/esc-action          # 取 CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET（D3 之后两个 workers.dev URL 都在 Access 后面）
-      - run: bash .github/scripts/staging-smoke-check.sh https://animichi-staging.zhenjiazhou0127.workers.dev https://animichi-web-staging.zhenjiazhou0127.workers.dev   # 带两个 Access header
+staging 上传不可变收据，绑定原 artifact ID/digest、source/controller SHA、每个 script 的实际
+Worker version/deployment ID、container application/namespace/image、applied schema 与 smoke。
+它证明 B 曾经受测，后来 C staging 不要求撤回；B production 仍需重新验证当前生产兼容性。
 
-  promote-production:
-    needs: [plan, build, stage-foundation, stage-migration, stage-services, stage-edge, stage-web, smoke]   # 全列：只靠 smoke 会把上游失败看成 skipped
-    if: ${{ !failure() && !cancelled() }}
-    environment: production            # 审批门：Required reviewers，一人批准即放行，拒绝则 run 失败
-    concurrency: { group: cd-production, cancel-in-progress: false, queue: max }
-    permissions: { contents: read, id-token: write }
-    timeout-minutes: 40
-    steps:
-      - uses: actions/download-artifact  # 同一个 release-<sha>，没有任何构建步
-      - uses: pulumi/auth-actions
-      - uses: pulumi/esc-action          # environment: lifeodyssey/animichi/prod
-      # 之后按 foundation → migration → services → edge → web 各一步，if 条件与 staging 相同。
-      # C1 到 C3 之间 migration 步是 Atlas 过渡步（ariga/setup-atlas + validate/apply + STAGING_ONLY_BASELINE 守卫 + secrets.NEON_DATABASE_URL）；C3 换成 migrate-through-worker.sh production
-```
+新 `release-build` environment / 精确 `release-build.yml@refs/heads/main` issuer 授权、registry
+凭据、runtime secrets、生产 baseline cutover 和 hostname readiness 均须真实平台证据。
+部署身份保持精确 `cd.yml@refs/heads/main`，不加 wildcard。#1565 负责 provider-enforced 权限隔离；
+ESC export filter 不是限制个人 Pulumi token 打开 sibling environment 的边界。
 
-每个 job 都带 `timeout-minutes`（今天每个 job 都有，由将被删的 `assert-workflow-invariants.rb` 守着；以后靠 zizmor 与评审）。`stage-*`、`smoke`、`promote-production` 的 `needs` 都列出全部前序 job（`cd.yml:78-88` 的 skip 传播设计，保留）：仓库的测量是 `!failure() && !cancelled()` 只看 `needs` 里直接出现的 job，而 GitHub 表达式文档写的是 `failure()` "returns true if any ancestor job fails"[^gha-expr]，两者谁对由 C1 的 skip 传播验收裁定（§七 N3）；无论结果如何全列不吃亏。`build` 只发生一次，`promote-production` 里没有构建步；两个环境的 `download-artifact` 拿的是同一个 artifact，`upload-artifact` 的 `artifact-digest` 输出（"SHA-256 digest of an Artifact"）写进 job summary 作记录[^ua]。审批门的语义来自 GitHub environment 的 Required reviewers（最多 6 人，一人批准即可；"If a job is rejected, the workflow will fail"）[^gh-env]。
+测试使用原生 Minitest/Psych、GitHub/Docker/Wrangler/Atlas CLI，真实 mutation 红绿证明；平台 artifact、
+concurrency、approval、registry 和部署身份探针不由本地 YAML 或 dry-run 代替。
 
 ### 3.5 身份与授权边界
+
+#1564 新增 `release-build` environment 与精确 builder workflow 的原生 issuer 前置授权。下文 D1 的
+“两种 environment subject”是先前部署身份收窄的历史，不限制新 builder 使用独立受限身份；部署
+staging/production 仍保持 exact `cd.yml`，不得为复用或 builder 增加 wildcard。#1565 承担 provider
+侧权限边界，当前 personal token 与 ESC export projection 不证明其完成。
 
 只有一个身份提供方：GitHub Actions 的 OIDC issuer（`https://token.actions.githubusercontent.com`，`packages/contract/src/oidc-github.ts:26`）。它证明的是"哪个仓库、哪个 ref、哪个 environment、哪个 workflow 文件在跑"（`sub`、`ref`、`environment`、`job_workflow_ref`），不证明"可以做什么"。授权由每个 relying party 自己做，靠两样东西：一个只属于它的 `aud`，和它自己的策略。
 
@@ -348,7 +290,10 @@ B5 验收：
 - [ ] **(ci)** 只改 `migrations/neon/**` 的 PR：`db` job 跑（`atlas migrate validate`、`db-fresh-schema.sh`、migrator 测试三段都在日志里）；只改 `apps/web` 的 PR：`db` skipped。
 - [ ] **(integration)** 本地只改 `migrations/neon` 后 push：pre-push 跑 `atlas migrate validate`，`docker ps` 前后一致。
 
-### W-C · CD
+### W-C · CD（原 #1364–#1366 的历史交付记录）
+
+以下是原重设计阶段的卡片和验收记录。#1564 的当前部署目标与 AC 由 §3.4、live #1564 / #1575
+和 ADR 0007 取代；不再据此恢复 affected cohort、push 自动部署、最新 head 拒绝或 queue:max。
 
 | 卡 | 范围 | needs |
 |---|---|---|
@@ -477,7 +422,7 @@ E4 验收：
 
 1. **GHA 编译面只能在测试分支验证。** 2026-06-24 的 `startup_failure`（reusable job 的 `permissions` 超过 caller）`ruby -ryaml` / `actionlint` / `act` 都抓不到，且不产生 check-run，只有 run 页面顶部的红色横幅可见；`secrets` context 不能出现在 `if:`（memory `feedback_workflow_compile_validation`）。做法：B1 / C1 都先推 throwaway 分支；`cd.yml` 在该分支临时把分支名加进 `on.push.branches`，跑到 staging 与生产门口（owner 拒），再合 main。zizmor 的本地等价命令是 `GH_TOKEN=$(gh auth token) uvx zizmor --persona=regular .github/workflows/`，裸 `uvx zizmor` 看不到 online audits。D1 之后两个 environment 只允许 `main` 部署，throwaway 分支上带 `environment:` 的 CD 探针会被环境规则拦下：测前 `gh api -X POST repos/lifeodyssey/animichi/environments/staging/deployment-branch-policies -f name=<branch>` 临时放行，测完删；production 环境不放行，分支上的试探到 staging 为止。
 2. **"部署返回 ≠ 生效"不止 migrator。** #1332 的类别对每一对"部署 → 调用"都成立：C3 的握手按 `bundleHead` 等版本；smoke 保留 `SMOKE_ATTEMPTS=8 × 15s`（`cd.yml:251-256`）的窗口；Pulumi 建 Access 后到策略生效也是最终一致，D3 的验收在部署几分钟后再测一次。
-3. **并发组：owner 定 `queue: max`。** 平台默认每组只留一个 pending，新来的把旧的取消[^gha-conc]，而 job 级组里 pending 的是 job 不是 push：五段共用 `cd-staging` 时，run A 的 `stage-services` 与 run B 的 `stage-foundation` 会交替争同一个组，被取消的可能是更新的 run，被取消的旧 run 重跑又会盖掉更新的部署。2026-05-07 起 `queue: max` 可在 `cancel-in-progress` 为 false 或未设时加上，"up to 100 queued jobs or workflow runs per concurrency group"，按序执行、不取消[^gha-queue]——owner 2026-09-05 定：两个组都加，这是对决策 5 的补充，不是替换。留下的两道处置：`plan` 的 head 守卫（`github.sha` ≠ `origin/main` 的 head 就拒绝，§3.4）挡住旧 run 的 rerun 覆盖新部署；`retention-days: 14` 之后 `download-artifact` 拿不到 artifact，超期的 rerun 直接失败关闭。守卫拒绝之后，那个 run 的 delta 只能靠一次新 push 触碰到同一单元才会再发出去——"没有部署记录基线"的代价，owner 知情。
+3. **环境 whole-chain 锁（#1564）。** `stage` 和 `promote-production` 分别持有独立环境锁，正在发布的链不取消。使用 GitHub 原生 single-pending；不保证每个 commit 都部署，不拒绝仍兼容的较早 artifact。过期/缺失 artifact、真实 registry 或 ledger 检查失败均拒绝，不补构建、不换成 latest。
 4. **staging 的 CI 自动化门（§七 #12）。** 今天 smoke 探 workers.dev 的原因是 zone 前门对 GitHub runner IP 出 managed challenge，Free plan 不能按主机名或规则跳过（`cd.yml:245-246`、`workers/edge/wrangler.toml:420-424`）；Bot Fight Mode 文档："You cannot bypass or skip Bot Fight Mode using WAF custom rules or Page Rules"，唯一的先决豁免是 "it will not trigger if an IP Access rule matches the request first"，例外要 Super Bot Fight Mode 的 Skip 规则[^bfm]。IP Access rule 每个账户上限 50,000 条（Free / Pro / Business 相同，Enterprise 可加购），只接受 IPv4 单地址 / `/24` / `/16` 与 IPv6 `/128` / `/64` / `/48` / `/32`[^cf-ipar]；`api.github.com/meta` 的 `actions` 段今天 7,251 条（IPv4 5,625、IPv6 1,626），按允许的粒度展开（IPv4 `/16` / `/24` / 单地址，IPv6 四档）IPv4 要 141,833 条、IPv6 176,576 条，合计 318,409 条（2026-09-05 计算，与席 A 的数字一致），所以"给 runner 开 IP Access rule"不成立，CI 走 zone 主机名的预期就是被挑战。Bot Fight Mode 只在 owner 自己的 zone 上跑，workers.dev 不是这个 zone；Workers 文档说 Access "can protect one Worker's production workers.dev URL, preview URLs, or both"，做法是建一个 destination type 为 `worker` 的 self-hosted Access 应用（`POST /accounts/{account_id}/access/apps`），之后 "edit the Access application in Zero Trust"[^cf-wdev]。owner 2026-09-05 定：staging 的门就是 Access——`staging.animichi.com` 与两个 workers.dev URL 一起罩住，人登录，CI 与本地自动化带 ESC 里的 service token（决策 13 原文成立，#539 的绕过关闭）。前提是 §七 N4：workers.dev 上的 Access 应用要接受 Service Auth 的 service token。N4 失败的回退只有一条：把 `workers/edge/src/staging-gate/**` 改写成 OIDC 中间件（复用 `packages/contract/src/oidc-github.ts` 的 verifier，`aud = animichi:github-actions:staging-gate`，CI 每个 job 用 `core.getIDToken` 做 bearer、按请求校验、无会话存储），代价约 50 行 + contract tests，且 `animichi-web-staging` 要么也放一份、要么仍靠 Access，本地自动化仍要 service token。
 5. **CodeQL 切换窗口。** default setup 会 "override existing code scanning configurations" 并阻止 API 上传[^cq-default]；ruleset 的 `code_scanning` 规则要求 PR 上有 CodeQL 结果，没有结果就是 `BLOCKED`（#1204 第 1 条的机制）。所以 B1 带过渡 `codeql` job，B3 在无在途 PR 的时段开 default setup 并同一 PR 删过渡 job 与 `codeql.yml`，切换后第一个 PR 观察 merge-ref 竞争是否复现。
 6. **零密钥 = OIDC / ESC 故障即部署停摆；Pulumi state 的回退窗口有限。** D1 之前 R2 上的旧 state 还能用 `PULUMI_BACKEND_URL` + `R2_*` 登回去（W-A），D1 之后只剩 Pulumi Cloud 的历史。运行时不受影响（Worker、DB 在 Cloudflare / Neon，DSN 在 Secrets Store），与归档 spec 的分析一致（`docs/archive/specs/2026-08-05-secrets-centralisation-spec.md:272`）。回退 = 临时 `gh secret set` 一枚发布 token 并在 workflow 里 `secrets.` 引用，事后删。

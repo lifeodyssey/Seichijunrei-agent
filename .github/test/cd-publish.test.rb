@@ -1,99 +1,41 @@
-# SUT: cd.yml publication steps invoke the official Wrangler action with sealed, versioned artifacts.
+# SUT: cd.yml invokes pinned native Wrangler with selected source tags and sealed environment configs.
 require "minitest/autorun"
 require "psych"
 require "json"
 
 class CdPublishTest < Minitest::Test
   ROOT = ENV.fetch("TEST_REPOSITORY_ROOT", File.expand_path("../..", __dir__))
-  CD_FILE = File.join(ROOT, ".github", "workflows", "cd.yml")
-  WRANGLER_ACTION = "cloudflare/wrangler-action"
-  DEPLOY_TAG = "--tag sha-${{ github.sha }}"
-  SEALED_BUNDLE = "--no-bundle"
-  DEPLOY_TARGETS = { "stage" => "staging", "promote-production" => "production" }.freeze
-  PUBLISH_COMMAND = /wrangler deploy\b/
-  DRY_RUN = /(?:\A|\s)--dry-run(?:\s|\z)/
-  COMMAND_SEPARATOR = /\n|&&|\|\||;/
-  SHELL_COMMENT = /\s#.*\z/
+  TARGETS = { "stage" => "staging", "promote-production" => "production" }.freeze
 
   def setup
-    @cd = Psych.safe_load(File.read(CD_FILE), aliases: true)
+    @cd = Psych.safe_load(File.read(File.join(ROOT, ".github/workflows/cd.yml")), aliases: true)
   end
 
-  def steps_using(job, action)
-    @cd.dig("jobs", job, "steps").to_a.select { |step| step["uses"].to_s.start_with?("#{action}@") }
+  def test_native_wrangler_is_pinned_in_the_installed_workspace
+    version = JSON.parse(File.read(File.join(ROOT, "package.json"))).dig("devDependencies", "wrangler")
+    assert_match(/\A\d+\.\d+\.\d+\z/, version)
   end
 
-  def run_text(job)
-    @cd.dig("jobs", job, "steps").to_a.map { |step| step["run"] }.compact.join("\n")
-  end
-
-  def deploy_steps
-    @cd.fetch("jobs").each_key.flat_map { |job| steps_using(job, WRANGLER_ACTION).map { |step| [job, step] } }
-  end
-
-  def pinned_wrangler
-    JSON.parse(File.read(File.join(ROOT, "package.json"))).dig("devDependencies", "wrangler")
-  end
-
-  def test_deploys_pin_wrangler
-    version = pinned_wrangler
-    assert(!version.nil?, "package.json: the workspace must pin a Wrangler version")
-    deploy_steps.each do |job, step|
-      assert(step.dig("with", "wranglerVersion") == version,
-                       "cd.yml:#{job}: publishing must use the pinned Wrangler #{version}")
+  def test_migrator_publication_uses_sealed_config_and_selected_source
+    TARGETS.each do |job, environment|
+      steps = @cd.dig("jobs", job, "steps").select { |step| step["run"].to_s.include?("wrangler deploy") }
+      assert_equal 1, steps.length
+      expected = %(pnpm exec wrangler deploy --no-bundle --config release/migrator/wrangler.json --env #{environment} --tag "sha-$SOURCE_SHA")
+      assert_equal expected, steps.first.fetch("run")
+      assert_equal "${{ needs.select.outputs.source_sha }}", steps.first.dig("env", "SOURCE_SHA")
     end
   end
 
-  def worker_deploy_commands
-    deploy_steps.map { |job, step| [job, step.dig("with", "command").to_s] }
-                .select { |_job, command| command.start_with?("deploy ") }
-  end
-
-  def test_deploys_tag_the_version
-    assert(!deploy_steps.empty?, "cd.yml: no job publishes a Worker")
-    worker_deploy_commands.each do |job, command|
-      assert(command.include?(DEPLOY_TAG),
-                       "cd.yml:#{job}: every publish must tag its version #{DEPLOY_TAG}")
+  def test_service_publication_uses_the_native_entry_and_selected_source
+    TARGETS.each do |job, environment|
+      steps = @cd.dig("jobs", job, "steps").select { |step| step["run"].to_s.include?("publish-services.sh") }
+      assert_equal 1, steps.length
+      assert_equal "bash .github/scripts/release/publish-services.sh #{environment}", steps.first.fetch("run")
+      assert_equal "${{ needs.select.outputs.source_sha }}", steps.first.dig("env", "SOURCE_SHA")
     end
   end
 
-  def test_deploys_publish_the_sealed_bundle
-    worker_deploy_commands.each do |job, command|
-      assert(command.include?(SEALED_BUNDLE),
-                       "cd.yml:#{job}: every publish must ship the sealed artifact (#{SEALED_BUNDLE})")
-    end
-  end
-
-  def test_deploys_name_their_own_environment
-    DEPLOY_TARGETS.each do |job, environment|
-      commands = steps_using(job, WRANGLER_ACTION).map { |step| step.dig("with", "command").to_s }
-      assert(commands.all? { |command| command.include?("--env #{environment}") },
-                       "cd.yml:#{job}: every publish here must target --env #{environment}")
-    end
-  end
-
-  def shell_commands(job)
-    run_text(job).gsub(/\\\n\s*/, " ").split(COMMAND_SEPARATOR).map { |command| command.sub(SHELL_COMMENT, "").strip }
-  end
-
-  def shell_publishes(job)
-    shell_commands(job).select { |command| command.match?(PUBLISH_COMMAND) && !command.match?(DRY_RUN) }
-  end
-
-  def assert_shell_publish_obeys(job, environment, command)
-    assert(command.include?("--env #{environment}"),
-                     "cd.yml:#{job}: a shell publish here must target --env #{environment}")
-    assert(command.include?(DEPLOY_TAG),
-                     "cd.yml:#{job}: a shell publish here must tag its version #{DEPLOY_TAG}")
-  end
-
-  def test_shell_publishes_obey_the_same_rules
-    @cd.fetch("jobs").each_key do |job|
-      environment = DEPLOY_TARGETS[job]
-      shell_publishes(job).each do |command|
-        assert(!environment.nil?, "cd.yml:#{job}: this job must not publish a Worker at all")
-        assert_shell_publish_obeys(job, environment, command)
-      end
-    end
+  def test_selection_job_cannot_publish
+    refute_match(/wrangler deploy|publish-services|command.*up/, @cd.dig("jobs", "select").to_s)
   end
 end

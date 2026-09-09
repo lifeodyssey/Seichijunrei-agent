@@ -10,6 +10,7 @@ class WorkflowExecutionTest < Minitest::Test
   CANCELLATION = {
     "pr-verification.yml" => [true, "${{ github.event_name == 'pull_request' }}"],
     "cd.yml" => [nil, false],
+    "release-build.yml" => [nil, false],
     "agent-eval-nightly.yml" => [nil, false]
   }.freeze
 
@@ -35,6 +36,14 @@ class WorkflowExecutionTest < Minitest::Test
         refute_nil provided, "#{file}:#{id}: no uv setup"
         assert_operator provided, :<, used
       end unless used.nil?
+
+      registry = steps.index { |step| step["run"].to_s.include?("release/registry-login.sh") }
+      define_method("test_#{file}_#{id}_configures_registry_before_installing_buildx") do
+        builder = steps.index { |step| step["uses"].to_s.start_with?("docker/setup-buildx-action@") }
+        refute_nil builder, "#{file}:#{id}: no buildx setup"
+        assert_operator registry, :<, builder,
+                        "registry login changes DOCKER_CONFIG; buildx must use that configuration"
+      end unless registry.nil?
     end
   end
 

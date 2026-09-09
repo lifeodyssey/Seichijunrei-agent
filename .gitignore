@@ -22,6 +22,7 @@ wheels/
 MANIFEST
 # Python build dirs only — do NOT ignore TypeScript feature lib/ dirs.
 !apps/web/src/features/**/lib/
+!.github/lib/
 
 # Virtual Environments
 .venv/

@@ -45,13 +45,15 @@ pick() { local list="$1" index="$2"; awk -v i="$index" '{ print (i + 1 <= NF) ? 
 case "$args" in
   *"/healthz"*)
     echo healthz >> "${CALL_LOG:?}"
-    printf '{"bundleHead":"%s"}\n' "$(pick "${STUB_HEADS:?}" "$(count_of "$STUB_STATE/healthz")")"
+    printf '{"bundleHead":"%s","prismaTarget":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}\n' "$(pick "${STUB_HEADS:?}" "$(count_of "$STUB_STATE/healthz")")"
     ;;
   *"/migrate"*)
     echo migrate >> "${CALL_LOG:?}"
     out="${args#*-o }"; out="${out%% *}"
-    printf '{"success":true,"appliedHead":"%s"}\n' "${STUB_APPLIED:?}" > "$out"
-    pick "${STUB_CODES:?}" "$(count_of "$STUB_STATE/migrate")"
+    code="$(pick "${STUB_CODES:?}" "$(count_of "$STUB_STATE/migrate")")"
+    printf '{"success":true,"appliedHead":"%s","prisma":{"markerHash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","migrationsApplied":0}}\n' "${STUB_APPLIED:?}" > "$out"
+    [ "$code" != 409 ] || printf '{"error":"stale_bundle"}\n' > "$out"
+    printf '%s' "$code"
     ;;
   *)
     echo token >> "${CALL_LOG:?}"
@@ -69,6 +71,8 @@ setup() {
   mkdir -p "$WORKSPACE/bin" "$WORKSPACE/state" "$WORKSPACE/migrations"
   make_curl_stub
   : > "$WORKSPACE/migrations/$SEALED_HEAD.sql"
+  printf '{"storage":{"storageHash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}\n' > "$WORKSPACE/contract.json"
+  printf 'h1:fixture\n%s.sql h1:fixture\n' "$SEALED_HEAD" > "$WORKSPACE/migrations/atlas.sum"
   export PATH="$WORKSPACE/bin:$PATH"
   export CALL_LOG="$WORKSPACE/calls" STUB_STATE="$WORKSPACE/state"
   export RUNNER_TEMP="$WORKSPACE" MIGRATOR_URL="https://127.0.0.1:1"
@@ -81,7 +85,7 @@ setup() {
 
 teardown() { rm -rf "$WORKSPACE"; }
 
-run_script() { bash "$SCRIPT" production "$WORKSPACE/migrations" 2>&1; }
+run_script() { bash "$SCRIPT" production "$WORKSPACE/migrations" "$WORKSPACE/contract.json" 2>&1; }
 
 calls() { tr '\n' ' ' < "$CALL_LOG"; }
 

@@ -152,8 +152,11 @@ Paths that need no package gate, because another hook or a CI job already owns t
 
 ```text
 docs/**  .claude/**  .github/**  .semgrep*  scripts/**  test/repo-config/**
-root-level *.md  codecov.yml  .pre-commit-config.yaml  commitlint.config.js  Makefile
+root-level *.md  codecov.yml  .pre-commit-config.yaml  commitlint.config.js  Makefile  .gitignore
 ```
+
+`.gitignore` is consumed by the repository secret scan and tracked-file checks; its exact root
+path needs no package gate. A sibling such as `.gitignore-extra` remains unowned and fails closed.
 
 **Every** changed path has to be owned by something: a selected package's directory, a bucket that
 actually fired, or the whitelist. Whatever is left over stops the push and is listed by name. The

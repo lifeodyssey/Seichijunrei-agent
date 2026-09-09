@@ -1,0 +1,126 @@
+name: Release build
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    name: Release / complete snapshot
+    if: ${{ github.repository == 'lifeodyssey/animichi' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment: release-build
+    timeout-minutes: 90
+    concurrency:
+      group: release-build-${{ github.run_id }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # main-only release-build identity for registry credentials
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the complete web output
+        run: |
+          pnpm --filter web build
+          mkdir -p release/web
+          cp -RL apps/web/.output release/web/.output
+          node --input-type=module -e 'import {sealedConfig} from "./.github/lib/release/config.mjs"; import {writeFileSync} from "node:fs"; writeFileSync("release/web/wrangler.json", JSON.stringify(sealedConfig("web", ""), null, 2))'
+      - name: Bundle catalog and users
+        run: |
+          node .github/scripts/release/build-worker.mjs catalog
+          node .github/scripts/release/build-worker.mjs users
+      - uses: pulumi/actions@8e5e406f4007fca908480587cb9893c07090f58d # v7.0.0
+        with:
+          pulumi-version-file: .pulumi.version
+      - name: Seal all foundation sources and the pinned generated provider
+        run: bash .github/scripts/release/seal-foundation.sh
+      - name: Seal source-pinned dependency patches
+        run: node .github/scripts/release/seal-pnpm-patches.mjs "$GITHUB_SHA" release/foundation
+      - name: Seal the complete migration chain
+        run: |
+          mkdir -p release/migrations
+          cp -R migrations/neon/. release/migrations/
+      - uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
+        with:
+          version: v0.30.0
+      - name: Validate the full native Atlas chain
+        run: atlas migrate validate --dir file://release/migrations
+      - name: Log into the registry build principal
+        uses: pulumi/auth-actions@141415910c3beb54e03b48e9057c204c97b956f2 # v2.1.0
+        with:
+          organization: lifeodyssey
+          requested-token-type: urn:pulumi:token-type:access_token:personal
+          scope: user:lifeodyssey
+      - name: Resolve the pinned Pulumi CLI version
+        id: pulumi-cli
+        run: printf 'version=%s\n' "$(cat .pulumi.version)" >> "$GITHUB_OUTPUT"
+      - name: Open registry-only build configuration
+        uses: pulumi/esc-action@32dda43ffe7a2ab21e6bce11c781b44a3e5623cf # v3.2.0
+        with:
+          version: ${{ steps.pulumi-cli.outputs.version }}
+          environment: lifeodyssey/animichi/release-build
+          export-environment-variables: CLOUDFLARE_API_TOKEN
+      - name: Require the registry credential
+        run: |
+          for key in CLOUDFLARE_API_TOKEN; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is missing"; exit 1; }
+          done
+      - run: bash .github/scripts/release/registry-login.sh push
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Build and push the agent once
+        id: agent
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: apps/agent/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent:build-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Build and push the migrator once
+        id: migrator
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: workers/migrator/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator:build-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Bundle paired Workers and seal immutable image references
+        env:
+          AGENT_IMAGE: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-agent@${{ steps.agent.outputs.digest }}
+          MIGRATOR_IMAGE: registry.cloudflare.com/${{ vars.CLOUDFLARE_ACCOUNT_ID }}/animichi-migrator@${{ steps.migrator.outputs.digest }}
+        run: |
+          node .github/scripts/release/build-worker.mjs edge "$AGENT_IMAGE"
+          node .github/scripts/release/build-worker.mjs migrator "$MIGRATOR_IMAGE"
+          ruby .github/scripts/release/seal.rb
+          ruby .github/scripts/release/inspect-images.rb
+      - name: Archive the complete snapshot
+        run: tar --format=ustar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf release.tar release
+      - name: Publish the immutable snapshot
+        id: artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-snapshot-${{ github.sha }}-${{ github.run_attempt }}
+          path: release.tar
+          if-no-files-found: error
+          retention-days: 14
+      - name: Record the selectable artifact ID
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+        run: printf 'Artifact ID %s\n\nDigest %s\n' "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"

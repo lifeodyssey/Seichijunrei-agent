@@ -95,11 +95,11 @@ GATE_ENV=(GATE_PROBE=1)
 
 # 1. A selected package must not carry an unowned path through with it.
 new_repo
-commit_change feature workers/catalog/src/x.ts new-root.txt
+commit_change feature workers/catalog/src/x.ts .gitignore-extra
 run_gate < /dev/null
 expect_status "mixed diff" 1 "$STATUS"
 expect "mixed diff" "no gate covers" "$OUT"
-expect "mixed diff" "new-root.txt" "$OUT"
+expect "mixed diff" ".gitignore-extra" "$OUT"
 refute "mixed diff" "workers/catalog/src/x.ts" "$OUT"
 ok "a package change does not carry an unowned root file through"
 
@@ -129,7 +129,7 @@ ok "a root manifest selects every package once, without the closure prefix"
 
 # 4. Whitelisted paths need no package; the docs bucket still runs its checks.
 new_repo
-commit_change feature docs/a.md .github/workflows/x.yml test/repo-config/gitleaks.test.rb
+commit_change feature docs/a.md .github/workflows/x.yml test/repo-config/gitleaks.test.rb .gitignore
 run_gate < /dev/null
 expect_status "docs" 0 "$STATUS"
 expect "docs" "packages: (none)" "$OUT"

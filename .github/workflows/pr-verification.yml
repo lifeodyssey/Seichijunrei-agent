@@ -78,6 +78,9 @@ jobs:
             workflows:
               - '.github/workflows/**'
               - '.github/actions/**'
+              - '.github/scripts/**'
+              - '.github/lib/**'
+              - '.github/test/**'
             deps:
               - 'pnpm-lock.yaml'
               - 'package.json'
@@ -228,13 +231,12 @@ jobs:
         run: |
           set -euo pipefail
           ruby .github/test/cd-artifact.test.rb
-          ruby .github/test/cd-build.test.rb
           ruby .github/test/cd-credentials.test.rb
           ruby .github/test/cd-delivery-jobs.test.rb
           ruby .github/test/cd-migrations.test.rb
-          ruby .github/test/cd-plan-smoke.test.rb
-          ruby .github/test/cd-plan.test.rb
           ruby .github/test/cd-publish.test.rb
+          ruby .github/test/cd-receipt.test.rb
+          ruby .github/test/cd-selection.test.rb
           ruby .github/test/cd-stage-smoke.test.rb
           ruby .github/test/cd-stage.test.rb
           ruby .github/test/pr-verification-affected.test.rb
@@ -245,6 +247,23 @@ jobs:
           ruby .github/test/pr-verification-schema.test.rb
           ruby .github/test/pr-verification-workspace.test.rb
           ruby .github/test/pr-verification-zizmor.test.rb
+          ruby .github/test/release-archive.test.rb
+          ruby .github/test/release-build.test.rb
+          ruby .github/test/release-config.test.rb
+          ruby .github/test/release-consumer-cli.test.rb
+          ruby .github/test/release-container-observation.test.rb
+          ruby .github/test/release-migration-request.test.rb
+          ruby .github/test/release-observation.test.rb
+          ruby .github/test/release-publish-services.test.rb
+          ruby .github/test/release-receipt-cli.test.rb
+          ruby .github/test/release-receipt.test.rb
+          ruby .github/test/release-registry-cli.test.rb
+          ruby .github/test/release-registry.test.rb
+          ruby .github/test/release-resolver.test.rb
+          ruby .github/test/release-schema-gate.test.rb
+          ruby .github/test/release-selection.test.rb
+          ruby .github/test/release-snapshot.test.rb
+          ruby .github/test/release-source-closure.test.rb
           ruby .github/test/setup-workspace-action.test.rb
           ruby .github/test/workflow-credentials.test.rb
           ruby .github/test/workflow-execution.test.rb

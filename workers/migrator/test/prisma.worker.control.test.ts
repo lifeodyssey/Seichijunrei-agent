@@ -16,7 +16,7 @@ beforeEach(() => {
   native.show.mockResolvedValue({ ok: true, value: { migrations: [], renderMarkerHashBySpace: new Map([["app", TARGET]]), usedLiveMarker: true } });
   native.migrate.mockResolvedValue({ ok: true, value: { markerHash: TARGET, migrationsApplied: 0, applied: [] } });
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 it("returns the native marker and zero-operation receipt through authenticated HTTP", async () => {
   const app = await nativeApp(DSN);
@@ -61,6 +61,15 @@ it("returns only the native failure code and closes the control client", async (
   expect(response.status).toBe(500);
   expect(await response.json()).toMatchObject({ success: false, error: "DDL_FAILED" });
   expect(native.close).toHaveBeenCalledOnce();
+});
+
+it("sanitizes Atlas apply errors on the native selected route", async () => {
+  const atlas = await import("../src/http-apply");
+  vi.spyOn(atlas, "applyChain").mockResolvedValueOnce({ kind: "failure", exitCode: 1, error: "password=fixture; private SQL" });
+  const response = await (await nativeApp(DSN)).migrate();
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ success: false, exitCode: 1, appliedHead: null, error: "migration_failed" });
+  expect(native.connect).not.toHaveBeenCalled();
 });
 
 it("refuses a successful native result that names a different marker", async () => {

@@ -73,9 +73,9 @@ describe("POST /migrate refuses a head the bundle cannot reach", () => {
     expect(res.status).toBe(200);
   });
 
-  it("still applies when the caller sends no expectedHead at all", async () => {
+  it("rejects a caller that omits the selected head", async () => {
     const { app, token } = await makeApp();
     const res = await app.request(post({ expectedHead: undefined }, token), {}, testEnv());
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 });

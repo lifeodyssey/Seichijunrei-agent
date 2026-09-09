@@ -12,7 +12,16 @@ class WorkflowInvocationsTest < Minitest::Test
   def workflow_steps(paths = WORKFLOWS)
     paths.flat_map do |path|
       Psych.safe_load(File.read(path), aliases: true).fetch("jobs").values.flat_map { |job| job.fetch("steps", []) }
-    end
+    end.flat_map { |step| [step, *local_action_steps(step)] }
+  end
+
+  def local_action_steps(step, ancestors = [])
+    ref = step["uses"].to_s
+    return [] unless ref.start_with?("./", "$/")
+    raise "recursive local action: #{ref}" if ancestors.include?(ref)
+    manifest = %w[action.yml action.yaml].map { |name| File.join(ROOT, ref.delete_prefix("$/"), name) }.find { |path| File.file?(path) }
+    steps = Psych.safe_load(File.read(manifest), aliases: true).dig("runs", "steps").to_a
+    steps.flat_map { |child| [child, *local_action_steps(child, ancestors + [ref])] }
   end
 
   def invoked_scripts(paths = WORKFLOWS)
