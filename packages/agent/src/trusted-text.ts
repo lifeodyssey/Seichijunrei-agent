@@ -4,7 +4,7 @@ const ELLIPSIS = "…";
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
 
-/** The ellipsis' own three bytes, reserved out of the budget up front. */
+/** The ellipsis counts toward the same UTF-8 byte budget. */
 const ELLIPSIS_BYTES = ENCODER.encode(ELLIPSIS).length;
 
 /** Control characters, DEL, and every line/paragraph separator a JSON string
@@ -44,5 +44,7 @@ export function trustedText(value: string, maxBytes: number): string {
   const clean = collapsed(value);
   const bytes = ENCODER.encode(clean);
   if (bytes.length <= maxBytes) return clean;
-  return DECODER.decode(bytes.subarray(0, boundary(bytes, maxBytes - ELLIPSIS_BYTES))) + ELLIPSIS;
+  const suffix = maxBytes < ELLIPSIS_BYTES ? "" : ELLIPSIS;
+  const limit = Math.max(0, Math.floor(maxBytes) - encodedBytes(suffix));
+  return DECODER.decode(bytes.subarray(0, boundary(bytes, limit))) + suffix;
 }

@@ -7,7 +7,6 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "types": ["node"],
