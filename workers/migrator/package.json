@@ -16,15 +16,15 @@
     "@animichi/contract": "workspace:*",
     "@cloudflare/containers": "^0.3.7",
     "@neondatabase/serverless": "^1.1.0",
-    "hono": ">=4.12.34",
+    "hono": ">=4.13.7",
     "jose": "^6.2.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260727.1",
     "@types/node": "^26.1.1",
-    "@vitest/coverage-istanbul": "4.1.10",
+    "@vitest/coverage-istanbul": "4.1.11",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wrangler": "^4.114.0"
   }
 }

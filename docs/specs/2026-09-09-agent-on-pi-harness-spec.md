@@ -54,7 +54,7 @@
 
 ### 2.4 能不能上 workerd
 
-上游从不提 workerd/DO/wrangler，但 root export 是 browser-safe 的：`packages/agent/src` 里 `from "node:` 只出现在 `harness/env/nodejs.ts`（独立 subpath，不在 root barrel）与两个 conformance 文件；CI 有 esbuild `platform:"browser"` 的 browser smoke，入口从包根导入（`scripts/check-browser-smoke.mjs:45-52`）。`MemorySessionRepo`（`dist/harness/session/index.d.ts:7`）零 node API——注意 `MemoryStorage` **不是**公开导出，能用的是 `MemorySessionRepo.create()` 与 `StorageBackedSession`（`:8`）。**但 conformance subpath 是 Node-only**（`testing/conformance/*.ts` import `node:`），这正是 **D5** 把 Neon backend 拆成独立包的理由。**但 browser smoke ≠ workerd smoke**，且 `@earendil-works/chord` 是硬依赖（tarball `package.json` dependencies），而 chord 自己把 `esbuild` 列进 `dependencies`（`packages/chord/package.json`）——虽然只服务 `./bundler`/`./node`，S1 必须断言它**没有**进 Worker bundle，所以 workerd 打包必须自己实测（S1）。我们没有 bash/read/write/edit 四个 coding tool，**不需要 `ExecutionEnv`**。
+上游从不提 workerd/DO/wrangler，但 包入口（`.` 导出）是 browser-safe 的：`packages/agent/src` 里 `from "node:` 只出现在 `harness/env/nodejs.ts`（独立 subpath，不在包入口的 barrel 里）与两个 conformance 文件；CI 有 esbuild `platform:"browser"` 的 browser smoke，入口从包根导入（`scripts/check-browser-smoke.mjs:45-52`）。`MemorySessionRepo`（`dist/harness/session/index.d.ts:7`）零 node API——注意 `MemoryStorage` **不是**公开导出，能用的是 `MemorySessionRepo.create()` 与 `StorageBackedSession`（`:8`）。**但 conformance subpath 是 Node-only**（`testing/conformance/*.ts` import `node:`），这正是 **D5** 把 Neon backend 拆成独立包的理由。**但 browser smoke ≠ workerd smoke**，且 `@earendil-works/chord` 是硬依赖（tarball `package.json` dependencies），而 chord 自己把 `esbuild` 列进 `dependencies`（`packages/chord/package.json`）——虽然只服务 `./bundler`/`./node`，S1 必须断言它**没有**进 Worker bundle，所以 workerd 打包必须自己实测（S1）。我们没有 bash/read/write/edit 四个 coding tool，**不需要 `ExecutionEnv`**。
 
 ## 三、目标 / 非目标
 
@@ -293,7 +293,7 @@
 | 卡 | 范围 | needs |
 |---|---|---|
 | **W0-1** 逐文件判定清单（115 个文件，单独评审，**D10**） | `workers/edge` | — |
-| **W0-2** 新 schema 与迁移：`entries`/`values`/`lists`/`usage_ledger` + 配额/预留表 + **`open_operations`**（协议三/W1-9）+ **待结算记录**（协议五）+ **`(session_id, client_message_id) → operationId` 唯一映射**（协议四）。**不需要租约表**（单写者由 DO 提供），**也不需要 Queues** | `migrations/neon`、`packages/pi-session-neon` | W0-1 |
+| **W0-2** 新 schema 与迁移：`entries`/`values`/`lists`/`usage_ledger` + 配额/预留表 + **`open_operations`**（协议三/W1-9）+ **待结算记录**（协议五）+ **`(session_id, client_message_id) → operationId` 唯一映射**（协议四）。**不需要租约表**（单写者由 DO 提供），**也不需要 Queues** | `migrations/neon`、`packages/pi-session-neon` | 无（约束：迁移只新增，W0-1 通过前不得 ALTER/DROP/重命名其清单里的旧表——owner 2026-09-10 把原阻塞边降级为 W0-2 的第一条 AC） |
 | **P0-S1** workerd 打包 spike（0.85.1 + chord） | `workers/edge` | — |
 | **P0-S2** 部署好的 DO 里跑完一趟 ≥130 s / ≥3 工具的回合，**中途断开客户端** | `workers/edge` | P0-S1 |
 | **P0-S3** Neon backend + 上游 conformance | `packages/pi-session-neon` | P0-S1、W0-2 |
