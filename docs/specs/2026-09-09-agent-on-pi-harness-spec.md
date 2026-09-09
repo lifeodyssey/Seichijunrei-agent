@@ -54,7 +54,7 @@
 
 ### 2.4 能不能上 workerd
 
-上游从不提 workerd/DO/wrangler，但 包入口（`.` 导出）是 browser-safe 的：`packages/agent/src` 里 `from "node:` 只出现在 `harness/env/nodejs.ts`（独立 subpath，不在 root barrel）与两个 conformance 文件；CI 有 esbuild `platform:"browser"` 的 browser smoke，入口从包根导入（`scripts/check-browser-smoke.mjs:45-52`）。`MemorySessionRepo`（`dist/harness/session/index.d.ts:7`）零 node API——注意 `MemoryStorage` **不是**公开导出，能用的是 `MemorySessionRepo.create()` 与 `StorageBackedSession`（`:8`）。**但 conformance subpath 是 Node-only**（`testing/conformance/*.ts` import `node:`），这正是 **D5** 把 Neon backend 拆成独立包的理由。**但 browser smoke ≠ workerd smoke**，且 `@earendil-works/chord` 是硬依赖（tarball `package.json` dependencies），而 chord 自己把 `esbuild` 列进 `dependencies`（`packages/chord/package.json`）——虽然只服务 `./bundler`/`./node`，S1 必须断言它**没有**进 Worker bundle，所以 workerd 打包必须自己实测（S1）。我们没有 bash/read/write/edit 四个 coding tool，**不需要 `ExecutionEnv`**。
+上游从不提 workerd/DO/wrangler，但 包入口（`.` 导出）是 browser-safe 的：`packages/agent/src` 里 `from "node:` 只出现在 `harness/env/nodejs.ts`（独立 subpath，不在包入口的 barrel 里）与两个 conformance 文件；CI 有 esbuild `platform:"browser"` 的 browser smoke，入口从包根导入（`scripts/check-browser-smoke.mjs:45-52`）。`MemorySessionRepo`（`dist/harness/session/index.d.ts:7`）零 node API——注意 `MemoryStorage` **不是**公开导出，能用的是 `MemorySessionRepo.create()` 与 `StorageBackedSession`（`:8`）。**但 conformance subpath 是 Node-only**（`testing/conformance/*.ts` import `node:`），这正是 **D5** 把 Neon backend 拆成独立包的理由。**但 browser smoke ≠ workerd smoke**，且 `@earendil-works/chord` 是硬依赖（tarball `package.json` dependencies），而 chord 自己把 `esbuild` 列进 `dependencies`（`packages/chord/package.json`）——虽然只服务 `./bundler`/`./node`，S1 必须断言它**没有**进 Worker bundle，所以 workerd 打包必须自己实测（S1）。我们没有 bash/read/write/edit 四个 coding tool，**不需要 `ExecutionEnv`**。
 
 ## 三、目标 / 非目标
 
