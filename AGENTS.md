@@ -88,8 +88,8 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 ## Authoritative docs (read the matching one when doing that work)
 
 - Architecture **why** → `docs/specs/2026-06-13-architecture-adr.md`
-- Current **target** for the agent runtime (TS rewrite inside `workers/edge`; supersedes SD-4 of the
-  rebuild spec) → `docs/specs/2026-09-01-agent-ts-rewrite-spec.md`
+- Current **target** for the agent runtime and eval (native Pi harness inside `workers/edge`;
+  supersedes SD-4 of the rebuild spec) → `docs/specs/2026-09-09-agent-on-pi-harness-spec.md`
 - Web rebuild target (still canonical for `apps/web`) → `docs/specs/2026-07-06-frontend-rebuild-spec.md`
 - Live runtime **reference** (both agent tiers + the `AGENT_TURN_ROUTE` flag) → `docs/ARCHITECTURE.md`
 - Deploy runbook → `docs/ops/deployment.md`

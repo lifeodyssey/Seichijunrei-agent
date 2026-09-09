@@ -1,6 +1,6 @@
 # Spec — agent TS 重写（pi agent core × DO × Neon 单一真相源）
 
-- Status: W0 closed 2026-09-03（S1–S5 全通过硬条件，kill-switch 未触发，#1249）；W1 in progress — owner 已定方向（2026-09-01 grilling），本文件为简化版权威决策记录；复杂化 spec 由后续更强的模型在此基础上扩展。
+- Status: Partially superseded — current architecture, harness and eval decisions follow [the native Pi harness specification](2026-09-09-agent-on-pi-harness-spec.md). This document retains the W1/W2 functional-parity criteria and W4 sequence where not superseded. Historical delivery status: W0 closed 2026-09-03（S1–S5 全通过硬条件，kill-switch 未触发，#1249）；W1 in progress — owner 已定方向（2026-09-01 grilling），本文件为简化版权威决策记录；复杂化 spec 由后续更强的模型在此基础上扩展。
 - 决策输入：`docs/specs/2026-09-01-pi-agent-core-research-report.md`（workerd 实测通过）× `docs/iterations/production-readiness-2026-08/PI-AGENT-CORE-RESEARCH.md`（8/29 NO-GO 全量迁移 / GO 限 spike 门——本 spec 保留其门）× `docs/specs/2026-08-17-agent-ts-research-report.md`（#1106）。
 - 战略动机：消灭 Python 容器冷启动（2026-09-01 实测：睡醒唤醒 28–32s、部署后 74s；PR #1239 只是把库的 20s 等待预算放宽到 55s，没有缩短冷启动本身）；异步病根（#729 / #1235 request-parked ingest / turn 生命周期补丁群）根治为"回合活在请求之外、Neon 唯一真相源"；仓库收敛为纯 TS 单流水线。
 - 2026-09-01 二轮 grilling（Q1–Q5，owner 定案）：回合宿主 = DO alarm；断线 = 不续流、回来按会话 ID 拉最终结果；W1/W2 不设自动 eval；eval 只对真实环境测；agent 住进 `workers/edge` 不新建 Worker。已并入 §二–§八。

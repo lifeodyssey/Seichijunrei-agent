@@ -1,0 +1,66 @@
+{
+  "sdk": "0.85.1",
+  "imports": "@earendil-works/pi-agent-core public root",
+  "nativeTreeForkSucceeded": true,
+  "currentValuePreserved": true,
+  "entryIdAndBytesPreserved": true,
+  "originalRefResolvesInFork": true,
+  "sourceListCount": 1,
+  "forkListCount": 0,
+  "listResult": "method exists; native tree fork omits stored list elements",
+  "crossRepoError": "Unknown session: 01a08590-2376-7019-b167-032282bf015c",
+  "sourceValue": {
+    "address": {
+      "namespace": "animichi.selection",
+      "key": "",
+      "kind": "value"
+    },
+    "value": {
+      "candidateRef": "01a08590-237c-7019-b167-03256be633b9",
+      "revision": 3
+    },
+    "seq": 4
+  },
+  "forkValue": {
+    "address": {
+      "namespace": "animichi.selection",
+      "key": "",
+      "kind": "value"
+    },
+    "value": {
+      "candidateRef": "01a08590-237c-7019-b167-03256be633b9",
+      "revision": 3
+    },
+    "seq": 4
+  },
+  "sourceEntry": {
+    "id": "01a08590-237c-7019-b167-03256be633b9",
+    "parentId": null,
+    "type": "custom",
+    "customType": "animichi.tool-result",
+    "data": {
+      "candidates": [
+        {
+          "id": "tokyo"
+        }
+      ]
+    },
+    "seq": 2,
+    "timestamp": 1788947211132
+  },
+  "forkEntry": {
+    "id": "01a08590-237c-7019-b167-03256be633b9",
+    "parentId": null,
+    "type": "custom",
+    "customType": "animichi.tool-result",
+    "data": {
+      "candidates": [
+        {
+          "id": "tokyo"
+        }
+      ]
+    },
+    "seq": 2,
+    "timestamp": 1788947211132
+  }
+}

@@ -43,8 +43,10 @@ The pinned upstream document marks WP08 list support unfinished even though its 
 list copying. Implemented behavior takes precedence over that promise. Native `ForkOptions` also permits
 `entryId`/`position` only for **branch** fork; tree fork copies the source's current tree. [Fork options][pi-session].
 
-Reproduction artifacts: `/private/tmp/animichi-release-inventory/eval-sdk-sources/pi-probe/fork.mjs` and
-`pi-fork-probe.json` in the parent directory. These local artifacts supplement the public source and result table.
+Committed evidence: [public-root probe](sdk-native-evidence/pi-fork-probe.mjs),
+[original JSON output](sdk-native-evidence/pi-fork-output.json),
+[exact-version reproduction commands](sdk-native-evidence/README.md#reproduce-the-probes), and
+[portable-script exit record](sdk-native-evidence/verification.json). These supplement the public source and result table.
 
 ## Executed probe 2: Logfire native ESM evaluation
 
@@ -64,10 +66,11 @@ It constructed native Case, Dataset, Evaluator and ReportEvaluator instances and
 | `report.toFile` | Undefined; report is data, not a persistence object |
 
 Exit code: **0**. Source: [Dataset execution][lf-dataset], [report grouping][lf-report], [report analyses][lf-analysis].
-An initial CJS retry probe failed before task invocation with a dependency interop error; its output was retained
-separately and was not counted as evidence for the project's ESM path.
-Reproduction artifacts: `/private/tmp/animichi-release-inventory/eval-sdk-sources/logfire-probe.mjs` and
-`logfire-probe.json`; the initial attempt is preserved as `logfire-probe-cjs.json`.
+Committed evidence: [native ESM probe](sdk-native-evidence/logfire-probe.mjs),
+[original JSON output with local paths redacted](sdk-native-evidence/logfire-output.json),
+[exact-version reproduction commands](sdk-native-evidence/README.md#reproduce-the-probes), and
+[portable-script exit record](sdk-native-evidence/verification.json). [Provenance](sdk-native-evidence/provenance.json)
+distinguishes the retained original observations from the portable import/output changes and added structural assertions.
 
 ## Native call chain supported by these APIs
 

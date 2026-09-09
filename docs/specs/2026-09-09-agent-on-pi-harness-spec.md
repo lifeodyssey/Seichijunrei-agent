@@ -4,7 +4,7 @@
 - owner 定案（2026-09-09）：**「彻底重写，能用 pi 的就用 pi，eval 和单测需要重新考虑」**；eval 不要数据库；**所有工具调用都要真的**（web search 的不稳定可接受）。
 - 本次 owner 补充：**agent / eval 不保留自建 adapter 架构；使用依赖库最直接的公开 API，允许大幅删减重写。** 具体 SDK 源码核对与删减依据见 [SDK-native review](../iterations/production-readiness-2026-08/SDK-NATIVE-REWRITE-REVIEW.md)；逐文件执行以 [W0-1 清单](../iterations/production-readiness-2026-08/AGENT-FILE-DISPOSITION.md) 为准。
 - 当前核对基线：仓库 `fd73fbd532ef4d151a027ab8c93e9f2ea9304dab`；pi 已发布 **0.85.1**，npm gitHead/tag **`d981de1229ef899957bbe968bc8dcda02a21f477`**。最新判断以该 tarball、对应官方源码和原生 API probe 为准；早先浮动 checkout 的研究记录归历史，不能覆盖实际已发布行为。
-- 取代：`docs/specs/2026-09-01-agent-ts-rewrite-spec.md` 的 §五 W3、§十 与**它的第 16 行非目标**；以及 `docs/specs/2026-09-08-eval-suite-redesign-spec.md` 全文（见 §十一）。
+- 取代：`docs/specs/2026-09-01-agent-ts-rewrite-spec.md` 的 §五 W3、§十 与**它的第 16 行非目标**；以及 `docs/archive/specs/2026-09-08-eval-suite-redesign-spec.md` 全文（见 §十一）。
 
 ## 一、动机
 
@@ -282,7 +282,7 @@
 
 ## 十一、取代关系
 
-- **`docs/specs/2026-09-08-eval-suite-redesign-spec.md` 全文被本 spec 取代**（它自己在 5 个修订里被 owner 前提改了三次）。**存活并搬进 §七**：三档套件与规模、pass^k 的三态判据与 `REQUIRED_ASSERTIONS`、淘汰四规则、`logfire/evals` 与 Experiments 核实、统计门、smoke 纪律、语料只从 TS agent 重录。**随本 spec 作废**：进程内宿主要新写 `TurnRecords`/多 run store（改由 pi harness 提供）、D5 的 test-postgres 回合表（eval 不再要数据库；test-postgres 留给 catalog 与 backend conformance）、`seedTrajectoryPrefix` 相关的一切（改 `fork`）、staging canary 与 CD 讨论（早已移交 smoke）。
+- **`docs/archive/specs/2026-09-08-eval-suite-redesign-spec.md` 全文被本 spec 取代**（它自己在 5 个修订里被 owner 前提改了三次）。**存活并搬进 §七**：三档套件与规模、pass^k 的三态判据与 `REQUIRED_ASSERTIONS`、淘汰四规则、`logfire/evals` 与 Experiments 核实、统计门、smoke 纪律、语料只从 TS agent 重录。**随本 spec 作废**：进程内宿主要新写 `TurnRecords`/多 run store（改由 pi harness 提供）、D5 的 test-postgres 回合表（eval 不再要数据库；test-postgres 留给 catalog 与 backend conformance）、`seedTrajectoryPrefix` 相关的一切（改 `fork`）、staging canary 与 CD 讨论（早已移交 smoke）。
 - **`docs/specs/2026-09-01-agent-ts-rewrite-spec.md`**：**第 16 行非目标作废**；§五 W3（eval 搬 TS）与 §十（评估装置）由本 spec §七 取代；W1/W2 的功能对等清单仍是验收基准；**W4 顺序不变**，但前置从「eval 双跑」改成本 spec 的 E-4。
 - **issue**（`gh issue view` 实查）：#1303（W3-5 双跑，OPEN）关为**被取代**；#1515 / PR #1527（TS 基线，OPEN）**先合再由 E-4 重铸**——它铸的是旧被测系统的基线，本次换 SUT 后必须重铸；#1380（前缀 seeding，OPEN）关为**被 `fork` 取代**，其已合入的旧 seeding 代码进 W2-1 删除清单；#1309 / #1311 / #1462 已 CLOSED，其领域要求（真实输入、执行见证与服务端动作计分边界）通过原生 entries/hooks 重新验证，旧 wire/trace 接口不保留；#1243 / #1258 两个 epic 需要按本 spec 重排波次。
 
@@ -295,6 +295,6 @@
 - **eval 的真 web_search 带来不稳定**（owner 已接受）。缓解：`prefix_gate_v1` 的前缀本就冻结；`reliability_v1` 的 pass^k 会把它量出来而不是掩盖。
 - **删除清单写小了会漏掉活着的读者**：`sweeper`/`settlement`/`retrieval`/`turn-selection.ts:31` 看起来是业务，其实读写的是要死的表或要删的模块。缓解：W0-1 逐文件判定 + 单独评审（D10）。
 - **`fork` 的 scope 选错会让前缀用例静默退化**：branch scope 不复制任何应用状态（`harness.md:547`）。缓解：D12 取 tree scope + E-2 的等价性 AC。
-- **两条 spec 并存的混乱**：本 spec 落地前，eval spec 仍是 `packages/eval` 的说明书。缓解：本 spec 一签核，就在 eval spec 头部加一行 superseded 指针（那是签核后的动作，不在本次写作范围）。
+- **旧设计被误当作当前约束**：旧 eval spec 已归档并指向本 spec；根指引与主题表只把本 spec 标为当前 agent/eval 目标。2026-09-01 spec 仅保留未被取代的功能对等验收，旧架构、宿主与 eval 决策以本文为准。
 
 既往评审回应已移入 [revision 14 历史记录](../archive/reviews/2026-09-09-pi-harness-spec-revisions.md)；本文件只保留当前执行要求。

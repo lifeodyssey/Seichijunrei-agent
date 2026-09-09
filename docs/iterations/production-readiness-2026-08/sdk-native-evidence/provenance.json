@@ -1,0 +1,9 @@
+{
+  "piOutput": "Original JSON, only a final newline added. Session/entry IDs and timestamps are generated synthetic probe values.",
+  "logfireOutput": "Original JSON with two local path prefixes replaced by <workspace> and <probe-directory>; all measured results, stack frames, durations and synthetic trace IDs retained.",
+  "portableScripts": "Pi: formatting and stdout output. Logfire: public logfire/evals import, no unused local createRequire, stdout output, expanded formatting and structural assertions. No provider/network/model calls.",
+  "originalOutputSha256": {
+    "pi-fork-output.json": "760643705a331fed2d55d83cfb29f17363f4e7e5fbf81cec1c5d5677c96d992f",
+    "logfire-output.json": "a12e4b508a53efe318b5574658e8107fe4dc857242ffb4c1afa285bca00b322d"
+  }
+}

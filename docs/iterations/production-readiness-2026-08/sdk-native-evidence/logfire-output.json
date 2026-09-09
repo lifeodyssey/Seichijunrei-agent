@@ -1,0 +1,234 @@
+{
+  "version": "0.22.5",
+  "report": {
+    "analyses": [
+      {
+        "type": "scalar",
+        "title": "completed",
+        "value": 2
+      }
+    ],
+    "cases": [
+      {
+        "assertions": {
+          "RequiredQuality": {
+            "name": "RequiredQuality",
+            "reason": null,
+            "source": {
+              "arguments": null,
+              "name": "RequiredQuality"
+            },
+            "value": false
+          },
+          "MaxDuration": {
+            "name": "MaxDuration",
+            "reason": null,
+            "source": {
+              "arguments": {
+                "seconds": 60
+              },
+              "name": "MaxDuration"
+            },
+            "value": true
+          }
+        },
+        "attributes": {
+          "nativeProbe": true
+        },
+        "evaluator_failures": [],
+        "inputs": "x",
+        "labels": {},
+        "metrics": {},
+        "name": "quality [1/2]",
+        "output": "output",
+        "scores": {},
+        "span_id": "0000000000000000",
+        "task_duration": 0.00004683300000002388,
+        "total_duration": 0.002185000000000048,
+        "trace_id": "00000000000000000000000000000000",
+        "source_case_name": "quality"
+      },
+      {
+        "assertions": {
+          "RequiredQuality": {
+            "name": "RequiredQuality",
+            "reason": null,
+            "source": {
+              "arguments": null,
+              "name": "RequiredQuality"
+            },
+            "value": false
+          },
+          "MaxDuration": {
+            "name": "MaxDuration",
+            "reason": null,
+            "source": {
+              "arguments": {
+                "seconds": 60
+              },
+              "name": "MaxDuration"
+            },
+            "value": true
+          }
+        },
+        "attributes": {
+          "nativeProbe": true
+        },
+        "evaluator_failures": [],
+        "inputs": "x",
+        "labels": {},
+        "metrics": {},
+        "name": "quality [2/2]",
+        "output": "output",
+        "scores": {},
+        "span_id": "0000000000000000",
+        "task_duration": 0.000015041999999965139,
+        "total_duration": 0.002228624999999984,
+        "trace_id": "00000000000000000000000000000000",
+        "source_case_name": "quality"
+      }
+    ],
+    "failures": [],
+    "name": "task",
+    "report_evaluator_failures": [],
+    "span_id": "0000000000000000",
+    "trace_id": "00000000000000000000000000000000"
+  },
+  "groups": [
+    {
+      "failures": [],
+      "inputs": "x",
+      "name": "quality",
+      "runs": [
+        {
+          "assertions": {
+            "RequiredQuality": {
+              "name": "RequiredQuality",
+              "reason": null,
+              "source": {
+                "arguments": null,
+                "name": "RequiredQuality"
+              },
+              "value": false
+            },
+            "MaxDuration": {
+              "name": "MaxDuration",
+              "reason": null,
+              "source": {
+                "arguments": {
+                  "seconds": 60
+                },
+                "name": "MaxDuration"
+              },
+              "value": true
+            }
+          },
+          "attributes": {
+            "nativeProbe": true
+          },
+          "evaluator_failures": [],
+          "inputs": "x",
+          "labels": {},
+          "metrics": {},
+          "name": "quality [1/2]",
+          "output": "output",
+          "scores": {},
+          "span_id": "0000000000000000",
+          "task_duration": 0.00004683300000002388,
+          "total_duration": 0.002185000000000048,
+          "trace_id": "00000000000000000000000000000000",
+          "source_case_name": "quality"
+        },
+        {
+          "assertions": {
+            "RequiredQuality": {
+              "name": "RequiredQuality",
+              "reason": null,
+              "source": {
+                "arguments": null,
+                "name": "RequiredQuality"
+              },
+              "value": false
+            },
+            "MaxDuration": {
+              "name": "MaxDuration",
+              "reason": null,
+              "source": {
+                "arguments": {
+                  "seconds": 60
+                },
+                "name": "MaxDuration"
+              },
+              "value": true
+            }
+          },
+          "attributes": {
+            "nativeProbe": true
+          },
+          "evaluator_failures": [],
+          "inputs": "x",
+          "labels": {},
+          "metrics": {},
+          "name": "quality [2/2]",
+          "output": "output",
+          "scores": {},
+          "span_id": "0000000000000000",
+          "task_duration": 0.000015041999999965139,
+          "total_duration": 0.002228624999999984,
+          "trace_id": "00000000000000000000000000000000",
+          "source_case_name": "quality"
+        }
+      ],
+      "summary": {
+        "assertions": 0.5,
+        "labels": {},
+        "metrics": {},
+        "name": "Averages",
+        "scores": {},
+        "task_duration": 0.00003093749999999451,
+        "total_duration": 0.002206812500000016
+      }
+    }
+  ],
+  "failureGroups": [
+    {
+      "failures": [
+        {
+          "error_message": "probe failure",
+          "error_type": "Error",
+          "inputs": "x",
+          "name": "throws [1/2]",
+          "span_id": "0000000000000000",
+          "trace_id": "00000000000000000000000000000000",
+          "error_stacktrace": "Error: probe failure\n    at Dataset.evaluate.repeat (file://<probe-directory>/logfire-probe.mjs:11:151)\n    at file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:35626\n    at file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:20985\n    at NoopContextManager.with (<workspace>/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:14:19)\n    at ContextAPI.with (<workspace>/node_modules/@opentelemetry/api/build/src/api/context.js:51:46)\n    at NoopTracer.startActiveSpan (<workspace>/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:54:31)\n    at ProxyTracer.startActiveSpan (<workspace>/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:27:24)\n    at W (file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:20844)\n    at e (file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:35546)\n    at RetryOperation._fn (file://<workspace>/node_modules/p-retry/index.js:55:26)",
+          "source_case_name": "throws"
+        },
+        {
+          "error_message": "probe failure",
+          "error_type": "Error",
+          "inputs": "x",
+          "name": "throws [2/2]",
+          "span_id": "0000000000000000",
+          "trace_id": "00000000000000000000000000000000",
+          "error_stacktrace": "Error: probe failure\n    at Dataset.evaluate.repeat (file://<probe-directory>/logfire-probe.mjs:11:151)\n    at file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:35626\n    at file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:20985\n    at NoopContextManager.with (<workspace>/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:14:19)\n    at ContextAPI.with (<workspace>/node_modules/@opentelemetry/api/build/src/api/context.js:51:46)\n    at NoopTracer.startActiveSpan (<workspace>/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:54:31)\n    at ProxyTracer.startActiveSpan (<workspace>/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:27:24)\n    at W (file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:20844)\n    at e (file://<workspace>/node_modules/logfire/dist/evals-D4FvWViY.js:1:35546)\n    at RetryOperation._fn (file://<workspace>/node_modules/p-retry/index.js:55:26)",
+          "source_case_name": "throws"
+        }
+      ],
+      "inputs": "x",
+      "name": "throws",
+      "runs": [],
+      "summary": {
+        "assertions": null,
+        "labels": {},
+        "metrics": {},
+        "name": "Averages",
+        "scores": {},
+        "task_duration": 0,
+        "total_duration": 0
+      }
+    }
+  ],
+  "taskInvocations": 2,
+  "renderIsString": true,
+  "reportToFile": "undefined"
+}
