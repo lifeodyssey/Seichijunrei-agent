@@ -1,17 +1,15 @@
-import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
+import type { JWTVerifyGetKey } from "jose";
 import { Hono, type Context } from "hono";
 import {
-  createGitHubOidcVerifier,
   type GitHubOidcVerifier,
 } from "@animichi/contract/oidc-github";
 import { productionChain } from "./bundled-chain";
 import { headsOf, type ChainSource } from "./chain";
 import { NeonMigrationsLedger } from "./ledger";
 import { runMigration, type ContainerOutcome, type MigrationRunResult } from "./migration";
-import {
-  GITHUB_OIDC_JWKS_URL,
-  policyFor,
-} from "./policy";
+import { authenticateRequest } from "./request-auth";
+import { registerPreflight } from "./preflight";
+import { resolveDsn } from "./database-url";
 
 /**
  * #1051 / #1124 — the migrator's Hono application + environment, kept free of
@@ -64,22 +62,6 @@ class BundleHandshake {
   stale(expectedHead: string | undefined): boolean {
     return expectedHead !== undefined && !this.heads.includes(expectedHead);
   }
-}
-
-const REMOTE_JWKS = createRemoteJWKSet(new URL(GITHUB_OIDC_JWKS_URL));
-
-async function resolveDsn(env: Env): Promise<string | undefined> {
-  const url = env.MIGRATOR_DATABASE_URL;
-  if (url == null) return undefined;
-  return typeof url === "string" ? url : await url.get();
-}
-
-function bearerToken(request: Request): string | null {
-  const header = request.headers.get("Authorization") ?? "";
-  const scheme = /^bearer[ \t]+/i.exec(header);
-  if (scheme === null) return null;
-  const token = header.slice(scheme[0].length).trim();
-  return token.length > 0 ? token : null;
 }
 
 function healthz(c: Context<{ Bindings: Env }>, bundle: BundleHandshake): Response {
@@ -201,12 +183,6 @@ function httpApplyBound(
   return bind(env.MIGRATOR_APPLY_LOCK);
 }
 
-/** The allowlist this deployment enforces; `verifier` short-circuits the pick. */
-function verifierFor(env: Env, deps: MigratorDeps): GitHubOidcVerifier {
-  if (deps.verifier !== undefined) return deps.verifier;
-  return createGitHubOidcVerifier(policyFor(env.MIGRATOR_OIDC_POLICY), deps.jwks ?? REMOTE_JWKS);
-}
-
 type Guarded =
   | { ok: true; expectedHead: string | undefined }
   | { ok: false; response: Response };
@@ -217,9 +193,8 @@ async function guardRequest(
   deps: MigratorDeps,
   bundle: BundleHandshake,
 ): Promise<Guarded> {
-  const token = bearerToken(c.req.raw);
-  if (token === null) return { ok: false, response: c.json({ error: "unauthorized" }, 401) };
-  const verified = await verifierFor(c.env, deps).verify(token);
+  const verified = await authenticateRequest(c.req.raw, c.env.MIGRATOR_OIDC_POLICY, deps);
+  if (verified === null) return { ok: false, response: c.json({ error: "unauthorized" }, 401) };
   if (!verified.ok) {
     return { ok: false, response: c.json({ error: "forbidden", message: verified.reason }, 403) };
   }
@@ -261,5 +236,6 @@ export function createMigratorApp(deps: MigratorDeps = {}): Hono<{ Bindings: Env
   const bundle = new BundleHandshake(deps.chain ?? productionChain);
   app.get("/healthz", (c) => healthz(c, bundle));
   app.post("/migrate", (c) => handleMigrate(c, deps, bundle));
+  registerPreflight(app, deps);
   return app;
 }

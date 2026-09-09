@@ -14,6 +14,8 @@ separate DSN secrets and separate OIDC allowlists. Root guide:
 - pnpm. `pnpm run typecheck` (TypeScript 7.0.2) · `pnpm run lint:oxlint`
   (type-aware, strict, warnings denied) · `pnpm run test` / `pnpm run test:worker`
   (vitest + coverage). Never `wrangler deploy` locally (hook `block-local-deploy`).
+- `pnpm run test:integration` runs the preflight seam against disposable PostgreSQL,
+  using `@animichi/test-postgres`, Docker and Atlas v0.30.0 (`ATLAS_BIN` may select the pinned binary).
 
 ## What this worker does
 
@@ -85,6 +87,29 @@ Capability boundary: NO destructive path — no schema drop, no arbitrary SQL,
 no down-migration. The migrator DSN is Secrets Store only (non-resident);
 `workers/edge/test/migrator-role-isolation.test.ts` asserts it is not bound
 by any runtime worker.
+
+## Read-only compatibility preflight (#1575)
+
+`POST /preflight` accepts only `{expectedHead, atlasSum, stagingOnlyBaseline}` from
+verified release metadata. `expectedHead` omits `.sql`; the complete Atlas checksum
+file is bounded with the whole JSON body to 65,536 bytes. Metadata contains no SQL,
+URL, DSN or environment override. The selected chain may be newer than this bundle.
+The existing jose policy verifies identity before any secret or SQL; this endpoint
+also requires `ref == refs/heads/main` independently of a valid production subject.
+
+The native Neon driver reads the full ledger in one read-only repeatable-read
+transaction. Only a completely executed type=2 prefix with matching version,
+description and canonical Atlas/HTTP hashes returns `200 {compatible:true,
+expectedHead, appliedHead, pendingCount}`. Missing/empty ledger, baseline/resolved
+rows, malformed or partial history, errors, gaps, duplicates and newer schema refuse.
+Every response is `no-store`; failures contain stable codes, never driver details.
+`parsePreflightMetadata` and `compareMigrationPrefix` are reusable domain functions.
+
+This endpoint never creates a ledger, applies a chain or acquires the apply lock.
+`/migrate` retains its existing behavior. #1564 must revalidate under its actual
+apply lock and activate only after authorized staging and production bootstrap.
+Local tests prove neither deployment nor production approval; see the canonical
+[deployment runbook](../../docs/ops/deployment.md#read-only-migration-preflight-1575).
 
 ## Tests
 

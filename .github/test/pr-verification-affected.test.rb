@@ -9,6 +9,7 @@ class PrVerificationAffectedTest < Minitest::Test
   MATRIX_TOOLCHAINS = [
     ["@animichi/eval", "uv python install"],
     ["catalog", "ariga/setup-atlas"],
+    ["migrator", "ariga/setup-atlas"],
     ["catalog", "docker build -f apps/agent/docker/test-postgres/Dockerfile"],
     ["infra", "pulumi/actions"]
   ].freeze
