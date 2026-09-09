@@ -102,29 +102,9 @@ export function placeMessage(locale: string, outcome: PlaceOutcome): string {
   return PLACE[copyLocale(locale)][outcome];
 }
 
-/**
- * The two refusals `validate_candidate_selection` raises, verbatim.
- *
- * Untranslated in Python and untranslated here: they reach the visitor through
- * the same wire, and inventing a localization the container never had would be
- * a difference between the two tiers.
- */
+/** Public refusal messages retain parity with the Python selection handlers. */
 export const SELECTION_EXPIRED = "This choice expired; please try again.";
 export const SELECTION_WRONG_MODE = "This clarification requires a different response mode.";
-/** `execute_place_selection`'s own refusal when the staged coordinates are gone. */
 export const PLACE_SELECTION_EXPIRED = "This place choice expired; please try again.";
-/**
- * `execute_selected_itinerary`'s two failure texts, verbatim
- * (`error_messages.CATALOG_ROUTE_UNAVAILABLE_MESSAGE`, and its own
- * `"No catalog route data"`).
- *
- * Python reached the first through `build_error_message(exc, locale,
- * fallback=…)`, which localizes a TYPED `CatalogError` and falls back to this
- * string for anything else. This tier only ever reaches the fallback, and that
- * is a fact about the catalog PORT rather than a shortcut taken here: #1253
- * degrades every catalog failure — transport, timeout, non-2xx, unparseable —
- * into one untyped `CatalogUnavailableError`, so there is no code to look up.
- * The card that gives the port typed errors is the card that can localize them.
- */
 export const CATALOG_ROUTE_UNAVAILABLE = "Catalog route unavailable";
 export const NO_CATALOG_ROUTE_DATA = "No catalog route data";

@@ -11,7 +11,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { localizedCityName } from "../src/agent/tools/localized-city-name.ts";
+import { localizedCityName } from "@animichi/agent";
 import { searchBangumiTool } from "../src/agent/tools/search-bangumi-tool.ts";
 import { searchNearbyTool } from "../src/agent/tools/search-nearby-tool.ts";
 import { KUKI_STATION, SAITAMA, SATTE, UJI_BRIDGE, WASHINOMIYA } from "./doubles/catalog-payloads.ts";

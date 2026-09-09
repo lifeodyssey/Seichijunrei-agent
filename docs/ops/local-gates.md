@@ -102,7 +102,7 @@ which is what keeps the refusal working under the wrapper too. For an ordinary p
 `HEAD` and nothing is refused.
 
 `pnpm ls -r --depth -1 --json` lists the workspace project directories; a prefix join against the
-changed paths gives the package set. The root project and `@animichi/agent` are dropped — the first
+changed paths gives the package set. The root project and `@animichi/agent-python` are dropped — the first
 would match every file by directory containment, the second is the agent bucket's job. Each selected
 package then runs, through `pnpm -r --workspace-concurrency=1 --filter "...<name>" run --if-present`:
 
@@ -242,3 +242,6 @@ with the offline `animichi-test-postgres` image (the agent bucket's integration 
 - `commitlint.config.js` — the commit-message and PR-title rules
 - `.pre-commit-config.yaml` — hook wiring for all three stages
 - This document — the contract
+
+The TypeScript `@animichi/agent` domain library participates in this matrix. Its `workspace:*`
+dependency from `edge-worker` makes domain changes select the real edge consumer as well.

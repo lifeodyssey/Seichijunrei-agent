@@ -1,0 +1,25 @@
+{
+  "name": "@animichi/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Platform-independent agent domain rules and data consumed by the edge host.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "pnpm run lint:oxlint",
+    "lint:oxlint": "oxlint --type-aware --deny-warnings .",
+    "typecheck": "tsc --noEmit",
+    "test": "mkdir -p coverage && cd ../.. && node --test --experimental-test-coverage --test-coverage-include='packages/agent/src/**/*.ts' --test-coverage-lines=95 --test-coverage-functions=95 --test-coverage-branches=95 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=packages/agent/coverage/lcov.info \"packages/agent/test/*.test.ts\""
+  },
+  "dependencies": {
+    "@animichi/contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
+  }
+}

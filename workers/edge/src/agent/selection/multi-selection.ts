@@ -22,7 +22,7 @@ import type { SelectionAnswer } from "../session/turn-answer.ts";
 import type { TurnCatalogSession } from "../session/turn-catalog-session.ts";
 import type { CurrentAnime, OrderedCandidate } from "../tools/catalog-tool-session.ts";
 import { mergedWorks, omittedTitles, type FetchedWork, type MergedWorks } from "./merged-works.ts";
-import { multiMessage, type MultiOutcome } from "./selection-copy.ts";
+import { multiMessage, type MultiOutcome } from "@animichi/agent";
 import { selectionRecord, type SelectionRecord } from "./selection-record.ts";
 
 /** The tool name this step is settled and streamed under. */

@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint:oxlint": "pnpm --filter catalog --filter users --filter web --filter migrator --filter animichi-e2e --filter @animichi/eval --filter @animichi/test-postgres run lint:oxlint",
+    "lint:oxlint": "pnpm --filter catalog --filter users --filter web --filter migrator --filter animichi-e2e --filter @animichi/agent --filter @animichi/eval --filter @animichi/test-postgres run lint:oxlint",
     "test:eval": "pnpm --filter @animichi/eval test",
     "test:worker": "pnpm --filter edge-worker test",
     "verify:dependabot": "pnpm run lint:oxlint && pnpm run test:worker && pnpm -r --if-present typecheck && pnpm --filter web build"

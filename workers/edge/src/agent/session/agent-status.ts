@@ -46,7 +46,7 @@
  * tools are #1253's and their routing table is theirs to write.
  */
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { quotedStatusValue, statusValue } from "./status-value.ts";
+import { quotedStatusValue, statusValue } from "@animichi/agent";
 import type { FactLedger, SceneReferenceRecord } from "../memory/fact-ledger.ts";
 import type { RetainedEntityLedger } from "../memory/retained-entity-ledger.ts";
 import type { PendingClarification, SessionEnvelope } from "./session-envelope.ts";

@@ -4,6 +4,10 @@ Two things live in this package. **The request gateway**: identity, rate limits,
 
 **Tier:** Gateway for the pilgrimage contexts — it **does not own** Point, Bangumi, Itinerary, or SavedRoute, and has **no `src/domain/`**. The agent-turn vocabulary below is the one model it does own, ported from `apps/agent` per `docs/specs/2026-09-01-agent-ts-rewrite-spec.md`.
 
+Plain agent-domain rules live in `packages/agent` and are imported through `@animichi/agent`.
+The runtime terms here describe the existing edge host until native SDK cutover; they are not
+interfaces to copy into that package.
+
 Structure (implemented): `src/` production (entry/app/env + agent/db/identity/gateway/protect/proxy/container), `test/` + `test/doubles/` (node:test).
 Design docs: `docs/specs/2026-08-06-edge-gateway-structure-design.md` (gateway) · `docs/specs/2026-09-01-agent-ts-rewrite-spec.md` (agent tier)
 

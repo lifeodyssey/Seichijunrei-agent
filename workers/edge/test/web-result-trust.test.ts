@@ -16,7 +16,7 @@ import {
   sanitizeUntrusted,
   wrapUntrustedWebResults,
 } from "../src/agent/tools/web-result-trust.ts";
-import { classifySource } from "../src/agent/tools/web-source-tier.ts";
+import { classifySource } from "@animichi/agent";
 
 /** One result, so a case can say only what it is about. */
 function makeWebResult(fields: { title?: string; body?: string; href?: string } = {}) {

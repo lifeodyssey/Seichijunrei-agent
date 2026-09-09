@@ -31,7 +31,7 @@
  * answers a new ledger, so "write the whole thing back once, with the run" is
  * expressible at all.
  */
-import { encodedBytes, trustedText } from "./trusted-text.ts";
+import { encodedBytes, trustedText } from "@animichi/agent";
 
 export const MAX_RETAINED_ENTITIES = 8;
 export const MAX_RETAINED_BYTES = 8 * 1024;

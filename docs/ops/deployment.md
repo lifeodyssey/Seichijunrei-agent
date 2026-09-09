@@ -23,7 +23,7 @@ plus native review-thread resolution; the merge gate is documented in [`review-g
 The affected set is pnpm's, not ours. `plan` runs
 `pnpm ls -r --depth -1 --json --filter "...[<merge-base>]"`, which selects every workspace project
 whose files changed plus every dependent of one, and subtracts the three projects that own a job of
-their own: the root project (no lint/typecheck/test scripts), `@animichi/agent` (its `test` is
+their own: the root project (no lint/typecheck/test scripts), `@animichi/agent-python` (its `test` is
 `uv run pytest`), and `animichi-e2e` (its `test` is the browser suite). Every selected package
 becomes one `affected` matrix leg running that package's own `lint`, `typecheck`, `test` and
 `test:integration`. There is no component manifest and no second router: a package's lane is its

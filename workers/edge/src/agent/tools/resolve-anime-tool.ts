@@ -14,7 +14,7 @@ import type { ToolBudget } from "./catalog-timeouts.ts";
 import type { CatalogToolSession, OrderedCandidate } from "./catalog-tool-session.ts";
 import type { ResolveOutcome as ToolOutcome, ToolDetails } from "./catalog-tool-outcomes.ts";
 import { UPSTREAM_DOWN } from "./catalog-tool-outcomes.ts";
-import { looksLikeWrongVariant } from "./title-variant-conflict.ts";
+import { looksLikeWrongVariant } from "@animichi/agent";
 import { resolveAnimeParameters } from "./tool-schema-bridge.ts";
 
 const DESCRIPTION = `Resolve an anime title to a deterministic outcome.

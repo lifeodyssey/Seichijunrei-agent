@@ -40,6 +40,10 @@ class PrVerificationAffectedTest < Minitest::Test
                      "(got #{matrix_scripts.join(', ')})")
   end
 
+  def test_agent_domain_package_selects_its_coverage_report
+    assert_includes matrix_step_source, "@animichi/agent) file=packages/agent/coverage/lcov.info ;;"
+  end
+
   def provisions?(step, package, tool)
     step.is_a?(Hash) && step["if"].to_s.include?(package) && "#{step['uses']}#{step['run']}".include?(tool)
   end

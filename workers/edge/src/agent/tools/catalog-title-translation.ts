@@ -30,7 +30,7 @@
  */
 
 import type { CatalogClient } from "./catalog-client.ts";
-import { looksLikeWrongVariant } from "./title-variant-conflict.ts";
+import { looksLikeWrongVariant } from "@animichi/agent";
 
 /** The one locale the catalog is authoritative for. */
 const CATALOG_LOCALE = "zh";

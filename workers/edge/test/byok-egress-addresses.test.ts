@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EgressPolicy } from "../src/agent/egress/egress-policy.ts";
-import { hostAddressOf } from "../src/agent/egress/host-address.ts";
+import { hostAddressOf } from "@animichi/agent";
 
 // W0-S5 (#1248): the address half of the red-line table — loopback, private,
 // link-local, CGNAT, metadata and the merely-unroutable, in both IPv4 and IPv6

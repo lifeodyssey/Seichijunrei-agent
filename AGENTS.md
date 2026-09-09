@@ -16,6 +16,7 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - `apps/agent/`        — Python PydanticAI agent (FastAPI container). uv. → `apps/agent/AGENTS.md`
 - `workers/catalog/`   — TS Worker: anime catalog API + data platform (ingest/enrich/publish). → `workers/catalog/AGENTS.md`
 - `workers/users/`     — LIVE Hono/oRPC user-data Worker over Neon; verifies nothing itself (no `jose`) — it trusts the edge-forwarded identity; 13 `test/*.worker.test.ts` files + CI lane. → `workers/users/AGENTS.md`
+- `packages/agent/`    — Platform-independent TS agent domain library (`@animichi/agent`), consumed by edge. Python remains `@animichi/agent-python`. → `packages/agent/AGENTS.md`
 - `packages/contract/` — Shared oRPC/zod contract; cross-service source of truth. → `packages/contract/AGENTS.md`
 - `packages/eval/`     — Node eval package (W3): reads the Python-exported datasets with `logfire/evals`. → `packages/eval/AGENTS.md`
 - `packages/test-postgres/` — Test-only Postgres data plane (image, readiness wait, clean DB, Atlas chain) shared by the catalog spike, the edge agent-db arm and `db-fresh-schema.sh`. → `packages/test-postgres/AGENTS.md`

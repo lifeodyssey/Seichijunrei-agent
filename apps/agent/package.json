@@ -1,5 +1,5 @@
 {
-  "name": "@animichi/agent",
+  "name": "@animichi/agent-python",
   "private": true,
   "scripts": {
     "lint": "make -C ../.. lint",

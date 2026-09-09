@@ -18,7 +18,7 @@ import type { OrderedCandidate } from "../tools/catalog-tool-session.ts";
 import type { SelectionAnswer } from "../session/turn-answer.ts";
 import type { TurnCatalogSession } from "../session/turn-catalog-session.ts";
 import { SelectionRefused } from "./candidate-selection.ts";
-import { PLACE_SELECTION_EXPIRED, placeMessage, type PlaceOutcome } from "./selection-copy.ts";
+import { PLACE_SELECTION_EXPIRED, placeMessage, type PlaceOutcome } from "@animichi/agent";
 import { SELECTION_ERROR, selectionRecord, type SelectionRecord } from "./selection-record.ts";
 
 /** The tool name this step is settled and streamed under — the same one the
