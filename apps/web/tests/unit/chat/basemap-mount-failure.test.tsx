@@ -19,6 +19,7 @@ vi.mock("pmtiles", () => ({ Protocol: class { readonly tile = () => undefined; }
 // Stands in for a browser without a WebGL context: constructing the map throws.
 vi.mock("maplibre-gl", () => ({
   addProtocol: () => undefined,
+  setWorkerUrl: () => undefined,
   Map: function MapStub(): never { throw new Error("WebGL context unavailable"); },
 }));
 

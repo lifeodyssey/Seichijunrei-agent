@@ -1,4 +1,5 @@
 import type { Map as MapLibreMap, MapOptions, StyleSpecification } from "maplibre-gl";
+import bundledWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
 export type MapLibreModule = typeof import("maplibre-gl");
 
@@ -24,6 +25,15 @@ export type MapLibreHandle = Readonly<{
   destroy: () => void;
   map: MapLibreMap;
 }>;
+
+// v6 moved the tile worker out of the main bundle and locates it at runtime via
+// `new URL('./maplibre-gl-worker.mjs', import.meta.url)`. That specifier is not
+// statically analysable, so Vite never emits the asset and every sourced map
+// stalls on a 404 worker. Point MapLibre at the copy Vite does emit; `?worker&url`
+// rather than `?url` so the worker's `maplibre-gl-shared.mjs` sibling ships too.
+const bindBundledWorker = (gl: MapLibreModule): void => {
+  gl.setWorkerUrl(bundledWorkerUrl);
+};
 
 let pmtilesRegistration: Promise<void> | undefined;
 
@@ -181,6 +191,7 @@ const createMap = (gl: MapLibreModule, options: MapLibreMountOptions): MapLibreM
 export const mountMapLibre = async (options: MapLibreMountOptions): Promise<MapLibreHandle> => {
   browserOnly();
   const gl = await import("maplibre-gl");
+  bindBundledWorker(gl);
   if (options.registerPmtiles) await registerPmtilesProtocol(gl);
   const map = createMap(gl, options);
   return new MapLifecycle({ ...options, gl, map });

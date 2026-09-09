@@ -43,13 +43,14 @@ const mapState = vi.hoisted(() => {
       if (state.throwOnRemove) throw new Error("Map removal failed");
     }
   }
-  return { addProtocol: vi.fn(), FakeMap, removeProtocol: vi.fn(), state };
+  return { addProtocol: vi.fn(), FakeMap, removeProtocol: vi.fn(), setWorkerUrl: vi.fn(), state };
 });
 
 vi.mock("maplibre-gl", () => ({
   Map: mapState.FakeMap,
   addProtocol: mapState.addProtocol,
   removeProtocol: mapState.removeProtocol,
+  setWorkerUrl: mapState.setWorkerUrl,
 }));
 
 vi.mock("pmtiles", () => ({
