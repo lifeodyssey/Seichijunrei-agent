@@ -67,3 +67,12 @@ void test("the deployed entry bundle pulls in no zod module", () => {
 void test("the shipped entry artifact carries no zod marker", () => {
   assert.equal(bundle.code.split("ZodError").length - 1, 0, "the built entry bundle still contains zod's ZodError");
 });
+
+void test("the deployed entry includes the shared agent domain package", () => {
+  assert.ok(Object.keys(bundle.metafile.inputs).some((input) => input.includes("packages/agent/src/")));
+});
+
+void test("Node-only evaluation and SDK conformance fixtures stay outside the Worker", () => {
+  const inputs = Object.keys(bundle.metafile.inputs).join("\n");
+  assert.doesNotMatch(inputs, /packages\/eval\/|packages\/test-postgres\/|harness\/session\/testing|edge\/api-test\//);
+});

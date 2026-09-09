@@ -14,7 +14,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { agentStatusMessages } from "../src/agent/session/agent-status.ts";
-import { statusValue } from "../src/agent/session/status-value.ts";
+import { statusValue } from "@animichi/agent";
 import { RetainedEntityLedger } from "../src/agent/memory/retained-entity-ledger.ts";
 import { EMPTY_SESSION_MEMORY } from "../src/agent/memory/session-memory.ts";
 import { SessionEnvelope } from "../src/agent/session/session-envelope.ts";

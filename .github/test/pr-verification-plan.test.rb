@@ -19,7 +19,7 @@ class PrVerificationPlanTest < Minitest::Test
   end
 
   def test_selects_dependents_but_leaves_owned_lanes_out_of_the_matrix
-    %w[animichi-cloudflare-worker @animichi/agent animichi-e2e].each do |name|
+    %w[animichi-cloudflare-worker @animichi/agent-python animichi-e2e].each do |name|
       assert_includes @source, %Q("#{name}")
     end
     assert_includes @source, '--filter "...[$merge_base]"'

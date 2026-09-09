@@ -1,0 +1,17 @@
+{
+  "extends": ["../../.oxlintrc.json"],
+  "ignorePatterns": ["coverage/**"],
+  "overrides": [
+    {
+      "files": ["src/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["cloudflare:*", "@cloudflare/*", "node:*", "edge-worker", "edge-worker/*", "**/workers/**", "**/gateway/**", "**/api-test/**", "**/staging-prefix*", "@animichi/eval", "@animichi/eval/*", "@animichi/test-postgres", "**/harness/session/testing"],
+            "message": "Agent domain code must remain platform-independent; hosting and test infrastructure belong to consumers."
+          }]
+        }]
+      }
+    }
+  ]
+}

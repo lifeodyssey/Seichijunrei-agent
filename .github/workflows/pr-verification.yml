@@ -6,7 +6,7 @@
 # from. Two projects are subtracted from the matrix because they own a job of
 # their own: the root project `animichi-cloudflare-worker` (docs/**, .github/**
 # and the root lockfile land in it by directory containment, and it has no
-# lint/typecheck/test scripts) and `@animichi/agent` (a pnpm project whose
+# lint/typecheck/test scripts) and `@animichi/agent-python` (a pnpm project whose
 # `test` is `uv run pytest` — the `agent` job runs it). `animichi-e2e` is
 # subtracted for the same reason: its `test` builds apps/web and serves the
 # emitted Worker before it runs a browser spec, and the `e2e` job owns that
@@ -99,7 +99,7 @@ jobs:
             merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
             projects="$(pnpm ls -r --depth -1 --json --filter "...[$merge_base]")"
           fi
-          packages="$(jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent", "animichi-e2e"]' <<< "$projects")"
+          packages="$(jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent-python", "animichi-e2e"]' <<< "$projects")"
           # `.github/**` lands in the root project, which is subtracted — so a
           # workflow-only change selects nothing. `edge-worker`'s suite is where
           # the tests that read deployment workflow text live, and several of them
@@ -196,6 +196,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$PACKAGE" in
+            @animichi/agent) file=packages/agent/coverage/lcov.info ;;
             web) file=apps/web/coverage/lcov.info ;;
             catalog) file=workers/catalog/coverage/lcov.info ;;
             users) file=workers/users/coverage/lcov.info ;;

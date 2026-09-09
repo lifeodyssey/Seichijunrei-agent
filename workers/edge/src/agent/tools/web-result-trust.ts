@@ -25,7 +25,7 @@
  */
 
 import type { WebResult } from "./web-searcher.ts";
-import { classifySource } from "./web-source-tier.ts";
+import { classifySource } from "@animichi/agent";
 
 /**
  * Python's `_CONTROL_CHARS`, as a predicate rather than a character class: a

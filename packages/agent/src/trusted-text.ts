@@ -1,29 +1,4 @@
-/**
- * The form an externally-sourced string takes before it enters session memory
- * (card #1290) — port of `apps/agent`'s `domain/text_sanitize.py`.
- *
- * Both ledgers in this folder hold strings the world supplied (a point name, a
- * place name, an anime title), and this is their WRITE gate: what it answers is
- * what a stored record may contain, so a ledger's size and its line count stay
- * bounded however hostile the value was. Two hazards, one function:
- * - a value carrying newlines or control characters could forge extra
- *   context-shaped lines once replayed, so they collapse to single spaces;
- * - a value of unbounded length would spend the whole prompt budget, so it is
- *   truncated by ENCODED BYTES rather than by characters — a Japanese point
- *   name is three bytes per character and a character count would let one
- *   value cost three times its budget.
- *
- * The cut is moved back to a UTF-8 boundary rather than decoded with
- * replacement characters: Python sliced the encoded form and decoded with
- * `errors="ignore"`, which drops a partial sequence, and a `U+FFFD` in its
- * place would be a character the source never contained.
- *
- * IT IS NOT THE RENDER GATE, and must not be read as one. It leaves `「」` and
- * `<>` in the value, which are exactly the characters the `<agent_status>` bar
- * builds its own structure from; what a value may look like once it is STATED
- * to the model is `src/agent/session/status-value.ts` (#1379), which runs over
- * every value the bar carries, ledger-held or not.
- */
+/** External text normalized to one line and bounded by complete UTF-8 characters. */
 
 const ELLIPSIS = "…";
 const ENCODER = new TextEncoder();

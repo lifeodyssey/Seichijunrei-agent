@@ -23,7 +23,7 @@ import {
   CATALOG_ROUTE_UNAVAILABLE,
   NO_CATALOG_ROUTE_DATA,
   selectedRouteMessage,
-} from "./selection-copy.ts";
+} from "@animichi/agent";
 import {
   SELECTION_ERROR,
   refusedRecord,

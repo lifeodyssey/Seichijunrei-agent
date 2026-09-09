@@ -11,7 +11,8 @@ Consumer rules: `docs/agents/domain.md` (when present). Per-package `CONTEXT.md`
 | **Contract** (published language) | [`packages/contract/CONTEXT.md`](./packages/contract/CONTEXT.md) | `packages/contract` |
 | **Catalog** | [`workers/catalog/CONTEXT.md`](./workers/catalog/CONTEXT.md) | `workers/catalog` |
 | **Users** | [`workers/users/CONTEXT.md`](./workers/users/CONTEXT.md) | `workers/users` |
-| **Agent** | [`apps/agent/CONTEXT.md`](./apps/agent/CONTEXT.md) | `apps/agent` |
+| **Agent domain (TypeScript)** | [`packages/agent/CONTEXT.md`](./packages/agent/CONTEXT.md) | `packages/agent` (`@animichi/agent`), hosted by edge |
+| **Agent runtime (Python)** | [`apps/agent/CONTEXT.md`](./apps/agent/CONTEXT.md) | `apps/agent` (`@animichi/agent-python`), retained until W4 |
 | **Edge** | [`workers/edge/CONTEXT.md`](./workers/edge/CONTEXT.md) | `workers/edge` |
 | **Web** | `apps/web/CONTEXT.md` (lazy) | `apps/web` |
 | **Migrations** | `migrations/CONTEXT.md` (lazy) | `migrations/neon` (single authority, Atlas); `supabase/migrations/` is archived history (issue #1000) |
@@ -31,6 +32,9 @@ Greenfield (no dual wire names / table aliases):
   Since W1 it is also the **agent tier's host**: behind `AGENT_TURN_ROUTE = "edge"` a chat turn runs
   in Edge's own `AgentSession` DO against Neon instead of being forwarded to the Python container
   ([`docs/specs/2026-09-01-agent-ts-rewrite-spec.md`](./docs/specs/2026-09-01-agent-ts-rewrite-spec.md) §二–§三).
+- **Edge → Agent domain**: Imports ordinary rules from `@animichi/agent`; platform hosting and the
+  legacy runtime awaiting native cutover remain in edge. The [package guide](./packages/agent/README.md)
+  identifies extracted rules and the remaining migration boundaries.
 - **Agent → Catalog**: Customer–supplier; Agent needs Points / Bangumi / Itineraries; Catalog owns master data and planning.
 - **Users → Catalog (by id only)**: **SavedRoute** stores `point_ids`, not Point rows; Users does not redefine Point.
 - **Agent ↔ Users**: Claim anonymous **Session** / saved data after login (via Users APIs / product flows).
@@ -51,6 +55,7 @@ Greenfield (no dual wire names / table aliases):
 | Package | Pilgrimage `domain/` | Notes |
 | --- | --- | --- |
 | `workers/catalog` | **Yes** (target) | Full CA: domain / application / adapters |
+| `packages/agent` | **Plain modules** | Platform-independent agent rules/data; no copied execution or storage engine |
 | `apps/agent` | **Yes** (target) | Domain free of FastAPI/PydanticAI runtime imports |
 | `workers/users` | **Shallow** | Pure rules + ports; no heavy DDD tree |
 | `workers/edge` | **No pilgrimage domain** | Gateway tier: never `src/domain/` for Point / Bangumi / Itinerary / SavedRoute. Its `src/agent/` tier does own the **agent-turn** model (Session, Run, run step, settlement) — ported from `apps/agent` per [`docs/specs/2026-09-01-agent-ts-rewrite-spec.md`](./docs/specs/2026-09-01-agent-ts-rewrite-spec.md) §三, not a pilgrimage context |

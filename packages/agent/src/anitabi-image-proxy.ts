@@ -1,5 +1,5 @@
 /**
- * Route Anitabi screenshot URLs through this Worker's own image proxy.
+ * Project Anitabi screenshot URLs onto the public edge image-proxy route.
  *
  * Port of `apps/agent/src/animichi/agents/handlers/image_url_rewrite.py`. Both
  * schemes are matched by prefix on purpose: an `http://` URL used to pass a
@@ -7,7 +7,7 @@
  *
  * One deliberate difference from Python: there is no development bypass. That
  * branch existed because a local FastAPI run had no `/img/` proxy in front of
- * it; the edge Worker always serves one (`src/proxy/image-proxy.ts`), so the
+ * it; the edge Worker always serves one (`workers/edge/src/proxy/image-proxy.ts`), so the
  * rewrite is unconditional and no environment can silently skip it.
  */
 

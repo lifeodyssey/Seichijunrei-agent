@@ -223,6 +223,19 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/agent:
+    dependencies:
+      '@animichi/contract':
+        specifier: workspace:*
+        version: link:../contract
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/contract:
     dependencies:
       '@orpc/contract':
@@ -343,6 +356,9 @@ importers:
 
   workers/edge:
     dependencies:
+      '@animichi/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@animichi/contract':
         specifier: workspace:*
         version: link:../../packages/contract

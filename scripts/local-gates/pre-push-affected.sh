@@ -37,7 +37,7 @@ changed="$(git diff --name-only --no-renames "$base"...HEAD)"
 
 deps=$(grep -cE "$ROOT_MANIFEST" <<<"$changed" || true)
 projects="$(pnpm ls -r --depth -1 --json | jq -r --arg root "$PWD/" '
-  .[] | select(.name != "animichi-cloudflare-worker" and .name != "@animichi/agent")
+  .[] | select(.name != "animichi-cloudflare-worker" and .name != "@animichi/agent-python")
       | "\(.path | ltrimstr($root))/ \(.name)"')"
 packages=""; covered="$NO_PACKAGE"
 while read -r dir name; do

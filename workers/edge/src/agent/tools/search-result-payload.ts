@@ -8,8 +8,8 @@
  */
 
 import type { Itinerary, Point } from "@animichi/contract";
-import { proxyScreenshots } from "./anitabi-image-proxy.ts";
-import { localizedCityName } from "./localized-city-name.ts";
+import { proxyScreenshots } from "@animichi/agent";
+import { localizedCityName } from "@animichi/agent";
 import type {
   ItineraryPayload,
   ItinerarySummary,

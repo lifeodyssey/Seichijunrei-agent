@@ -27,7 +27,7 @@
  * A VALUE OBJECT, like the envelope that carries it: every write answers a new
  * ledger rather than mutating the one the turn opened with.
  */
-import { encodedBytes, trustedText } from "./trusted-text.ts";
+import { encodedBytes, trustedText } from "@animichi/agent";
 
 export const MAX_RECORDS_PER_FIELD = 8;
 export const MAX_LEDGER_BYTES = 8 * 1024;

@@ -16,6 +16,7 @@
     "test:spike-db": "node --test \"db-test/*.test.ts\""
   },
   "dependencies": {
+    "@animichi/agent": "workspace:*",
     "@animichi/contract": "workspace:*",
     "@cloudflare/containers": "^0.3.7",
     "@earendil-works/pi-agent-core": "0.84.4",

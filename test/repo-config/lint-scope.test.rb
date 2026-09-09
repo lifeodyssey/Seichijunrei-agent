@@ -16,6 +16,7 @@ class LintScopeTest < Minitest::Test
     "." => [],
     "apps/web" => ["node_modules/**", ".output/**", ".nitro/**", ".tanstack/**", "coverage/**",
                    "dist/**", "vitest*.config.ts", "vite.config.ts", "**/routeTree.gen.ts"],
+    "packages/agent" => ["coverage/**"],
     "e2e" => ["node_modules/**", "test-results/**", "playwright-report/**", ".auth/**",
               "generated/**", "agent-discovered/**", "visual/report/**", "visual/canonical/**"],
     "workers/catalog" => ["node_modules/**", ".wrangler/**", "dist/**", "coverage/**",

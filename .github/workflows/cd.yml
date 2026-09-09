@@ -241,10 +241,10 @@ jobs:
         run: |
           set -euo pipefail
           # Subtracted for the same reason CI subtracts them: the root project
-          # has no deploy unit, `@animichi/agent` deploys as a container image
+          # has no deploy unit, `@animichi/agent-python` deploys as a container image
           # routed by path above, and `animichi-e2e` is a test suite.
           packages="$(pnpm ls -r --depth -1 --json --filter "...[$BASE_SHA]" \
-            | jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent", "animichi-e2e"]')"
+            | jq -c '[.[].name] - ["animichi-cloudflare-worker", "@animichi/agent-python", "animichi-e2e"]')"
           # `packages` also carries library projects (contract, eval,
           # test-postgres) that no stage deploys. The five names below are the
           # deployable ones; without this filter a push touching only a library

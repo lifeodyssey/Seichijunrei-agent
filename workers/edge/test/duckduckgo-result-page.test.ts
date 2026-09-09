@@ -11,7 +11,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { duckduckgoResults } from "../src/agent/tools/duckduckgo-result-page.ts";
-import { classifySource } from "../src/agent/tools/web-source-tier.ts";
+import { classifySource } from "@animichi/agent";
 import { MEASURED_RESULT_PAGE, makeResultPage } from "./doubles/duckduckgo-result-markup.ts";
 
 void test("every result of the measured page is read, in DuckDuckGo's own order", () => {

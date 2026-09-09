@@ -6,6 +6,11 @@ container, and the image/tile proxies. **No pilgrimage domain model** — it is 
 `src/domain/`. The HTML surface lives in `apps/web`.
 Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `../users/AGENTS.md`.
 
+The extracted ordinary agent rules are consumed through `@animichi/agent`
+(`../../packages/agent/README.md`). The runtime details below describe the still-live edge
+implementation awaiting its owning native migration cards, not package interfaces to preserve.
+No old-path forwarding modules should be added for the extracted rules.
+
 ## Commands (from `workers/edge/`)
 
 - pnpm. `pnpm test` — the edge's whole deterministic gate set, in one command (#1358): the
@@ -25,7 +30,9 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
   `pi-harness.test.ts` (S1 #1537) adds the isolated 0.85.1 harness/chord check: the official
   Wrangler CLI builds it and `createTestHarness` executes that exact artifact in workerd,
   rejecting esbuild in the artifact. Version isolation and size evidence: `bundle-smoke/README.md`.
-  Runnable on its own; `pnpm test` runs it as its third segment.
+  `agent-domain.test.ts` also executes the shared public domain package in workerd; the entry
+  graph excludes Node-only eval/conformance dependencies. Runnable on its own; `pnpm test`
+  runs the bundle smoke tests as its third segment.
 - `pnpm run test:catalog-api` — opt-in staging lane (`api-test/*.test.ts`, W1-4 #1253) for the
   catalog tools, against a deploy carrying `AGENT_TURN_ROUTE = "edge"`, plus the BYOK probe's
   invalid-key evidence (W2-3 #1289; the valid-key case is the owner's manual step, because it
@@ -139,7 +146,7 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
   and a per-turn prefix is 李博杰 ch.2 实验 2-3's 动态系统提示词. The bar is rendered inside pi's
   `transformContext`, so it is replaced on every request, never reaches `messages` in Neon, and
   always reflects what the tools have just written. Its values are the catalog's, the geocoder's
-  and the user's words, and the model is told the server wrote the bar, so `status-value.ts` is
+  and the user's words, and the model is told the server wrote the bar, so `packages/agent/src/status-value.ts` is
   the trust boundary: at RENDER time it removes from every value the characters the bar builds its
   own structure from (`<>`, `「」`, newlines) and bounds the length, which is what the ledgers'
   earlier `trustedText` write gate does NOT do and what the two envelope-held values (the resolved

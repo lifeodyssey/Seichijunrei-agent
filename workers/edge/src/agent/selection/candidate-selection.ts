@@ -20,7 +20,7 @@
  *      one place, and any other reason has no selection mode at all.
  */
 import type { PendingClarification } from "../session/session-envelope.ts";
-import { SELECTION_EXPIRED, SELECTION_WRONG_MODE } from "./selection-copy.ts";
+import { SELECTION_EXPIRED, SELECTION_WRONG_MODE } from "@animichi/agent";
 
 /** Which deterministic path a validated pick takes. */
 export type SelectionMode = "anime_ambiguity" | "place_ambiguity";

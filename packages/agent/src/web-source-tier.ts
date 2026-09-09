@@ -28,15 +28,20 @@ const VERIFIED_SOURCE_DOMAINS: readonly string[] = [
   "anitabi.cn",
 ];
 
-/** The lowercased http(s) host of a link, or null when it has none. */
-function hostOf(href: string): string | null {
-  let url: URL;
+/** A syntactically valid HTTP source URL, with the WHATWG authority rules. */
+function httpSourceUrl(href: string): URL | null {
   try {
-    url = new URL(href.trim());
+    const url = new URL(href.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
   } catch {
     return null;
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+}
+
+/** The lowercased http(s) host of a link, or null when it has none. */
+function hostOf(href: string): string | null {
+  const url = httpSourceUrl(href);
+  if (url === null) return null;
   const host = url.hostname.toLowerCase().replace(/\.+$/, "");
   return host === "" ? null : host;
 }

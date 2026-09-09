@@ -12,6 +12,7 @@ class PackageTestSegmentsTest < Minitest::Test
     "workers/users" => %w[test:worker],
     "workers/migrator" => ["vitest run"],
     "packages/contract" => ["vitest run", "vet:baseline", "test:openapi-drift"],
+    "packages/agent" => ["node --test"],
     "packages/eval" => ["node --test", "test:fixture-drift"],
     "packages/test-postgres" => ["node --test"],
     "infra" => ["node --test", "test:program-load"],

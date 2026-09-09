@@ -12,7 +12,7 @@ cd "$(git rev-parse --show-toplevel)"
 GATE="${GATE_UNDER_TEST:-$PWD/scripts/local-gates/pre-push-affected.sh}"
 # The root project and the Python agent are in the list so the cases can prove
 # the gate subtracts them.
-PROJECTS='.:animichi-cloudflare-worker apps/agent:@animichi/agent apps/web:web workers/catalog:catalog workers/users:users'
+PROJECTS='.:animichi-cloudflare-worker apps/agent:@animichi/agent-python packages/agent:@animichi/agent apps/web:web workers/catalog:catalog workers/users:users'
 ZERO=0000000000000000000000000000000000000000
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
@@ -119,11 +119,11 @@ commit_change feature pnpm-lock.yaml
 run_gate < /dev/null
 expect_status "lockfile" 0 "$STATUS"
 expect "lockfile" "deps=1" "$OUT"
-for name in web catalog users; do for script in lint typecheck test test:integration; do
+for name in web catalog users @animichi/agent; do for script in lint typecheck test test:integration; do
   expect "lockfile" "--workspace-concurrency=1 --filter $name run --if-present $script" "$RECORDED"
 done; done
 refute "lockfile" "--filter ...web" "$RECORDED"
-refute "lockfile" "@animichi/agent" "$RECORDED"
+refute "lockfile" "@animichi/agent-python" "$RECORDED"
 refute "lockfile" "animichi-cloudflare-worker" "$RECORDED"
 ok "a root manifest selects every package once, without the closure prefix"
 

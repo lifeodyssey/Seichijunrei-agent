@@ -17,6 +17,7 @@ stable boundaries, current entry points, and active plans only.
 | `apps/agent/AGENTS.md` | Python agent (PydanticAI / FastAPI) conventions |
 | `workers/catalog/AGENTS.md` | Catalog Worker (Hono / oRPC / Drizzle) + data-platform conventions |
 | `workers/users/AGENTS.md` | Live user-domain Worker (Hono / oRPC / Drizzle) conventions |
+| `packages/agent/AGENTS.md` | Platform-independent TypeScript agent domain library conventions |
 | `packages/contract/AGENTS.md` | Cross-service oRPC/Zod contract conventions |
 | `apps/web/AGENTS.md` | TanStack Start rebuild conventions |
 | `migrations/AGENTS.md` · `e2e/AGENTS.md` · `infra/AGENTS.md` | Atlas migrations, browser tests, and IaC conventions |

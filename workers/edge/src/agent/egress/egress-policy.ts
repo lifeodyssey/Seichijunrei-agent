@@ -28,7 +28,7 @@ import {
   type EgressDenyReason,
   type EgressRefused,
 } from "./egress-decision.ts";
-import { hostAddressOf, type HostAddressClass } from "./host-address.ts";
+import { hostAddressOf, type HostAddressClass } from "@animichi/agent";
 import {
   BYOK_PROVIDER_ALLOWLIST,
   ProviderAllowlist,
