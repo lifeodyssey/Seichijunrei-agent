@@ -29,9 +29,13 @@
   "devDependencies": {
     "@animichi/test-postgres": "workspace:*",
     "@cloudflare/workers-types": "^5.20260727.1",
+    "@earendil-works/chord": "0.85.1",
     "@types/pg": "^8.20.0",
     "esbuild": "0.28.1",
     "miniflare": "4.20260722.0",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "pi-agent-core-smoke": "npm:@earendil-works/pi-agent-core@0.85.1",
+    "pi-ai-smoke": "npm:@earendil-works/pi-ai@0.85.1",
+    "smol-toml": "1.5.2"
   }
 }

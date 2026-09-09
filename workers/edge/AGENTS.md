@@ -21,7 +21,10 @@ Root guide: `../../AGENTS.md`. Sibling worker guides: `../catalog/AGENTS.md`, `.
   `bundle-smoke/pi-kernel.worker.ts` with wrangler's own esbuild settings and **executes** the
   artifact in workerd, and `entry-bundle.test.ts` (#1285) builds `src/entry.ts` the same way and
   fails if zod reached it — the property `src/` keeps by construction and no source-level gate can
-  see. Both bundle through `bundle-smoke/wrangler-bundle.ts`, the one copy of those settings.
+  see. Those two bundle through `bundle-smoke/wrangler-bundle.ts`.
+  `pi-harness.test.ts` (S1 #1537) adds the isolated 0.85.1 harness/chord check: the official
+  Wrangler CLI builds it and `createTestHarness` executes that exact artifact in workerd,
+  rejecting esbuild in the artifact. Version isolation and size evidence: `bundle-smoke/README.md`.
   Runnable on its own; `pnpm test` runs it as its third segment.
 - `pnpm run test:catalog-api` — opt-in staging lane (`api-test/*.test.ts`, W1-4 #1253) for the
   catalog tools, against a deploy carrying `AGENT_TURN_ROUTE = "edge"`, plus the BYOK probe's
