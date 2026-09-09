@@ -10,7 +10,6 @@ overrides:
   qs: '>=6.15.2'
   fast-uri: '>=4.1.1'
   hono: '>=4.13.7'
-  next: ^16.3.4
   esbuild: '>=0.28.1'
   '@vitest/expect': 4.1.11
   '@vitest/spy': 4.1.11
@@ -1775,7 +1774,7 @@ packages:
     resolution: {integrity: sha512-s/CHBVlX7hzm1iJJpDKKDiv5zIXQqYxeGJC/3oRjs1mjY35Hzg+qM7rj/h6DVY3qrvl5jgILcrOnLtyYq/N80A==}
     hasBin: true
     peerDependencies:
-      next: ^16.3.4
+      next: '>=16.0.0'
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
     peerDependenciesMeta:
@@ -4873,7 +4872,7 @@ packages:
       drizzle-orm: ^0.45.2
       mongodb: ^6.0.0 || ^7.0.0
       mysql2: ^3.0.0
-      next: ^16.3.4
+      next: ^14.0.0 || ^15.0.0 || ^16.0.0
       pg: ^8.0.0
       prisma: ^5.0.0 || ^6.0.0 || ^7.0.0
       react: ^18.0.0 || ^19.0.0
