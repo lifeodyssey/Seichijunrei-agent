@@ -1,5 +1,10 @@
 # Spec — CI/CD 重设计（平台功能替代手写流水线）
 
+> Current test/composition amendment: #1563 supersedes the earlier inline-only policy and Ruby
+> script locations. Old `test_*_contract.rb` names and pinning-ownership claims below are historical;
+> follow `.claude/rules/ci.md`, `docs/ops/deployment.md` and the assertion migration map in
+> `docs/iterations/production-readiness-2026-08/WORKFLOW-ASSERTION-MAP.md` for the active structure.
+
 - Status: Approved — owner sign-off 2026-09-05（Fable 四轮评审；Codex 席 owner 免除）
 - 修订 3（席 A 三轮评审 + owner 定案后，改动记录见文末）。grilling 已完成，§二 与各卡引用的决策 1–16 都是 owner 2026-09-05 定的；两轮评审提出的修正请求里，owner 已定：并发组加 `queue: max`（§六 第 3 条）、PR 时的 L0 eval lane 随 B1 删（§七 #21）、staging 的门 = Cloudflare Access 罩住 `staging.animichi.com` 与两个 workers.dev URL + ESC 里的 service token（§七 #12）、semgrep 只留六条自定义规则（#5）、edge 运行时密钥直接进 Secrets Store（#17，新卡 D4）、web 的 `RUNTIME_CONFIG` 按环境提交（#18）、三个文档卫生脚本留下（#19）。没有待 owner 的项了；owner 免去席 B（Codex）评审，本修订后直接签核。§七 是最终的待核清单。
 - 事实基线：现状图 `docs/iterations/cicd-redesign-2026-09/current-state.html`，文字版是同日的 cicd-map（HEAD `357d0bf24`）。本文的 `file:line` 已对 worktree HEAD `212506fef` 复核：两者之间 `cd.yml`、`pr-verification.yml`、`.github/actions/**` 无改动；`scripts/local-gates/pre-push.sh` 在 `gate_eval` 之后插入了 9 行 `gate_test-postgres`（#1335），其后行号 +9；`.github/ci/components.json` 多了 `test-postgres` 组件。

@@ -77,6 +77,7 @@ jobs:
               - 'migrations/neon/**'
             workflows:
               - '.github/workflows/**'
+              - '.github/actions/**'
             deps:
               - 'pnpm-lock.yaml'
               - 'package.json'
@@ -133,18 +134,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # pnpm, Node 24 and a frozen install: what `./.github/actions/setup` did
-      # until #1367 removed the last composite action in this repository. Five
-      # jobs repeat these three steps; a composite hid them from `actionlint`,
-      # from `zizmor` and from the paths filter that decides whether a change to
-      # them runs anything at all.
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Shared setup owns only Node/pnpm/cache/install; package-specific tools stay below.
+      - uses: $/.github/actions/setup-workspace
       # `uv` only for the package whose own `test` re-runs the Python fixture
       # exporter — the `python: true` half of the retired composite.
       - if: ${{ matrix.package == '@animichi/eval' }}
@@ -153,7 +144,7 @@ jobs:
           version: "0.11.14"
           prune-cache: "true"
       # Every binary below is provisioned because one package's own gates shell
-      # out to it. `test_ci_workflow_contract.rb` pins the pairing, so a
+      # out to it. `pr-verification-affected.test.rb` pins the pairing, so a
       # dropped step fails a test instead of that package's lane.
       #   @animichi/eval -> uv     (test:fixture-drift re-runs the Python exporter)
       #   catalog        -> atlas  (the spike step below boots test-postgres,
@@ -194,7 +185,7 @@ jobs:
       # (#1473): `test` is what the pre-push hook runs for every affected
       # package, and chaining it there started Docker on every catalog push.
       # It runs here instead, on the same selection as the lane above, and
-      # `test_package_test_segments.rb` is what keeps this step honest.
+      # `package-test-segments.test.rb` is what keeps this step honest.
       - name: Run the catalog spike against the offline Postgres image
         if: ${{ matrix.package == 'catalog' }}
         run: pnpm --filter catalog run test:spike
@@ -229,63 +220,43 @@ jobs:
         with:
           persist-credentials: false
       # bundle-release-worker.test.sh drives a real `wrangler deploy --dry-run`,
-      # so this job needs the workspace. These are the three steps every other
-      # lane spells out since #1367 removed the last composite action.
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Verify the workflow invariants and action pinning
-        run: ruby .github/scripts/test_workflow_invariants.rb
-      # #1489: the rule that keeps the install step above from being deleted.
-      # Until this file existed the toolchain rule read a job's dependency on
-      # the workspace off a literal `pnpm` in its steps, and this job spells
-      # none — it reaches Wrangler through bundle-release-worker.test.sh.
-      - name: Verify every workspace-using step has an install before it
-        run: ruby .github/scripts/test_workspace_install_contract.rb
-      - name: Verify the CI workflow's affected-matrix shape
-        run: ruby .github/scripts/test_ci_workflow_contract.rb
-      - name: Verify the Python lane and the Makefile gate behind it
-        run: ruby .github/scripts/test_agent_lane_contract.rb
-      - name: Verify the file set both linters resolve
-        run: ruby .github/scripts/test_lint_scope_contract.rb
-      # The other two lanes the affected matrix cannot see. They were assertion
-      # groups inside test_ci_workflow_contract.rb until #1364's additions took
-      # that file past 300 lines; the seam is B2's — a job outside the matrix
-      # owns its own contract.
-      - name: Verify the browser lane
-        run: ruby .github/scripts/test_browser_lane_contract.rb
-      - name: Verify the schema lane and the migration boundary
-        run: ruby .github/scripts/test_schema_lane_contract.rb
-      # #1364 replaced the seven parked delivery contracts with these three: the
-      # per-unit artifacts, the promotion shell script and the router they
-      # pinned are gone, and what is left to guard is cd.yml's own shape. #1468
-      # added the fourth, when the five staging stages became five units inside
-      # one job and their properties stopped being about the job graph.
-      - name: Verify the CD workflow's one-build-one-artifact shape
-        run: ruby .github/scripts/test_cd_shape_contract.rb
-      - name: Verify the staging chain runs as one job, in order
-        run: ruby .github/scripts/test_cd_staging_chain_contract.rb
-      - name: Verify how the CD workflow publishes and what gates it
-        run: ruby .github/scripts/test_cd_publish_contract.rb
-      - name: Verify the CD workflow holds no credential it should not
-        run: ruby .github/scripts/test_cd_credential_boundary_contract.rb
-      - name: Verify every package's test script chains its segments
-        run: ruby .github/scripts/test_package_test_segments.rb
-      # The gitleaks *config* contract (#1438) — the scan itself is the
-      # `gitleaks` security job. These two ran only in the retired local quality
-      # lane until #1371, so a config change that muted a default rule was
-      # blocked at pre-push and green on the pull request. That is the gap
-      # test_ci_workflow_contract.rb now closes from the other side: every
-      # committed check has to be named by a job in this file.
-      - name: Verify the gitleaks config still loads the default rules
+      # so this job needs the same installed workspace as the application lanes.
+      - uses: $/.github/actions/setup-workspace
+      - name: Verify workflow and action responsibilities
         run: |
           set -euo pipefail
-          ruby .github/scripts/test_gitleaks_config_extends_defaults.rb
-          ruby .github/scripts/test_gitleaks_config_extends_defaults_mutation.rb
+          ruby .github/test/cd-artifact.test.rb
+          ruby .github/test/cd-build.test.rb
+          ruby .github/test/cd-credentials.test.rb
+          ruby .github/test/cd-delivery-jobs.test.rb
+          ruby .github/test/cd-migrations.test.rb
+          ruby .github/test/cd-plan-smoke.test.rb
+          ruby .github/test/cd-plan.test.rb
+          ruby .github/test/cd-publish.test.rb
+          ruby .github/test/cd-stage-smoke.test.rb
+          ruby .github/test/cd-stage.test.rb
+          ruby .github/test/pr-verification-affected.test.rb
+          ruby .github/test/pr-verification-agent.test.rb
+          ruby .github/test/pr-verification-browser.test.rb
+          ruby .github/test/pr-verification-gates.test.rb
+          ruby .github/test/pr-verification-plan.test.rb
+          ruby .github/test/pr-verification-schema.test.rb
+          ruby .github/test/pr-verification-workspace.test.rb
+          ruby .github/test/pr-verification-zizmor.test.rb
+          ruby .github/test/setup-workspace-action.test.rb
+          ruby .github/test/workflow-credentials.test.rb
+          ruby .github/test/workflow-execution.test.rb
+          ruby .github/test/workflow-invocations.test.rb
+          ruby .github/test/workflow-workspace.test.rb
+      - name: Verify repository configuration
+        run: |
+          set -euo pipefail
+          ruby test/repo-config/gitleaks-mutation.test.rb
+          ruby test/repo-config/gitleaks.test.rb
+          ruby test/repo-config/lint-scope.test.rb
+          ruby test/repo-config/makefile.test.rb
+          ruby test/repo-config/package-test-segments.test.rb
+          ruby test/repo-config/playwright.test.rb
       # The behavioral self-tests of the repository's own shell gates. Their
       # only runner was quality.sh, which #1371 deleted with the pre-push
       # orchestrator; neither the affected matrix nor any package script can
@@ -338,7 +309,7 @@ jobs:
     needs: plan
     # `workflows` for the same reason the matrix adds `edge-worker`: a
     # workflow-only PR must still reach a lane that runs a real suite.
-    # `test_ci_workflow_contract.rb` pins both routes. No agent test reads a
+    # `pr-verification-affected.test.rb` pins both routes. No agent test reads a
     # workflow file any more — #1373 moved those assertions onto the source
     # files that own the contracts — so this route is the routing rule alone.
     if: ${{ needs.plan.result == 'success' && (needs.plan.outputs.agent == 'true' || needs.plan.outputs.deps == 'true' || needs.plan.outputs.workflows == 'true') }}
@@ -352,13 +323,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: $/.github/actions/setup-workspace
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.11.14"
@@ -415,13 +380,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: $/.github/actions/setup-workspace
       # The combined action, matching the only other cache here — setup-node's
       # pnpm store: restore in the step, save in the post step.
       # `actions/cache/restore` has no post step, so nothing ever wrote this key
@@ -473,13 +432,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: $/.github/actions/setup-workspace
       # 0.30.0 is the repository's Atlas pin. C1 (#1364) retired the
       # `install-atlas` composite B5 named here: the matrix step above, the
       # production migration step in cd.yml, and this one all reach it through
@@ -642,13 +595,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: $/.github/actions/setup-workspace
       - name: Lint the PR's commits
         run: |
           set -euo pipefail

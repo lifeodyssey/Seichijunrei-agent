@@ -51,6 +51,7 @@ ALLOWED_ROOT_ENTRIES=(
   recovery
   scripts
   supabase
+  test
   workers
 )
 

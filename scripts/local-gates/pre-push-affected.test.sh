@@ -105,10 +105,10 @@ ok "a package change does not carry an unowned root file through"
 
 # 2. Same for a bucket, which must also not have run.
 new_repo
-commit_change feature apps/agent/x.py tools/y.sh
+commit_change feature apps/agent/x.py test/repo-config-extra/y.rb
 run_gate < /dev/null
 expect_status "agent + stray" 1 "$STATUS"
-expect "agent + stray" "tools/y.sh" "$OUT"
+expect "agent + stray" "test/repo-config-extra/y.rb" "$OUT"
 refute "agent + stray" "apps/agent/x.py" "$OUT"
 refute "agent + stray" "check" "$RECORDED"
 ok "an agent-bucket change does not carry an unowned path through"
@@ -129,7 +129,7 @@ ok "a root manifest selects every package once, without the closure prefix"
 
 # 4. Whitelisted paths need no package; the docs bucket still runs its checks.
 new_repo
-commit_change feature docs/a.md .github/workflows/x.yml
+commit_change feature docs/a.md .github/workflows/x.yml test/repo-config/gitleaks.test.rb
 run_gate < /dev/null
 expect_status "docs" 0 "$STATUS"
 expect "docs" "packages: (none)" "$OUT"
@@ -137,7 +137,7 @@ for check in agents-refs docs-paths root-allowlist; do
   expect "docs" "check-$check" "$RECORDED"
 done
 refute "docs" "--filter" "$RECORDED"
-ok "a docs and workflow change runs the documentation checks and no package"
+ok "CI-owned workflow and repository tests need no package; docs checks still run"
 
 # 5. A ref that is not HEAD is refused: its paths would be gated against the
 #    checked-out tree, so a broken change could pass on another branch's green.

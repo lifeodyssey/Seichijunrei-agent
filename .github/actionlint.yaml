@@ -17,8 +17,13 @@
 # Scoped to the one file that carries the key and matched on actionlint's exact
 # message, so every other syntax-check and expression finding — here and in every
 # other workflow — still fails the run. `queue: max` itself is asserted by
-# .github/scripts/test_cd_shape_contract.rb.
+# .github/test/cd-delivery-jobs.test.rb.
 paths:
   .github/workflows/cd.yml:
     ignore:
       - 'unexpected key "queue" for "concurrency" section'
+  # Owner-approved: GitHub supports $/; actionlint v1.7.12 does not (upstream #711/#732).
+  # Remove after the installed official actionlint accepts this syntax without an ignore.
+  .github/workflows/pr-verification.yml:
+    ignore:
+      - '^specifying action "\$/\.github/actions/setup\-workspace" in invalid format because ref is missing\. available formats are "\{owner\}/\{repo\}@\{ref\}" or "\{owner\}/\{repo\}/\{path\}@\{ref\}"$'

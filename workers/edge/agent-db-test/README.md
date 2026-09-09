@@ -20,7 +20,7 @@ lie about either.
   leg and the pre-push hook both run, and adding this arm to it means declaring
   the Postgres image as one of that lane's prerequisites — an owner call,
   tracked as a W1 follow-up. The chain's segments are pinned by
-  `.github/scripts/test_package_test_segments.rb`.
+  `test/repo-config/package-test-segments.test.rb`.
 - Test-only: it lives outside `src/`, so no Worker bundle can reach it
   (`packages/test-postgres/test/never-bundled.test.ts` proves it).
 - Not `db-test/`, which is the W0-S4 spike's opt-in lane: that one is pointed at a

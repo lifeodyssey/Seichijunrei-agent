@@ -43,7 +43,7 @@
 # span commits would be the expensive kind, ordering one push behind another,
 # and a workflow-level group is that plus the production gate holding staging
 # (#1204 / #1325). There is still none, and
-# .github/scripts/test_cd_shape_contract.rb still asserts that (owner decision
+# .github/test/cd-delivery-jobs.test.rb still asserts that (owner decision
 # 2026-09-08).
 #
 # The staging job and the promotion pass `package-manager-cache: false` to
@@ -64,12 +64,12 @@
 # `pulumi/esc-action` opens that job's ESC environment and exports the union of
 # what the job's units spend — per-STEP consumption is where the boundary sits
 # now that the staging chain is one job, and
-# .github/scripts/test_cd_credential_boundary_contract.rb is what holds it.
+# .github/test/cd-credentials.test.rb is what holds it.
 # `CLOUDFLARE_ACCOUNT_ID` is a repository variable, not a secret: it is an
 # account identifier, and storing an identifier as a secret only hid it from the
 # log that needed it.
 #
-# Shape contract: .github/scripts/test_cd_shape_contract.rb.
+# Shape contract: .github/test/cd-delivery-jobs.test.rb.
 name: CD
 on:
   push:
@@ -150,7 +150,7 @@ jobs:
           # head is live on staging whatever production later did. Two hops,
           # because #1468 made the chain one job — the job's `name`, then the
           # step's — and both spellings are pinned against the selector below by
-          # `test_cd_publish_contract.rb`, since a rename or a typo empties this
+          # `cd-plan-smoke.test.rb`, since a rename or a typo empties this
           # lookup instead of failing it.
           # One acceptance test, used at both ends. `cat-file` alone asks only
           # whether this clone can resolve the object, and after a force push
@@ -564,7 +564,7 @@ jobs:
       # The union of what this job's units spend, opened once. While the chain
       # was five jobs, a job's export list was the credential boundary; with one
       # job the boundary is per STEP, and
-      # `test_cd_credential_boundary_contract.rb` is what refuses a step reading
+      # `cd-credentials.test.rb` is what refuses a step reading
       # a key its unit does not own — `CLOUDFLARE_API_TOKEN` to the publishes,
       # `NEON_API_KEY` to the baseline reset, the Access service token to the
       # smoke probe. What an export list can and cannot promise is spelled out
@@ -746,7 +746,7 @@ jobs:
       # back off the API to find the last head that reached staging: the lookup
       # is `…/runs/<id>/jobs` → the job named `CD / staging` → the step named
       # `staging smoke`. Both spellings are pinned against that selector by
-      # `test_cd_publish_contract.rb` — a rename empties the lookup instead of
+      # `cd-plan-smoke.test.rb` — a rename empties the lookup instead of
       # failing it. Unconditional, like the job it used to be: whatever this
       # push deployed, the two staging surfaces have to answer afterwards.
       - name: staging smoke

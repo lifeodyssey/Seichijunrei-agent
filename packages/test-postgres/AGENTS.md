@@ -86,7 +86,7 @@ docker build -f apps/agent/docker/test-postgres/Dockerfile -t "$TEST_POSTGRES_IM
 ```
 
 `test/image-tag-contract.test.ts` does **not** read the workflow (card B2 / #1360): pipeline text
-belongs to `.github/scripts/test_ci_workflow_contract.rb`, which reads `postgres-image.env` itself
+belongs to `.github/test/pr-verification-affected.test.rb`, which reads `postgres-image.env` itself
 and fails any build step that neither sources it nor names the tag it declares.
 
 ## Pitfalls

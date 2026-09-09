@@ -61,7 +61,7 @@ staging smoke, while six of the nine that ended `failure` had it `success` — t
 merely weak, it is inverted. A `status=success&per_page=1` filter therefore does not come back
 empty; it comes back with a head nothing was ever published from, which is worse than the
 `github.event.before` it replaced. The staging job's name, the smoke step's name and `plan`'s
-two-hop jq selector are pinned to each other by `test_cd_publish_contract.rb`, since a rename or a
+two-hop jq selector are pinned to each other by `cd-plan-smoke.test.rb`, since a rename or a
 typo would empty the lookup rather than fail it.
 
 A candidate is used only when this push's history still descends from it, and the same test applies
@@ -97,26 +97,22 @@ The chain is one job rather than six because a job-level concurrency group is he
 own job runs. Spread over five stages and a smoke job, `cd-staging` was six queues wearing one name:
 between run A's foundation finishing and its migration starting, run B's foundation could take the
 group and put an older tree under a newer one. One job holds the group from the foundation apply
-through the smoke probe (#1468); `test_cd_shape_contract.rb` fails if a stage is split back out.
+through the smoke probe (#1468); `cd-delivery-jobs.test.rb` fails if a stage is split back out.
 
-Four contracts guard this, each owning one question.
-`.github/scripts/test_cd_shape_contract.rb` is the job graph: one build, one artifact, the `needs`
-chains, the concurrency groups, the pairing rules, and push-to-main as the only trigger.
-`test_cd_staging_chain_contract.rb` is what the one staging job must contain and in what order:
-that it alone takes `cd-staging`, that every unit publishes from a step of it rather than a job of
-its own, that the probe is the last step, and where the schema reset sits.
-`test_cd_publish_contract.rb` is how it publishes: the pinned Wrangler, the `sha-<sha>` tag, the
-environment each job may target — through the action **and** through a shell, because
-`pnpm exec wrangler deploy … --env production` in a staging stage would go live with no approval
-and touch no action input — and that the smoke probe's exit code, under the default success
-condition, is what decides its job.
-`test_cd_credential_boundary_contract.rb` is what the pipeline may hold: the Pulumi token type,
-the ESC export list, which step of the staging job may spend which of the names it opens, that
-every Wrangler deploy authenticates with the token ESC just opened, no retired backend credential,
-no runtime-secret upload. That no workflow reads a GitHub
-secret at all, and that every job asking Pulumi Cloud for a token declares an `environment:`, are
-repository-wide rules and live in `test_workflow_invariants.rb`. All of them run in CI's
-`contracts` job, which is unconditional — no path filter selects it.
+Native Minitest tests under `.github/test/` follow the pipeline's responsibilities:
+`cd-plan.test.rb` and `cd-plan-smoke.test.rb` own selection and the deployed-run selector;
+`cd-build.test.rb` and `cd-artifact.test.rb` own tool provisioning and immutable artifact reuse;
+`cd-delivery-jobs.test.rb` owns job dependencies, pairing, environments and locks;
+`cd-stage.test.rb` and `cd-stage-smoke.test.rb` own the one-job chain and decisive smoke probe;
+`cd-migrations.test.rb` owns authenticated migration and the staging-baseline refusal;
+`cd-publish.test.rb` owns pinned Wrangler, version tags and sealed bundles, through actions and shell;
+`cd-credentials.test.rb` owns stage-specific credential exposure. `workflow-credentials.test.rb`
+checks the cross-workflow ESC/OIDC boundary. The unconditional `contracts` job invokes each directly.
+
+The PR workflow shares identical workspace setup through
+`.github/actions/setup-workspace/action.yml`; CD's sealed-tree installs and deployment jobs remain
+in place. A future reusable deployment workflow must prove its caller/callee identity and lock
+behavior. The setup composite does not authorize changing those delivery boundaries.
 
 Concurrency is per job, not per workflow: `cd-staging` covers the one `stage` job,
 `cd-production` covers the promotion. A run parked at the production approval gate no longer holds
@@ -401,7 +397,7 @@ through `neonctl` on `NEON_API_KEY`, and takes the project and branch ids from t
 config rather than built bytes. Both the step and the job around it are selected by the same
 `migrations` output — the step's `if:`, and the union the job's own `if` is built from — so a push
 carrying no schema change can never reach it (#1216) and a migrations-only push can never skip it
-(#1469); `test_cd_shape_contract.rb` fails if either half
+(#1469); `cd-stage.test.rb` fails if either half
 drifts. Production has no counterpart — the reset is staging-only by construction.
 
 Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
@@ -452,7 +448,7 @@ A push that deploys nothing (documentation, a library package with no deployable
 The two `**or**` rows above are the pipeline's only pairing rules, and they exist because those
 units take an input from outside their own pnpm project. Every step that publishes one carries both
 halves of its condition — a migrator image built without the migrations half would be the old chain
-under a new tag. `test_cd_shape_contract.rb` fails if either half goes missing.
+under a new tag. `cd-delivery-jobs.test.rb` fails if either half goes missing.
 
 The `staging smoke` step probes `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` and the SSR shell at
 `https://animichi-web-staging.zhenjiazhou0127.workers.dev/`, retrying 8 times at 15s. It probes
@@ -539,7 +535,7 @@ need it read. Five properties are worth stating:
   `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` pair staging's Cloudflare Access door needs
   (#1369) in a single ESC step. Since the export list was never the trust boundary — see the first
   property above — widening it costs nothing; what replaces the old per-job list is a per-step rule
-  in `test_cd_credential_boundary_contract.rb`: the publish token belongs to the five deploy steps,
+  in `cd-credentials.test.rb`: the publish token belongs to the five deploy steps,
   `NEON_API_KEY` to the baseline reset, the Access pair to `staging smoke`, and a step reaching for
   a key outside its own unit fails the contract. The other direction is still a job rule: no job but
   `stage` may so much as mention the Access pair.

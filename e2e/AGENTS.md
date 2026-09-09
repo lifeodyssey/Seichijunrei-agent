@@ -51,7 +51,7 @@ It needs nothing running beforehand; every other script targets `:3000` (or what
   `CROSS_ORIGIN_BASE_URL_VARS` when you add it to a spec.
   Get the values with `esc env open lifeodyssey/animichi/staging
   environmentVariables.CF_ACCESS_CLIENT_ID --format string` (and the secret likewise);
-  CI takes them from the same ESC environment. `.github/scripts/test_browser_lane_contract.rb`
+  CI takes them from the same ESC environment. `test/repo-config/playwright.test.rb`
   fails if the config stops presenting them.
   **The headers also ride Cloudflare-operated subresources.** `extraHTTPHeaders` is
   context-wide, so a page that loads `challenges.cloudflare.com` (Turnstile) or

@@ -7,7 +7,7 @@ set -euo pipefail
 unset "${!GIT_@}"
 cd "$(git rev-parse --show-toplevel)"
 
-NO_PACKAGE='^(docs/|\.claude/|\.github/|\.semgrep|scripts/|codecov\.yml$|\.pre-commit-config\.yaml$|commitlint\.config\.js$|Makefile$|[^/]+\.md$)'
+NO_PACKAGE='^(docs/|\.claude/|\.github/|\.semgrep|scripts/|test/repo-config/|codecov\.yml$|\.pre-commit-config\.yaml$|commitlint\.config\.js$|Makefile$|[^/]+\.md$)'
 ROOT_MANIFEST='^(pnpm-lock\.yaml|package\.json|pnpm-workspace\.yaml|\.npmrc)$'
 ZERO=0000000000000000000000000000000000000000
 
