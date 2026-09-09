@@ -13,6 +13,8 @@ description: Database roles and runtime access material managed through Neon and
 packages:
   neon:
     source: terraform-provider
-    version: 1.3.0
+    # Pulumi's Terraform bridge and the upstream Neon provider have separate versions.
+    version: 1.4.0
     parameters:
       - kislerdm/neon
+      - 0.17.0

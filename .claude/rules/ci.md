@@ -23,8 +23,10 @@ file you are editing — there is no layer above it and no `uses: ./…` to foll
 - **A check no job invokes is a check nothing runs.** Every `test_*.rb` beside these workflows,
   every `*.test.sh` under `scripts/` and `.github/scripts/`, and every other file in
   `.github/scripts` has to be named by a `run:` line after an interpreter.
-  `test_ci_workflow_contract.rb` asserts the forward half and `test_workflow_invariants.rb` the
-  reverse, so add the invocation in the same change that adds the file.
+  `test_ci_workflow_contract.rb` checks exact invocation paths in both directions: committed
+  checks must run, and invoked repository scripts must exist. `test_workflow_invariants.rb`
+  also catches orphaned files that no invoked script requires. Add or remove a check and its
+  invocation in the same change.
 - **Pin every third-party action by full 40-char commit SHA** + a trailing `# vX.Y.Z`; never a
   floating tag or branch, and never a `docker://` image without a `sha256:` digest. A `./`-prefixed
   `uses:` must name a composite that is actually in the tree.

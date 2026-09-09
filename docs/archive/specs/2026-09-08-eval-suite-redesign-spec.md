@@ -1,6 +1,8 @@
 # Spec — agent eval 套件重设计（进程内被测系统 × 轨迹前缀 × pass^k × 官方 evals 栈）
 
-- Status: Draft 修订 5 — owner 2026-09-09 更改了**被测系统**的前提（见 §零），修订 1/2 中一切建立在"打已部署 staging"之上的设计随之作废或坍缩。前两轮 dual-review（Seat A ×2、Seat B）的处置历史保留在文末附录。待 owner 签核。
+- Status: Superseded — retained as historical design/review evidence. The active agent and eval target is [the native Pi harness specification](../../specs/2026-09-09-agent-on-pi-harness-spec.md).
+
+- Original revision status: Draft 修订 5 — owner 2026-09-09 更改了**被测系统**的前提（见 §零），修订 1/2 中一切建立在"打已部署 staging"之上的设计随之作废或坍缩。前两轮 dual-review（Seat A ×2、Seat B）的处置历史保留在文末附录。待 owner 签核。
 - 事实基线：worktree `.worktrees/card-eval-redesign`，分支 `spec/eval-redesign`，base `origin/main` a00edadf8。仓库断言带 `file:line`，都在这个 HEAD 上复核过；书的断言带 `book/chapterN.md:LINE`（`/tmp/ai-agent-book`）；库的断言带 `node_modules/logfire/dist/index-Dd6NCwQg.d.ts` 行号（`logfire@0.22.5`）与 bundle `dist/evals-D4FvWViY.js` 实测；官方文档带 `/tmp/logfire-js-evals.md`（下称 evals.md）与 `/tmp/logfire-evals-SKILL.md`（下称 SKILL）行号。
 - owner 定案（2026-09-08 / 09，不再复议）：① 2026-09-08 那次全量跑被直接中断，套件按李博杰《深入理解 AI Agent》第 7 章重写；② 并发可以超级加大；③ 基线是 TS 层自己的跑（Python 记录退役，#1303/#1515），真空通过用例要淘汰（#1439/#1440）；④ **全部用 Pydantic 自己的东西，按 best practice 做**；⑤ **被测系统是 agent 本身，不是部署**（§零）。
 - 取代关系：`docs/specs/2026-09-01-agent-ts-rewrite-spec.md` §五 W3 出口判据与 §十；见 §七。

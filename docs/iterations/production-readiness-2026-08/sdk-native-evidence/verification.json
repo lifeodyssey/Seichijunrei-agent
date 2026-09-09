@@ -1,0 +1,94 @@
+{
+  "verifiedDate": "2026-09-09",
+  "node": "v26.8.1",
+  "npm": "11.19.0",
+  "scope": "Portable scripts checked against the existing installed exact SDK versions and retained tarballs; no fresh install, network, model, database or Worker execution. Observed fields below are projections of actual stdout; original complete outputs are retained separately.",
+  "checks": [
+    {
+      "command": "node pi-fork-probe.mjs",
+      "exitStatus": 0,
+      "scriptSha256": "c09f7792ba497eeeb4a5662fb1bf6789fab25f122f34d70a7208ba4c3e54ede7",
+      "observed": {
+        "sdk": "0.85.1",
+        "imports": "@earendil-works/pi-agent-core public root",
+        "nativeTreeForkSucceeded": true,
+        "currentValuePreserved": true,
+        "entryIdAndBytesPreserved": true,
+        "originalRefResolvesInFork": true,
+        "sourceListCount": 1,
+        "forkListCount": 0,
+        "listResult": "method exists; native tree fork omits stored list elements",
+        "crossRepositoryRejected": true
+      }
+    },
+    {
+      "command": "node logfire-probe.mjs",
+      "exitStatus": 0,
+      "scriptSha256": "ce2f25ad720770e8368842da6b54cf92ad60ca2f7a5de2b38fbfe9b3a491effe",
+      "observed": {
+        "version": "0.22.5",
+        "assertionNames": [
+          [
+            "MaxDuration",
+            "RequiredQuality"
+          ],
+          [
+            "MaxDuration",
+            "RequiredQuality"
+          ]
+        ],
+        "requiredQuality": [
+          false,
+          false
+        ],
+        "attributes": [
+          {
+            "nativeProbe": true
+          },
+          {
+            "nativeProbe": true
+          }
+        ],
+        "reportAnalyses": [
+          {
+            "type": "scalar",
+            "title": "completed",
+            "value": 2
+          }
+        ],
+        "groupRuns": [
+          2
+        ],
+        "groupFailures": [
+          2
+        ],
+        "taskInvocations": 2,
+        "renderIsString": true,
+        "reportToFile": "undefined"
+      }
+    },
+    {
+      "command": "node verify-integrity.mjs .",
+      "exitStatus": 0,
+      "scriptSha256": "69c31ca049cf0504179c0d39517a255fb3474f220ac09987a27a199128dce85f",
+      "observed": {
+        "verified": [
+          {
+            "name": "@earendil-works/pi-agent-core",
+            "version": "0.85.1",
+            "bytes": 656407,
+            "integrity": "sha512-hIXIP3eAWueAYiAl8aMvWCvvZ8Q5gT3Dip5bE5uJyIGh4+YlWRjtMLI4BaeoXoSs93zndjue61u1B/vhefLnuA==",
+            "shasum": "8a85116c0d4494e4d9e82341237d91ad360fdc2a"
+          },
+          {
+            "name": "agents",
+            "version": "0.22.0",
+            "bytes": 1397200,
+            "integrity": "sha512-dIy/BRdO5GSqdOIp0pmkcLmHCCxIKb4RBByXFXmXG6Nc6WBSNYRXoLLDvWj2fJAfi4l5/OndJjZuBAP0vW0DZQ==",
+            "shasum": "771ced6877834b1d1d9d979f5ded4a9f41e7fcfb"
+          }
+        ]
+      }
+    }
+  ]
+}

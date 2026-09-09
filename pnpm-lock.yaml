@@ -399,8 +399,8 @@ importers:
         specifier: npm:@earendil-works/pi-ai@0.85.1
         version: '@earendil-works/pi-ai@0.85.1(ws@8.21.1)(zod@4.4.3)'
       smol-toml:
-        specifier: 1.5.2
-        version: 1.5.2
+        specifier: 1.6.1
+        version: 1.6.1
 
   workers/migrator:
     dependencies:
@@ -7292,8 +7292,8 @@ packages:
     resolution: {integrity: sha512-RQsvleCbF8cVHEv+xuDGaA4pOizFqJ0GgjtMSRo6oP8pnN7WsigHgVGey6aILRBKv4W2YOMHLqbKdnB6hpB9fw==}
     engines: {node: '>=20.0.0'}
 
-  smol-toml@1.5.2:
-    resolution: {integrity: sha512-QlaZEqcAH3/RtNyet1IPIYPsEWAaYyXXv1Krsi+1L/QHppjX4Ifm8MQsBISz9vE8cHicIq3clogsheili5vhaQ==}
+  smol-toml@1.6.1:
+    resolution: {integrity: sha512-dWUG8F5sIIARXih1DTaQAX4SsiTXhInKf1buxdY9DIg4ZYPZK5nGM1VRIYmEbDbsHt7USo99xSLFu5Q1IqTmsg==}
     engines: {node: '>= 18'}
 
   socks-proxy-agent@8.0.5:
@@ -15169,7 +15169,7 @@ snapshots:
 
   smob@1.6.2: {}
 
-  smol-toml@1.5.2: {}
+  smol-toml@1.6.1: {}
 
   socks-proxy-agent@8.0.5:
     dependencies:

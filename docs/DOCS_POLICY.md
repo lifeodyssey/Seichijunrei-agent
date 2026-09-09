@@ -71,7 +71,7 @@ the current monorepo layout; `backend/…` and `worker/worker.js` are pre-monore
 | Topic | Current source of truth | Notes / was |
 |---|---|---|
 | **Why** the architecture is shaped this way | `docs/specs/2026-06-13-architecture-adr.md` | Foundational ADR; its "全 TS on Workers" decision was later refined by the rebuild spec below |
-| **Current target** architecture (agent runtime, latest) | `docs/specs/2026-09-01-agent-ts-rewrite-spec.md` | Agent rewritten in TS inside `workers/edge`, Neon as the single source of truth; W0 closed 2026-09-03. **Supersedes SD-4 of `docs/specs/2026-07-06-frontend-rebuild-spec.md`** ("Agent runtime: Python FastAPI container, finalized") — that spec stays canonical for the web rebuild only |
+| **Current target** architecture (agent runtime and eval) | `docs/specs/2026-09-09-agent-on-pi-harness-spec.md` | Native Pi harness and Cloudflare Agents inside `workers/edge`, Neon business authority and native Logfire evals. The 2026-09-01 spec retains its unmodified functional-parity criteria only where not superseded. **Supersedes SD-4 of `docs/specs/2026-07-06-frontend-rebuild-spec.md`**; that spec remains canonical for the web rebuild |
 | Live runtime reference (both agent tiers) | `docs/ARCHITECTURE.md` | Container tier by default (`apps/agent/…/animichi_runner.py`), edge tier behind `AGENT_TURN_ROUTE = "edge"` (`workers/edge/src/agent/`, staging today) |
 | Agent entry | `apps/agent/src/animichi/interfaces/fastapi_service.py` → `public_api.py` → `agents/animichi_runner.py` | was `backend/interfaces/…` |
 | Agent shared types | `apps/agent/src/animichi/agents/models.py`, `…/agent_result.py` | was `backend/agents/…` |

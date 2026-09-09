@@ -32,10 +32,12 @@ const bundle = join(output, "pi-harness.worker.js");
 const code = readFileSync(bundle, "utf8");
 const metadata = JSON.parse(readFileSync(join(output, "metafile.json"), "utf8")) as Metafile;
 
-void test("the spike imports the exact published harness and chord 0.85.1 packages", () => {
+void test("the spike imports the exact published harness, model and chord 0.85.1 packages", () => {
   const core = readFileSync(fileURLToPath(import.meta.resolve("pi-agent-core-smoke/package.json")), "utf8");
+  const ai = readFileSync(new URL("../package.json", import.meta.resolve("pi-ai-smoke")), "utf8");
   const chord = readFileSync(fileURLToPath(import.meta.resolve("@earendil-works/chord/package.json")), "utf8");
   assert.match(core, /"version":\s*"0\.85\.1"/);
+  assert.match(ai, /"version":\s*"0\.85\.1"/);
   assert.match(chord, /"version":\s*"0\.85\.1"/);
 });
 

@@ -8,8 +8,10 @@ Use this directory for:
 - findings and discovery notes
 - retrospective notes tied to a specific iteration
 
-Current active iteration artifact:
+Current active iteration artifacts:
 - `docs/iterations/production-readiness-2026-08/GOAL.md` — #1004 production-readiness execution contract, dependency frontier, OpenCode policy, review/PR gates, HITL stops, and completion checklist
+- [Agent file disposition](production-readiness-2026-08/AGENT-FILE-DISPOSITION.md) — #1536 W0-1: complete historical inventory with SDK-native deletion decisions
+- [SDK-native rewrite review](production-readiness-2026-08/SDK-NATIVE-REWRITE-REVIEW.md) — #1536 design correction candidate, public SDK evidence and canonical spec changes requiring review
 
 Inherited execution inputs, superseded as program boards:
 - `docs/iterations/iter6/` — retained until #1017 archives/reconciles its still-relevant design evidence
