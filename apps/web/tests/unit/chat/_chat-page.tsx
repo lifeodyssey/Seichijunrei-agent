@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, useRouterState } from "@tanstack/react-router";
-import { cleanup, render } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { render } from "@testing-library/react";
 import { ChatPage } from "../../../src/features/chat/ChatPage";
 import { ChatEntryGate } from "../../../src/features/chat/ChatEntryGate";
 import { parseChatSearch } from "../../../src/features/chat/search";
@@ -10,8 +9,6 @@ import { LocaleProvider } from "../../../src/i18n/LocaleProvider";
 import { server } from "../../msw/node";
 import { healthzOkHandler } from "../../msw/chat-handlers";
 import { makeAppRouter } from "../_router";
-
-afterEach(cleanup);
 
 // jsdom does not implement scrollIntoView; the anchor effect needs a stub.
 Element.prototype.scrollIntoView = () => undefined;
