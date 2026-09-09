@@ -211,17 +211,27 @@ end
 # "Name it" means invoke it: a path inside a comment or an `echo` satisfies a
 # substring search over the whole job while running nothing, so the line must
 # begin (after indentation) with an interpreter and then the path.
+# Match whole script paths in both directions: committed checks must run, and
+# invoked repository scripts must exist after a check is deleted or renamed.
 INVOCATION = /\A(?:bash|ruby|node|sh)\s+\S+/
 def invoked_lines
   @ci.jobs.each_key.flat_map { |job| @ci.steps_of(job) }
      .flat_map { |step| step["run"].to_s.lines }.map(&:strip).grep(INVOCATION)
 end
 
+def invoked_scripts
+  invoked_lines.map { |line| line.split[1] }
+               .select { |path| path.start_with?(".github/", "scripts/") }
+end
+
 def assert_every_committed_check_runs
-  invoked = invoked_lines.join("\n")
-  missing = COMMITTED_CHECKS.reject { |path| invoked.include?(path) }
+  invoked = invoked_scripts
+  missing = COMMITTED_CHECKS - invoked
+  stale = invoked.reject { |path| File.file?(File.join(repository_root, path)) }
   @log.unless_true(missing.empty?,
                    "pr-verification.yml: committed checks no job invokes (#{missing.join(', ')})")
+  @log.unless_true(stale.empty?,
+                   "pr-verification.yml: invoked scripts do not exist (#{stale.join(', ')})")
 end
 
 def assert_aggregate(job, expected_needs)

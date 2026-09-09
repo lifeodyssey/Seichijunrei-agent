@@ -206,7 +206,8 @@ passed 43/43 on its own (2026-09-08).
 - **The repository contracts** (`.github/scripts/test_*.rb`) and the gate scripts' own behavioral
   tests — CI's `contracts` job runs them unconditionally, on every pull request, so pre-push does
   not need a copy. `test_ci_workflow_contract.rb` asserts that every committed check under
-  `scripts/` and `.github/scripts/` is named by some job, which is what keeps that list honest.
+  `scripts/` and `.github/scripts/` is invoked by its exact path, and that every invoked
+  repository script still exists. Deleting a check also requires deleting its CI invocation.
 
 ## Prerequisites
 
