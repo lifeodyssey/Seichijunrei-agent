@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { EXPORTED_DATASETS } from '../src/dataset-sets.ts';
+import { checkedDatasetName, EXPORTED_DATASETS, knownCaseCount } from '../src/dataset-sets.ts';
 import { EVALUATOR_NAMES } from '../src/evaluator-names.ts';
 import { caseViewPath, loadExportedDataset } from '../src/dataset-roundtrip.ts';
 
@@ -43,6 +43,13 @@ function pythonView(setName: string): DatasetView {
 }
 
 for (const { caseCount, name } of EXPORTED_DATASETS) {
+  /** The count an UNCAPPED run of this set has, which is what
+   * `gate-run/baseline-capture.ts` tells a full run from a `--limit` one by
+   * (#1515). It answers off this list rather than off the file. */
+  void test(`${name}: knownCaseCount answers the pinned count`, () => {
+    assert.equal(knownCaseCount(name), caseCount);
+  });
+
   void test(`${name}: loads through Dataset.fromFile with the exported case count`, async () => {
     const dataset = await loadExportedDataset(name);
 
@@ -89,3 +96,17 @@ for (const { caseCount, name } of EXPORTED_DATASETS) {
     );
   });
 }
+
+/** A capture reads the set's name out of a committed file, so an unexported
+ * name is answered rather than thrown: `scripts/eval-baseline-capture.ts` turns
+ * this `null` into `unknownDatasetRefusal`'s one line. */
+void test('a set nobody exported has no case count to answer with', () => {
+  assert.equal(knownCaseCount('agent_eval_v4'), null);
+});
+
+/** The runners still throw on it, and that difference is the point: they are
+ * validating a flag someone can retype, so `eval:staging`, `eval:gate` and
+ * `record-captures` die on the spot rather than running the wrong set. */
+void test('a runner naming a set nobody exported is refused with the list', () => {
+  assert.throws(() => checkedDatasetName('agent_eval_v4'), RangeError);
+});

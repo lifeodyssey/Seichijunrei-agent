@@ -138,13 +138,13 @@ export interface StatsOracle {
 
 export const ORACLE_PATH = fileURLToPath(new URL('../../fixtures/stats-oracle.json', import.meta.url));
 
-/** The baseline `agent_l4_trajectory` record, as Python wrote it (662 cases). */
-export const PYTHON_BASELINES_DIR = fileURLToPath(new URL('../../baselines/', import.meta.url));
-export const PYTHON_BASELINE_LAYER = 'agent_l4_trajectory';
-/** Keep in step with `gate-run/python-baseline.ts` and `baseline_oracle.py`'s
- * `STALE_MODEL` — the oracle's warning strings interpolate the model name, so
- * three literals that disagree are three red tests. */
-export const PYTHON_BASELINE_MODEL = 'openai:mimo-v2.5@https://api.xiaomimimo.com/v1';
+/* The layer, model and baselines directory used to be re-declared here under a
+ * `PYTHON_` prefix that mirrored nothing: `baseline_oracle.py` calls its pair
+ * `STALE_LAYER` / `STALE_MODEL` and derives its directory from `EVAL_DIR`, and
+ * since #1515 the record they named is TS-written anyway. They are now read
+ * from `gate-run/baseline-identity.ts`, which is where the identity is pinned —
+ * one literal instead of three that could disagree, and the oracle's warning
+ * strings interpolate the same string Python's did. */
 
 export function readStatsOracle(): StatsOracle {
   return JSON.parse(readFileSync(ORACLE_PATH, 'utf8')) as StatsOracle;

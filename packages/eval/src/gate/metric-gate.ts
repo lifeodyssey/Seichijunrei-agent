@@ -219,12 +219,23 @@ function baselineMetrics(baseline: BaselineRecord): string[] {
   return [...new Set([...caseMetrics(baseline), ...Object.keys(baseline.scores)])].sort();
 }
 
+/**
+ * How every comparison sentence — a regression failure and an INDETERMINATE
+ * warning alike — begins. One literal, because `gate-run/baseline-capture.ts`
+ * has to tell a metric regressing against the baseline from every other red a
+ * run can carry, and a second copy of this prefix would be a recogniser that
+ * drifts silently away from the sentence it recognises (#1515).
+ */
+export function comparisonSentencePrefix(metric: string): string {
+  return `${metric}: mean_delta=`;
+}
+
 function formatComparison(metric: string, comparison: Comparison): string {
   const delta = pythonFixedText(comparison.estimate, 4);
   const lower = pythonFixedText(comparison.interval.lower, 4);
   const upper = pythonFixedText(comparison.interval.upper, 4);
   const size = String(comparison.sampleSize);
-  return `${metric}: mean_delta=${delta}, ci=[${lower}, ${upper}], n=${size}, method=${comparison.method}`;
+  return `${comparisonSentencePrefix(metric)}${delta}, ci=[${lower}, ${upper}], n=${size}, method=${comparison.method}`;
 }
 
 function fewPairsWarning(metric: string, paired: number, minPaired: number): string {

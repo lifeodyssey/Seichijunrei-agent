@@ -2,9 +2,9 @@
  * The report-only column, and the four places it must NOT appear (E-3 #1382,
  * spec §十 10.3 「先 report-only」).
  *
- * A ninth entry in `metricNames()` would shift the committed Python baseline by
- * one position and the W3-5 double run would stop being a comparison
- * (`metric-names.ts`), so the metric is reported beside the scores and outside
+ * A ninth entry in `metricNames()` would shift the committed baseline by one
+ * position and a run would stop being comparable against the record that judges
+ * it (`metric-names.ts`), so the metric is reported beside the scores and outside
  * every gate: not in `metricNames()`, not in `scores`, not among the verdict
  * rows, and not in the exit code.
  *
@@ -19,7 +19,7 @@ import type { ExportedAgentExpected, ExportedAgentInput } from "../src/dataset-r
 import { REPLY_CLAIM_METRIC } from "../src/evaluators/reply-claim-verifier.ts";
 import { gateExitCode } from "../src/gate-run/gate-exit-code.ts";
 import { gateRunResultOf, type AgentEvalReport } from "../src/gate-run/gate-run-result.ts";
-import { PYTHON_BASELINE_MODEL } from "../src/gate-run/python-baseline.ts";
+import { BASELINE_MODEL } from "../src/gate-run/baseline-identity.ts";
 import { metricNames } from "../src/metric-names.ts";
 import type { TranscriptResult } from "../src/turn-transcript.ts";
 import { baselineParityScores, GATED_DATASET, GENERATED_AT, makeGatedRun } from "./gated-run.ts";
@@ -74,7 +74,7 @@ function ungatedResultOf(report: AgentEvalReport) {
     caseCount: report.cases.length,
     metricNames: [],
     baseline: null,
-    baselineModel: PYTHON_BASELINE_MODEL,
+    baselineModel: BASELINE_MODEL,
     baselineFailures: [],
     baselineWarnings: [],
     strata: {},

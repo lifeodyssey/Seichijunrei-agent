@@ -12,8 +12,9 @@ import { pythonFloatText } from './python-number-text.ts';
  * Parsing is deliberately total: a malformed file is `null`, never a throw, so
  * that the one caller who reads a committed record — `baseline-store.ts` — is
  * the one place that decides what a malformed file MEANS. It means a failure
- * there, not a written replacement: this runner never writes the record it is
- * judged by.
+ * there, not a written replacement: a run being gated never writes the record
+ * it is judged by. (A capture does, from a committed result file and in a
+ * command of its own — `gate-run/baseline-capture.ts`.)
  */
 
 export interface BaselineRecord {
@@ -104,8 +105,8 @@ function tryParse(text: string): unknown {
 }
 
 function validated(raw: Record<string, unknown>): BaselineRecord | null {
-  const scores = metricMap(raw.scores);
-  const cases = caseMap(raw.cases);
+  const scores = parsedMetricScores(raw.scores);
+  const cases = parsedCaseScores(raw.cases);
   if ((raw.schema_version ?? 2) !== 2 || scores === null || cases === null) {
     return null;
   }
@@ -164,7 +165,14 @@ function isOptionalText(value: unknown): value is string | null | undefined {
   return value === undefined || value === null || typeof value === 'string';
 }
 
-function metricMap(value: unknown): Record<string, number> | null {
+/**
+ * The two score maps a record carries — and, since #1515, the two a committed
+ * gate run carries as well. Exported so `gate-run/baseline-capture.ts` reads a
+ * result file's `scores` and `case_scores` with the same validator that decides
+ * whether a record parses: one shape, one reader, one answer about what counts
+ * as a score. `null` where pydantic would raise, like everything else here.
+ */
+export function parsedMetricScores(value: unknown): Record<string, number> | null {
   if (value === null || typeof value !== 'object') {
     return null;
   }
@@ -173,11 +181,14 @@ function metricMap(value: unknown): Record<string, number> | null {
   return numeric ? Object.fromEntries(entries) : null;
 }
 
-function caseMap(value: unknown): Record<string, Record<string, number>> | null {
+export function parsedCaseScores(value: unknown): Record<string, Record<string, number>> | null {
   if (value === null || typeof value !== 'object') {
     return null;
   }
-  const parsed = Object.entries(value).map(([caseId, scores]) => [caseId, metricMap(scores)]);
+  const parsed = Object.entries(value).map(([caseId, scores]) => [
+    caseId,
+    parsedMetricScores(scores),
+  ]);
   const complete = parsed.every(([, scores]) => scores !== null);
   return complete ? (Object.fromEntries(parsed) as Record<string, Record<string, number>>) : null;
 }

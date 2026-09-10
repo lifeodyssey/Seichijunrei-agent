@@ -30,7 +30,9 @@ spot over the edge's error envelope — can be measured against them. What goes 
 those last two slots is each runner's own: this one names the model it built the
 run with and the ceiling its lane picked, while the TS runner holds a door, has
 no model name it could honestly blame (``DEPLOYED_AGENT_TIER``) and needs only
-one ceiling because it never writes a baseline (``gate-exit-code.ts:10``).
+one ceiling because its GATE never writes a baseline (``gate-exit-code.ts:10``);
+since #1515 a separate command mints from the committed result file, under a
+rule stricter than any ceiling — any starved case refuses (``baseline-capture.ts``).
 """
 
 from __future__ import annotations

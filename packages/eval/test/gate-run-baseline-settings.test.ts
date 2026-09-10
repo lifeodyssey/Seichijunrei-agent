@@ -13,7 +13,7 @@ import {
 } from '../src/gate-run/baseline-gated-settings.ts';
 import { gateExitCode } from '../src/gate-run/gate-exit-code.ts';
 import { gateRunResultOf } from '../src/gate-run/gate-run-result.ts';
-import { PYTHON_BASELINE_LAYER, PYTHON_BASELINE_MODEL } from '../src/gate-run/python-baseline.ts';
+import { BASELINE_LAYER, BASELINE_MODEL } from '../src/gate-run/baseline-identity.ts';
 import { metricNames } from '../src/metric-names.ts';
 import {
   baselineParityScores,
@@ -21,7 +21,7 @@ import {
   GATED_DATASET,
   makeAgentCase,
   makeReport,
-  pythonBaseline,
+  committedBaseline,
 } from './gated-run.ts';
 
 /** Twelve, because the gate skips a metric with fewer than ten paired cases. */
@@ -52,8 +52,8 @@ function runUnderGate(caseCount: number): RunUnderGate {
 
 const damagedDir = mkdtempSync(join(tmpdir(), 'animichi-damaged-'));
 const damagedLocation = {
-  layer: PYTHON_BASELINE_LAYER,
-  modelId: PYTHON_BASELINE_MODEL,
+  layer: BASELINE_LAYER,
+  modelId: BASELINE_MODEL,
   baselinesDir: damagedDir,
 };
 writeFileSync(baselinePath(damagedLocation), '{"schema_version":2,"cases":', 'utf8');
@@ -62,7 +62,7 @@ const damagedResult = gateRunResultOf(report, damagedSettings);
 
 void test('a damaged baseline is a failure that names the record it could not read', () => {
   assert.deepEqual(damagedResult.failures, [
-    `Invalid baseline for ${PYTHON_BASELINE_LAYER}/${PYTHON_BASELINE_MODEL} at ${baselinePath(damagedLocation)}: not a schema-v2 baseline record`,
+    `Invalid baseline for ${BASELINE_LAYER}/${BASELINE_MODEL} at ${baselinePath(damagedLocation)}: not a schema-v2 baseline record`,
   ]);
 });
 
@@ -72,11 +72,11 @@ void test('a damaged baseline blocks rather than ungating the run', () => {
 
 const healthyDir = mkdtempSync(join(tmpdir(), 'animichi-healthy-'));
 const healthyLocation = {
-  layer: PYTHON_BASELINE_LAYER,
-  modelId: PYTHON_BASELINE_MODEL,
+  layer: BASELINE_LAYER,
+  modelId: BASELINE_MODEL,
   baselinesDir: healthyDir,
 };
-const baseline = pythonBaseline();
+const baseline = committedBaseline();
 writeBaselineRecord(baseline, healthyLocation);
 const healthySettings = gateRunSettingsFromBaseline(
   healthyLocation,
@@ -92,7 +92,7 @@ void test('a readable baseline is the record the gate decides with', () => {
 });
 
 void test('the baseline the gate names is the one it was located at', () => {
-  assert.equal(healthySettings.baselineModel, PYTHON_BASELINE_MODEL);
+  assert.equal(healthySettings.baselineModel, BASELINE_MODEL);
 });
 
 /**
@@ -104,8 +104,8 @@ void test('the baseline the gate names is the one it was located at', () => {
  */
 const staleVocabularyDir = mkdtempSync(join(tmpdir(), 'animichi-vocabulary-'));
 const staleVocabularyLocation = {
-  layer: PYTHON_BASELINE_LAYER,
-  modelId: PYTHON_BASELINE_MODEL,
+  layer: BASELINE_LAYER,
+  modelId: BASELINE_MODEL,
   baselinesDir: staleVocabularyDir,
 };
 writeBaselineRecord(
@@ -119,7 +119,7 @@ const staleVocabularyResult = gateRunResultOf(
 
 void test('a baseline from another evaluator version fails, naming both versions', () => {
   assert.deepEqual(staleVocabularyResult.failures, [
-    `Baseline for ${PYTHON_BASELINE_LAYER}/${PYTHON_BASELINE_MODEL} was scored by evaluator official-v1, this runner scores ${EVALUATOR_VERSION}`,
+    `Baseline for ${BASELINE_LAYER}/${BASELINE_MODEL} was scored by evaluator official-v1, this runner scores ${EVALUATOR_VERSION}`,
   ]);
 });
 

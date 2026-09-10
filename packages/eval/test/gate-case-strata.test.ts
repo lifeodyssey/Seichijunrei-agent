@@ -36,8 +36,8 @@ void test('the exported dataset carries no path, so the strata cannot come from 
 });
 
 /**
- * #1478: every canonical set with no `path` column. The double run crashed on
- * the first three; the other two would have crashed next.
+ * #1478: every canonical set with no `path` column. A run over the sets crashed
+ * on the first three; the other two would have crashed next.
  */
 const POOLED_SETS = [
   'injection_g1_v1',

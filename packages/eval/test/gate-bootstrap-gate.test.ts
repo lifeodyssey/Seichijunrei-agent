@@ -39,7 +39,7 @@ for (const entry of oracle) {
   });
 }
 
-void test('a real Python baseline gates a synthetic run and names the regression', () => {
+void test('a real committed baseline gates a synthetic run and names the regression', () => {
   assert.match(makeGateOutcome(real).failures.join('\n'), /^tool_correctness: mean_delta=/);
 });
 

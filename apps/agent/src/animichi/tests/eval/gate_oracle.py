@@ -10,7 +10,8 @@ is measured against Python's failures and warnings verbatim.
 The ceiling is a column of the outage rows rather than a constant either side
 reads, because Python has two of them (``provider_outage``: the capped PR lane's
 0.20 and the baseline-writing lane's 0.02) and the TS runner has one — it never
-writes the record it is judged by (``gate-exit-code.ts:10``), so the lower
+writes the record it is judged by (``gate-exit-code.ts:10`` — since #1515 a
+separate command does, under its own stricter rule), so the lower
 ceiling has nothing on that side to guard. Publishing the ceiling per row keeps
 both runners replaying the same sentences without pretending they run the same
 lanes (#1499).

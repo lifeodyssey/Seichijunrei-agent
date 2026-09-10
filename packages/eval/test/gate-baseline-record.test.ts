@@ -7,22 +7,12 @@ import { test } from 'node:test';
 import { EVALUATOR_VERSION } from '../src/evaluators/agent-evaluator.ts';
 import { baselineRecordText, parseBaselineRecord } from '../src/gate/baseline-record.ts';
 import { baselinePath, writeBaselineRecord } from '../src/gate/baseline-store.ts';
-import {
-  oracleEntryAt,
-  oracleEntryNamed,
-  PYTHON_BASELINES_DIR,
-  PYTHON_BASELINE_LAYER,
-  PYTHON_BASELINE_MODEL,
-  readStatsOracle,
-} from '../src/gate/stats-oracle.ts';
+import { oracleEntryAt, oracleEntryNamed, readStatsOracle } from '../src/gate/stats-oracle.ts';
+import { baselineLocation } from '../src/gate-run/baseline-identity.ts';
 
 const oracle = readStatsOracle();
 const written = oracleEntryAt(oracle.written_records, 0);
-const baselineFile = baselinePath({
-  layer: PYTHON_BASELINE_LAYER,
-  modelId: PYTHON_BASELINE_MODEL,
-  baselinesDir: PYTHON_BASELINES_DIR,
-});
+const baselineFile = baselinePath(baselineLocation());
 
 function scratchDir(): string {
   return mkdtempSync(join(tmpdir(), 'animichi-baseline-'));
@@ -41,7 +31,7 @@ for (const [index, entry] of oracle.written_records.entries()) {
   });
 }
 
-void test('a Python-written record survives a TS read and rewrite unchanged', () => {
+void test('the committed record survives a TS read and rewrite unchanged', () => {
   const text = readFileSync(baselineFile, 'utf8');
   const record = parseBaselineRecord(text) ?? written.record;
   assert.equal(`${baselineRecordText(record)}\n`, text);
@@ -50,12 +40,12 @@ void test('a Python-written record survives a TS read and rewrite unchanged', ()
 /** The rule `baseline-store.ts` deliberately does NOT make about every record:
  * an absent version is tolerated there, so the pinned record's own version is
  * pinned here, where it is a fact about one file (#1303). */
-void test('the committed Python baseline names the vocabulary this runner scores in', () => {
+void test('the committed baseline names the vocabulary this runner scores in', () => {
   const record = parseBaselineRecord(readFileSync(baselineFile, 'utf8'));
   assert.equal(record?.evaluator_version, EVALUATOR_VERSION);
 });
 
-void test('the committed Python baseline parses to the record Python gates with', () => {
+void test('the committed baseline parses to the record Python gates with', () => {
   const record = parseBaselineRecord(readFileSync(baselineFile, 'utf8'));
   assert.deepEqual(record, oracleEntryNamed(oracle.bootstrap_gates, 'real_baseline_subset').baseline);
 });

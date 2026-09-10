@@ -20,8 +20,11 @@ import type {
 } from './gate-run-result.ts';
 import { providerOutageGate, starvedCaseIdsOf } from './provider-outage.ts';
 
-/** The four members a starved run and a judged one answer differently. */
-type Judgement = Pick<GateRunResult, 'scores' | 'metrics' | 'failures' | 'warnings'>;
+/** The five members a starved run and a judged one answer differently. */
+type Judgement = Pick<
+  GateRunResult,
+  'scores' | 'case_scores' | 'metrics' | 'failures' | 'warnings'
+>;
 
 /**
  * The outage gate runs BEFORE the aggregation, and that order is the fix.
@@ -55,10 +58,17 @@ export function judgement(
  * rather than the agent, so `scores` is empty on purpose: publishing the seven
  * a crashed turn still emits would put numbers in the result file that a reader
  * — and #1303's comparison — could mistake for a measurement of the agent.
+ *
+ * `case_scores` is empty for exactly that reason and one more: since #1515 it
+ * is what a baseline is captured FROM, so an outage's per-case numbers must not
+ * be reachable as the floor every later run is judged against. A run under the
+ * ceiling still publishes its cases and is refused at capture instead — a
+ * judgeable run is not a mintable one (`baseline-capture.ts`, #1499).
  */
 function starvedJudgement(outage: readonly string[], settings: GateRunSettings): Judgement {
   return {
     scores: {},
+    case_scores: {},
     metrics: [],
     failures: [...outage, ...settings.baselineFailures],
     warnings: [...settings.strataWarnings, ...settings.baselineWarnings],
@@ -73,7 +83,12 @@ function comparedJudgement(
   const scores = aggregateScores(report, settings.metricNames);
   const metrics = comparedMetrics(input.cases, settings, starvedCaseIdsOf(report));
   const errors = errorRateGate(input.erroredCount, input.total, settings.baseline);
-  return { scores, metrics: metrics.map(verdictRow), ...gateOutcome(metrics, errors, settings) };
+  return {
+    scores,
+    case_scores: input.cases,
+    metrics: metrics.map(verdictRow),
+    ...gateOutcome(metrics, errors, settings),
+  };
 }
 
 /**
