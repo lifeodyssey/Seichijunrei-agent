@@ -5,7 +5,6 @@ import { createWorkerApp } from "./app.ts";
 import type { Env } from "./env.ts";
 import { catalogOutbound } from "./gateway/forward.ts";
 import {
-  buildContainerEnvVars,
   DENIED_EGRESS_HOSTS,
   resolveContainerEnvVars,
 } from "./container/container-env.ts";
@@ -49,16 +48,12 @@ export class RuntimeContainer extends Container {
   // could silently drift away from on an upgrade.
   sleepAfter = "10m";
   readonly #workerEnv: Record<string, unknown>;
-  #envResolved = false;
   constructor(ctx: DurableObjectState<object>, env: Record<string, unknown>) {
     super(ctx, env);
     this.#workerEnv = env;
-    this.envVars = buildContainerEnvVars(env);
   }
   async #hydrateStoreSecrets(): Promise<void> {
-    if (this.#envResolved) return;
     this.envVars = await resolveContainerEnvVars(this.#workerEnv);
-    this.#envResolved = true;
   }
   override async start(
     ...args: Parameters<Container["start"]>

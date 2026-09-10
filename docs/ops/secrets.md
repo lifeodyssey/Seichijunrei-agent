@@ -17,15 +17,10 @@ see the "Handling" section at the bottom.
 
 ## This file rots by default, and nothing enforces it
 
-A one-time inventory snapshot goes stale the moment a secret is added, renamed, or
-re-scoped, and nothing else notices. `gh secret list` cannot be the enforcement mechanism:
-it needs a repo-admin PAT to run in CI (the default `GITHUB_TOKEN` cannot list repo
-secrets), and minting a standing admin token just to keep a doc honest is a net-negative
-trade. A Python test used to stand in for it by grepping source, and #1373 deleted it: half
-its required set was every `${{ secrets.X }}` reference under `.github/workflows/**`, a set
-`workflow-credentials.test.rb` has kept at zero since #1367, and the other half was a regex
-over a TypeScript array in another package — a doc guard living in `apps/agent`, red for
-reasons no reader of that package could place.
+The inventory needs updates whenever a secret is added, renamed, or re-scoped. The default
+`GITHUB_TOKEN` cannot list repository secrets, and a standing admin token is not justified for
+this check. #1373 retired the Python source-grep guard; `workflow-credentials.test.rb` still
+enforces zero GitHub-secret references. Resource and binding tests validate runtime declarations.
 
 So the discipline is human, and it is the same two rules the test asserted. Whoever adds,
 renames, re-scopes, or retires a credential updates this file **in the same commit**:
@@ -52,16 +47,16 @@ credential live now:
 | Kind | Home | Reached by |
 |---|---|---|
 | CI-plane (`CLOUDFLARE_API_TOKEN`, `NEON_API_KEY`, `ZEN_GO_API_KEY`) | Pulumi ESC, under `environmentVariables` in `lifeodyssey/animichi/staging` and `…/prod` | the job's own GitHub OIDC identity → `pulumi/auth-actions` → `pulumi/esc-action`. The job's `environment:` is what makes its OIDC subject one the Pulumi Cloud issuer policy accepts (`deployment.md`, "Pulumi state, encryption, and CI identity") |
-| Edge runtime (the eight names in chain 1 below) | Pulumi ESC, under `pulumiConfig` as `fn::secret`, and on the Worker itself | Pulumi, never CI. `pulumi/esc-action` exports `environmentVariables` and `files` only, so a value under `pulumiConfig` cannot reach a publishing job at all |
+| Edge runtime (the active names in chain 1 below) | Target: Pulumi ESC `pulumiConfig` as `fn::secret` → Cloudflare Secrets Store; platform cutover requires the gates below | Pulumi, never CI. `pulumi/esc-action` exports `environmentVariables` and `files` only, so a value under `pulumiConfig` cannot reach a publishing job at all |
 | Staging Access (`CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`) | Pulumi ESC, under `environmentVariables` of the staging environment only — but nobody sets the value: the environment imports two stack outputs through its `pulumi-stacks` provider | `pulumi/esc-action` in `cd.yml`'s `smoke` job; `esc env open` locally. Full section below, because these two were never GitHub secrets and so are outside the tables' scope |
 
 `CLOUDFLARE_ACCOUNT_ID` left this file entirely: it is an account identifier, not a credential. The
 repository variable `vars.CLOUDFLARE_ACCOUNT_ID` was created 2026-09-08 and is what the workflows
 read; the GitHub *secret* of the same name is one of the copies awaiting deletion.
 
-`ZEN_GO_API_KEY` is deliberately in both ESC sections — the nightly eval reads it as a job
-environment variable, and the edge runtime reads it through the Secrets Store. They are the same
-value with two consumers, not a duplicate to deduplicate.
+`ZEN_GO_API_KEY` has two consumers: nightly eval needs `environmentVariables`, while the edge
+runtime needs a secret-marked `pulumiConfig` reference to that existing ESC value. Provision the
+reference explicitly; adding the stack import alone does not create it.
 
 ## Three consumption chains
 
@@ -71,19 +66,31 @@ A secret reaching a shared environment takes one of three shapes:
    the last upload step (`sync-edge-runtime-secrets.sh` piping a JSON object into `wrangler secret
    bulk`, and the `edge-runtime-secrets.py` allowlist it fed): no workflow uploads a runtime secret
    any more, and `cloudflare/wrangler-action`'s `secrets:` input is deliberately unused.
-   The eight names — `DEEPSEEK_API_KEY`, `MIMO_API_KEY`, `ZEN_GO_API_KEY`, `SUPABASE_DB_URL`,
-   `GOOGLE_MAPS_API_KEY`, `LOGFIRE_TOKEN`, `TURNSTILE_SECRET`, `ANON_ID_SECRET` — remain on the
-   Worker as the wrangler secrets they already were: `wrangler deploy` does not touch a secret the
-   config does not declare, so an existing version survives every deploy. Rotation is the owner's
-   `wrangler secret put` until #1370 moves all eight into the Cloudflare Secrets Store, provisioned
-   by Pulumi from Pulumi ESC, after which the name list exists in exactly one place.
-   `CONTAINER_ENV_KEYS` in `workers/edge/src/container/container-env.ts` still forwards the
-   container-bound subset into the agent.
-2. **Worker-only anonymous chain** — `TURNSTILE_SECRET` and `ANON_ID_SECRET` are read by the edge
-   Worker itself rather than forwarded to the container, and they matter only where
-   `ANON_ACCESS_ENABLED = "true"` (staging true, production false). They followed the same route as
-   chain 1 and now sit under the same rule: already-set wrangler secrets, no CI upload, #1370 moves
-   them to the Secrets Store.
+   The shared names — `DEEPSEEK_API_KEY`, `MIMO_API_KEY`, `ZEN_GO_API_KEY`,
+   `GOOGLE_MAPS_API_KEY`, `LOGFIRE_TOKEN` — are declared
+   by `infra/database-access/runtime-secrets.ts` as native `cloudflare.SecretsStoreSecret`
+   resources. The stack imports `animichi/staging` or `animichi/prod`, and every project-qualified
+   `animichi-neon-secrets:<NAME>` config key is required and secret-marked. Missing or blank
+   values fail the program; no resource is silently omitted. Staging uses the base secret names;
+   production uses `_PROD` names in the shared store. `SUPABASE_DB_URL` has no runtime
+   consumer and is neither required nor read/forwarded; the sole agent DSN remains
+   `AGENT_SVC_DATABASE_URL`. Removing its unused input does not authorize deleting an online copy.
+   The edge's per-environment `secrets_store_secrets` bindings resolve through the existing
+   `readStoreOrString` helper. `RuntimeContainer` resolves only `CONTAINER_ENV_KEYS` before each
+   start; native SDK startup receives strings, while local `.dev.vars` strings remain valid.
+   The native staging turn resolves `MIMO_API_KEY` at session bootstrap; BYOK turns run on the
+   caller key alone and never consult the server binding.
+2. **Worker-only anonymous chain** — `TURNSTILE_SECRET` and `ANON_ID_SECRET` use native
+   store bindings. `anonymousAccessEnabled` must match the Worker's `ANON_ACCESS_ENABLED` flag.
+   When enabled, the program additionally requires and provisions both secrets. The owner
+   authorized a new staging identity seed for this cutover; old anonymous test cookies will be
+   replaced and their quota/session association will not carry over automatically. Production
+   currently disables anonymous access, so it requires
+   neither anonymous secret nor their bindings. The identity resource uses native
+   `retainOnDelete`: disabling access later must retain its value. Re-enabling after removal
+   from state requires a reviewed import of the retained resource, not a replacement seed. The edge resolves them before Turnstile verification and
+   anonymous-cookie/pass signing or verification. They are excluded from the container allowlist.
+   Disabled anonymous access does not fetch either secret.
 3. **Plain var chain** — never a GitHub secret at all; a literal value checked into
    `wrangler.toml`'s `[vars]` (or `[env.<name>.vars]`), forwarded to the container the same way
    as (1) via `CONTAINER_ENV_KEYS`. Reference implementation: `ANON_DAILY_COST_BUDGET_USD`.
@@ -95,12 +102,36 @@ A secret reaching a shared environment takes one of three shapes:
 (#1047): the value is a checked-in `[env.*.vars]` wrangler var (staging and production alike),
 so it no longer has a Live row here — see its "Referenced by nothing" row below.
 
+## Runtime cutover gates (#1370)
+
+These declarations are a candidate, not proof of applied platform changes. Verify the required
+secret-marked inputs separately for each environment before merging the foundation, then
+complete these gates:
+
+1. Provision the shared nonempty `animichi-neon-secrets:<NAME>` keys as `fn::secret` from
+   owner-approved sources. Where anonymous access is enabled, also provide the environment's
+   `TURNSTILE_SECRET` and durable `ANON_ID_SECRET`. Staging's newly generated identity seed is an
+   owner-authorized reset, not a continuity-preserving migration. Preserve the eval export.
+   Never log or check in values.
+2. Preview staging: seven worker-scoped runtime resources; production currently has five.
+   Confirm the enablement flag matches the Worker, expected names, concealed values, and
+   existing database/access resources unchanged. Missing config blocks the release.
+3. CD applies foundation before the matching edge artifact; production requires its approval.
+4. Pass staging health/front-door smoke and anonymous chat. Verify all seven staging binding
+   names/ids before removing legacy Worker copies; retain metadata-only removal evidence.
+5. Record the authorized staging MiMo invalid-key → failed turn → restored-key → successful
+   turn check. Unit doubles cannot prove platform propagation or rotation.
+
+Each native session bootstrap reads its binding, and a running container keeps its initial
+environment; only a new process start reads rotated values. Include that restart in live
+rotation evidence.
+
 ## Live secrets
 
 | Secret | Scope | What it is | Value lives in / read by | Rotation |
 |---|---|---|---|---|
 | `ZEN_GO_API_KEY` | ESC `environmentVariables` (nightly eval) + ESC `pulumiConfig` (edge runtime) | **Production LLM gateway.** MiMo `mimo-v2.5` is routed through the zen/go gateway (`https://opencode.ai/zen/go/v1`) | Exact edge core payload → Worker binding → agent container; and `agent-eval-nightly.yml`, which opens it from ESC | Missing or blank blocks edge staging, production, and rollback at preflight. The nightly eval 401/403s the provider and the user sees the agent's generic failure response, never the raw provider error (SD-19) |
-| `MIMO_API_KEY` | ESC `pulumiConfig` | Retired direct-gateway credential retained as an explicit rollback-capable runtime binding | Exact edge core payload → Worker binding → agent container | It is required even while zen/go is the default; missing or blank blocks edge staging, production, and rollback at preflight |
+| `MIMO_API_KEY` | ESC `pulumiConfig` | Direct MiMo credential used by the native staging agent and retained by the Python container | Exact edge core payload → Worker binding → native host model credentials and agent container | It is required even while zen/go is the default; missing or blank blocks edge staging, production, and rollback at preflight |
 | `DEEPSEEK_API_KEY` | ESC `pulumiConfig` | Fallback model — **wired but disabled** (no balance) | Exact edge core payload → Worker binding → agent container | It remains an exact required binding; missing or blank blocks edge staging, production, and rollback at preflight |
 | `GOOGLE_MAPS_API_KEY` | ESC `pulumiConfig` | Geocoding (`apps/agent/src/animichi/infrastructure/gateways/geocoding.py`) | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight; an invalid value surfaces later as place-resolution failure |
 | `LOGFIRE_TOKEN` | ESC `pulumiConfig`, one project per environment (`animichi-staging` / `animichi-prod`) as of 2026-07-29, replacing one shared `LOGFIRE_TOKEN_PROD`/`LOGFIRE_TOKEN_STAGING` pair that lived less than eight hours (wiring was #498) | Write token for the environment's Logfire project | Exact edge core payload → Worker binding → agent container | Missing or blank blocks edge staging, production, and rollback at preflight. A wrong-but-present value only stops traces for that environment |
@@ -133,9 +164,10 @@ per-row backlog.
 | `PULUMI_BACKEND_URL` · `PULUMI_CONFIG_PASSPHRASE` · `R2_ACCESS_KEY_ID` · `R2_SECRET_ACCESS_KEY` | Were Live (this table, above) until #1077: Pulumi state and `secure:` encryption moved to Pulumi Cloud, CI logs in with `pulumi/auth-actions` (GitHub OIDC), and the pre-apply R2 state export retired with the backend. No workflow, action, or script reads any of the four | Do **not** delete yet — the owner still needs the passphrase and the R2 keys to run the one-time export/import in `docs/ops/deployment.md` ("One-time migration"), and they are the documented fallback until every stack is imported. Deletion of the GitHub copies is #1081, after that cutover |
 | `CATALOG_DATABASE_URL` | Migrated to the Cloudflare Secrets Store (#912 PR2): the catalog Worker's staging DSN now arrives via the `[[env.staging.secrets_store_secrets]]` binding in `workers/catalog/wrangler.toml`, so no workflow or GH secret reference remains. The staging GH secret still exists only until the binding swap is verified live | After the first post-PR2 staging deploy passes its post-deploy suite, `gh secret delete CATALOG_DATABASE_URL --env staging` |
 | `USERS_DATABASE_URL` | Migrated to the Cloudflare Secrets Store (#912 PR2): the users Worker's staging DSN now arrives via the `[[env.staging.secrets_store_secrets]]` binding in `workers/users/wrangler.toml`, so no workflow or GH secret reference remains. The staging GH secret still exists only until the binding swap is verified live | After the first post-PR2 staging deploy passes its post-deploy suite, `gh secret delete USERS_DATABASE_URL --env staging` |
-| `SUPABASE_DB_URL` · `TURNSTILE_SECRET` · `ANON_ID_SECRET` | Were Live (this table, above) until #1364: CD's runtime-secret upload step is gone, so no workflow references any of the three. They are **not** dead — all three are already-set wrangler secrets on the edge Worker, and `wrangler deploy` leaves a secret the config does not declare alone, so the running Worker keeps reading them. (`SUPABASE_DB_URL` is also the transitional container DSN name pending the #855 cutover; the two anonymous-access secrets are staging-only.) | Do **not** delete. #1370 provisions all eight edge runtime secrets as Cloudflare Secrets Store entries from Pulumi ESC and then deletes the old wrangler secrets; the GitHub copies go with the rest in #1367, by which time nothing reads them |
+| `SUPABASE_DB_URL` | The Python runtime reads only `AGENT_SVC_DATABASE_URL`. #1370 removes this unused key from container forwarding, required inputs and proposed Store resources/bindings. Existing online copies are outside this source change | Do **not** delete an online copy in this change; any later retirement needs its own live-state review |
+| `TURNSTILE_SECRET` · `ANON_ID_SECRET` | CD no longer uploads runtime secrets. Active anonymous access reads both; provisioning and bindings follow `anonymousAccessEnabled`. The owner authorized a new staging identity seed for this cutover | Preserve legacy Worker copies until the applicable live cutover gates pass; later identity resets require their own authorization |
 | `NEON_DATABASE_URL` | Was Live (this table, above) until #1365 (C3): production migrations now go through the migrator Worker on GitHub OIDC exactly like staging, so the Atlas transitional step and its `${{ secrets.NEON_DATABASE_URL }}` are gone from `.github/workflows/cd.yml` — no workflow references the name any more (`workers/edge/test/migration-boundary.test.ts` asserts zero occurrences). The catalog/users runtime DSNs already came from Cloudflare Secrets Store bindings, and the migrator reads its own `MIGRATOR_DATABASE_URL` store secret provisioned by `infra/database-access/index.ts` | Do **not** delete piecemeal — the repo, `staging`, and `production` copies go with every other GitHub secret in D1 (#1367), by which time nothing reads them (#1057 endgame) |
-| `SUPABASE_URL` · `SUPABASE_ANON_KEY` | Retired Supabase auth-plane credentials. No source, workflow, release manifest, or runtime reads either name after the Neon Auth hard cut | `gh secret delete SUPABASE_URL` then `gh secret delete SUPABASE_ANON_KEY`. (`SUPABASE_DB_URL` is a separate transitional container-DSN name.) |
+| `SUPABASE_URL` · `SUPABASE_ANON_KEY` | Retired Supabase auth-plane credentials. No source, workflow, release manifest, or runtime reads either name after the Neon Auth hard cut | `gh secret delete SUPABASE_URL` then `gh secret delete SUPABASE_ANON_KEY`. (`SUPABASE_DB_URL` is a separate retired container-DSN input.) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Retired Supabase service-role credential. No source, workflow, release manifest, or runtime reads it | `gh secret delete SUPABASE_SERVICE_ROLE_KEY` |
 
 Deleting is a per-row decision, not a batch one: `GCP_SA_KEY` needs an external check before
@@ -216,8 +248,9 @@ pins both names.
 Secrets Store** (the account's default store, id `66c9bb0faef644b4a0671bb7d90d98bd`; a second
 store is refused by the account plan, `maximum_stores_exceeded`). Values are managed by the
 `infra/database-access` Pulumi stack (staging branch roles + composed DSNs; see its `index.ts` for
-the role→secret mapping and the bootstrap/rotation runbook). This file only covers GitHub
-secrets, so store secrets are listed here for the reader, outside the two tables' scope:
+the role→secret mapping and the bootstrap/rotation runbook). Runtime credentials are additionally
+declared in `runtime-secrets.ts`; the active base names and their `_PROD` counterparts follow the
+cutover gates above. The established database bindings are:
 
 | Store secret | Worker binding | Consumed by |
 |---|---|---|
@@ -243,10 +276,10 @@ bindings in both environments; CI does not upload them.
 The agent-service binding was staging-only until W4-1 (#1314), which provisioned the production
 `agent_svc` DSN through the `infra/database-access` prod stack and bound it on the production edge
 Worker. Landing the binding changed no runtime behaviour: `AGENT_TURN_ROUTE` stays `"container"` in
-production, so the binding only moves where the container's DSN comes from, and production edge
-still receives `SUPABASE_DB_URL` through the exact core bulk payload until the cutover's later step
-retires it (`docs/ops/prod-dsn-cutover.md`). Local dev is unchanged (`.dev.vars`) and binds no store
-secret at all, which is why `AGENT_SVC_DATABASE_URL` is not in `CONTAINER_REQUIRED_KEYS`.
+production, so the binding only supplies the container's role-scoped DSN. The runtime no longer
+reads `SUPABASE_DB_URL`; #1370 therefore removes its unused forwarding requirement without
+deleting any online copy. Local dev still uses `.dev.vars` strings; Python settings enforce
+`AGENT_SVC_DATABASE_URL`, so the edge forwarding helper does not duplicate that validation.
 
 ## Adding a new secret
 
@@ -268,7 +301,7 @@ as the reference.
   workstation; the reviewed main-only `cd.yml` promotion is the supported write path. Secret
   *writes* are no longer a CD action at all: CI uploads no runtime secret (#1364), and Pulumi
   provisions the Secrets Store entries from Pulumi ESC. Until #1370 lands, rotating one of the
-  eight edge runtime secrets is an owner-run `wrangler secret put` against the target Worker.
+  active edge runtime secrets is an owner-run `wrangler secret put` against the target Worker.
 - Keep values out of process arguments in every approved provisioning path. A GitHub secret
   body-file/stdin interface (for example, `openssl rand -hex 32 | gh secret set <NAME>
   --body-file -`) avoids placing the value in argv; this is CI/admin automation guidance, not a

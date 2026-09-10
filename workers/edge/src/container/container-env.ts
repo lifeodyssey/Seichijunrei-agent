@@ -11,19 +11,14 @@
  */
 
 export const CONTAINER_ENV_KEYS = [
-  "DEEPSEEK_API_KEY", "MIMO_API_KEY", "ZEN_GO_API_KEY", "SUPABASE_DB_URL", "CATALOG_API_URL",
-  // Compatibility surface (#1000): SUPABASE_DB_URL remains a forwarded (and
-  // CONTAINER_REQUIRED_KEYS-listed) container env key because production still
-  // provisions the container DSN under that name until the #855 prod cutover
-  // replaces it with AGENT_SVC_DATABASE_URL. The agent settings no longer read
-  // SUPABASE_DB_URL, so this is transitional-compat pending that cutover.
+  "DEEPSEEK_API_KEY", "MIMO_API_KEY", "ZEN_GO_API_KEY", "CATALOG_API_URL",
   // #912 follow-up: the DSN is a Secrets Store binding in both deployed
   // environments (staging #912, production W4-1 #1314). `buildContainerEnvVars`
   // only copies strings; `resolveContainerEnvVars` unwraps `.get()` first (#1157).
   // Not in CONTAINER_REQUIRED_KEYS: local `wrangler dev` binds no store secret,
   // so the container must still start without one.
-  // (validate_required_env requires AGENT_SVC_DATABASE_URL; the legacy
-  // SUPABASE_DB_URL fallback is gone — issue #1000).
+  // validate_required_env requires this sole runtime DSN; retired database
+  // credentials are neither fetched nor forwarded.
   "AGENT_SVC_DATABASE_URL",
   // APP_ENV also joined CONTAINER_REQUIRED_KEYS below (issue #498): it is kept
   // listed here too so the standard forwarding allowlist stays a complete
@@ -54,7 +49,7 @@ export const CONTAINER_ENV_KEYS = [
 // should break the deploy loudly, not fall back to a silently-wrong value —
 // this repo was already reviewed back for the opposite ("can't parse it, so
 // treat it as false") fail-open pattern once (#441/#443).
-export const CONTAINER_REQUIRED_KEYS = ["DEEPSEEK_API_KEY", "MIMO_API_KEY", "SUPABASE_DB_URL", "APP_ENV"];
+export const CONTAINER_REQUIRED_KEYS = ["DEEPSEEK_API_KEY", "MIMO_API_KEY", "APP_ENV"];
 
 // Container-level egress URL-hostname denylist (#284 Task 7). Split out for the
 // same reason as the env-var allowlist above: a plain `node --test` importer
@@ -161,14 +156,12 @@ export function buildContainerEnvVars(env: Record<string, unknown>): Record<stri
   return envVars;
 }
 
-interface StoreSecret { get: () => Promise<string> }
-
-function isStoreSecret(value: unknown): value is StoreSecret {
+function isStoreSecret(value: unknown): value is SecretsStoreSecret {
   if (typeof value !== "object" || value === null) return false;
   return "get" in value && typeof value.get === "function";
 }
 
-/** String DSN, or Secrets Store `.get()` (catalog/users DATABASE_URL shape). */
+/** Native Secrets Store binding, or a plain string from local .dev.vars. */
 export async function readStoreOrString(value: unknown): Promise<string | undefined> {
   if (typeof value === "string") return value.length > 0 ? value : undefined;
   if (!isStoreSecret(value)) return undefined;
@@ -176,12 +169,11 @@ export async function readStoreOrString(value: unknown): Promise<string | undefi
   return typeof text === "string" && text.length > 0 ? text : undefined;
 }
 
-/** Unwrap AGENT_SVC_DATABASE_URL then run the string allowlist (#1157). */
+/** Resolve only the container allowlist before validating required values. */
 export async function resolveContainerEnvVars(
   env: Record<string, unknown>,
 ): Promise<Record<string, string>> {
-  const resolved: Record<string, unknown> = { ...env };
-  const dsn = await readStoreOrString(env.AGENT_SVC_DATABASE_URL);
-  if (dsn !== undefined) resolved.AGENT_SVC_DATABASE_URL = dsn;
-  return buildContainerEnvVars(resolved);
+  const entries = await Promise.all(CONTAINER_ENV_KEYS.map(async (key) =>
+    [key, await readStoreOrString(env[key])] as const));
+  return buildContainerEnvVars(Object.fromEntries(entries));
 }

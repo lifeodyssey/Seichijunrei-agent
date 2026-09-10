@@ -127,3 +127,49 @@ void test("the entry verification endpoint rejects non-POST methods", async () =
   );
   assert.equal(response.status, 405);
 });
+
+void test("native store bindings admit entry and reuse the signed pass in another isolate", async (t) => {
+  t.mock.method(Date, "now", () => NOW);
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
+  const firstCalls: GateCall[] = [];
+  const secondCalls: GateCall[] = [];
+  const env = {
+    ...(anonEnv(captured) as object),
+    ANON_ID_SECRET: { get: () => Promise.resolve(SECRET) },
+    TURNSTILE_SECRET: { get: () => Promise.resolve(TURNSTILE_SECRET) },
+  } as never;
+  const verified = await app(captured, recordingGate(firstCalls, SOLVED)).request(
+    "/v1/turnstile/verify", post(solvedHeaders), env, stubCtx,
+  );
+  assert.equal(verified.status, 204);
+  assert.equal(firstCalls[0]?.secret, TURNSTILE_SECRET);
+  const cookies = verified.headers.get("Set-Cookie") ?? "";
+  const aid = /aid=[^;,]+/.exec(cookies)?.[0];
+  const pass = /turnstile_pass=[^;,]+/.exec(cookies)?.[0];
+  assert.ok(aid);
+  assert.ok(pass);
+  const turn = await app(captured, recordingGate(secondCalls, null)).request(
+    "/v1/chat", post({ Cookie: `${aid}; ${pass}` }), env, stubCtx,
+  );
+  assert.equal(turn.status, 200);
+  assert.deepEqual(secondCalls, []);
+  assert.equal(captured.calls.length, 1);
+});
+
+for (const route of ["/v1/turnstile/verify", "/v1/chat"]) {
+  void test(`disabled anonymous access refuses ${route} without reading either secret`, async (t) => {
+    const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
+    const calls: GateCall[] = [];
+    const get = t.mock.fn(() => Promise.reject(new Error("must not read disabled secrets")));
+    const env = {
+      ...(anonEnv(captured) as object), ANON_ACCESS_ENABLED: "false",
+      ANON_ID_SECRET: { get }, TURNSTILE_SECRET: { get },
+    } as never;
+    const response = await app(captured, recordingGate(calls, SOLVED)).request(route, post(solvedHeaders), env, stubCtx);
+    assert.equal(response.status, 401);
+    assert.equal(get.mock.callCount(), 0);
+    assert.deepEqual(calls, []);
+    assert.deepEqual(captured.calls, []);
+    assert.equal(response.headers.get("Set-Cookie"), null);
+  });
+}
