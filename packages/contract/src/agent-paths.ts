@@ -30,6 +30,8 @@ export interface AgentPath {
   method: "GET" | "POST" | "PATCH";
   path: string;
   summary: string;
+  /** Edge-owned additions are not mounted or generated as Python runtime routes. */
+  runtime?: "edge";
 }
 
 export const AGENT_PATHS: AgentPath[] = [
@@ -41,6 +43,7 @@ export const AGENT_PATHS: AgentPath[] = [
   { method: "GET", path: "/v1/conversations", summary: "list conversations" },
   { method: "PATCH", path: "/v1/conversations/{session_id}", summary: "rename conversation" },
   { method: "GET", path: "/v1/conversations/{session_id}/messages", summary: "conversation messages" },
+  { method: "GET", path: "/v1/conversations/{session_id}/stream", summary: "resume the native conversation stream", runtime: "edge" },
   { method: "GET", path: "/v1/bangumi/{bangumi_id}/guide", summary: "work guide points" },
   { method: "GET", path: "/v1/bangumi/nearby", summary: "nearby points" },
   { method: "GET", path: "/v1/search/preview", summary: "search preview" },

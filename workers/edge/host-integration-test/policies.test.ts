@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import { once } from "node:events";
+import test from "node:test";
+import { pool, SESSION, IDENTITY } from "./postgres.ts";
+import { businessWorker, submission } from "./worker.ts";
+
+void test("a recorded permanent refusal faults, reattaches, cancels and refunds once through the actual host", async (context) => {
+  const { worker } = await businessWorker(context, { TEST_REJECT: "true" });
+  const observer = await pool.connect();
+  context.after(async () => { try { await observer.query("UNLISTEN *"); } finally { observer.release(); } });
+  await observer.query("UNLISTEN *");
+  await observer.query("LISTEN host_test_settled");
+  const committed = once(observer, "notification", { signal: AbortSignal.timeout(30_000) }).then(() => true, () => false);
+  const response = await worker.dispatchFetch("https://host.test/submit", { method: "POST", body: JSON.stringify(submission) });
+  assert.equal(response.status, 200, await response.text());
+  assert.equal(await committed, true);
+  const rows = await pool.query<{ state: string; rejection_reason: string; quota_refunded_at: Date | null }>("SELECT state, rejection_reason, quota_refunded_at FROM agent_admissions WHERE client_message_id = 'first'");
+  assert.equal(rows.rows[0]?.state, "settled");
+  assert.equal(rows.rows[0].rejection_reason, "authorization_revoked");
+  assert.ok(rows.rows[0].quota_refunded_at);
+  const quota = await pool.query<{ message_count: number }>("SELECT message_count FROM anon_daily_message_count WHERE anon_id = $1", [IDENTITY]);
+  assert.equal(Number(quota.rows[0]?.message_count), 0);
+  const wake = await worker.dispatchFetch("https://host.test/wake", { method: "POST", body: JSON.stringify(submission) });
+  assert.equal(wake.status, 200, await wake.text());
+  const repeated = await pool.query<{ message_count: number }>("SELECT message_count FROM anon_daily_message_count WHERE anon_id = $1", [IDENTITY]);
+  assert.equal(Number(repeated.rows[0]?.message_count), 0);
+  const nextSettled = once(observer, "notification", { signal: AbortSignal.timeout(30_000) }).then(() => true, () => false);
+  const next = await worker.dispatchFetch("https://host.test/submit", { method: "POST", body: JSON.stringify({ ...submission, clientMessageId: "after-refusal" }) });
+  const body = await next.text();
+  assert.equal(next.status, 200, body);
+  const accepted = JSON.parse(body) as { kind: string; operationId: string };
+  assert.equal(accepted.kind, "accepted");
+  assert.equal(await nextSettled, true, "A durable refusal must not poison the same session's next legitimate request");
+  const legitimate = await pool.query("SELECT state,rejection_reason,quota_refunded_at FROM agent_admissions WHERE operation_id=$1", [accepted.operationId]);
+  assert.deepEqual(legitimate.rows, [{ state: "settled", rejection_reason: null, quota_refunded_at: null }]);
+  const result = await pool.query("SELECT value->>'status' AS status FROM pi_scalar_values WHERE namespace='pi.result' AND key=$1", [accepted.operationId]);
+  assert.deepEqual(result.rows, [{ status: "completed" }]);
+  const finalQuota = await pool.query<{ message_count: number }>("SELECT message_count FROM anon_daily_message_count WHERE anon_id=$1", [IDENTITY]);
+  assert.equal(Number(finalQuota.rows[0]?.message_count), 1);
+});
+
+void test("an unresolved selection with a missing conversation owner blocks model admission and cannot recreate its owner", async (context) => {
+  const { worker } = await businessWorker(context);
+  const initialized = await worker.dispatchFetch("https://host.test/initialize", { method: "POST", body: JSON.stringify(submission) });
+  assert.equal(initialized.status, 200, await initialized.text());
+  await pool.query("INSERT INTO agent_admissions (session_id, client_message_id, kind, identity_id, payer, request_digest, selection_request) VALUES ($1, 'selection', 'selection', $2, 'anon', 'unresolved', $3)", [SESSION, IDENTITY, { of: "points", pointIds: ["unresolved-point"], origin: null, locale: "ja" }]);
+  const response = await worker.dispatchFetch("https://host.test/submit", { method: "POST", body: JSON.stringify(submission) });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+  assert.deepEqual(JSON.parse(body) as unknown, { kind: "blocked", operationId: null });
+  const records = await pool.query<{ count: string }>("SELECT count(*) FROM agent_admissions WHERE kind = 'model'");
+  assert.equal(Number(records.rows[0]?.count), 0);
+  const quota = await pool.query<{ count: string }>("SELECT count(*) FROM anon_daily_message_count");
+  assert.equal(Number(quota.rows[0]?.count), 0);
+  const owners = await pool.query("SELECT id FROM sessions WHERE id=$1", [SESSION]);
+  assert.deepEqual(owners.rows, []);
+});

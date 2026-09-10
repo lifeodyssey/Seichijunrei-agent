@@ -15,8 +15,6 @@ export * from "./errors.js";
 export * from "./users-contract.js";
 export * from "./agent-contract.js";
 export * from "./session-history-contract.js";
-export * from "./staging-prefix-contract.js";
-export * from "./staging-prefix-path.js";
 export * from "./agent-paths.js";
 export * from "./operation-set.js";
 export * from "./openapi-changes.js";

@@ -4,7 +4,6 @@ import { createWorkerApp } from "../src/app.ts";
 import type { Env } from "../src/env.ts";
 import { neonAgentTurnTier, submissionOf, type TurnIdentity } from "../src/gateway/agent-turn.ts";
 import { ByokProbe } from "../src/agent/byok/byok-probe.ts";
-import type { EgressFetch } from "../src/agent/egress/guarded-fetch.ts";
 
 // W2-3 (#1289) — `POST /v1/byok/probe` on the edge tier, and the one refusal
 // that makes "no server-key fallback" a red line rather than a preference: a
@@ -60,7 +59,7 @@ async function errorBody(response: Response): Promise<{ code: string; message?: 
 
 /** A probe whose socket answers 401 without ever leaving the process. */
 function rejectingProbe(): ByokProbe {
-  const inner: EgressFetch = () => Promise.resolve(new Response("{}", { status: 401 }));
+  const inner: typeof globalThis.fetch = () => Promise.resolve(new Response("{}", { status: 401 }));
   return new ByokProbe({ egress: { inner } });
 }
 

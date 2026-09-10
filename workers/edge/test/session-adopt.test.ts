@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 
 const SECRET = "fixed-test-hmac-key-0000000000000000";
 const ANON_ENV = { ANON_ACCESS_ENABLED: "true", ANON_ID_SECRET: SECRET, EDGE_SHOWCASE_MODE: "false" };
@@ -149,12 +150,11 @@ void test("a no-op adoption (adopted: 0, noop_class: no_rows) sets no cookie eit
   assert.equal(res.headers.get("Set-Cookie"), null);
 });
 
-void test("X-Anon-Id is stripped on every OTHER /v1 route, even with a valid cookie", async () => {
-  const cap: { req?: Request } = {};
-  const app = createWorkerApp({ authenticate: authOk });
+void test("an adoption-only X-Anon-Id header cannot replace the native chat identity", async () => {
+  const calls: NativeAgentCall[] = [];
+  const app = createWorkerApp({ authenticate: authOk, agentTurns: nativeAgentReceiver(calls) });
   const cookie = await anonCookieFor("anon_" + "b".repeat(32));
-  await app.request(
-    "/v1/chat", { method: "POST", headers: { Cookie: cookie, "X-Anon-Id": "anon_" + "b".repeat(32) } }, environmentWithContainer(cap), stubCtx,
-  );
-  assert.equal(cap.req?.headers.get("X-Anon-Id"), null);
+  const res = await app.request("/v1/chat", { method: "POST", headers: { Cookie: cookie, "X-Anon-Id": "anon_" + "b".repeat(32) } }, environmentWithContainer({}), stubCtx);
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls[0]?.identity, { userId: "real-user-1", userType: "human" });
 });

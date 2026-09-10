@@ -1,6 +1,7 @@
 """Agent OpenAPI/runtime route parity (issue #1005 AC1).
 
-Three representations of the Agent protocol contract must agree exactly:
+Three representations of the Python-owned Agent protocol must agree exactly.
+Native edge-only routes remain in OpenAPI and have their own gateway tests:
  1. the committed generated OpenAPI document
     (packages/contract/agent-openapi.json, emitted from AGENT_PATHS);
  2. the generated Python inventory (AGENT_PATH_INVENTORY in agent_models.py);
@@ -41,7 +42,12 @@ def _operations_in_path(path: object, item: object) -> list[tuple[str, str]]:
 
 def _generated_operations() -> list[tuple[str, str]]:
     spec = json.loads(_AGENT_OPENAPI_PATH.read_text(encoding="utf8"))
-    return _spec_operations(spec)
+    return sorted(
+        (method.upper(), path)
+        for path, item in spec["paths"].items()
+        for method, operation in item.items()
+        if method in _AGENT_METHODS and operation.get("x-runtime") != "edge"
+    )
 
 
 def _inventory_operations() -> list[tuple[str, str]]:

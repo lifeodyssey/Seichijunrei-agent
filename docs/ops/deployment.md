@@ -713,8 +713,9 @@ policy or token is built there.
 Every automated caller sends the pair when both variables are set, and refuses when exactly one
 is: the CD smoke probe (`.github/scripts/staging-smoke-check.sh`), the Playwright suite
 (`e2e/playwright.config.ts`, `use.extraHTTPHeaders`), the staging lanes
-(`workers/edge/api-test/lane-origin.ts`) and, through that same door, `packages/eval`. The names
-and the refusal live once, in `packages/contract/src/access-service-token.ts`. Access answers a
+(`workers/edge/api-test/lane-origin.ts`). The retired HTTP Eval launcher no longer uses this door;
+the native Eval task runs in process. The names and the refusal live once, in
+`packages/contract/src/access-service-token.ts`. Access answers a
 request carrying one header exactly as it answers one carrying neither — a 302 to the login page
 — so a half-declared token would surface as "the app is broken", which is why it fails closed by
 name instead.

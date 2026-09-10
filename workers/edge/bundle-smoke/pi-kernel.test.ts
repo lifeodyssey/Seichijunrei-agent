@@ -20,45 +20,20 @@
  */
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
-import { bundleLikeWrangler } from "./wrangler-bundle.ts";
+import { bundleLikeWrangler, deployedRuntime } from "./wrangler-bundle.ts";
 
 const ENTRY = fileURLToPath(new URL("./pi-kernel.worker.ts", import.meta.url));
-const WRANGLER_TOML = fileURLToPath(new URL("../wrangler.toml", import.meta.url));
 const OUT_DIR = mkdtempSync(join(tmpdir(), "edge-bundle-smoke-"));
 const BUNDLE = join(OUT_DIR, "pi-kernel.js");
 
 after(() => {
   rmSync(OUT_DIR, { recursive: true, force: true });
 });
-
-/**
- * The single value of `key` in the root (unscoped) wrangler.toml table.
- * Sliced at the first section header so an `[env.*]` override of the same key
- * can never answer instead — the same hand-rolled read `wrangler-toml.test.ts`
- * already uses, for the same reason: these guards must not need a TOML parser.
- */
-function rootConfigValue(key: string): string {
-  const toml = readFileSync(WRANGLER_TOML, "utf8");
-  const rootTable = toml.split(/^\[/m)[0] ?? "";
-  const match = new RegExp(`^${key}\\s*=\\s*(.+)$`, "m").exec(rootTable);
-  assert.ok(match?.[1], `wrangler.toml root table must declare ${key}`);
-  return match[1].trim();
-}
-
-/** Compatibility settings the deployed edge Worker runs on, read from its config. */
-function deployedRuntime(): { compatibilityDate: string; compatibilityFlags: string[] } {
-  const date = rootConfigValue("compatibility_date").replaceAll('"', "");
-  const flags = rootConfigValue("compatibility_flags");
-  return {
-    compatibilityDate: date,
-    compatibilityFlags: [...flags.matchAll(/"([^"]+)"/g)].map((flag) => flag[1] ?? ""),
-  };
-}
 
 /**
  * The module list is explicit, as a deploy upload is: pi's auth context carries

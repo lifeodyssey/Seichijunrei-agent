@@ -56,7 +56,9 @@ it("runs authenticated preview and concurrent apply through the deployed entry a
   expect(await health.json()).toMatchObject({ prismaTarget: TARGET });
   const healthy = performance.now();
   const preview = await post("preflight");
-  expect({ status: preview.status, body: await preview.json() }).toMatchObject({ status: 200, body: {
+  const previewBody: unknown = await preview.json();
+  const sealedCount = (previewBody as { prisma: { migrations: unknown[] } }).prisma.migrations.length;
+  expect({ status: preview.status, body: previewBody }).toMatchObject({ status: 200, body: {
     compatible: true, prisma: { targetHash: TARGET, markerHash: "empty", usedLiveMarker: true },
   } });
   const previewed = performance.now();
@@ -64,7 +66,7 @@ it("runs authenticated preview and concurrent apply through the deployed entry a
   expect(applied.map((response) => response.status)).toEqual([200, 200]);
   const bodies = applied.map((response) => response.body);
   expect(bodies.map((body) => body.prisma.markerHash)).toEqual([TARGET, TARGET]);
-  expect(bodies.map((body) => body.prisma.migrationsApplied).sort()).toEqual([0, 1]);
+  expect(bodies.map((body) => body.prisma.migrationsApplied).sort()).toEqual([0, sealedCount]);
   const migrated = performance.now();
   const replay = await post("preflight");
   const replayBody: unknown = await replay.json();

@@ -33,7 +33,7 @@ import { useBackendHealth } from "./use-backend-health";
 import type { BackendHealth } from "./use-backend-health";
 import type { ChatSession } from "./use-chat-session";
 import { useChatSession } from "./use-chat-session";
-import { useConversationHistory } from "./use-conversation-history";
+import { snapshotOperationId, useConversationHistory, withoutSnapshotAssistant } from "./use-conversation-history";
 import type { ConversationHistory } from "./use-conversation-history";
 import { maskRecomputeFailure, useTurnFailure } from "./use-turn-failure";
 import type { TurnFailureGate } from "./use-turn-failure";
@@ -108,10 +108,10 @@ function useAutoSendFromQuery(search: ChatSearch, health: BackendHealth, send: (
 function useChatState(entry: ChatSearch) {
   const config = useMemo(currentChatConfig, []);
   const health = useBackendHealth(config.baseUrl);
-  const chat = useChatSession(config.chatUrl, entry.session);
+  const chat = useChatSession(config.chatUrl, entry.session, entry.session !== undefined);
   const history = useConversationHistory(config.baseUrl, entry.session);
-  usePublishSessionId(entry, assignedSessionId(chat.messages));
-  return { config, health, chat, history };
+  usePublishSessionId(entry, chat.sessionIdOf() ?? assignedSessionId(chat.messages));
+  return { config, health, chat, history: withoutSnapshotAssistant(history, snapshotOperationId(chat.messages, chat.operationIdOf())) };
 }
 
 /** Photo requests share chat's identity: locale, live session id, C4 gps. */
@@ -129,9 +129,9 @@ function useFailedPick(clarifyPick: ClarifyPickTurn) {
 }
 
 /** Tray state: the recompute + clarify-pick turns, their masked failure, and the spot store. */
-function useTrayState(chat: ChatSession, baseUrl: string, gate: TurnFailureGate, sessionKey: string | undefined) {
+function useTrayState(chat: ChatSession, gate: TurnFailureGate, sessionKey: string | undefined) {
   const clarifyPick = useClarifyPickState(chat, sessionKey);
-  const turn = useTurnFailure(chat, baseUrl, gate, useFailedPick(clarifyPick));
+  const turn = useTurnFailure(chat, gate, useFailedPick(clarifyPick));
   const recompute = useRecomputeTurn(chat, sessionKey);
   const failure = maskRecomputeFailure(recompute, turn.view);
   const selection = useSpotSelectionState(sessionKey);
@@ -148,15 +148,15 @@ function usePageSurfaces(chat: ChatSession, actions: ChatActions, gps: PhotoGps 
   return { dict, photo, departure, locale };
 }
 
-function useGuardedTray(chat: ChatSession, baseUrl: string, auth: ReturnType<typeof useAuthStatus>, sessionKey: string | undefined) {
-  return useTrayState(chat, baseUrl, { challenged: false, auth }, sessionKey);
+function useGuardedTray(chat: ChatSession, auth: ReturnType<typeof useAuthStatus>, sessionKey: string | undefined) {
+  return useTrayState(chat, { challenged: false, auth }, sessionKey);
 }
 
 function useChatPage(entry: ChatSearch) {
   const { config, health, chat, history } = useChatState(entry);
   const { actions: live, gps } = useOriginTracking(useTurnActions(chat));
   const auth = useAuthStatus();
-  const tray = useGuardedTray(chat, config.baseUrl, auth, entry.session);
+  const tray = useGuardedTray(chat, auth, entry.session);
   const actions = useLockedActions(live, tray.quota.locked);
   const surfaces = usePageSurfaces(chat, actions, gps);
   useAutoSendFromQuery(entry, health, actions.send);

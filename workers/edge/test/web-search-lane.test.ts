@@ -36,9 +36,6 @@ const LANE_SUITES = [
 
 const DOOR = laneFile("lane-origin.ts");
 const RUNBOOK = readFileSync(fileURLToPath(new URL("../api-test/README.md", import.meta.url)), "utf8");
-const TOOL = readFileSync(fileURLToPath(new URL("../src/agent/tools/web-search-tool.ts", import.meta.url)), "utf8");
-const SEARCHER = readFileSync(fileURLToPath(new URL("../src/agent/tools/duckduckgo-web-searcher.ts", import.meta.url)), "utf8");
-const EGRESS = readFileSync(fileURLToPath(new URL("../src/agent/egress/egress-decision.ts", import.meta.url)), "utf8");
 
 /** The body of the door's own destination check, where every refusal is decided. */
 function destinationCheck(): string {
@@ -119,25 +116,6 @@ void test("no request the door makes may follow a redirect off the origin", () =
 void test("the door still refuses to guess an origin or a credential", () => {
   assert.match(DOOR, /assert\.ok\(origin,/);
   assert.match(DOOR, /assert\.ok\(bearer,/);
-});
-
-/**
- * `Search failed for …` is one sentence covering four different causes, and the
- * runbook is the only place an operator learns to tell them apart. These pin it
- * to the code: a detail the runbook explains but nothing produces would send
- * somebody hunting a failure mode that does not exist, and a detail the code
- * produces but the runbook omits is the one they will misdiagnose.
- */
-void test("the runbook does not read one failure sentence as one diagnosis", () => {
-  assert.match(RUNBOOK, /that is ALL it means on its own/);
-  assert.match(RUNBOOK, /web_search_failed/, "the server-side half has to be findable too");
-});
-
-void test("every failure detail the runbook explains is one the code can produce", () => {
-  const source = `${TOOL}${SEARCHER}${EGRESS}`;
-  const documented = ["egress denied: ", "search backend answered ", "the search timed out"];
-  const produced = documented.filter((detail) => RUNBOOK.includes(detail) && source.includes(detail));
-  assert.deepEqual(produced, documented);
 });
 
 void test("the runbook states both rules an operator can otherwise trip", () => {

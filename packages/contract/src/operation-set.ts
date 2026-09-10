@@ -49,6 +49,7 @@ export interface WireResponse {
 
 /** Structural mirror of one emitted OpenAPI operation. */
 export interface WireOperation {
+  readonly "x-runtime"?: "edge";
   readonly summary?: string;
   readonly deprecated?: boolean;
   readonly "x-sunset"?: string;

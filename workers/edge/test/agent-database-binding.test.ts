@@ -86,12 +86,7 @@ void test("the binding name is identical in both environments, so one forwarding
   );
 });
 
-void test("landing the production binding does not move production onto the edge tier", () => {
-  // W4-1 is a provisioning card: the production route flag stays "container", so
-  // the deployed behaviour is unchanged and only the container's DSN source moves.
-  const productionVars = WRANGLER.slice(
-    WRANGLER.indexOf("\n[env.production.vars]\n"),
-    WRANGLER.indexOf("\n[env.staging]\n"),
-  );
-  assert.match(productionVars, /^AGENT_TURN_ROUTE = "container"$/m);
+void test("the production data-plane binding serves the native edge tier", () => {
+  const productionVars = WRANGLER.slice(WRANGLER.indexOf("\n[env.production.vars]\n"), WRANGLER.indexOf("\n[env.staging]\n"));
+  assert.doesNotMatch(productionVars, /^AGENT_TURN_ROUTE\s*=/m);
 });

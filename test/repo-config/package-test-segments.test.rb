@@ -12,9 +12,11 @@ class PackageTestSegmentsTest < Minitest::Test
     "workers/users" => %w[test:worker],
     "workers/migrator" => ["vitest run"],
     "packages/contract" => ["vitest run", "vet:baseline", "test:openapi-drift"],
-    "packages/agent" => ["node --test"],
+    # The native rewrite runs its suites through the tsx loader; the contract is
+    # still node's own test runner, so the loader is part of the pinned shape.
+    "packages/agent" => [%r{node --import tsx --test}],
     "packages/pi-session-neon" => ["node --test", "test/contract-types.test.ts"],
-    "packages/eval" => ["node --test", "test:fixture-drift"],
+    "packages/eval" => [%r{node --import tsx --test}, "test:fixture-drift"],
     "packages/test-postgres" => ["node --test"],
     "infra" => ["node --test", "test:program-load"],
     "apps/web" => ["vitest run"],
@@ -58,7 +60,13 @@ class PackageTestSegmentsTest < Minitest::Test
   def assert_package_segments(directory, segments)
     scripts = scripts_of(directory)
     refute_empty scripts.fetch("test", ""), "#{directory}/package.json: test script is missing"
-    segments.each { |segment| assert_includes scripts["test"], segment, "#{directory}: test must run #{segment}" }
+    segments.each do |segment|
+      if segment.is_a?(Regexp)
+        assert_match segment, scripts["test"], "#{directory}: test must run #{segment}"
+      else
+        assert_includes scripts["test"], segment, "#{directory}: test must run #{segment}"
+      end
+    end
     segments.grep(/^test:/).each { |segment| assert scripts.key?(segment), "#{directory}: #{segment} is undefined" }
   end
 

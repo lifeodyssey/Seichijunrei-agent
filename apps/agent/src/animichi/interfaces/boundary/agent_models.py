@@ -164,6 +164,7 @@ class SessionHistoryMessageResponse_data(BaseModel):
 
 class SessionHistoryMessage(BaseModel):
     role: str
+    operation_id: str | None = None
     content: str
     response_data: SessionHistoryMessageResponse_data | None = None
     created_at: str
@@ -176,6 +177,7 @@ class GetSessionHistoryResponseMessagesResponse_data(BaseModel):
 
 class GetSessionHistoryResponseMessages(BaseModel):
     role: str
+    operation_id: str | None = None
     content: str
     response_data: GetSessionHistoryResponseMessagesResponse_data | None = None
     created_at: str

@@ -18,10 +18,10 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - `workers/users/`     — LIVE Hono/oRPC user-data Worker over Neon; verifies nothing itself (no `jose`) — it trusts the edge-forwarded identity; 13 `test/*.worker.test.ts` files + CI lane. → `workers/users/AGENTS.md`
 - `packages/agent/`    — Platform-independent TS agent domain library (`@animichi/agent`), consumed by edge. Python remains `@animichi/agent-python`. → `packages/agent/AGENTS.md`
 - `packages/contract/` — Shared oRPC/zod contract; cross-service source of truth. → `packages/contract/AGENTS.md`
-- `packages/eval/`     — Node eval package (W3): reads the Python-exported datasets with `logfire/evals`. → `packages/eval/AGENTS.md`
+- `packages/eval/`     — Node native Pi task and preserved statistical oracles with `logfire/evals`. → `packages/eval/AGENTS.md`
 - `packages/test-postgres/` — Test-only Postgres data plane (image, readiness wait, clean DB, Atlas chain) shared by the catalog spike, the edge agent-db arm and `db-fresh-schema.sh`. → `packages/test-postgres/AGENTS.md`
 - `apps/web/`          — TanStack Start SSR app; **the only browser surface** (legacy `frontend/` retired, #537). → `apps/web/AGENTS.md`
-- `workers/edge/`      — CF edge worker (`workers/edge/src/entry.ts`): the gateway (auth, `/v1` routing, image/tile proxies; no page fallback — unmatched paths 404) **and**, behind `AGENT_TURN_ROUTE = "edge"`, the TS agent tier itself (`workers/edge/src/agent/`: intake → `AgentSession` DO → Neon settlement) — most of the package's source is now that tier. → `workers/edge/AGENTS.md`
+- `workers/edge/`      — CF edge worker (`workers/edge/src/entry.ts`): the gateway (auth, `/v1` routing, image/tile proxies; no page fallback — unmatched paths 404) **and**, the native Pi agent tier (`workers/edge/src/agent/`: authenticated admission → `SessionAgent` → Neon settlement) — most of the package's source is now that tier. → `workers/edge/AGENTS.md`
 - `workers/migrator/`  — TS Worker that applies the `migrations/neon` Atlas chain (bundled into the Worker) behind GitHub OIDC. → `workers/migrator/AGENTS.md`
 - `migrations/neon/`    — Atlas/Neon migrations (moved from `db/migrations`); `supabase/` is an archived historical Supabase migration dir (issue #1000), not a live surface. → `migrations/AGENTS.md`
 - `e2e/`               — Playwright browser suite for `apps/web`. → `e2e/AGENTS.md`
@@ -92,7 +92,7 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - Current **target** for the agent runtime and eval (native Pi harness inside `workers/edge`;
   supersedes SD-4 of the rebuild spec) → `docs/specs/2026-09-09-agent-on-pi-harness-spec.md`
 - Web rebuild target (still canonical for `apps/web`) → `docs/specs/2026-07-06-frontend-rebuild-spec.md`
-- Live runtime **reference** (both agent tiers + the `AGENT_TURN_ROUTE` flag) → `docs/ARCHITECTURE.md`
+- Current runtime **reference** (native chat, remaining services and verification boundaries) → `docs/ARCHITECTURE.md`
 - Deploy runbook → `docs/ops/deployment.md`
 - **Single Source-of-Truth table + doc-change rules** → `docs/DOCS_POLICY.md` (the one canonical topic→path map)
 - Current **campaign tracking** (merged restructure-spec × GOAL; waves P0–P8; ADRs 0003–0005) →

@@ -4,6 +4,7 @@
 - owner 定案（2026-09-09）：**「彻底重写，能用 pi 的就用 pi，eval 和单测需要重新考虑」**；eval 不要数据库；**所有工具调用都要真的**（web search 的不稳定可接受）。
 - 本次 owner 补充：**agent / eval 不保留自建 adapter 架构；使用依赖库最直接的公开 API，允许大幅删减重写。** 具体 SDK 源码核对与删减依据见 [SDK-native review](../iterations/production-readiness-2026-08/SDK-NATIVE-REWRITE-REVIEW.md)；逐文件执行以 [W0-1 清单](../iterations/production-readiness-2026-08/AGENT-FILE-DISPOSITION.md) 为准。
 - 当前核对基线：仓库 `fd73fbd532ef4d151a027ab8c93e9f2ea9304dab`；pi 已发布 **0.85.1**，npm gitHead/tag **`d981de1229ef899957bbe968bc8dcda02a21f477`**。最新判断以该 tarball、对应官方源码和原生 API probe 为准；早先浮动 checkout 的研究记录归历史，不能覆盖实际已发布行为。
+- owner 补充（2026-09-10）：生产环境没有用户，**不做任何后向兼容，允许直接删除重写**。本裁决覆盖 D6、D15 与 W2-1 的旧历史只读保留要求；当前产品行为与安全、恢复、结算验收继续成立。
 - 取代：`docs/specs/2026-09-01-agent-ts-rewrite-spec.md` 的 §五 W3、§十 与**它的第 16 行非目标**；以及 `docs/archive/specs/2026-09-08-eval-suite-redesign-spec.md` 全文（见 §十一）。
 
 ### 交付与验收（owner 批准，2026-09-10）
@@ -199,11 +200,17 @@ E-1 的 33 条是独立 held-out 子集，不替代 662 条主集或其它保留
 
 | 层 | 对象 | 工具 |
 |---|---|---|
-| unit | hooks 装配、状态栏、帧投影、工具参数校验 | `MemorySessionRepo` + `fauxProvider`（pi-ai 公开导出，`packages/ai/src/index.ts:36`）+ `InstrumentedStorage` |
-| unit / integration（崩溃） | 应用提交边界 / 真实宿主请求与 SDK 排程重入 | `GatingStorage` / `CommitDiscarded`；平台行为走官方 Wrangler workerd test harness |
+| unit | hooks 装配、状态栏、帧投影、工具参数校验 | 公开 `MemorySessionRepo` + `fauxProvider`，在 Node 运行 |
+| integration | 应用提交顺序与提交结果未知的恢复边界 | 公开 `InstrumentedStorage` / `GatingStorage` 包装实际 `NeonStorage`，业务事务使用 Prisma × `packages/test-postgres`；提交成功但响应丢失另行注入 |
+| integration | 真实宿主请求、keepalive 与 SDK 排程重入 | 官方 Wrangler workerd runtime 和实际持久调度，配合受控外部 I/O |
 | integration | Neon backend | 上游 conformance × `packages/test-postgres` |
 | integration | 6 个领域工具 | **真工具**：本地 catalog + `packages/test-postgres` |
 | eval | §七 | 真模型 + 真工具 |
+
+2026-09-10 测试类型更正（#1546、#1554、#1555、#1582）：`MemorySessionRepo` 不公开内部
+Storage，不能通过私有字段接入写序观察器。业务提交和 DO 持久调度在实际 PostgreSQL / 官方
+运行时验证；所有提交窗口、构造→关闭→重开后的结局与指定变异仍是代码合并条件，不移到线上
+验收。不得为满足原卡的 unit 标签添加业务存储双实现或宿主替身。
 
 **替身只用在 pi 自己用替身的地方**（provider 与 storage 的 plumbing 测试）；**工具一律真跑**（owner）。上游的 operation 状态机、恢复、压缩由上游测试负责，我们不重写它的测试。
 
@@ -239,7 +246,7 @@ E-1 的 33 条是独立 held-out 子集，不替代 662 条主集或其它保留
    **产品侧保持**：结构化 `candidates` → `ClarifyCard` → 确定性选择通道与 SD-9/data part 不变；过期 `clarification_id` 仍返回 409。W1-8 从原生 entries 与必要 scalar state 的领域投影读取未决澄清，并只消解匹配的 id/revision，不为保留旧 envelope 而新增写入。
 4. **D4 — 外部 SD-9 契约保持。** 使用 AI SDK 原生 UI message writer/response，必要的 HarnessEvent→UIMessageChunk 领域投影为纯函数。按外部帧、顺序、隐私、心跳和重连行为验收，不以保留旧 TurnFrame/SSE 类为验收。
 5. **D5 — Neon backend 是新包还是进 `workers/edge`（owner 已定：按推荐）？** 推荐**新包 `packages/pi-session-neon`**：它要跑上游 conformance（Node 侧），而 edge 是 Worker bundle；分开才能让 conformance 在 CI 里独立成 lane。
-6. **D6 — 迁移策略：并行双跑还是硬切（owner 已定：按推荐）？** 推荐**硬切 + 新 session 起算**：format 4 与我们今天的 `runs`/`messages`/`run_steps` 没有语义对应，双写会同时维护两套恢复语义。历史会话保留只读（现有取回面继续读旧表），新会话一律新路径。若 owner 要求历史可续聊，那是另一张迁移卡。
+6. **D6 — 零用户硬切（owner 2026-09-10 明确授权）。** 生产环境没有用户，不需要任何后向兼容。会话读写直接使用原生 SDK entries/values；删除旧 `runs`/`messages`/`run_steps` 读写路径、codec 和版本分流，不保留双写、历史读取兼容层或自动回退。已有 Atlas 迁移历史保持不变；本次代码退役不执行在线删表或清库。
 7. **D7 — eval 使用依赖库现成能力。** 执行、并发、重复、断言、judge 与报告直接走 logfire；session、轨迹和 token 成本走 pi。仅保留 §七列明的领域判据、预算、pass^k、统计和基线政策；删除 staging task 与旧 report/trace/Python wire 转换。
 8. **D8 — spike 失败怎么办（owner 已定：按推荐）？** 推荐把 S1–S4 的任一条红当作**回到 owner**，而不是自动回退——0.84.4 的现状能跑，没有时间压力。
 9. **D9 — 升级节奏（owner 已定：按推荐）？** 上游约一周一发（`packages/agent/CHANGELOG.md:5-33`）。推荐**季度评估 + 安全修复即时跟**，每次升级跑 conformance 与 S1/S2/S4；不追新。
@@ -248,7 +255,7 @@ E-1 的 33 条是独立 held-out 子集，不替代 662 条主集或其它保留
 12. **D12 — 前缀使用 SDK 原生 tree fork，按已发布实现修订。** 在同一个 JsonlSessionRepo 中，每个目标前缀先录制并冻结独立 source；0.85.1 复制 entries 与 scalars，不复制 lists，也不接受历史 entryId。验收比较 entry/ref 身份、标量与候选/revision/确定性选择的领域等价；内部表示允许重写，不能用补写 copier 假装 SDK 已实现旧 AC。
 13. **D13 — 新 session 的读面放哪（owner 已定：按推荐）？** `GET /v1/conversations/{id}/messages` 今天跑在 **Worker 里、不在 DO 里**（`retrieval/conversation-retrieval.ts:11`）。推荐**保持这个分工**：读面在 Worker 里直接走 `Storage.scanBranch`（只读，无需租约），**只有断线重连**才需要 DO 的 `watch().snapshot`。备选是全部收进 DO——会把每次翻历史都变成一次 DO 唤醒。
 14. **D14 — 计费真相在 usage ledger 还是我们的 `dailyUsage`（owner 已定：按推荐）？** 推荐**继续以 `dailyUsage` 为账，ledger 为源**：W1-7 从 `scanUsage({fromSeq})`（`types.d.ts:376-381`）增量读进我们的表，因为配额与计费口径（日窗、payer、退款）pi 不认识。
-15. **D15 — 旧 session 迁不迁（owner 已定：按推荐）？** D6 定的是「历史只读旧表」；**要不要把旧会话搬进 entries** 是独立一问。推荐**不迁**：旧表继续服务旧会话的读面，直到自然衰减；迁移要写一次 format-4 的映射，而 format 4 本身还在 pre-stabilization。
+15. **D15 — 不迁移旧 session，也不保留旧历史读面。** 按 D6 的 owner 硬切授权，删除旧会话映射与转换代码；不编造 format-4 entries，不以旧数据格式阻塞新实现。当前产品的鉴权、引用隔离、原生历史读取和重连仍须通过验收。
 16. **D16 — 断线重放怎么做（owner 2026-09-10 定：(b)）？** Cloudflare **没有任何一处**演示服务端解析 `Last-Event-ID` 并从缓冲重放（Agents SDK 走的是 WebSocket + SQLite 缓冲重放，不是 SSE 原生机制），所以这块是我们自己的设计。二选一：**(a) 协调者按游标缓冲 `HarnessEvent` 并在重连时按游标重放**，代价是 DO 里要有一个有界缓冲与淘汰策略；(b) 尽力而为：重连一律 `resnapshot` 拉快照、丢掉断线期间的增量帧——够用（owner 的核心场景是「切走再回来拿到完整结果」，快照就能满足），但正在流式输出的那一段会跳变。**owner 2026-09-10 定：先 (b)，(a) 留成一张后续卡**。D1 取 (1) 之后有一个**附带好处，但不作为要求**：实例还活着时的重连**可以**直接重新挂上 `watch()` 拿到当前 snapshot 与后续事件；实例已被驱逐或回合已结算时仍然只能重新取快照。所以判据仍是 (b)——**「切走再回来拿到完整结果」由快照满足**，不承诺补发断线期间的增量帧。心跳由宿主的定时器发（§4.1 第 6 条）。
 
 ## 十、分卡
@@ -284,7 +291,7 @@ E-1 的 33 条是独立 held-out 子集，不替代 662 条主集或其它保留
 - **W1-5** — [ ] **(unit)** 本轮看到逐字工具结果、下一轮看到冻结摘要、**entry 里存的始终是逐字文本**；变异：把摘要写进 `after_tool` 的 content patch，第三条断言红。[ ] **(unit)** 载体写死：摘要走 `after_tool` 的 **`details`** 补丁（`agent-harness.d.ts:569-576` 的 `content` / `details?: JsonValue`），**`content` 保持逐字**，`transform_context` 只把 `details` 里存的那个字符串读回来施加。[ ] **(integration)** **摘要是必需的持久 sidecar**：重启进程并**换一版 summariser** 后，历史里那条摘要**逐字不变**（`frozen-tool-return.ts:2-18` 的整条理由）；变异：改成读路径重算，测试红。[ ] **(unit)** 没有存过摘要的旧行**保留逐字原文**，不现场补算。
 - **W1-7** — [ ] **(integration)** 待结算记录**独立于 open operation**，有自己的扫描路径（协议五）。[ ] **(unit)** ledger 游标 + `dailyUsage` + 退款标记在**同一个业务事务**里。[ ] **(integration)** 三处故障注入——终态提交后 / 业务提交前 / 提交响应丢失——各自**恰好结算一次**。
 - **W1-6** — [ ] **(unit)** §4.2.1 每项外部帧语义有覆盖；SDK watch 的 snapshot/live 配对经 AI SDK writer 输出相同 SD-9 surface，机密字段不出流。[ ] **(browser)** 实际流含满足空闲连接约束的心跳，断线不会取消持久工作，重连 snapshot 能恢复展示；关闭心跳/泄露字段/丢失重连状态分别使对应测试红。
-- **W2-1** — [ ] **(unit)** **W0-1 清单里判定为 delete 的每一个文件**从 `git ls-files` 消失（不是「十个文件」），含 `packages/contract/src/staging-prefix-*.ts`、`gateway/staging-prefix-route.ts`、`packages/eval/src/prefix-seeding-lifecycle.ts`、`packages/eval/src/trajectory-prefix-case.ts`；`db/schema.ts` 的 `runs`/`messages`/`run_steps` 只剩旧会话读面在用；`workers/edge` 全测试绿。
+- **W2-1** — [ ] **(unit)** **W0-1 清单里判定为 delete 的每一个文件**从 `git ls-files` 消失，含 `packages/contract/src/staging-prefix-*.ts`、`gateway/staging-prefix-route.ts`、`packages/eval/src/prefix-seeding-lifecycle.ts`、`packages/eval/src/trajectory-prefix-case.ts`；删除 `runs`/`messages`/`run_steps` 的运行、历史读取、codec 和兼容分流，原生 entries 是唯一会话读取来源。[ ] **(api)** 验证原生历史的身份隔离与重连；不执行在线数据删除，不改已应用 Atlas 迁移。[ ] **(ci)** affected edge/agent/eval/contract 测试和仓库门禁通过。
 - **E-1** — [ ] **(eval)** 33 例调用进程内同一原生 harness 与真实模型/catalog/web_search，无 agent 数据库和 staging 凭据；runtime call graph 不含旧 HTTP task、transcript converter 或 staging api-test 模块。[ ] **(unit)** 原生失败和 suspended 均不能记成功；任务资源正常关闭，重复 attempt 会话相互隔离。
 - **E-2** — [ ] **(unit)** 原生 tree fork 保留 source 的 entry id/内容、相关 scalar payload；相同引用在 fork 可解析，候选、未决选择与 revision 相同。源来自同一 SDK JSONL 仓库的冻结前缀，原生 open/fork round trip 不 remint id、不造转录、不写 copier；变异 fork scope 或丢失当前状态，领域等价断言红。[ ] **(eval)** 五个 `phase1c_selection_v1` 用例直接走生产确定性选择函数，不再答 `SELECTION_EXPIRED`。
 

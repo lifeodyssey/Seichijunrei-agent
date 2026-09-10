@@ -19,11 +19,11 @@ them. Root guide: `../../AGENTS.md`; detailed mirror checklist: `README.md`.
   (agent TS rewrite spec §二, "schema 边界"): the agent's four catalog tool parameter schemas, the
   two web tools' (`web_search`, `translate_anime_title`, #1287) and the `respond` answer tool's are
   declared here in zod — the catalog ones composed from the catalog's own request constraints, the
-  web ones composing nothing because there is no second declaration for them to agree with — and
-  `workers/edge` consumes the generated module without loading zod. The module
-  also carries `ANSWER_TOOL_NAME` and `CHAT_RESPONSE_INTENTS` (read off `ChatResponseDataPart`'s
-  own union, #1283) for the same reason — the Worker names the tool and builds the part but cannot
-  load zod to learn either vocabulary. `test/agent-tool-schemas.test.ts` fails on committed drift,
+  web ones composing nothing because there is no second declaration for them to agree with.
+  Native Pi tools consume the generated JSON Schema; the actual oRPC catalog client also uses
+  the contract's runtime validators. The module carries `ANSWER_TOOL_NAME` and
+  `CHAT_RESPONSE_INTENTS` (read off `ChatResponseDataPart`'s own union, #1283) for consumers that
+  only need those values. `test/agent-tool-schemas.test.ts` fails on committed drift,
   the way the OpenAPI documents do; `test/chat-answer-part.test.ts` parses what the edge's
   projection actually emits. Never hand-edit the generated file.
 - `pnpm run vet:openapi <baseline.json> <candidate.json>` — OpenAPI compat gate
@@ -71,30 +71,20 @@ fallback (#1005 AC3) was deleted in #1347 once every branch was post-cut.
   `src/agent-tool-schemas.ts` — their generated JSON Schema · `scripts/emit-tool-schemas.ts` — the
   conversion · `test/agent-tool-schemas.test.ts` — its drift gate ·
   `test/chat-answer-part.test.ts` — the conformance gate on the edge's `data-response` projection.
-- `src/staging-prefix-path.ts` — `STAGING_PREFIX_PATH_TEMPLATE` + `STAGING_APP_ENV`, import-free
-  because `workers/edge` reads them at RUNTIME · `src/staging-prefix-contract.ts` — the frozen
-  trajectory prefix body `packages/eval` posts (E-1 #1380). **Neither is emitted**: the procedure
-  is mounted only where `APP_ENV === "staging"`, so the path stays out of `AGENT_PATHS` and out of
-  every OpenAPI document — publishing it would document a route production must not have. The
-  edge re-reads the same body by hand (`workers/edge/src/agent/session/trajectory-prefix.ts`, no zod in the
-  bundle), and `workers/edge/test/trajectory-prefix-body.test.ts` parses one body through both
-  readers so they cannot drift.
 - `src/access-service-token.ts` — the Cloudflare Access service token every automated
   caller presents at staging (D3 #1369): the two variable names, the two header names,
-  and the fail-closed reader that refuses a HALF-declared token. Import-free, like
-  `staging-prefix-path.ts`, because its consumers are a Playwright config
+  and the fail-closed reader that refuses a HALF-declared token. Import-free because its consumers are a Playwright config
   (`e2e/playwright.config.ts`), a Node lane door (`workers/edge/api-test/lane-origin.ts`)
-  and — through that door — `packages/eval`, none of which should load zod to learn two
+  neither of which should load zod to learn two
   header names. `test/access-service-token.test.ts` holds it; the values come from the
   `infra` stack output, never from anything checked in.
-- `src/agent-step-origin.ts` — who asked for a step: `serverStepOrigin()`, the marker
-  `workers/edge`'s `serverStepOpened` writes onto a deterministic bypass's `tool-input-start`
-  frame, and `stepOriginOf()`, the one reader of it (#1462). Import-free for the same reason as
-  the three modules above — the edge writes it inside the Worker bundle and `packages/eval`'s
-  transcript shaper reads it — and it is the SD-9 frame surface's one additive exception, granted
-  in the rewrite spec §10.2.1. It rides in `toolMetadata`, the protocol's own free-form slot on
-  the two chunk types a step opens with, and ABSENT means `model`, so every frame recorded before
-  it keeps its meaning. `test/agent-step-origin.test.ts` holds that pair of properties.
+- `src/agent-step-origin.ts` — who asked for a step: native
+  `workers/edge/src/agent/views/selection-response.ts` writes `serverStepOrigin()` onto
+  deterministic selection's `tool-input-start` and `tool-input-available` frames.
+  `stepOriginOf()` reads that public metadata; the retired Eval transcript shaper is no longer
+  a consumer. This import-free module carries the SD-9 frame exception from rewrite spec
+  §10.2.1 in `toolMetadata`, the protocol's own free-form slot. Absence means `model`;
+  `test/agent-step-origin.test.ts` preserves the server marker and that default.
 - `src/contract.ts` — catalog procedures and error attachments.
 - `src/users-contract.ts` — users-service procedures and errors.
 - `src/errors.ts` — canonical catalog error registry.

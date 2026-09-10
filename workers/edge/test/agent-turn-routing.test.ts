@@ -1,15 +1,3 @@
-/**
- * W1-7 (#1256): the routing contract of the fallback flag, at the composed
- * gateway seam. Both flag positions are pinned, because the flag's whole value
- * is that `container` is still reachable after `edge` ships.
- *
- * The agent tier itself is a double here on purpose — what this file is about
- * is WHICH tier a request reaches and WITH WHICH identity, never what the tier
- * then does with it (that is `turn-stream-handoff` / `conversation-retrieval` /
- * the agent-db lane).
- *
- * test-type: api (routing contract of the deployed request surface).
- */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp, type WorkerDeps } from "../src/app.ts";
@@ -30,13 +18,15 @@ interface TierCall {
   readonly route: "chat" | "probe" | "transcript";
   readonly identity: TurnIdentity;
   readonly sessionId: string | null;
+  readonly request?: Request;
 }
 
 /** A tier that records what the gateway handed it and answers a marker. */
 function makeRecordingTier(calls: TierCall[]): AgentTurnTier {
   return {
-    chat: (_env, _request, identity) => {
-      calls.push({ route: "chat", identity, sessionId: null });
+    stream: () => Promise.resolve(new Response(null, { status: 204 })),
+    chat: (_env, request, identity) => {
+      calls.push({ route: "chat", identity, sessionId: null, request });
       return Promise.resolve(new Response("tier-chat", { status: 200 }));
     },
     probe: (_request, identity) => {
@@ -99,29 +89,30 @@ const POST_CHAT = {
   body: CHAT_BODY,
 };
 
-void test("an unset flag forwards POST /v1/chat to the container, untouched", async () => {
+void test("native chat is the default and never dispatches to the retired container turn", async () => {
   const harness = makeHarness(undefined, AUTHED);
   const response = await harness.request("/v1/chat", POST_CHAT);
-  assert.equal(await response.text(), "container");
-  assert.deepEqual(harness.calls, []);
-  assert.equal(harness.forwarded.length, 1);
+  assert.equal(await response.text(), "tier-chat");
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.forwarded.length, 0);
 });
 
-void test("the forwarded request keeps its method, path and body verbatim", async () => {
-  const harness = makeHarness("container", AUTHED);
+void test("the native request keeps its method, path and body verbatim", async () => {
+  const harness = makeHarness(undefined, AUTHED);
   await harness.request("/v1/chat", POST_CHAT);
-  const forwarded = harness.forwarded[0];
-  assert.ok(forwarded);
-  assert.equal(forwarded.method, "POST");
-  assert.equal(new URL(forwarded.url).pathname, "/v1/chat");
-  assert.equal(await forwarded.text(), CHAT_BODY);
+  const request = harness.calls[0]?.request;
+  assert.ok(request);
+  assert.equal(request.method, "POST");
+  assert.equal(new URL(request.url).pathname, "/v1/chat");
+  assert.equal(await request.text(), CHAT_BODY);
 });
 
 void test('"edge" hands POST /v1/chat to the agent tier with the verified identity', async () => {
   const harness = makeHarness("edge", AUTHED);
   const response = await harness.request("/v1/chat", POST_CHAT);
   assert.equal(await response.text(), "tier-chat");
-  assert.deepEqual(harness.calls, [{ route: "chat", identity: { userId: "u1", userType: "human" }, sessionId: null }]);
+  assert.deepEqual(harness.calls[0]?.identity, { userId: "u1", userType: "human" });
+  assert.equal(harness.calls[0].route, "chat");
   assert.deepEqual(harness.forwarded, []);
 });
 
@@ -144,13 +135,6 @@ void test("an anonymous visitor reaches the tier as the anonymous identity the e
   assert.match(call.identity.userId, /^anon_[0-9a-f]{32}$/);
 });
 
-void test("the transcript GET is 401 for an anonymous caller while the flag says container", async () => {
-  const harness = makeHarness("container", ANONYMOUS);
-  const response = await harness.request(TRANSCRIPT, {});
-  assert.equal(response.status, 401);
-  assert.deepEqual(harness.calls, []);
-});
-
 void test('"edge" opens that same GET to the anonymous visitor — W1 has no exit without it', async () => {
   const harness = makeHarness("edge", ANONYMOUS);
   const response = await harness.request(TRANSCRIPT, {});
@@ -161,7 +145,7 @@ void test('"edge" opens that same GET to the anonymous visitor — W1 has no exi
   assert.match(call.identity.userId, /^anon_[0-9a-f]{32}$/);
 });
 
-void test("the widening is this side of the switch only — the anonymous route table is untouched", () => {
+void test("native transcript access does not broaden unrelated anonymous forwarding routes", () => {
   assert.deepEqual([...ANON_V1_PATHS], ["/v1/chat", "/v1/photo-search", "/v1/photo-search/confirm"]);
 });
 

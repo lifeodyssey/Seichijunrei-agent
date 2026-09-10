@@ -117,5 +117,7 @@ def test_live_architecture_doc_omits_removed_retrieval_subsystems() -> None:
     architecture = path.read_text(encoding="utf-8")
     removed = ("agents/retriever.py", "agents/sql_agent.py", "## SQL Agent")
 
-    assert "`CatalogClientProtocol`" in architecture
+    assert "`createPilgrimageHarness`" in architecture
+    assert "the actual oRPC contract and its validators" in architecture
+    assert "runtime requests do not query Anitabi or Bangumi directly" in architecture
     assert all(term not in architecture for term in removed)

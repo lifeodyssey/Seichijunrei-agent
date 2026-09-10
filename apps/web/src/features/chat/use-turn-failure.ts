@@ -114,9 +114,9 @@ function failureOf(state: ChatErrorState | undefined, quota: QuotaLock, handlers
 }
 
 /** Compose the D4-D18 view: watchdog + classification + per-state recovery. */
-export function useTurnFailure(chat: ChatSession, baseUrl: string, gate: TurnFailureGate, failedPick?: FailedStepResend): TurnFailure {
-  const timeout = useTurnTimeout(chat.status, () => void chat.stop());
-  const recovery = useStreamRecovery(baseUrl, chat, chat.sessionIdOf, failedPick);
+export function useTurnFailure(chat: ChatSession, gate: TurnFailureGate, failedPick?: FailedStepResend): TurnFailure {
+  const timeout = useTurnTimeout(chat.status, () => void chat.stop(), chat.streamActivity);
+  const recovery = useStreamRecovery(chat, chat.sessionIdOf, failedPick);
   const classified = turnFailureState(chat, timeout.timedOut, gate.challenged);
   const quota = quotaLockOf(chat, classified, gate.auth);
   const handlers = useRecoveryHandlers(timeout, recovery, classified);

@@ -32,7 +32,7 @@ void test("Drizzle schemas cannot become migration runners", () => {
   const workers = readdirSync(`${ROOT}workers`);
   const schemas = workers.map((worker) => `workers/${worker}/src/db/schema.ts`);
   const present = schemas.filter((path) => existsSync(`${ROOT}${path}`));
-  assert.ok(present.length >= 3, `expected every worker Drizzle schema, saw ${present.join(", ")}`);
+  assert.deepEqual(present.sort(), ["workers/catalog/src/db/schema.ts", "workers/users/src/db/schema.ts"]);
   for (const path of present) {
     const source = read(path);
     assert.doesNotMatch(source, /drizzle-kit|drizzle\s+(?:migrate|generate|push|pull)/i);

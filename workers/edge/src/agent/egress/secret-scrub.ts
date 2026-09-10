@@ -77,9 +77,11 @@ function isRecord(value: ScrubbableValue): value is ScrubbableRecord {
 
 export class SecretScrub {
   private readonly patterns: readonly RegExp[];
+  readonly redactionTailLength: number;
 
   constructor(secrets: readonly string[] = []) {
     this.patterns = [...literalPatternsOf(secrets), ...KEY_SHAPES];
+    this.redactionTailLength = Math.max(256, ...secrets.map((secret) => secret.length));
   }
 
   text(value: string): string {

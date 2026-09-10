@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 import { TURNSTILE_HEADER, createTurnstileGate, type TurnstileGate } from "../src/protect/turnstile.ts";
@@ -32,11 +33,11 @@ function anonEnv(captured: { requests: Request[] }) {
   } as never;
 }
 
-function app(gate: TurnstileGate, authenticated = false) {
+function app(captured: { calls: NativeAgentCall[] }, gate: TurnstileGate, authenticated = false) {
   const authenticate = authenticated
     ? () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const)
     : () => Promise.resolve({ ok: false, reason: "absent" } as const);
-  return createWorkerApp({ authenticate, turnstileGate: gate });
+  return createWorkerApp({ authenticate, turnstileGate: gate, agentTurns: nativeAgentReceiver(captured.calls) });
 }
 
 function post(headers: Record<string, string> = {}) {
@@ -44,9 +45,9 @@ function post(headers: Record<string, string> = {}) {
 }
 
 void test("an authenticated caller bypasses entry verification", async () => {
-  const captured = { requests: [] as Request[] };
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
   const calls: GateCall[] = [];
-  const response = await app(recordingGate(calls, null), true).request(
+  const response = await app(captured, recordingGate(calls, null), true).request(
     "/v1/turnstile/verify", post({ Authorization: "Bearer jwt" }), anonEnv(captured), stubCtx,
   );
   assert.equal(response.status, 204);
@@ -55,9 +56,9 @@ void test("an authenticated caller bypasses entry verification", async () => {
 });
 
 void test("a solved entry mints the aid used by the first chat turn", async () => {
-  const captured = { requests: [] as Request[] };
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
   const calls: GateCall[] = [];
-  const worker = app(recordingGate(calls, SOLVED));
+  const worker = app(captured, recordingGate(calls, SOLVED));
   const env = anonEnv(captured);
   const verified = await worker.request("/v1/turnstile/verify", post(solvedHeaders), env, stubCtx);
   const cookie = String(verified.headers.get("Set-Cookie")).split(";")[0] ?? "";
@@ -69,9 +70,9 @@ void test("a solved entry mints the aid used by the first chat turn", async () =
 });
 
 void test("the first chat reuses the entry pass without another siteverify", async () => {
-  const captured = { requests: [] as Request[] };
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
   const calls: Call[] = [];
-  const worker = app(createTurnstileGate({ fetchImpl: stubFetch(calls, true), now: () => NOW }));
+  const worker = app(captured, createTurnstileGate({ fetchImpl: stubFetch(calls, true), now: () => NOW }));
   const env = anonEnv(captured);
   const verified = await worker.request("/v1/turnstile/verify", post(solvedHeaders), env, stubCtx);
   const cookie = String(verified.headers.get("Set-Cookie")).split(";")[0] ?? "";
@@ -81,16 +82,16 @@ void test("the first chat reuses the entry pass without another siteverify", asy
 });
 
 void test("the entry pass survives a different isolate and gate", async () => {
-  const captured = { requests: [] as Request[] };
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
   const firstCalls: Call[] = [];
   const secondCalls: GateCall[] = [];
   const env = anonEnv(captured);
-  const first = app(createTurnstileGate({ fetchImpl: stubFetch(firstCalls, true) }));
+  const first = app(captured, createTurnstileGate({ fetchImpl: stubFetch(firstCalls, true) }));
   const verified = await first.request("/v1/turnstile/verify", post(solvedHeaders), env, stubCtx);
   const cookies = verified.headers.get("Set-Cookie") ?? "";
   const browserCookie = [/aid=[^;,]+/.exec(cookies)?.[0], /turnstile_pass=[^;,]+/.exec(cookies)?.[0]]
     .filter((value): value is string => value !== undefined).join("; ");
-  const turn = await app(recordingGate(secondCalls, null)).request(
+  const turn = await app(captured, recordingGate(secondCalls, null)).request(
     "/v1/chat", post({ Cookie: browserCookie }), env, stubCtx,
   );
   assert.equal(turn.status, 200);
@@ -100,8 +101,8 @@ void test("the entry pass survives a different isolate and gate", async () => {
 });
 
 void test("a rejected entry fails closed without minting a cookie", async () => {
-  const captured = { requests: [] as Request[] };
-  const response = await app(recordingGate([], null)).request(
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
+  const response = await app(captured, recordingGate([], null)).request(
     "/v1/turnstile/verify", post(solvedHeaders), anonEnv(captured), stubCtx,
   );
   assert.equal(response.status, 403);
@@ -109,10 +110,10 @@ void test("a rejected entry fails closed without minting a cookie", async () => 
 });
 
 void test("entry fails closed when its Turnstile secret is missing", async () => {
-  const captured = { requests: [] as Request[] };
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
   const calls: GateCall[] = [];
   const env = { ...(anonEnv(captured) as object), TURNSTILE_SECRET: undefined } as never;
-  const response = await app(recordingGate(calls, SOLVED)).request(
+  const response = await app(captured, recordingGate(calls, SOLVED)).request(
     "/v1/turnstile/verify", post(solvedHeaders), env, stubCtx,
   );
   assert.equal(response.status, 403);
@@ -120,8 +121,8 @@ void test("entry fails closed when its Turnstile secret is missing", async () =>
 });
 
 void test("the entry verification endpoint rejects non-POST methods", async () => {
-  const captured = { requests: [] as Request[] };
-  const response = await app(recordingGate([], SOLVED)).request(
+  const captured = { requests: [] as Request[], calls: [] as NativeAgentCall[] };
+  const response = await app(captured, recordingGate([], SOLVED)).request(
     "/v1/turnstile/verify", { method: "GET" }, anonEnv(captured), stubCtx,
   );
   assert.equal(response.status, 405);

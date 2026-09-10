@@ -23,22 +23,11 @@ fails if one starts to.
   answered the laptop the adapter was measured on. A `tool-output-available`
   whose text starts with the preamble means the hop worked.
 
-  A `Search failed for '<query>': <detail>` sentence means the search did not
-  complete, and that is ALL it means on its own — the tool degrades every one of
-  its failures into that one sentence rather than throwing. The `<detail>` is
-  what tells them apart, and each spelling has a different fix:
-
-  | `<detail>` | what happened | what to do |
-  |---|---|---|
-  | `egress denied: host_not_allowlisted` (or another `EgressDenyReason`) | our own guard refused the destination — typically a redirect off `html.duckduckgo.com` | read `web-search-egress.ts`; a legitimate new host is a reviewed allowlist edit, never a widened rule |
-  | `search backend answered 202` | the anti-bot answer: DuckDuckGo served the Worker a challenge instead of results | the backend refused THIS caller; a keyed API behind the same `WebSearcher` port is the fix |
-  | `search backend answered 429` / `5xx` | rate limited or upstream trouble, not a refusal of Workers as such | re-run the lane before concluding anything |
-  | `the search timed out` | the 10s budget elapsed | check whether the hop is slow or hung; re-run before concluding |
-
-  Anything else in `<detail>` came from the runtime (a DNS or TLS failure, say),
-  which means the request never reached the backend at all. Every one of these
-  is also on the server side as a `web_search_failed` entry in Workers Logs,
-  with the same text — so a turn nobody was watching can still be diagnosed.
+  The native `web_search` tool throws on a non-200 response and never follows
+  redirects. The SDK records a failed tool result; a timeout or transport error
+  is not an empty successful search. Inspect the native error/result and provider
+  response in the authorized runtime logs. Successful results keep the untrusted
+  content boundary; external text cannot authorize a tool action.
 
 - `byok-probe.test.ts` — `POST /v1/byok/probe` answers the documented rejection
   for a deliberately invalid key, refuses a metadata-address base URL, and stays

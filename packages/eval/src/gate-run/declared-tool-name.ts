@@ -1,8 +1,9 @@
 /**
  * A tool name the COMMITTED result file is allowed to carry (E-4 #1383).
  *
- * `turn-transcript.ts` takes `toolName` verbatim off a `tool-input-start` frame,
- * and that frame names whatever the model asked for. So a hallucinated name — or
+ * A committed trajectory takes `toolName` verbatim off the model's tool-call
+ * stream, and that stream names whatever the model asked for. So a hallucinated
+ * name — or
  * one an `injection_g1_v1` payload talked the model into — is model text, and
  * model text must not reach `results/`, for exactly the reason the query and the
  * reply must not (`attribution-evidence.ts`). An index and a category are facts
@@ -11,8 +12,8 @@
  * THE LIST CANNOT DRIFT FROM THE CONTRACT, and the type system is what stops it
  * rather than a comment. `CatalogToolName | WebToolName` is where the six model
  * tools are declared (`@animichi/contract/agent-tool-parameters`), and
- * `workers/edge/src/agent/tools/tool-schema-bridge.ts` builds the deployed
- * toolbox out of their schema twins — so keying an exhaustive `Record` on that
+ * `workers/edge/src/agent/host/operation-tool-settings.ts` assembles the
+ * deployed tool set from those same declarations — so keying an exhaustive `Record` on that
  * union makes `typecheck` red the day a seventh tool is declared and not listed
  * here, and red again if one is removed.
  *
@@ -24,9 +25,9 @@
  * throws `ERR_MODULE_NOT_FOUND`. A type-only import is erased, so the compile-time
  * check costs no runtime module at all.
  *
- * TWO NAMES THAT ARE NOT ON IT, ON PURPOSE. `respond` is filtered out of the
- * stream before a frame exists (`session/turn-frames.ts`, the `ANSWER_TOOL_NAME`
- * branches), and `geocode` is a catalog RPC that `search_nearby` makes
+ * TWO NAMES THAT ARE NOT ON IT, ON PURPOSE. `respond` is answered in the
+ * stream layer before a tool-call entry exists, and `geocode` is a catalog RPC
+ * that `search_nearby` makes
  * internally — a Python `StepKind`, never a model tool. Neither can appear in a
  * wire trajectory today; if a deploy ever published one, it would read as
  * `<unknown-tool>` here and by name in the artifact, which is a loud signal

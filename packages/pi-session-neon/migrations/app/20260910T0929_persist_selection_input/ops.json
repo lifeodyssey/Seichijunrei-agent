@@ -1,0 +1,86 @@
+[
+  {
+    "id": "column.public.agent_admissions.selection_request",
+    "label": "Add column \"selection_request\" to \"agent_admissions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "selection_request",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"selection_request\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "agent_admissions",
+          "selection_request"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"selection_request\"",
+        "sql": "ALTER TABLE \"public\".\"agent_admissions\" ADD COLUMN \"selection_request\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"selection_request\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "agent_admissions",
+          "selection_request"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.agent_admissions.agent_admissions_selection_input_b6697af9",
+    "label": "Add check constraint \"agent_admissions_selection_input_b6697af9\" on \"agent_admissions\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "agent_admissions_selection_input_b6697af9",
+        "table": "agent_admissions"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"agent_admissions_selection_input_b6697af9\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_selection_input_b6697af9",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"agent_admissions_selection_input_b6697af9\"",
+        "sql": "ALTER TABLE \"public\".\"agent_admissions\" ADD CONSTRAINT \"agent_admissions_selection_input_b6697af9\" CHECK ((kind = 'selection') = (selection_request IS NOT NULL))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"agent_admissions_selection_input_b6697af9\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "agent_admissions_selection_input_b6697af9",
+          "public",
+          "\"public\".\"agent_admissions\""
+        ]
+      }
+    ]
+  }
+]

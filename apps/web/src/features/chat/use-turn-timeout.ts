@@ -2,8 +2,7 @@ import type { ChatStatus } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
-/** The server owns a 100s whole-agent deadline. Keep the browser watchdog
- * behind it so the typed timeout envelope can reach the UI before aborting. */
+/** A view with no transport activity eventually offers reconnect. Native execution has no browser deadline. */
 export const TURN_TIMEOUT_MS = 110_000;
 
 export interface TurnTimeout {
@@ -21,13 +20,13 @@ function armWatchdog(stopRef: RefObject<() => void>, setTimedOut: (value: boolea
   return () => { clearTimeout(id); };
 }
 
-/** D5 watchdog: stop only after the server's typed timeout had time to arrive. */
-export function useTurnTimeout(status: ChatStatus, stop: () => void): TurnTimeout {
+/** Heartbeat bytes renew this idle watchdog; stopping releases only the client view. */
+export function useTurnTimeout(status: ChatStatus, stop: () => void, activity = 0): TurnTimeout {
   const [timedOut, setTimedOut] = useState(false);
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const active = isActiveTurn(status);
-  useEffect(() => (active ? armWatchdog(stopRef, setTimedOut) : undefined), [active]);
+  useEffect(() => (active ? armWatchdog(stopRef, setTimedOut) : undefined), [active, activity]);
   const reset = useCallback(() => { setTimedOut(false); }, []);
   return { timedOut, reset };
 }

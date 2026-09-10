@@ -1,78 +1,37 @@
-/**
- * What the deployed Worker bundle is allowed to contain (issue #1285).
- *
- * The agent tier keeps zod out of `src/` by construction — the schema seam is
- * `packages/contract/scripts/emit-tool-schemas.ts` and the generated module it
- * writes, and every other contract module the Worker reads at runtime is
- * import-free. That property is invisible to `tsc`, to oxlint and to the
- * node:test suite: all three see unbundled source, where a zod-carrying module
- * costs nothing. It is only visible in the artifact — a single value import
- * from a zod module pulls all 79 of zod's files into every isolate the edge
- * starts, for a route table of fourteen strings.
- *
- * So this gate builds `src/entry.ts` the way the deploy path builds it and
- * reads the result. Two assertions, on purpose: the module graph is the
- * structural fact (and names the importer when it regresses), while the
- * `ZodError` marker is what a reviewer can grep the shipped file for.
- *
- * Mutation proof (recorded on the card): put the pre-#1285 world back — re-add
- * `export { AGENT_PATHS } from "./agent-paths.js"` to the contract's
- * `agent-contract.ts`, then point `src/gateway/routing-policy.ts` (or
- * `rate-policy.ts`, which imports the same table) at it — and both assertions
- * fail, the first naming `agent-contract.ts` as the importer. Flipping the
- * import alone no longer builds: the zod modules deliberately re-export
- * neither constant, which is a second and coarser guard, not this one.
- *
- * test-type: unit (hermetic — no network, no clock; esbuild over the tree).
- */
+/** Native hard cut authorized on 2026-09-10: verify execution and graph boundaries, not validator brand names. */
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
-import { bundleLikeWrangler } from "./wrangler-bundle.ts";
+import { gzipSync } from "node:zlib";
+import { Miniflare } from "miniflare";
+import { bundleLikeWrangler, deployedRuntime } from "./wrangler-bundle.ts";
 
-const OUT_DIR = mkdtempSync(join(tmpdir(), "edge-entry-bundle-"));
+const directory = mkdtempSync(join(tmpdir(), "edge-entry-bundle-"));
+after(() => { rmSync(directory, { recursive: true, force: true }); });
+const outfile = join(directory, "entry.js");
+const bundle = await bundleLikeWrangler(fileURLToPath(new URL("../src/entry.ts", import.meta.url)), outfile);
 
-after(() => {
-  rmSync(OUT_DIR, { recursive: true, force: true });
+void test("the official production entry executes in workerd", async (context) => {
+  const worker = new Miniflare({ modulesRoot: directory, modules: [{ type: "ESModule", path: outfile }],
+    ...deployedRuntime() });
+  context.after(() => worker.dispose());
+  const response = await worker.dispatchFetch("https://native.test/not-a-route");
+  assert.equal(response.status, 404);
+  assert.equal((await response.json() as { error: { code: string } }).error.code, "not_found");
+  context.diagnostic(JSON.stringify({ bytes: Buffer.byteLength(bundle.code), gzipBytes: gzipSync(bundle.code).byteLength }));
 });
 
-const ENTRY = fileURLToPath(new URL("../src/entry.ts", import.meta.url));
-const bundle = await bundleLikeWrangler(ENTRY, join(OUT_DIR, "entry.js"));
-
-/** Every file esbuild pulled in from the zod package, deploy-relative. */
-function zodInputs(): string[] {
-  return Object.keys(bundle.metafile.inputs).filter((input) => /(^|\/)node_modules\/zod\//.test(input));
-}
-
-/** Which of OUR modules imported one of them — the line to delete. */
-function zodImporters(): string[] {
-  const importers = Object.entries(bundle.metafile.inputs)
-    .filter(([input]) => !input.includes("node_modules"))
-    .filter(([, meta]) => meta.imports.some((edge) => /(^|\/)node_modules\/zod\//.test(edge.path)))
-    .map(([input]) => input);
-  return [...new Set(importers)];
-}
-
-void test("the deployed entry bundle pulls in no zod module", () => {
-  assert.deepEqual(
-    zodInputs(),
-    [],
-    `zod reached the Worker bundle through ${zodImporters().join(", ") || "an unknown import"} — read the contract constant off an import-free module instead`,
-  );
-});
-
-void test("the shipped entry artifact carries no zod marker", () => {
-  assert.equal(bundle.code.split("ZodError").length - 1, 0, "the built entry bundle still contains zod's ZodError");
-});
-
-void test("the deployed entry includes the shared agent domain package", () => {
-  assert.ok(Object.keys(bundle.metafile.inputs).some((input) => input.includes("packages/agent/src/")));
-});
-
-void test("Node-only evaluation and SDK conformance fixtures stay outside the Worker", () => {
+void test("the deployed entry includes the shared native agent tools and direct Prisma storage", () => {
   const inputs = Object.keys(bundle.metafile.inputs).join("\n");
-  assert.doesNotMatch(inputs, /packages\/eval\/|packages\/test-postgres\/|harness\/session\/testing|edge\/api-test\//);
+  assert.match(inputs, /packages\/agent\/src\/harness.ts/);
+  assert.match(inputs, /packages\/pi-session-neon\/src\/repo.ts/);
+});
+
+void test("bundlers, eval and conformance implementations stay outside the Worker", () => {
+  const inputs = Object.keys(bundle.metafile.inputs).join("\n");
+  assert.doesNotMatch(inputs, /node_modules\/esbuild\/|packages\/eval\/|packages\/test-postgres\/|harness\/session\/testing|edge\/api-test\//);
+  assert.doesNotMatch(bundle.code, /esbuild\/lib\/main\.js|esbuild version/);
 });

@@ -1,7 +1,7 @@
 /** External values cannot escape the tags, quotes or lines of agent status text. */
 import { trustedText } from "./trusted-text.ts";
 
-/** The byte budget one value gets, matching the ledgers' own per-value cap. */
+/** The byte budget for each external status value. */
 export const STATUS_VALUE_MAX_BYTES = 96;
 
 /** Everything the bar builds its own structure out of. A value may contain no

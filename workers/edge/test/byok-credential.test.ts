@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { inspect } from "node:util";
 import { ByokRejection } from "../src/agent/byok/byok-credential.ts";
 import { byokCredentialIn, byokSignalIn } from "../src/agent/byok/byok-headers.ts";
 
@@ -123,11 +122,9 @@ void test("an openai-compatible credential keeps the caller's allowlisted base u
     "X-BYOK-Base-Url": "https://api.openai.com/v1",
   }));
   assert.ok(credential !== null);
-  assert.deepEqual(credential.toJSON(), {
-    family: "openai-compatible",
-    provider: "openai",
-    model: "gpt-4o-mini",
-  });
+  assert.equal(credential.family, "openai-compatible");
+  assert.equal(credential.provider, "openai");
+  assert.equal(credential.modelId, "gpt-4o-mini");
   assert.equal(credential.baseUrl, "https://api.openai.com/v1");
 });
 
@@ -153,16 +150,14 @@ void test("a gemini credential is driven through Google's OpenAI-compatible surf
   assert.equal(credential.baseUrl, "https://generativelanguage.googleapis.com/v1beta/openai/");
 });
 
-// ── the key never reaches a log by accident ────────────────────────────────
-
-void test("neither inspecting nor serialising a credential reveals the key", () => {
-  const credential = byokCredentialIn(headers({
-    "X-BYOK-Provider": "anthropic",
-    "X-BYOK-Key": FIXTURE_KEY,
-  }));
-  assert.ok(credential !== null);
-  assert.equal(inspect(credential).includes(FIXTURE_KEY), false);
-  assert.equal(JSON.stringify(credential).includes(FIXTURE_KEY), false);
-  assert.equal(String(credential).includes(FIXTURE_KEY), false);
-  assert.equal(credential.secret, FIXTURE_KEY);
+void test("validated RPC input has no custom credential carrier and native Models own its transient key", async () => {
+  const { nativeByokModels } = await import("../src/agent/host/native-models.ts");
+  const credential = byokCredentialIn(headers({ "X-BYOK-Provider": "anthropic", "X-BYOK-Key": FIXTURE_KEY }));
+  assert.ok(credential);
+  assert.equal(Object.getPrototypeOf(credential), Object.prototype);
+  const native = await nativeByokModels(credential, () => Promise.reject(new Error("No probe is needed")));
+  assert.equal((await native.models.getAuth(native.model.provider))?.auth.apiKey, FIXTURE_KEY);
+  assert.doesNotMatch(JSON.stringify(native.model), new RegExp(FIXTURE_KEY));
+  await native.models.logout(native.model.provider);
+  assert.equal(await native.models.getAuth(native.model.provider), undefined);
 });

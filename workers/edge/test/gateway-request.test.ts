@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 
 // EDGE-1 #963 composed-seam tests: HandleGatewayRequest runs identity,
@@ -16,42 +17,36 @@ const stubCtx = {
   passThroughOnException() { return undefined; },
 } as unknown as ExecutionContext;
 
-function recordingContainer(events: string[], body: Response = new Response("container")) {
-  return {
-    idFromName: () => "id",
-    get: () => ({
-      fetch: () => { events.push("container"); return Promise.resolve(body); },
-    }),
-  };
+function recordingAgent(events: string[], body: Response = new Response("agent")) {
+  return nativeAgentReceiver([], () => { events.push("agent"); return body; });
 }
 
-function authedApp() {
-  return createWorkerApp({
+function authedApp(agentTurns = nativeAgentReceiver()) {
+  return createWorkerApp({ agentTurns,
     authenticate: () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const),
   });
 }
 
 const POST = { method: "POST", headers: { Authorization: "Bearer jwt" } };
 
-void test("the authenticated limiter runs BEFORE the container — a denied request never forwards", async () => {
+void test("the authenticated limiter runs BEFORE the native tier — a denied request never forwards", async () => {
   const events: string[] = [];
   const guard = fakeGuard(NOW);
   const env = {
     EDGE_GUARD: guard.namespace,
     EDGE_SHOWCASE_MODE: "false",
     AUTH_RATE_LIMIT: "1",
-    CONTAINER: recordingContainer(events),
   } as never;
-  const app = authedApp();
+  const app = authedApp(recordingAgent(events));
   const first = await app.request("/v1/chat", POST, env, stubCtx);
   assert.equal(first.status, 200, "the first request spends the one-request window");
   const denied = await app.request("/v1/chat", POST, env, stubCtx);
   assert.equal(denied.status, 429);
   assert.equal(guard.calls.length, 2, "the limiter shard must be consulted for every request");
-  assert.equal(events.length, 1, "forwarding before guards is the rollback mutation — a denied request must not reach the container");
+  assert.equal(events.length, 1, "forwarding before guards is the rollback mutation — a denied request must not reach the native tier");
 });
 
-void test("the anonymous pipeline consults turnstile, limiter, budget, then container, in order", async () => {
+void test("the anonymous pipeline consults turnstile, limiter, budget, then native tier, in order", async () => {
   const sequence: string[] = [];
   const guard = fakeGuard(NOW);
   const guardNamespace = {
@@ -69,6 +64,7 @@ void test("the anonymous pipeline consults turnstile, limiter, budget, then cont
   const app = createWorkerApp({
     authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const),
     turnstileGate: gate,
+    agentTurns: recordingAgent(sequence),
   });
   const env = {
     ANON_ACCESS_ENABLED: "true",
@@ -76,20 +72,18 @@ void test("the anonymous pipeline consults turnstile, limiter, budget, then cont
     TURNSTILE_SECRET: "fixed-test-turnstile-secret-0000000",
     EDGE_SHOWCASE_MODE: "false",
     EDGE_GUARD: guardNamespace,
-    CONTAINER: recordingContainer(sequence),
   } as never;
   const res = await app.request("/v1/chat", { method: "POST" }, env, stubCtx);
   assert.equal(res.status, 200);
-  assert.deepEqual(sequence, ["turnstile", "guard:/rate-limit", "guard:/budget", "container"]);
+  assert.deepEqual(sequence, ["turnstile", "guard:/rate-limit", "guard:/budget", "agent"]);
 });
 
-void test("an upstream container failure passes through unchanged", async () => {
+void test("a native tier failure passes through unchanged", async () => {
   const env = {
     EDGE_GUARD: fakeGuard(NOW).namespace,
     EDGE_SHOWCASE_MODE: "false",
-    CONTAINER: recordingContainer([], new Response("boom", { status: 503 })),
   } as never;
-  const res = await authedApp().request("/v1/chat", POST, env, stubCtx);
+  const res = await authedApp(recordingAgent([], new Response("boom", { status: 503 }))).request("/v1/chat", POST, env, stubCtx);
   assert.equal(res.status, 503);
   assert.equal(await res.text(), "boom");
 });
@@ -105,7 +99,7 @@ void test("a catalog 5xx passes through unchanged on the public overview", async
   assert.equal(await res.text(), "catalog down");
 });
 
-void test("a still-open container stream is passed through without draining (disconnect)", async () => {
+void test("a still-open native stream is passed through without draining (disconnect)", async () => {
   let release: (() => void) | undefined;
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -116,16 +110,9 @@ void test("a still-open container stream is passed through without draining (dis
   const env = {
     EDGE_GUARD: fakeGuard(NOW).namespace,
     EDGE_SHOWCASE_MODE: "false",
-    CONTAINER: {
-      idFromName: () => "id",
-      get: () => ({
-        fetch: () =>
-          Promise.resolve(new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } })),
-      }),
-    },
   } as never;
   const response = await Promise.race([
-    authedApp().fetch(new Request("https://animichi.test/v1/chat", POST), env, stubCtx),
+    authedApp(nativeAgentReceiver([], () => new Response(body, { headers: { "Content-Type": "text/event-stream" } }))).fetch(new Request("https://animichi.test/v1/chat", POST), env, stubCtx),
     new Promise<"drained">((resolve) => { setTimeout(() => { resolve("drained"); }, 1_000); }),
   ]);
   assert.notEqual(response, "drained", "the seam drained the stream instead of handing it back");

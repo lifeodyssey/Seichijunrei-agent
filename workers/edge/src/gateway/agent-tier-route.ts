@@ -51,9 +51,8 @@ export interface AgentTierGates {
   authenticate: (request: Request, env: Env, ctx: WorkerExecutionContext) => Promise<AuthResult>;
   turnstileGate: TurnstileGate;
   sleep: (ms: number) => Promise<void>;
-  /** This Worker's own agent tier, reached only when `AGENT_TURN_ROUTE` selects
-   * it. Injected rather than constructed here so the seam runs under node:test
-   * with no database and no Durable Object. */
+  /** This Worker's native agent tier. Tests may supply the gateway boundary
+   * without constructing a database or Durable Object. */
   agentTurns: AgentTurnTier;
 }
 
@@ -63,6 +62,7 @@ function servedByTier(
 ): Promise<Response> {
   if (route.kind === "turn") return gates.agentTurns.chat(env, request, identity);
   if (route.kind === "probe") return gates.agentTurns.probe(request, identity);
+  if (route.kind === "stream") return gates.agentTurns.stream(env, request, identity, route.sessionId);
   return gates.agentTurns.transcript(env, request, identity, route.sessionId);
 }
 
