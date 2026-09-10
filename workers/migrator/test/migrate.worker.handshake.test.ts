@@ -32,6 +32,7 @@ describe("GET /healthz publishes the carried bundle", () => {
       service: "migrator",
       env: "staging",
       bundleHead: HEAD_B,
+      prismaTarget: "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a",
     });
   });
 });

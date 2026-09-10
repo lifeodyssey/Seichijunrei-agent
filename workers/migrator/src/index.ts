@@ -8,6 +8,5 @@ import { MigrationContainer } from "./container";
 export { MigratorApplyLock };
 export { MigrationContainer };
 export { createMigratorApp, type Env, type MigratorDeps } from "./create-app";
-export { MIGRATOR_DSN_ENV } from "./runner";
 
 export default createMigratorApp();

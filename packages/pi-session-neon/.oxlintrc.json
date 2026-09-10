@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "overrides": [
+    {
+      "files": [
+        "src/contract.d.ts",
+        "migrations/snapshots/*/contract.d.ts"
+      ],
+      "rules": {
+        "typescript/consistent-type-definitions": "off",
+        "typescript/no-empty-object-type": "off"
+      }
+    }
+  ]
+}

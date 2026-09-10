@@ -15,8 +15,11 @@
   },
   "dependencies": {
     "@animichi/contract": "workspace:*",
+    "@animichi/pi-session-neon": "workspace:*",
     "@cloudflare/containers": "^0.3.7",
     "@neondatabase/serverless": "^1.1.0",
+    "@prisma/orm-postgres": "8.0.0-rc.9",
+    "@prisma/orm-toolchain": "8.0.0-rc.9",
     "hono": ">=4.13.7",
     "jose": "^6.2.4"
   },
@@ -26,6 +29,7 @@
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-istanbul": "4.1.11",
+    "miniflare": "4.20260722.0",
     "pg": "^8.22.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",

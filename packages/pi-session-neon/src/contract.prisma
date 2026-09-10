@@ -1,0 +1,105 @@
+// Native agent schema. Existing Atlas objects remain outside this contract ownership.
+// Pi prepareStorageCommit/validateCommittedWrites own write order and visible parents.
+
+enum RecordKind {
+  @@type("pg/text@1")
+  entry = "entry"
+  usage = "usage"
+}
+
+model PiSession {
+  id       String       @id
+  metadata Jsonb
+  nextSeq  BigIntNumber  @default(0) @map("next_seq")
+
+  @@check(expression: "next_seq >= 0", name: "pi_sessions_next_seq")
+  @@check(expression: "(metadata->>'id') IS NOT DISTINCT FROM id", name: "pi_sessions_metadata_id")
+  @@map("pi_sessions")
+}
+
+model PiRecord {
+  sessionId String       @map("session_id")
+  id        String
+  seq       BigIntNumber
+  kind      RecordKind
+  payload   Jsonb
+  session   PiSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade, index: false)
+
+  @@id([sessionId, id])
+  @@unique([sessionId, seq])
+  @@check(expression: "(payload->>'id') IS NOT DISTINCT FROM id", name: "pi_records_payload_id")
+  @@check(expression: "((payload->>'seq')::bigint) IS NOT DISTINCT FROM seq", name: "pi_records_payload_seq")
+  @@map("pi_records")
+}
+
+model PiScalarValue {
+  sessionId String       @map("session_id")
+  namespace String
+  key       String
+  seq       BigIntNumber
+  value     Jsonb?
+  session   PiSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade, index: false)
+
+  @@id([sessionId, namespace, key])
+  @@map("pi_scalar_values")
+}
+
+model PiListValue {
+  sessionId String       @map("session_id")
+  namespace String
+  key       String
+  seq       BigIntNumber
+  value     Jsonb?
+  session   PiSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade, index: false)
+
+  @@id([sessionId, namespace, key, seq])
+  @@map("pi_list_values")
+}
+
+model AgentAdmission {
+  id                Uuid                @id @default(dbgenerated("uuidv7()"))
+  sessionId         String              @map("session_id")
+  clientMessageId   String              @map("client_message_id")
+  kind              String
+  operationId       String?             @unique @map("operation_id")
+  identityId        String              @map("identity_id")
+  payer             String
+  requestDigest     String              @map("request_digest")
+  state             String              @default("pending")
+  rejectionReason   String?             @map("rejection_reason")
+  createdAt         TimestamptzString    @default(now()) @map("created_at")
+  quotaUsageDate    DateString?         @map("quota_usage_date")
+  quotaReservedAt   TimestamptzString?   @map("quota_reserved_at")
+  quotaRefundedAt   TimestamptzString?   @map("quota_refunded_at")
+  session           PiSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade, index: false)
+
+  @@unique([sessionId, clientMessageId])
+  @@check(expression: "kind IN ('model', 'selection')", name: "agent_admissions_kind")
+  @@check(expression: "payer IN ('anon', 'user', 'byok')", name: "agent_admissions_payer")
+  @@check(expression: "state IN ('pending', 'accepted', 'settled', 'void')", name: "agent_admissions_state")
+  @@check(expression: "(kind = 'model') = (operation_id IS NOT NULL)", name: "agent_admissions_operation")
+  @@check(expression: "(quota_usage_date IS NULL) = (quota_reserved_at IS NULL)", name: "agent_admissions_reservation")
+  @@check(expression: "quota_reserved_at IS NULL OR (payer = 'anon' AND kind = 'model')", name: "agent_admissions_anon_reservation")
+  @@check(expression: "quota_refunded_at IS NULL OR quota_reserved_at IS NOT NULL", name: "agent_admissions_refund")
+  @@index([kind, createdAt], where: "state IN ('pending', 'accepted')", name: "agent_admissions_unresolved")
+  @@map("agent_admissions")
+}
+
+model AgentOpenOperation {
+  operationId String             @id @map("operation_id")
+  createdAt   TimestamptzString   @default(now()) @map("created_at")
+  admission   AgentAdmission     @relation(fields: [operationId], references: [operationId], onDelete: Cascade, index: false)
+
+  @@map("agent_open_operations")
+}
+
+model AgentSettlement {
+  operationId  String              @id @map("operation_id")
+  lastUsageSeq BigIntNumber        @default(-1) @map("last_usage_seq")
+  settledAt    TimestamptzString?   @map("settled_at")
+  admission    AgentAdmission      @relation(fields: [operationId], references: [operationId], onDelete: Cascade, index: false)
+
+  @@check(expression: "last_usage_seq >= -1", name: "agent_settlements_last_usage_seq")
+  @@index([operationId], where: "settled_at IS NULL", name: "agent_settlements_unsettled")
+  @@map("agent_settlements")
+}

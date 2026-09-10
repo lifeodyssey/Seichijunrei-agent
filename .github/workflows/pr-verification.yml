@@ -156,7 +156,7 @@ jobs:
         if: ${{ matrix.package == '@animichi/eval' }}
         run: uv python install 3.11
       - name: Install the pinned Atlas CLI for the migration chain
-        if: ${{ matrix.package == 'catalog' || matrix.package == 'migrator' }}
+        if: ${{ contains(fromJSON('["catalog", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
         uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
         with:
           version: v0.30.0
@@ -166,7 +166,7 @@ jobs:
         with:
           pulumi-version-file: .pulumi.version
       - name: Build the hermetic Postgres+PostGIS+pgvector test image
-        if: ${{ contains(fromJSON('["catalog", "edge-worker", "@animichi/test-postgres", "migrator"]'), matrix.package) }}
+        if: ${{ contains(fromJSON('["catalog", "edge-worker", "@animichi/test-postgres", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
         run: docker build -f apps/agent/docker/test-postgres/Dockerfile -t animichi-test-postgres:18-3.6-pgvector-0.8.5 .
       - name: Run the package's own gates
         env:
@@ -200,6 +200,7 @@ jobs:
             web) file=apps/web/coverage/lcov.info ;;
             catalog) file=workers/catalog/coverage/lcov.info ;;
             users) file=workers/users/coverage/lcov.info ;;
+            @animichi/pi-session-neon) file=packages/pi-session-neon/coverage/lcov.info ;;
             *) file="" ;;
           esac
           echo "file=$file" >> "$GITHUB_OUTPUT"

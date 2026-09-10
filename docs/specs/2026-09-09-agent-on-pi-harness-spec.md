@@ -161,7 +161,9 @@
 
 - **实现面**：`Storage` 11 个方法（`types.d.ts:386-398`）+ `SessionRepo` 5 个（`:501-510`）。
 - **验收 = 上游的 conformance**：`createStorageConformance` + `createSessionRepoConformance` 及另外 8 个套件（5 个 fork + `Lifecycle`/`Message`/`Ownership`），从 `@earendil-works/pi-agent-core/harness/session/testing` 引（`testing/index.d.ts:4-7`）——**2105 行用例白拿**。
-- **schema**：`entries`（write-once）/ `values` + `lists` / `usage_ledger`，逐条对 format 4 的语义；**我们自己的列（quota、identity、payer）放在 pi 模型之外的表**，不混进 entries——`harness.md:41-48` 的「没有第三个地方」是对 pi 的 payload 说的，不是禁止我们另有业务表。
+- **schema**：保留 format 4 的 entries（write-once）、values、lists、usage 语义；物理表数量不是 SDK 要求。**我们自己的列（quota、identity、payer）放在 pi 模型之外的表**，不混进 entries——`harness.md:41-48` 的「没有第三个地方」是对 pi 的 payload 说的，不是禁止我们另有业务表。
+- **2026-09-10 owner 修订：直接采用 Prisma 8**。用公开 PostgreSQL contract、query、transaction 和 migration API；不先迁 Prisma 7，不加 ORM 兼容层。优先普通 PK/FK/unique/CHECK 与 SDK `prepareStorageCommit` / `validateCommittedWrites`，删除重复校验、生成 JSON 列和重复加锁 trigger 前，必须验证所有 writer（包括 fork）处于正确的事务边界。父引用保证来自哪个边界须明确，不能默认为数据库仍有已删除的约束。
+- **迁移所有权**：新 agent contract 的 DDL 由 Prisma 管理；已应用 Atlas 历史不改，同一对象不能由两套工具管理。release artifact、预检与 migrator 必须一起交代所有权及目标 contract；选择 B 时只执行 B 所需的 schema 路径，不因 checkout 为 C 而迁到 C。既有 catalog geography/vector 与旧数据的整体接管须单独验证，不通过改字段含义或自制 codec 绕过。当前可行性与未完成项见 [Prisma 8 验证](../iterations/production-readiness-2026-08/PRISMA-8-VALIDATION.md)。
 - **DO 与 Neon 的分工**：会话数据全在 Neon（eval 使用原生 Memory 或 JSONL repository）；**DO 只保存 SDK 调度元数据，提供互斥、排程与活流，不存会话/业务状态**——一个 session 一个 DO，单写者这件事上游明说要宿主自己保证（`harness.md:120,403`），而 宿主跨 await 的显式互斥才是保证。不变式：**只用 `lane("main")`**，不开 steer/followUp 的额外 lane，于是投影层可以忽略 `LaneSnapshot.queues`（**D1**）。
 - **业务恢复扫描归 W1-9，业务表归 W0-2**：扫描 pending/accepted 准入、未结选择及独立未结算义务；`open_operations` 只是接受后的辅助索引，不是唯一发现源或租约。发现、当前 SDK 见证与结算的唯一详细协议见 §4.2.2 三/五/七/八。
 
@@ -251,7 +253,7 @@
 
 **验收（产品行为与关键故障边界）**
 
-- **W0-2** — [ ] **(integration)** 迁移只新增；W0-1 通过前不得 ALTER/DROP/重命名旧表，W0-1 不作为新增迁移的硬依赖。四张表在 `migrations/neon` 里建起来并带各自的约束：`admission_intents` 的 **`(session_id, client_message_id)` 唯一**且状态限于 `pending｜accepted｜settled｜void`、`open_operations` 的 **`operation_id` 主键**、待结算记录**按 `operation_id` 键且有 `settled_at` 守卫**、以及配额/预留表；变异：去掉任一约束，对应的重放测试红。
+- **W0-2** — [ ] **(integration)** 以 Prisma 8 原生 contract/migration 新增 SDK metadata / entries / values / lists / usage 所需存储，不固定物理表数量；不改已应用的 Atlas 迁移或旧表，旧表退役另需切换证据与评审。[ ] **(integration)** 业务准入/选择共用 `agent_admissions`（原称 `admission_intents`），唯一键为 `(session_id, client_message_id)`，状态仅 `pending｜accepted｜settled｜void`；model 准入预分配 operation ID，selection 不造假 operation。[ ] **(integration)** `agent_open_operations`（原称 `open_operations`）仅为 `operation_id` 主键的辅助恢复索引；`agent_settlements` 独立按 `operation_id` 发现未结义务，以 `settled_at` 守卫账本游标、费用与退款的同一事务。[ ] **(integration)** 预留/退款坐标保存在准入行，复用既有 `anon_daily_message_count` / `daily_usage`；不新增第二套 quota 或 run 状态机。变异：破坏旧表或 ID/parent/request-key/预留行为，相应真实 PostgreSQL 测试红；不以保留某个 trigger 或重复 validator 作为验收。严格 TypeScript 不用 skipLibCheck；迁移验证 artifact B/C 选择、重复执行与不兼容状态拒绝。完整 SDK backend conformance 归 W1-1。
 - **W0-1** — [ ] **(unit)** `git ls-files workers/edge/src/agent` 的 **115** 个文件每个都有 delete/rewrite-domain/retain-domain 判定与替代接缝，含目录根下的 `durable-namespace.ts`（13）与 `json-record.ts`（9）；`db/schema.ts`、`migrations/neon/*agent_runs*`、`gateway/agent-turn.ts:24-31` 三处在列；清单单独评审通过后才开 W1。
 - **P0-S1** — [ ] **(ci)** `wrangler dev` 下 import 0.85.1 与 chord 并调用一次 `AgentHarness.create`，成功；bundle 体积增量记入卡；**`esbuild` 不在产物里**（`grep` 产物为 0）。[ ] **(unit)** bundle-smoke 常驻。
 - **P0-S3** — [ ] **(integration)** `createStorageConformance` 与 `createSessionRepoConformance` 及另外 8 个套件在 test-postgres 上全绿，**一个 skip 都没有**；跳过任一条即卡红。[ ] **(integration)** 在 ≥3 次工具调用的回合上记录**每回合 `Storage.commit()` 往返次数**、**apac 钉住的 DO → Neon 提交延迟 p50/p95**、**占回合墙钟的比例**；对照预期（≈10–15 次、同区 ~74 ms、20 秒回合的 <5%），超出即开优化卡（连接复用 / 合并业务事务；不得放松「先提交再产生副作用」）。

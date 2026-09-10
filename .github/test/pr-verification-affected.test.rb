@@ -11,6 +11,8 @@ class PrVerificationAffectedTest < Minitest::Test
     ["catalog", "ariga/setup-atlas"],
     ["migrator", "ariga/setup-atlas"],
     ["catalog", "docker build -f apps/agent/docker/test-postgres/Dockerfile"],
+    ["@animichi/pi-session-neon", "ariga/setup-atlas"],
+    ["@animichi/pi-session-neon", "docker build -f apps/agent/docker/test-postgres/Dockerfile"],
     ["infra", "pulumi/actions"]
   ].freeze
   def setup

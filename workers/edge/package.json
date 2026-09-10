@@ -37,6 +37,6 @@
     "pg": "^8.22.0",
     "pi-agent-core-smoke": "npm:@earendil-works/pi-agent-core@0.85.1",
     "pi-ai-smoke": "npm:@earendil-works/pi-ai@0.85.1",
-    "smol-toml": "1.6.1"
+    "smol-toml": "1.7.1"
   }
 }

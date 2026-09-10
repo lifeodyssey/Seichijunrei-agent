@@ -13,6 +13,7 @@ class PackageTestSegmentsTest < Minitest::Test
     "workers/migrator" => ["vitest run"],
     "packages/contract" => ["vitest run", "vet:baseline", "test:openapi-drift"],
     "packages/agent" => ["node --test"],
+    "packages/pi-session-neon" => ["node --test", "test/contract-types.test.ts"],
     "packages/eval" => ["node --test", "test:fixture-drift"],
     "packages/test-postgres" => ["node --test"],
     "infra" => ["node --test", "test:program-load"],

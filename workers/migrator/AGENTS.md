@@ -3,8 +3,9 @@
 TypeScript Cloudflare Worker: the **migration executor** (spec
 `docs/specs/2026-08-16-migration-executor-spec.md`, issue #1051; Option 2
 connectivity spec / #1124). A request authenticated by a GitHub Actions OIDC
-token applies the committed Neon Atlas chain over neon-http and returns
-success + the applied head. Both environments go through it since #1365
+token applies the committed Neon Atlas chain over neon-http and the sealed
+Prisma graph through the official control client. It returns both owners'
+applied markers. Both environments go through it since #1365
 (#1055 closed): `[env.staging]` and `[env.production]` are separate Workers with
 separate DSN secrets and separate OIDC allowlists. Root guide:
 `../../AGENTS.md`.
@@ -14,7 +15,8 @@ separate DSN secrets and separate OIDC allowlists. Root guide:
 - pnpm. `pnpm run typecheck` (TypeScript 7.0.2) · `pnpm run lint:oxlint`
   (type-aware, strict, warnings denied) · `pnpm run test` / `pnpm run test:worker`
   (vitest + coverage). Never `wrangler deploy` locally (hook `block-local-deploy`).
-- `pnpm run test:integration` runs the preflight seam against disposable PostgreSQL,
+- `pnpm run test:integration` runs authenticated HTTP and the actual bundled
+  workerd entry against disposable PostgreSQL (including the fixed Durable Object),
   using `@animichi/test-postgres`, Docker and Atlas v0.30.0 (`ATLAS_BIN` may select the pinned binary).
 
 ## What this worker does
@@ -90,7 +92,8 @@ by any runtime worker.
 
 ## Read-only compatibility preflight (#1575)
 
-`POST /preflight` accepts only `{expectedHead, atlasSum, stagingOnlyBaseline}` from
+`POST /preflight` accepts `{expectedHead, atlasSum, stagingOnlyBaseline}` and an
+optional `expectedPrismaRef` from
 verified release metadata. `expectedHead` omits `.sql`; the complete Atlas checksum
 file is bounded with the whole JSON body to 65,536 bytes. Metadata contains no SQL,
 URL, DSN or environment override. The selected chain may be newer than this bundle.
@@ -105,11 +108,43 @@ rows, malformed or partial history, errors, gaps, duplicates and newer schema re
 Every response is `no-store`; failures contain stable codes, never driver details.
 `parsePreflightMetadata` and `compareMigrationPrefix` are reusable domain functions.
 
-This endpoint never creates a ledger, applies a chain or acquires the apply lock.
-`/migrate` retains its existing behavior. #1564 must revalidate under its actual
-apply lock and activate only after authorized staging and production bootstrap.
+The Atlas-only transition route never creates a ledger, applies a chain or
+acquires the apply lock. It remains available for the first pre-publication
+check while the previous migrator bundle is serving. Requests containing
+`expectedPrismaRef` use the same fixed DO as apply, verify the bundled Atlas
+prefix and native snapshot, and call Prisma's public `executeMigrateShowPlan`.
+The native preview reads the live marker without initializing its schema.
 Local tests prove neither deployment nor production approval; see the canonical
 [deployment runbook](../../docs/ops/deployment.md#read-only-migration-preflight-1575).
+
+## Sealed native migrations (#1539)
+
+`GET /healthz` also returns `prismaTarget`, the packaged contract's
+`storage.storageHash`. The release publishes its migrator bundle before native
+preflight: an older executor cannot inspect a graph it does not carry.
+`node workers/migrator/scripts/prepare-migrations.ts <bundle-directory>` copies
+the public package's complete `migrations/` and `contract.json` byte for byte.
+The sealed no-bundle Wrangler config loads `contract.json`, `migrations/**/*.json`
+and `migrations/**/*.d.ts` as Text modules with preserved file names. Native
+filesystem APIs then read the graph at `/bundle/migrations`.
+
+Native requests select only a 64-character hash in a packaged snapshot. They
+cannot supply SQL, a graph, a path or a DSN. `/preflight` returns
+`prisma: {targetHash, markerHash, migrations, usedLiveMarker}` with the native
+migration array and live-marker flag. `/migrate` requires the same complete
+metadata, rechecks Atlas compatibility and the native path inside the fixed
+lock, applies Atlas, then calls `ControlClient.migrate` with that exact snapshot
+and `refHash`. Prisma owns its transactions, advisory lock, operations and marker.
+The response preserves its native receipt, including `markerHash`,
+`migrationsApplied` and `applied`; a mismatched marker refuses success. Unknown
+snapshots return retryable 409; an incompatible live path returns 422.
+
+Atlas continues to own existing SQL tables; Prisma alone owns the seven new
+session tables and `prisma_contract` marker schema. The direct migrator role
+needs database `CREATE` to initialize that schema plus its existing table/schema
+privileges. The disposable PostgreSQL suite proves this with a NOSUPERUSER
+role: missing CREATE fails apply, the inherited grant succeeds, and replay
+applies zero migrations. CI receives no DSN; the Worker resolves its secret.
 
 ## Tests
 
