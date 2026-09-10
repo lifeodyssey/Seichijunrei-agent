@@ -16,7 +16,7 @@
  *
  * Pure: no bindings, no clock, no database.
  */
-import { isJsonRecord } from "../agent/json-record.ts";
+import { z } from "zod";
 
 /** The locales the input refusals are authored in; anything else reads `ja`. */
 const LOCALES = ["ja", "zh", "en"] as const;
@@ -73,33 +73,24 @@ export function requestLocale(raw: string | null): Locale {
   return LOCALES.find((known) => known === raw) ?? "ja";
 }
 
-function isUserMessage(value: unknown): value is Record<string, unknown> {
-  return isJsonRecord(value) && value.role === "user";
+const ChatEnvelope = z.object({ messages: z.array(z.unknown()).optional() });
+const UserMessage = z.object({ role: z.literal("user"), parts: z.unknown().optional() });
+const TextParts = z.array(z.object({ type: z.literal("text"), text: z.string() }));
+
+/** Only the newest user message supplies input; caller-provided history has no write authority. */
+function newestUserMessage(payload: unknown) {
+  const envelope = ChatEnvelope.safeParse(payload);
+  if (!envelope.success) return undefined;
+  return (envelope.data.messages ?? []).flatMap((message) => {
+    const parsed = UserMessage.safeParse(message);
+    return parsed.success ? [parsed.data] : [];
+  }).at(-1);
 }
 
-/** The envelope's message list, whatever the caller actually sent. */
-function messageList(payload: unknown): readonly unknown[] {
-  const messages: unknown = isJsonRecord(payload) ? payload.messages : undefined;
-  return Array.isArray(messages) ? (messages as readonly unknown[]) : [];
-}
-
-/** The newest user message in the envelope, or none at all. Older messages are
- * history the transcript already holds; only the last one is this turn. */
-function newestUserMessage(payload: unknown): Record<string, unknown> | undefined {
-  return messageList(payload).filter(isUserMessage).at(-1);
-}
-
-/** One part's text; anything that is not a text part refuses the whole turn. */
-function partText(part: unknown, locale: Locale): string {
-  const text = isJsonRecord(part) && part.type === "text" ? part.text : undefined;
-  if (typeof text !== "string") throw new ChatEnvelopeError("non_text_message", locale);
-  return text;
-}
-
-function messageText(message: Record<string, unknown>, locale: Locale): string {
-  const parts: unknown = message.parts;
-  if (!Array.isArray(parts)) throw new ChatEnvelopeError("non_text_message", locale);
-  return (parts as readonly unknown[]).map((part) => partText(part, locale)).join("");
+function messageText(message: z.infer<typeof UserMessage>, locale: Locale): string {
+  const parsed = TextParts.safeParse(message.parts);
+  if (!parsed.success) throw new ChatEnvelopeError("non_text_message", locale);
+  return parsed.data.map((part) => part.text).join("");
 }
 
 /**

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import { RATE_LIMIT_ENVELOPE_FIELDS, classifyRatePolicy } from "../src/gateway/rate-policy.ts";
 import { rateLimitedResponse, rateLimitUnavailableResponse } from "../src/gateway/responses.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
@@ -48,8 +49,8 @@ const SECRET = "fixed-test-hmac-key-0000000000000000";
 const ANON = { ANON_ACCESS_ENABLED: "true", ANON_ID_SECRET: SECRET, TURNSTILE_SECRET: "fixed-test-turnstile-secret-0000000", EDGE_SHOWCASE_MODE: "false" };
 const passingGate = { check: () => Promise.resolve({ ok: true, errorCodes: [] }) };
 
-function anonApp() {
-  return createWorkerApp({ authenticate: () => Promise.resolve({ ok: false, reason: "absent" }), turnstileGate: passingGate });
+function anonApp(response = () => new Response("agent")) {
+  return createWorkerApp({ agentTurns: nativeAgentReceiver([], response), authenticate: () => Promise.resolve({ ok: false, reason: "absent" }), turnstileGate: passingGate });
 }
 
 void test("an anonymous burst 429 is typed rate_limited, distinct from the quota code", async () => {
@@ -75,7 +76,7 @@ void test("the daily-budget breaker stays a DISTINCT 403 (quota), not a 429 (rat
     EDGE_GUARD: alwaysAllowGuard,
     CONTAINER: { idFromName: () => "id", get: () => ({ fetch: (r: Request) => { captured.requests.push(r); return Promise.resolve(new Response(JSON.stringify({ error: { code: "anon_budget_exhausted" } }), { status: 403 })); } }) },
   } as never;
-  const res = await anonApp().request("/v1/chat", { method: "POST" }, env, stubCtx);
+  const res = await anonApp(() => Response.json({ error: { code: "anon_budget_exhausted" } }, { status: 403 })).request("/v1/chat", { method: "POST" }, env, stubCtx);
   assert.equal(res.status, 403);
   const body = (await res.json()) as { error: { code: string } };
   assert.equal(body.error.code, "anon_budget_exhausted", "daily quota exhaustion is a 403, not a rate-limit 429");

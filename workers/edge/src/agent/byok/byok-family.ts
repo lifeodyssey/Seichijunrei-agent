@@ -7,9 +7,8 @@
  * `gemini`, the strings `apps/web`'s `byok-storage.ts` puts in
  * `X-BYOK-Provider` and Python's `byok_models.py` accepts. The PROVIDER is
  * what `src/agent/egress/` allowlists — `openai` / `anthropic` / `google`.
- * Renaming either to match the other would break a wire the flag's contract
- * says must not change (`AGENT_TURN_ROUTE` is a fallback flag), so the
- * translation is a table instead.
+ * The table binds the product's credential vocabulary to the native provider
+ * and its permitted endpoint.
  *
  * GEMINI RIDES THE OPENAI-COMPATIBLE API, which is a measurement and not a
  * preference: pi-ai's `google-generative-ai` adapter throws "Custom fetch is
@@ -24,7 +23,7 @@
  * `anthropic-messages`, by contrast, DOES take an injected fetch — it threads
  * `options.fetch` into the SDK client it constructs
  * (`dist/api/anthropic-messages.js:368,663,722`) — so that family keeps its
- * native dialect. `test/byok-turn-model.test.ts` proves it by driving a real
+ * native dialect. `test/native-host-models.test.ts` proves it by driving a real
  * pi round trip for both families through a scripted socket.
  */
 import type { ByokProvider } from "../egress/provider-allowlist.ts";

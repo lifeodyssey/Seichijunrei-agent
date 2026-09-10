@@ -2,6 +2,8 @@
   "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "pi-harness-bundle-smoke",
   "main": "pi-harness.worker.ts",
-  "compatibility_date": "2025-03-01",
-  "compatibility_flags": ["nodejs_compat", "enable_ctx_exports"]
+  "compatibility_date": "2026-07-22",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
 }

@@ -65,6 +65,7 @@ model AgentAdmission {
   identityId        String              @map("identity_id")
   payer             String
   requestDigest     String              @map("request_digest")
+  selectionRequest  Jsonb?              @map("selection_request")
   state             String              @default("pending")
   rejectionReason   String?             @map("rejection_reason")
   createdAt         TimestamptzString    @default(now()) @map("created_at")
@@ -75,6 +76,7 @@ model AgentAdmission {
 
   @@unique([sessionId, clientMessageId])
   @@check(expression: "kind IN ('model', 'selection')", name: "agent_admissions_kind")
+  @@check(expression: "(kind = 'selection') = (selection_request IS NOT NULL)", name: "agent_admissions_selection_input")
   @@check(expression: "payer IN ('anon', 'user', 'byok')", name: "agent_admissions_payer")
   @@check(expression: "state IN ('pending', 'accepted', 'settled', 'void')", name: "agent_admissions_state")
   @@check(expression: "(kind = 'model') = (operation_id IS NOT NULL)", name: "agent_admissions_operation")

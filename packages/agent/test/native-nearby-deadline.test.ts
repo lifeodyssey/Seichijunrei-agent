@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { setImmediate } from "node:timers/promises";
+import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core/harness/context";
+import { searchNearby } from "@animichi/agent/tools";
+import { executeTool, fixture } from "./native-tool-fixture.ts";
+import { catalogClock, pendingCatalog } from "./catalog-clock.ts";
+
+void test("geocoding and all nearby retries share the same 85-second native tool deadline", async (context) => {
+  catalogClock(context);
+  const transport = pendingCatalog(4);
+  const { repo, toolContext } = await fixture(transport.fetch);
+  context.after(async () => { await repo.close(BACKGROUND_CONTEXT); });
+  const executed = executeTool(toolContext, "search_nearby", { location: "Kyoto" }, [searchNearby]);
+  const geocode = await transport.received(0);
+  context.mock.timers.tick(24_000);
+  geocode.respond(Response.json({ candidates: [{ id: "kyoto", label: "Kyoto", name: "Kyoto", lat: 35, lng: 135, kind: "city", source: "seed" }] }));
+  const first = await transport.received(1);
+  context.mock.timers.tick(25_000);
+  assert.equal(first.request.signal.aborted, true);
+  await setImmediate();
+  context.mock.timers.tick(2_000);
+  const second = await transport.received(2);
+  context.mock.timers.tick(25_000);
+  assert.equal(second.request.signal.aborted, true);
+  await setImmediate();
+  context.mock.timers.tick(2_000);
+  const third = await transport.received(3);
+  context.mock.timers.tick(6_999);
+  assert.equal(third.request.signal.aborted, false);
+  context.mock.timers.tick(1);
+  assert.equal(third.request.signal.aborted, true);
+  const { message } = await executed;
+  assert.equal(message.isError, true);
+  assert.match(JSON.stringify(message.content), /nearby.*85/i);
+});

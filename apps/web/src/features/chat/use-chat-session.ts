@@ -1,16 +1,16 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { UseChatHelpers } from "@ai-sdk/react";
-import { AnonLimitErrorEnvelope, ChatResponseDataPart, readQuotaResetsAt } from "@animichi/contract";
+import { ChatResponseDataPart } from "@animichi/contract";
 import type { ChatDataPart } from "@animichi/contract";
-import { DefaultChatTransport, generateId } from "ai";
-import type { PrepareSendMessagesRequest, UIMessage } from "ai";
-import { useCallback, useRef } from "react";
+import { generateId } from "ai";
+import type { UIMessage } from "ai";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { RefObject } from "react";
-import { z } from "zod";
 import { assignedSessionIdIn } from "./data-parts";
 import { useResendCandidatePick, useSendCandidatePick } from "./selection/candidate-pick-transport";
 import type { SelectedPointsBody } from "./selection/use-recompute-turn";
-import { sessionHeaders } from "./session-headers";
+import { createSessionTransport } from "./native-chat-transport";
+import type { SessionTracker } from "./native-chat-transport";
 import type { SessionOffer } from "./session-headers";
 
 /**
@@ -28,23 +28,10 @@ const dataPartSchemas = {
   "data-response": ChatResponseDataPart,
 };
 
-interface SessionTracker {
-  scope: string;
-  id: string | undefined;
-  /** TURN-4 #955: the Session offer echoed by the server — the CAS revision
-   * and the digest of the persisted session envelope. Sent back as
-   * `x-session-revision` / `x-session-digest` on the next turn. */
-  revision: number | undefined;
-  digest: string | undefined;
-  lastHttpStatus: number | undefined;
-  lastErrorCode: string | undefined;
-  /** D12's `quota_resets_at`: when this identity's allowance returns. */
-  lastQuotaResetsAt: string | undefined;
-}
 type SessionRef = RefObject<SessionTracker>;
 
 function emptyTracker(scope: string, sessionId: string | undefined): SessionTracker {
-  return { scope, id: sessionId, ...blankOffer(), ...blankRejection() };
+  return { scope, id: sessionId, operationId: undefined, streamActivity: 0, ...blankOffer(), ...blankRejection() };
 }
 
 function blankOffer(): { revision: undefined; digest: undefined } {
@@ -106,86 +93,15 @@ function chatHandlers(scope: string, ref: SessionRef) {
   };
 }
 
-function createScopedChat(chatUrl: string, scope: string, ref: SessionRef): Chat<ChatUIMessage> {
+function createScopedChat(chatUrl: string, scope: string, ref: SessionRef, notify: () => void): Chat<ChatUIMessage> {
   return new Chat<ChatUIMessage>({
     id: scope,
-    transport: createSessionTransport(chatUrl, ref),
+    transport: createSessionTransport(chatUrl, ref, notify),
     dataPartSchemas,
     ...chatHandlers(scope, ref),
   });
 }
 
-/** The rejection envelope's shape, as far as classification needs it. */
-interface RejectionDetail {
-  readonly code: string | undefined;
-  readonly quotaResetsAt: string | undefined;
-}
-
-const NO_REJECTION: RejectionDetail = { code: undefined, quotaResetsAt: undefined };
-
-const RejectionCodeEnvelope = z.object({ error: z.object({ code: z.string() }) });
-
-/**
- * Read the rejection's error code — which separates D8 (401/403 expiry) from
- * D11 (`anon_budget_exhausted`) and D12 (`anon_quota_exhausted`) — plus D12's
- * `quota_resets_at`, read through the shared contract. Only failures are
- * parsed; a streaming 2xx body is never touched, let alone buffered.
- */
-async function readRejection(response: Response): Promise<RejectionDetail> {
-  if (response.ok) return NO_REJECTION;
-  const body: unknown = await response.clone().json().catch(() => undefined);
-  const limit = AnonLimitErrorEnvelope.safeParse(body);
-  const rejection = RejectionCodeEnvelope.safeParse(body);
-  const code = limit.success ? limit.data.error.code : rejection.data?.error.code;
-  return { code, quotaResetsAt: readQuotaResetsAt(body) };
-}
-
-function clearRejection(ref: SessionRef): void {
-  ref.current.lastHttpStatus = undefined;
-  ref.current.lastErrorCode = undefined;
-  ref.current.lastQuotaResetsAt = undefined;
-}
-
-function recordRejection(ref: SessionRef, response: Response, rejection: RejectionDetail): void {
-  ref.current.lastErrorCode = rejection.code;
-  ref.current.lastQuotaResetsAt = rejection.quotaResetsAt;
-  ref.current.lastHttpStatus = response.status;
-}
-
-/** Record each chat response's status and rejection detail so failures classify. */
-function createTrackingFetch(ref: SessionRef): typeof globalThis.fetch {
-  return async (input, init) => {
-    clearRejection(ref);
-    const response = await globalThis.fetch(input, init);
-    recordRejection(ref, response, await readRejection(response));
-    return response;
-  };
-}
-
-type OutgoingTurn = Parameters<PrepareSendMessagesRequest<ChatUIMessage>>[0];
-
-function headerEntries(headers: HeadersInit | undefined): Record<string, string> {
-  return Object.fromEntries(new Headers(headers).entries());
-}
-
-/** Rebuild the default request wire shape, adding the message-derived key. */
-async function prepareTurnRequest(ref: SessionRef, turn: OutgoingTurn) {
-  return {
-    body: { ...turn.body, id: turn.id, messages: turn.messages, trigger: turn.trigger, messageId: turn.messageId },
-    headers: {
-      ...headerEntries(turn.headers),
-      ...await sessionHeaders({ ...offerOf(ref), turnId: turnKeyOf(turn.messages) }),
-    },
-  };
-}
-
-function createSessionTransport(chatUrl: string, ref: SessionRef): DefaultChatTransport<ChatUIMessage> {
-  return new DefaultChatTransport({
-    api: chatUrl,
-    fetch: createTrackingFetch(ref),
-    prepareSendMessagesRequest: (turn) => prepareTurnRequest(ref, turn),
-  });
-}
 
 interface ScopedChat {
   scope: string;
@@ -198,15 +114,16 @@ function switchScopedChat(
   chatUrl: string,
   scope: string,
   ref: SessionRef,
+  notify: () => void,
 ): ScopedChat {
   void previous?.chat.stop();
-  return { scope, chat: createScopedChat(chatUrl, scope, ref) };
+  return { scope, chat: createScopedChat(chatUrl, scope, ref, notify) };
 }
 
-function useScopedChat(chatUrl: string, scope: string, ref: SessionRef): Chat<ChatUIMessage> {
+function useScopedChat(chatUrl: string, scope: string, ref: SessionRef, notify: () => void): Chat<ChatUIMessage> {
   const holder = useRef<ScopedChat | null>(null);
   if (holder.current === null || holder.current.scope !== scope) {
-    holder.current = switchScopedChat(holder.current, chatUrl, scope, ref);
+    holder.current = switchScopedChat(holder.current, chatUrl, scope, ref, notify);
   }
   return holder.current.chat;
 }
@@ -223,12 +140,13 @@ function useScopedChat(chatUrl: string, scope: string, ref: SessionRef): Chat<Ch
  * which also derives the per-message `x-turn-id` (W1 #1220).
  */
 function useTrackerReaders(ref: SessionRef) {
+  const operationIdOf = useCallback(() => ref.current.operationId, [ref]);
   const sessionIdOf = useCallback(() => ref.current.id, [ref]);
   const sessionOfferOf = useCallback(() => offerOf(ref), [ref]);
   const lastHttpStatus = useCallback(() => ref.current.lastHttpStatus, [ref]);
   const lastErrorCode = useCallback(() => ref.current.lastErrorCode, [ref]);
   const lastQuotaResetsAt = useCallback(() => ref.current.lastQuotaResetsAt, [ref]);
-  return { sessionIdOf, sessionOfferOf, lastHttpStatus, lastErrorCode, lastQuotaResetsAt };
+  return { streamActivity: ref.current.streamActivity, operationIdOf, sessionIdOf, sessionOfferOf, lastHttpStatus, lastErrorCode, lastQuotaResetsAt };
 }
 
 /** A part-less turn boundary. Without the marker, AI SDK 7.x (verified at 7.0.47) continues the
@@ -259,15 +177,17 @@ function useSendSelectedPoints({ sendMessage, setMessages }: SendHelpers) {
   );
 }
 
-export function useChatSession(chatUrl: string, sessionId?: string) {
+export function useChatSession(chatUrl: string, sessionId?: string, resume = false) {
+  const [, notify] = useReducer((value: number) => value + 1, 0);
   const scope = scopeOf(sessionId);
   const ref = useSessionTracker(sessionId, scope);
-  const chat = useScopedChat(chatUrl, scope, ref);
-  return useChatSessionHelpers(chat, ref);
+  const chat = useScopedChat(chatUrl, scope, ref, notify);
+  useEffect(() => () => { void chat.stop(); }, [chat]);
+  return useChatSessionHelpers(chat, ref, resume);
 }
 
-function useChatSessionHelpers(chat: Chat<ChatUIMessage>, ref: SessionRef) {
-  const helpers = useChat<ChatUIMessage>({ chat });
+function useChatSessionHelpers(chat: Chat<ChatUIMessage>, ref: SessionRef, resume: boolean) {
+  const helpers = useChat<ChatUIMessage>({ chat, resume });
   return {
     ...helpers,
     sendSelectedPoints: useSendSelectedPoints(helpers),

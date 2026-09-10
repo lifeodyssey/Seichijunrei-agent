@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ByokProbe, PROBE_RESPONSE_CAP_BYTES, cappedResponse } from "../src/agent/byok/byok-probe.ts";
-import type { ByokCredential } from "../src/agent/byok/byok-credential.ts";
+import type { ByokCredentialParts } from "../src/agent/byok/byok-credential.ts";
 import { byokCredentialIn } from "../src/agent/byok/byok-headers.ts";
-import type { EgressFetch } from "../src/agent/egress/guarded-fetch.ts";
 
 // W2-3 (#1289) — the probe's failure taxonomy, ported from
 // `apps/agent/src/animichi/agents/byok_probe.py` +
@@ -18,14 +17,14 @@ const FIXTURE_KEY = "byok-test-key-0000";
 
 /** The upstream a probe talks to, scripted down to the wire format: pi's
  * openai-completions adapter streams, so a SUCCESS has to be real SSE. */
-function scriptedUpstream(status: number, body: string, contentType: string): EgressFetch {
+function scriptedUpstream(status: number, body: string, contentType: string): typeof globalThis.fetch {
   return () => Promise.resolve(new Response(body, {
     status,
     headers: { "content-type": contentType },
   }));
 }
 
-function failingUpstream(status: number): EgressFetch {
+function failingUpstream(status: number): typeof globalThis.fetch {
   return scriptedUpstream(status, JSON.stringify({ error: { message: "no" } }), "application/json");
 }
 
@@ -44,12 +43,12 @@ const FINAL = {
   choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 };
 
-function answeringUpstream(): EgressFetch {
+function answeringUpstream(): typeof globalThis.fetch {
   const sse = `data: ${JSON.stringify(CHUNK)}\n\ndata: ${JSON.stringify(FINAL)}\n\ndata: [DONE]\n\n`;
   return scriptedUpstream(200, sse, "text/event-stream");
 }
 
-function credential(): ByokCredential {
+function credential(): ByokCredentialParts {
   const parsed = byokCredentialIn(new Headers({
     "X-BYOK-Provider": "openai-compatible",
     "X-BYOK-Key": FIXTURE_KEY,
@@ -60,7 +59,7 @@ function credential(): ByokCredential {
   return parsed;
 }
 
-function probeAgainst(inner: EgressFetch) {
+function probeAgainst(inner: typeof globalThis.fetch) {
   return new ByokProbe({ egress: { inner } }).run(credential());
 }
 
@@ -107,7 +106,7 @@ for (const status of COLLAPSING_STATUSES) {
 }
 
 void test("a transport failure collapses to provider_unreachable rather than escaping", async () => {
-  const broken: EgressFetch = () => Promise.reject(new Error("connection refused"));
+  const broken: typeof globalThis.fetch = () => Promise.reject(new Error("connection refused"));
   assert.deepEqual(await probeAgainst(broken), {
     vision: false,
     reachable: false,
@@ -117,7 +116,7 @@ void test("a transport failure collapses to provider_unreachable rather than esc
 
 void test("an allowlisted host redirecting at the metadata address is refused, and the target never sent", async () => {
   const calls: string[] = [];
-  const redirecting: EgressFetch = (input) => {
+  const redirecting: typeof globalThis.fetch = (input) => {
     calls.push(new Request(input).url);
     const headers = { location: "https://169.254.169.254/v1" };
     return Promise.resolve(new Response(null, { status: 302, headers }));

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import { createShowcaseMode, type ShowcaseMode } from "../src/proxy/showcase.ts";
 import type { GuardNamespace } from "../src/protect/guard-store.ts";
 
@@ -148,15 +149,16 @@ void test("AC: showcase=true — /tiles/* still serves map assets", async () => 
 // ── showcase=false: everything behaves exactly as before ────────────────────
 
 // test-type: unit
-void test("AC: showcase=false — authenticated /v1/chat reaches the container, rate limit still armed", async () => {
+void test("AC: showcase=false — authenticated /v1/chat reaches the native tier, rate limit still armed", async () => {
+  const touched = { count: 0 };
   const app = createWorkerApp({
+    agentTurns: nativeAgentReceiver([], () => { touched.count += 1; return new Response("agent"); }),
     authenticate: () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const),
   });
-  const touched = { count: 0 };
   const env = { ...(functionalEnv(touched) as object), EDGE_SHOWCASE_MODE: "false" };
   const res = await app.request("/v1/chat", { method: "POST", headers: { Authorization: "Bearer jwt" } }, env, stubCtx);
-  assert.equal(await res.text(), "container");
-  // idFromName + get + fetch on EDGE_GUARD (checkRateLimit), then the container.
+  assert.equal(await res.text(), "agent");
+  // idFromName + get + fetch on EDGE_GUARD (checkRateLimit), then the native receiver.
   assert.equal(touched.count, 4);
 });
 

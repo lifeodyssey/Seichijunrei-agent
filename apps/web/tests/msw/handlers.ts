@@ -47,6 +47,9 @@ export const sessionAdoptHandler = http.post(
   () => HttpResponse.json({ adopted: 0, noop_class: "no_rows" }),
 );
 
-export const handlers = [catalogSearchHandler, catalogPlanItineraryHandler, sessionAdoptHandler];
+/** Existing UI-only fixtures contain no active native operation unless a test supplies its stream. */
+const idleNativeStream = http.get("*/v1/conversations/:sessionId/stream", () => new HttpResponse(null, { status: 204 }));
+
+export const handlers = [catalogSearchHandler, catalogPlanItineraryHandler, sessionAdoptHandler, idleNativeStream];
 
 export { orpcErrorResponse };

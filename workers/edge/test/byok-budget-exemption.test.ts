@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import type { Env } from "../src/env.ts";
 import { latchBudget, utcDayKey } from "../src/protect/cost-breaker.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
@@ -48,7 +49,7 @@ void test("an authenticated /v1/chat request succeeds even with today's anonymou
   const { namespace: guard, calls } = fakeGuard(nowMs);
   await latchBudget(guard, utcDayKey(nowMs));
 
-  const app = createWorkerApp({
+  const app = createWorkerApp({ agentTurns: nativeAgentReceiver(),
         authenticate: () => Promise.resolve({ ok: true, userId: "user-a", userType: "human" } as const),
   });
   calls.length = 0; // only count calls made DURING the authenticated request below
@@ -72,7 +73,7 @@ void test("an authenticated BYOK request (X-BYOK-* headers present) is likewise 
   const { namespace: guard, calls } = fakeGuard(nowMs);
   await latchBudget(guard, utcDayKey(nowMs));
 
-  const app = createWorkerApp({
+  const app = createWorkerApp({ agentTurns: nativeAgentReceiver(),
         authenticate: () => Promise.resolve({ ok: true, userId: "user-a", userType: "human" } as const),
   });
   calls.length = 0;

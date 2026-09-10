@@ -85,6 +85,17 @@
         }
       }
     },
+    "/v1/conversations/{session_id}/stream": {
+      "get": {
+        "summary": "resume the native conversation stream",
+        "x-runtime": "edge",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
     "/v1/bangumi/{bangumi_id}/guide": {
       "get": {
         "summary": "work guide points",

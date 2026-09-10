@@ -114,6 +114,14 @@ client effect, and keeps desktop visitors on the clickable doorway. Root guide: 
 - A Worker has no cookie jar, so SSR never had a session to read anyway. `AuthStatus` models
   `"pending"` as a first-class state and `/` renders the anonymous doorway until the client answers.
 
+## Native chat recovery
+
+Chat uses the official AI SDK transport to consume the native Pi snapshot/live stream. Response
+headers publish the session address immediately; a page return uses the read-only conversation
+stream GET, without resubmitting model input or credentials. Native operation IDs pair visible
+assistant snapshots with history; headers alone never hide an existing answer. Heartbeat bytes
+renew the idle watchdog, so a healthy silent turn has no browser whole-turn timeout.
+
 ## Pitfalls
 
 - `src/routeTree.gen.ts` is generated. Do not hand-edit it; oxlint and coverage ignore it. The unit

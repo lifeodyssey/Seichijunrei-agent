@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { URL, fileURLToPath } from "node:url";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { alwaysAllowGuard, envWithContainer, stubCtx } from "../src/container/entry-env.ts";
 import { USERS_BINDING_PREFIX } from "@animichi/contract/internal-binding";
 
@@ -75,10 +76,11 @@ function usersBinding(reached: { value: boolean }) {
 
 async function assertAgentOperationReachable(operation: AdvertisedOperation): Promise<void> {
   const captured: { req?: Request } = {};
-  const app = createWorkerApp({ authenticate: authed });
+  const calls: NativeAgentCall[] = [];
+  const app = createWorkerApp({ authenticate: authed, agentTurns: nativeAgentReceiver(calls) });
   const res = await app.request(concretePath(operation.path), { method: operation.method }, envWithContainer(captured), stubCtx);
   assert.equal(res.status !== 404, true, `${operation.method} ${operation.path} must not 404`);
-  assert.ok(captured.req, `${operation.method} ${operation.path} must reach the container binding`);
+  assert.equal(Number(captured.req !== undefined) + calls.length, 1, `${operation.method} ${operation.path} must reach exactly one agent receiver`);
 }
 
 async function assertUsersOperationReachable(operation: AdvertisedOperation): Promise<void> {
@@ -91,7 +93,7 @@ async function assertUsersOperationReachable(operation: AdvertisedOperation): Pr
   assert.equal(reached.value, true, `${operation.method} ${operation.path} must reach the USERS binding`);
 }
 
-void test("every Agent OpenAPI operation is reachable through the CONTAINER binding", async () => {
+void test("every Agent OpenAPI operation reaches its gateway receiver", async () => {
   const agentOps = operations(readDocument("agent-openapi.json"));
   assert.ok(agentOps.length > 0, "agent-openapi.json must advertise operations");
   for (const operation of agentOps) {

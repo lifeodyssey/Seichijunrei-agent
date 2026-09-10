@@ -88,6 +88,7 @@ await emitOpenApi(usersContract, "users-openapi.json", {
 function agentOperation(entry: AgentPath): WireOperation {
   return {
     summary: entry.summary,
+    ...(entry.runtime ? { "x-runtime": entry.runtime } : {}),
     responses: { "200": { description: "Successful response" } },
   };
 }

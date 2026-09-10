@@ -303,7 +303,7 @@ function pyString(value: string): string {
 }
 
 function renderInventory(): string[] {
-  const entries = AGENT_PATHS.map(
+  const entries = AGENT_PATHS.filter((path) => path.runtime !== "edge").map(
     (p) => `    ("${pyString(p.method)}", "${pyString(p.path)}", "${pyString(p.summary)}"),`,
   ).join("\n");
   return [

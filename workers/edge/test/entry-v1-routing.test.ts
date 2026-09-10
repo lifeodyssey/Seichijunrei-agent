@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { envWithContainer, stubCtx } from "../src/container/entry-env.ts";
 
 void test("/v1 public route -> container, no auth called", async () => {
@@ -32,23 +33,22 @@ void test("/v1 authed route without creds -> 401, container not hit", async () =
   assert.equal(cap.req, undefined);
 });
 
-void test("/v1 authed route with valid creds -> container gets X-User, no Authorization", async () => {
+void test("verified authentication reaches the native tier as a separate identity", async () => {
+  const calls: NativeAgentCall[] = [];
   const authenticate = () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const);
-  const app = createWorkerApp({ authenticate });
-  const cap: { req?: Request } = {};
-  await app.request("/v1/chat", { method: "POST", headers: { Authorization: "Bearer jwt" } }, envWithContainer(cap), stubCtx);
-  assert.ok(cap.req);
-  assert.equal(cap.req.headers.get("X-User-Id"), "u1");
-  assert.equal(cap.req.headers.get("X-User-Type"), "human");
-  assert.equal(cap.req.headers.get("Authorization"), null);
+  const app = createWorkerApp({ authenticate, agentTurns: nativeAgentReceiver(calls) });
+  const res = await app.request("/v1/chat", { method: "POST", headers: { Authorization: "Bearer jwt" } }, envWithContainer({}), stubCtx);
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls[0]?.identity, { userId: "u1", userType: "human" });
 });
 
-void test("client-forged X-User-Id is stripped on authed route (worker value wins)", async () => {
+void test("client-forged identity headers cannot override the native authenticated identity", async () => {
+  const calls: NativeAgentCall[] = [];
   const authenticate = () => Promise.resolve({ ok: true, userId: "real", userType: "human" } as const);
-  const app = createWorkerApp({ authenticate });
-  const cap: { req?: Request } = {};
-  await app.request("/v1/chat", { method: "POST", headers: { Authorization: "Bearer jwt", "X-User-Id": "forged" } }, envWithContainer(cap), stubCtx);
-  assert.equal(cap.req?.headers.get("X-User-Id"), "real");
+  const app = createWorkerApp({ authenticate, agentTurns: nativeAgentReceiver(calls) });
+  await app.request("/v1/chat", { method: "POST", headers: { Authorization: "Bearer jwt", "X-User-Id": "forged", "X-User-Type": "admin" } }, envWithContainer({}), stubCtx);
+  assert.deepEqual(calls[0]?.identity, { userId: "real", userType: "human" });
+  assert.equal(calls[0].request.headers.get("X-User-Id"), "forged");
 });
 
 void test("public route strips caller identity and bearer before container forwarding", async () => {

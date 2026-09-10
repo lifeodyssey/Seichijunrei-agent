@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 // The Worker's binding/context types, imported by every concern folder.
-import type { NamedStubs } from "./agent/durable-namespace.ts";
+import type { SessionAgent } from "./agent/host/session-agent.ts";
 import type { GuardNamespace } from "./protect/guard-store.ts";
 import type { TileBucket } from "./proxy/tiles.ts";
 
@@ -21,29 +21,14 @@ export interface Env {
    * sibling of the web app's VITE_SHOWCASE_MODE. Only the literal "false"
    * opens functional routes; unset/empty/malformed values fail closed (deny). */
   EDGE_SHOWCASE_MODE?: string;
-  /** Per-session `AgentSession` DO — the instance one turn runs inside (#1252).
-   * Optional for the same reason as `RUN_SWEEPER` below: every deployed
-   * environment binds it, and the gateway tests construct envs without it. */
-  AGENT_SESSION?: NamedStubs;
-  /** Which tier serves `POST /v1/chat` and the transcript GET (W1-7 #1256):
-   * only the literal "edge" moves them onto this Worker's own agent tier;
-   * unset/anything else keeps forwarding to the Python container. */
-  AGENT_TURN_ROUTE?: string;
-  /** Which deployment this Worker is (`wrangler.toml`, one per environment).
-   * The literal `"staging"` — and nothing else — mounts the eval's frozen-prefix
-   * seeding (E-1 #1380, `gateway/staging-prefix-route.ts`). It is a MOUNT
-   * switch and never an authorisation; the procedure's own ownership check is
-   * what decides who may write. */
+  /** Native per-session host; production configurations bind it. */
+  AGENT_SESSION?: DurableObjectNamespace<SessionAgent>;
+  /** Deployment identity for environment-specific product capabilities. */
   APP_ENV?: string;
-  /** Per-identity anonymous daily message allowance (#282). Read by BOTH the
-   * container (through `CONTAINER_ENV_KEYS`) and, since #1256, by the edge's
-   * own intake — whichever tier the flag above selected is the one enforcing
-   * it. `0`/unset disables the ceiling. */
+  /** Per-identity anonymous message reservation ceiling; zero disables it. */
   ANON_DAILY_MESSAGE_QUOTA?: string;
-  /** Singleton `RunSweeper` DO — the at-least-once backstop for agent turns
-   * (#1251). Optional: it is bound in every deployed environment, but the
-   * gateway tests construct envs without it. */
-  RUN_SWEEPER?: NamedStubs;
+  ANON_DAILY_COST_BUDGET_USD?: string;
+  MIMO_API_KEY?: { get: () => Promise<string> } | string;
   /** The `agent_svc` Neon DSN. A Cloudflare Secrets Store binding where one is
    * declared (staging, `docs/ops/secrets.md`), a plain string in local dev, and
    * absent in production until the #855 cutover provisions it. */

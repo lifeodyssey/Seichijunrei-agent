@@ -35,9 +35,10 @@
  * open-vs-filtered across many probes.
  */
 import type { Context, UserMessage } from "@earendil-works/pi-ai";
-import type { ByokCredential } from "./byok-credential.ts";
-import { byokTurnModel, type ByokEgress } from "./byok-turn-model.ts";
-import type { EgressFetch } from "../egress/guarded-fetch.ts";
+import type { ByokCredentialParts } from "./byok-credential.ts";
+import { nativeByokModels } from "../host/native-models.ts";
+import type { EgressPolicy } from "../egress/egress-policy.ts";
+interface ByokEgress { readonly policy?: EgressPolicy; readonly inner?: typeof globalThis.fetch }
 
 /** The `ByokProbeResponse` wire shape (`packages/contract/src/agent-contract.ts`). */
 export interface ByokProbeVerdict {
@@ -119,13 +120,13 @@ export function cappedResponse(response: Response): Response {
  * the ceiling on how much of each answer it will read. */
 class ProbeSocket {
   status: number | null = null;
-  readonly #inner: EgressFetch;
+  readonly #inner: typeof globalThis.fetch;
 
-  constructor(inner: EgressFetch) {
+  constructor(inner: typeof globalThis.fetch) {
     this.#inner = inner;
   }
 
-  readonly fetch: EgressFetch = async (input, init) => {
+  readonly fetch: typeof globalThis.fetch = async (input, init) => {
     const response = await this.#inner(input, init);
     this.status = response.status;
     return cappedResponse(response);
@@ -147,7 +148,7 @@ export class ByokProbe {
   }
 
   /** Never throws: every failure is one of the three verdicts above. */
-  async run(credential: ByokCredential): Promise<ByokProbeVerdict> {
+  async run(credential: ByokCredentialParts): Promise<ByokProbeVerdict> {
     const socket = new ProbeSocket(this.#egress.inner ?? ((url, init) => fetch(url, init)));
     try {
       return await this.#completed(credential, socket);
@@ -156,11 +157,11 @@ export class ByokProbe {
     }
   }
 
-  async #completed(credential: ByokCredential, socket: ProbeSocket): Promise<ByokProbeVerdict> {
-    const turn = byokTurnModel(credential, { ...this.#egress, inner: socket.fetch });
+  async #completed(credential: ByokCredentialParts, socket: ProbeSocket): Promise<ByokProbeVerdict> {
+    const turn = await nativeByokModels(credential, socket.fetch);
     const signal = AbortSignal.timeout(this.#timeoutMs);
-    const options = { fetch: turn.fetch, maxRetries: 0, signal };
-    const message = await turn.registry.completeSimple(turn.model, probeContext(), options);
+    const options = { maxRetries: 0, signal };
+    const message = await turn.models.completeSimple(turn.model, probeContext(), options);
     const answered = message.stopReason !== "error" && message.stopReason !== "aborted";
     return answered ? ANSWERED : verdictForStatus(socket.status);
   }

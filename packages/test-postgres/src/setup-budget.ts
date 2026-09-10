@@ -46,7 +46,7 @@ export const SPIKE_SETUP_BUDGET: SetupBudget = {
   chainMarginMs: CHAIN_MARGIN_MS,
 };
 
-/** The edge agent-db lane's budget: one container per `*.db.test.ts` file. */
+/** The edge agent-db lane's budget: one container per lane fixture. */
 export const AGENT_DB_SETUP_BUDGET: SetupBudget = {
   deadlineMs: DEADLINE_MS,
   firstSession: { attemptCeiling: 60, pauseMs: ATTEMPT_INTERVAL_MS },

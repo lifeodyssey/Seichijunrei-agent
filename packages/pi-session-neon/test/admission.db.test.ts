@@ -20,9 +20,9 @@ void test("a lost admission response cannot allocate another operation or reserv
 });
 
 void test("selection intents use the same request key without a fabricated operation", async () => {
-  await database.orm.public.AgentAdmission.create({ ...ADMISSION, kind: "selection", operationId: null });
-  const rows = await database.orm.public.AgentAdmission.select("kind", "operationId").all();
-  assert.deepEqual(rows, [{ kind: "selection", operationId: null }]);
+  await database.orm.public.AgentAdmission.create({ ...ADMISSION, kind: "selection", operationId: null, selectionRequest: { of: "points", pointIds: ["point"], origin: null, locale: "en" } });
+  const rows = await database.orm.public.AgentAdmission.select("kind", "operationId", "selectionRequest").all();
+  assert.deepEqual(rows, [{ kind: "selection", operationId: null, selectionRequest: { of: "points", pointIds: ["point"], origin: null, locale: "en" } }]);
   await assert.rejects(pool.query("UPDATE agent_admissions SET operation_id = 'fake'"), { code: "23514" });
 });
 
@@ -51,8 +51,8 @@ void test("a refund cannot exist without a reservation", async () => {
 });
 
 void test("selection and caller-key requests cannot reserve anonymous message quota", async () => {
-  await database.orm.public.AgentAdmission.create({ ...ADMISSION, kind: "selection", operationId: null });
+  await database.orm.public.AgentAdmission.create({ ...ADMISSION, kind: "selection", operationId: null, selectionRequest: { of: "points", pointIds: ["point"], origin: null, locale: "en" } });
   await assert.rejects(pool.query("UPDATE agent_admissions SET quota_usage_date = '2026-09-09', quota_reserved_at = $1", [STAMP]), { code: "23514" });
-  await pool.query("UPDATE agent_admissions SET kind = 'model', operation_id = 'operation', payer = 'byok'");
+  await pool.query("UPDATE agent_admissions SET kind = 'model', operation_id = 'operation', payer = 'byok', selection_request = NULL");
   await assert.rejects(pool.query("UPDATE agent_admissions SET quota_usage_date = '2026-09-09', quota_reserved_at = $1", [STAMP]), { code: "23514" });
 });

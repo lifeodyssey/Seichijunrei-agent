@@ -73,6 +73,11 @@ jobs:
             e2e:
               - 'e2e/**'
               - 'packages/contract/**'
+              - 'workers/edge/**'
+              - 'packages/agent/**'
+              - 'packages/pi-session-neon/**'
+              - 'packages/test-postgres/**'
+              - 'migrations/neon/**'
             migrations:
               - 'migrations/neon/**'
             workflows:
@@ -156,7 +161,7 @@ jobs:
         if: ${{ matrix.package == '@animichi/eval' }}
         run: uv python install 3.11
       - name: Install the pinned Atlas CLI for the migration chain
-        if: ${{ contains(fromJSON('["catalog", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
+        if: ${{ contains(fromJSON('["catalog", "edge-worker", "@animichi/agent", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
         uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
         with:
           version: v0.30.0
@@ -166,7 +171,7 @@ jobs:
         with:
           pulumi-version-file: .pulumi.version
       - name: Build the hermetic Postgres+PostGIS+pgvector test image
-        if: ${{ contains(fromJSON('["catalog", "edge-worker", "@animichi/test-postgres", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
+        if: ${{ contains(fromJSON('["catalog", "edge-worker", "@animichi/agent", "@animichi/test-postgres", "migrator", "@animichi/pi-session-neon"]'), matrix.package) }}
         run: docker build -f apps/agent/docker/test-postgres/Dockerfile -t animichi-test-postgres:18-3.6-pgvector-0.8.5 .
       - name: Run the package's own gates
         env:
@@ -180,12 +185,9 @@ jobs:
           for script in lint typecheck test test:integration; do
             pnpm --filter "$PACKAGE" run --if-present "$script"
           done
-      # The catalog spike is the one package suite that boots the Docker
-      # container, so it is deliberately NOT a segment of catalog's `test`
-      # (#1473): `test` is what the pre-push hook runs for every affected
-      # package, and chaining it there started Docker on every catalog push.
-      # It runs here instead, on the same selection as the lane above, and
-      # `package-test-segments.test.rb` is what keeps this step honest.
+      # Catalog keeps its database spike in its own explicit package script.
+      # `package-test-segments.test.rb` pins this selected-package invocation;
+      # native Agent and storage suites use test:integration in the loop above.
       - name: Run the catalog spike against the offline Postgres image
         if: ${{ matrix.package == 'catalog' }}
         run: pnpm --filter catalog run test:spike
@@ -397,6 +399,15 @@ jobs:
           set -euo pipefail
           test -x node_modules/.bin/playwright
           node_modules/.bin/playwright install --with-deps chromium
+      - name: Install the pinned Atlas CLI for native browser recovery
+        uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
+        with:
+          version: v0.30.0
+      - name: Build the native browser's hermetic database image
+        run: |
+          set -euo pipefail
+          . packages/test-postgres/postgres-image.env
+          docker build -f apps/agent/docker/test-postgres/Dockerfile -t "$TEST_POSTGRES_IMAGE" .
       # `animichi-e2e` is outside the affected matrix because its `test` is the
       # served-Worker lane: it builds apps/web and starts `wrangler dev` itself
       # (e2e/playwright.config.ts `webServer`). Everything this job needs is

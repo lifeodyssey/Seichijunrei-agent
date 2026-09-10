@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { AGENT_PATHS } from "@animichi/contract/agent-paths";
-import { STAGING_PREFIX_PATH_TEMPLATE } from "@animichi/contract/staging-prefix-path";
 import {
   ANON_V1_PATHS,
   PUBLIC_V1_PATHS,
@@ -60,15 +59,8 @@ void test("anonymous allowlist membership matches the inventory's paths", () => 
   assert.equal(isAnonymousV1("/v1/feedback"), false);
 });
 
-// E-1 #1380: the staging-only prefix seeding is deliberately NOT in the
-// inventory. That table is the PUBLISHED Agent surface — `scripts/emit-openapi.ts`
-// documents every entry and the identity/rate tables derive their allowlists
-// from it — and this procedure exists on one deployment. Absent from the
-// inventory is therefore absent from `agent-openapi.json` and unclassifiable
-// into a guarded rate cell; what mounts it is `APP_ENV` alone
-// (`staging-prefix-mount.test.ts`).
-void test("the staging prefix seeding is absent from the published inventory", () => {
-  assert.equal(inventoryPaths.has(STAGING_PREFIX_PATH_TEMPLATE), false);
+void test("the retired staging prefix route remains outside public allowlists", () => {
+  assert.equal(inventoryPaths.has("/v1/staging/sessions/{session_id}/prefix"), false);
   assert.equal(isPublicV1("/v1/staging/sessions/s-1/prefix"), false);
   assert.equal(isAnonymousV1("/v1/staging/sessions/s-1/prefix"), false);
   assert.equal(classifyRatePolicy("POST", "/v1/staging/sessions/s-1/prefix").limiter, "none");

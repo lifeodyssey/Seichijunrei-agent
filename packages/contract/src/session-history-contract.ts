@@ -22,6 +22,7 @@ import { z } from "zod";
 /** One persisted transcript row (role, content, envelope, timestamp). */
 export const SessionHistoryMessage = z.object({
   role: z.string(),
+  operation_id: z.string().optional(),
   content: z.string(),
   response_data: z.object({
     intent: z.string().nullish(),
@@ -51,11 +52,9 @@ export type RunFailureReason = z.infer<typeof RunFailureReason>;
 /**
  * The state of the session's latest run (W1-5 #1254, spec §二 "断线语义").
  *
- * A client that leaves mid-turn never resumes the stream; it comes back and
- * pulls the final result once by session id. This is the one field that tells
- * it whether the turn it left is still running, and why it failed when it did.
- * `reason` is set exactly when `status` is `failed` — `runs_failed_has_reason_check`
- * makes that a database invariant, not a convention.
+ * History reports the native lane's current or latest immutable result. The
+ * browser reconnects through the dedicated stream GET; it does not resubmit
+ * model input or credentials. `reason` describes a failed native outcome.
  */
 export const SessionRunStatus = z.object({
   run_id: z.string(),
@@ -72,8 +71,8 @@ export type SessionRunStatus = z.infer<typeof SessionRunStatus>;
  * `tool-input-available.input` is `toolCall.arguments` verbatim — and an
  * evaluator that compared that with itself would be scoring the agent's
  * self-statement. `params` is what the tool actually executed with after
- * validation and coercion (`run_steps.input`), which is the environment's
- * record of the same call.
+ * validation and coercion (the `after_tool` effective arguments), which is
+ * the environment's record of the same call.
  *
  * `params` is JSON TEXT, for two reasons that agree. It is the shape the
  * original evaluator reads its raw witness in — pydantic-evals'

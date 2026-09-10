@@ -1,119 +1,79 @@
-/**
- * @vitest-environment jsdom
- */
+/** @vitest-environment jsdom */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useStreamRecovery } from "../../../src/features/chat/use-stream-recovery";
 import { clearAuthToken } from "../../../src/lib/auth/auth-session";
-import {
-  conversationMessagesErrorHandler,
-  conversationMessagesHandler,
-} from "../../msw/chat-handlers";
-import { TEST_ORIGIN } from "../../msw/fixtures";
-import { server } from "../../msw/node";
 
 vi.mock(import("../../../src/lib/auth/auth-session"), { spy: true });
 
-function fakeChat() {
-  return { setMessages: vi.fn(), clearError: vi.fn(), regenerate: vi.fn().mockResolvedValue(undefined) };
+function chatFixture() {
+  return { clearError: vi.fn(), regenerate: vi.fn().mockResolvedValue(undefined), resumeStream: vi.fn().mockResolvedValue(undefined) };
 }
 
-function renderRecovery(chat: ReturnType<typeof fakeChat>, sessionId?: string) {
-  return renderHook(() => useStreamRecovery(TEST_ORIGIN, chat, () => sessionId));
-}
-
-describe("useStreamRecovery without a persisted session", () => {
-  it("falls back to regenerating the failed turn", () => {
-    const chat = fakeChat();
-    const view = renderRecovery(chat);
-    act(() => { view.result.current.recover(); });
-    expect(chat.clearError).toHaveBeenCalledTimes(1);
-    expect(chat.regenerate).toHaveBeenCalledTimes(1);
-  });
+it("a request with no accepted session retries its same message through regenerate", () => {
+  const chat = chatFixture();
+  const view = renderHook(() => useStreamRecovery(chat, () => undefined));
+  act(() => { view.result.current.recover(); });
+  expect(chat.regenerate).toHaveBeenCalledTimes(1);
+  expect(chat.resumeStream).not.toHaveBeenCalled();
+  expect(chat.clearError).toHaveBeenCalledTimes(1);
 });
 
-describe("useStreamRecovery with a persisted session", () => {
-  const FINAL_STATE = [
-    { role: "user", content: "ユーフォ" },
-    { role: "assistant", content: "宇治の聖地を2件、徒歩ルートにまとめました。" },
-  ];
-
-  it("re-reads the session's final state from GET /v1/conversations/{id}/messages", async () => {
-    const seen: string[] = [];
-    server.use(conversationMessagesHandler("s-9", FINAL_STATE, (request) => seen.push(request.url)));
-    const chat = fakeChat();
-    const view = renderRecovery(chat, "s-9");
-    act(() => { view.result.current.recover(); });
-    await waitFor(() => { expect(chat.setMessages).toHaveBeenCalledTimes(1); });
-    expect(seen[0]).toContain("/v1/conversations/s-9/messages");
-    expect(chat.clearError).toHaveBeenCalledTimes(1);
-    expect(chat.regenerate).not.toHaveBeenCalled();
-  });
-
-  it("maps the fetched rows onto user/assistant text messages", async () => {
-    server.use(conversationMessagesHandler("s-9", FINAL_STATE));
-    const chat = fakeChat();
-    const view = renderRecovery(chat, "s-9");
-    act(() => { view.result.current.recover(); });
-    await waitFor(() => { expect(chat.setMessages).toHaveBeenCalledTimes(1); });
-    const messages = chat.setMessages.mock.calls[0]?.[0] as {
-      role: string;
-      parts: { type: string; text: string }[];
-    }[];
-    expect(messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-    expect(messages[1]?.parts[0]?.text).toBe("宇治の聖地を2件、徒歩ルートにまとめました。");
-  });
-
-  it("keeps the failure state when the final-state fetch itself fails", async () => {
-    server.use(conversationMessagesErrorHandler("s-9", 500));
-    const chat = fakeChat();
-    const view = renderRecovery(chat, "s-9");
-    act(() => { view.result.current.recover(); });
-    await waitFor(() => { expect(view.result.current.recovering).toBe(false); });
-    expect(chat.setMessages).not.toHaveBeenCalled();
-    expect(chat.clearError).not.toHaveBeenCalled();
-  });
-
-  it("drops the cached auth token before an expired-session resume", async () => {
-    server.use(conversationMessagesHandler("s-9", []));
-    const chat = fakeChat();
-    const view = renderRecovery(chat, "s-9");
-    act(() => { view.result.current.recoverExpired(); });
-    expect(clearAuthToken).toHaveBeenCalledTimes(1);
-    await waitFor(() => { expect(chat.setMessages).toHaveBeenCalled(); });
-  });
+it("an accepted operation reconnects through the official SDK without resubmission", async () => {
+  const chat = chatFixture();
+  const view = renderHook(() => useStreamRecovery(chat, () => "session-native"));
+  act(() => { view.result.current.recover(); });
+  await waitFor(() => { expect(view.result.current.recovering).toBe(false); });
+  expect(chat.resumeStream).toHaveBeenCalledWith({ metadata: { latest: false } });
+  expect(chat.regenerate).not.toHaveBeenCalled();
 });
 
-describe("useStreamRecovery with a failed structured pick (W1 #1220)", () => {
-  function renderWithPick(chat: ReturnType<typeof fakeChat>, failed: boolean, sessionId?: string) {
+it("keeps recovery visible while the native view is being restored", async () => {
+  const chat = chatFixture();
+  let finish = () => { /* assigned by the promise constructor */ };
+  const completion = new Promise<void>((resolve) => { finish = resolve; });
+  chat.resumeStream.mockReturnValue(completion);
+  const view = renderHook(() => useStreamRecovery(chat, () => "session-native"));
+  act(() => { view.result.current.recover(); });
+  expect(view.result.current.recovering).toBe(true);
+  await act(async () => { finish(); await completion; });
+  expect(view.result.current.recovering).toBe(false);
+});
+
+it("finishes recovery bookkeeping when the transport rejects", async () => {
+  const chat = chatFixture();
+  chat.resumeStream.mockRejectedValue(new Error("network unavailable"));
+  const view = renderHook(() => useStreamRecovery(chat, () => "session-native"));
+  act(() => { view.result.current.recover(); });
+  await waitFor(() => { expect(view.result.current.recovering).toBe(false); });
+  expect(chat.regenerate).not.toHaveBeenCalled();
+});
+
+it("refreshes authentication before requesting current native state", async () => {
+  const chat = chatFixture();
+  const view = renderHook(() => useStreamRecovery(chat, () => "session-native"));
+  act(() => { view.result.current.recoverExpired(); });
+  expect(clearAuthToken).toHaveBeenCalledTimes(1);
+  await waitFor(() => { expect(chat.resumeStream).toHaveBeenCalledWith({ metadata: { latest: true } }); });
+});
+
+describe("a failed typed selection", () => {
+  it("retains its own idempotent resend action", () => {
+    const chat = chatFixture();
     const resend = vi.fn();
-    const view = renderHook(() => useStreamRecovery(TEST_ORIGIN, chat, () => sessionId, { failed, resend }));
-    return { view, resend };
-  }
-
-  it("hands retry back to the pick's own resend instead of replaying history", () => {
-    const chat = fakeChat();
-    const { view, resend } = renderWithPick(chat, true, "s-9");
+    const view = renderHook(() => useStreamRecovery(chat, () => "session-native", { failed: true, resend }));
     act(() => { view.result.current.recover(); });
     expect(resend).toHaveBeenCalledTimes(1);
+    expect(chat.resumeStream).not.toHaveBeenCalled();
     expect(chat.regenerate).not.toHaveBeenCalled();
-    expect(chat.setMessages).not.toHaveBeenCalled();
   });
 
-  it("ignores the pick channel when the failure was not a pick", () => {
-    const chat = fakeChat();
-    const { view, resend } = renderWithPick(chat, false);
-    act(() => { view.result.current.recover(); });
-    expect(resend).not.toHaveBeenCalled();
-    expect(chat.regenerate).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps recoverLatest on the history path even while a pick is failed", async () => {
-    server.use(conversationMessagesHandler("s-9", [{ role: "user", content: "ハルヒ" }]));
-    const chat = fakeChat();
-    const { view, resend } = renderWithPick(chat, true, "s-9");
+  it("conflict recovery discovers current native state rather than resending a stale pick", async () => {
+    const chat = chatFixture();
+    const resend = vi.fn();
+    const view = renderHook(() => useStreamRecovery(chat, () => "session-native", { failed: true, resend }));
     act(() => { view.result.current.recoverLatest(); });
-    await waitFor(() => { expect(chat.setMessages).toHaveBeenCalledTimes(1); });
+    await waitFor(() => { expect(chat.resumeStream).toHaveBeenCalledWith({ metadata: { latest: true } }); });
     expect(resend).not.toHaveBeenCalled();
   });
 });

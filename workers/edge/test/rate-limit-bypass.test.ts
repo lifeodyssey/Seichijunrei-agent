@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
 
@@ -23,7 +24,7 @@ function env(guard: unknown, extra: Record<string, unknown> = {}) {
 }
 
 function authedApp() {
-  return createWorkerApp({ authenticate: () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const) });
+  return createWorkerApp({ agentTurns: nativeAgentReceiver(), authenticate: () => Promise.resolve({ ok: true, userId: "u1", userType: "human" } as const) });
 }
 
 const POST = { method: "POST", headers: { Authorization: "Bearer jwt" } };

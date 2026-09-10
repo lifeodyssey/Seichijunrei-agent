@@ -1,25 +1,11 @@
-/**
- * W1-7 (#1256): what a caller is told when the agent tier does NOT run a turn,
- * and what the submission it does run is built from.
- *
- * Every shape here already exists on the wire — the flag is a fallback flag, so
- * a client cannot tell which tier answered it. The cases therefore read against
- * the Python sites they replace (`routes/admission.py`, `routes/chat.py`,
- * `routes/conversations.py`) and against `packages/contract`'s error registry,
- * which is read verbatim rather than imported (zod stays out of this bundle).
- *
- * test-type: unit (pure builders, injected clock through the usage date).
- */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { URL, fileURLToPath } from "node:url";
 import { MESSAGE_MAX_CHARS, refusalFor, submissionOf } from "../src/gateway/agent-turn.ts";
 import { SESSION_ID_HEADER, UI_MESSAGE_STREAM_HEADER, turnResponse } from "../src/gateway/agent-turn-responses.ts";
-import { QuotaExhaustedError } from "../src/agent/intake/anonymous-message-allowance.ts";
-import { SessionBusyError, SessionOwnershipError } from "../src/agent/intake/turn-intake.ts";
+import { modelAdmissionResponse } from "../src/gateway/native-admission-response.ts";
 import { ChatEnvelopeError } from "../src/gateway/chat-envelope.ts";
-import { handOffTurn } from "../src/agent/session/turn-stream-handoff.ts";
 
 const ANON: { userId: string; userType: string } = {
   userId: "anon_0123456789abcdef0123456789abcdef",
@@ -45,6 +31,8 @@ void test("the submission carries the named conversation, the dedupe key and the
     payer: "anon",
     clientMessageId: "t-9",
     text: "秩父へ",
+    locale: "ja",
+    origin: undefined,
     // A request with no `X-BYOK-*` headers carries no credential (#1289) — the
     // turn runs on the deployment's own model, exactly as it did before.
     byok: undefined,
@@ -90,7 +78,7 @@ void test("the message ceiling is the spec's finalized 4000 characters", () => {
 });
 
 void test("a spent allowance is a 403 with the contract's code and reset instant", async () => {
-  const refusal = refusalFor(new QuotaExhaustedError("2026-09-02"));
+  const refusal = modelAdmissionResponse({ kind: "rejected", operationId: "quota", reason: "anonymous_quota_exhausted" }, "session", Date.UTC(2026, 8, 2));
   assert.ok(refusal);
   assert.equal(refusal.status, 403);
   assert.deepEqual(await body(refusal), {
@@ -113,7 +101,7 @@ void test("the quota code is the one packages/contract publishes, not a private 
 });
 
 void test("a session that already has a running turn is a 409, never a second run", async () => {
-  const refusal = refusalFor(new SessionBusyError("running_turn"));
+  const refusal = modelAdmissionResponse({ kind: "blocked", operationId: null }, "session");
   assert.ok(refusal);
   assert.equal(refusal.status, 409);
   assert.deepEqual(await body(refusal), {
@@ -122,7 +110,7 @@ void test("a session that already has a running turn is a 409, never a second ru
 });
 
 void test("a conversation belonging to someone else is answered as if it did not exist", async () => {
-  const refusal = refusalFor(new SessionOwnershipError());
+  const refusal = modelAdmissionResponse({ kind: "forbidden", operationId: null }, "session");
   assert.ok(refusal);
   assert.equal(refusal.status, 404);
   assert.deepEqual(await body(refusal), { detail: "Conversation not found." });
@@ -154,24 +142,13 @@ void test("an accepted-but-unstreamed turn names its session without claiming to
   assert.equal(stamped.headers.get(UI_MESSAGE_STREAM_HEADER), null);
 });
 
-void test("a refused turn arms no session and opens no live view — nothing to collect later", async () => {
-  const armed: string[] = [];
-  const opened: string[] = [];
-  const refused = handOffTurn({
-    intake: {
-      backstop: { ensureScheduled: () => Promise.resolve() },
-      records: { openTurn: (turn) => Promise.reject(new QuotaExhaustedError(turn.reservation?.usageDate ?? "")) },
-      wakeup: { arm: (sessionId) => { armed.push(sessionId); return Promise.resolve(); } },
-    },
-    streams: { open: (sessionId) => { opened.push(sessionId); return Promise.resolve(new Response(null)); } },
-  }, {
-    sessionId: "s-7",
-    identityId: ANON.userId,
-    payer: "anon",
-    clientMessageId: "t-9",
-    text: "秩父へ",
-    selection: null,
-  }, () => Date.parse("2026-09-02T23:30:00.000Z"));
-  await assert.rejects(refused, (error: unknown) => error instanceof QuotaExhaustedError);
-  assert.deepEqual([armed, opened], [[], []]);
+void test("a native refusal never advertises an accepted operation or opens a stream", async () => {
+  const refused = modelAdmissionResponse({ kind: "rejected", operationId: "rejected-operation", reason: "anonymous_budget_exhausted" }, "s-7");
+  const stamped = turnResponse(refused, "s-7");
+  assert.equal(stamped.status, 403);
+  assert.equal(stamped.headers.get(UI_MESSAGE_STREAM_HEADER), null);
+  const payload = await body(stamped);
+  assert.equal(Object.hasOwn(payload, "operation_id"), false);
+  assert.equal(Object.hasOwn(payload, "streaming"), false);
+  assert.ok(payload.error);
 });

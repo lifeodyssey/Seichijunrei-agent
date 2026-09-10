@@ -63,13 +63,14 @@ def test_documented_coverage_thresholds_match_live_configs() -> None:
 @pytest.mark.parametrize(
     "fact",
     (
-        "Agent runtime today — two tiers, one flag",
-        "Container tier (the default)",
-        "Edge tier (staging today)",
-        "AGENT_TURN_ROUTE",
-        "first-token SLO",
-        "Pyodide: still rejected",
-        "docs/specs/2026-09-01-agent-ts-rewrite-spec.md",
+        "Request and execution",
+        "AgentHarness",
+        "AgentLane",
+        "registers durable recovery before",
+        "inspectExecution/getResult",
+        "Native Pi owns",
+        "Shared production/Eval composition",
+        "There is no compatibility converter",
     ),
 )
 def test_architecture_records_the_live_agent_runtime(fact: str) -> None:

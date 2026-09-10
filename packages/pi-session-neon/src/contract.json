@@ -138,6 +138,13 @@
                   "kind": "scalar"
                 }
               },
+              "selectionRequest": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "sessionId": {
                 "nullable": false,
                 "type": {
@@ -207,6 +214,9 @@
                 },
                 "requestDigest": {
                   "column": "request_digest"
+                },
+                "selectionRequest": {
+                  "column": "selection_request"
                 },
                 "sessionId": {
                   "column": "session_id"
@@ -643,6 +653,11 @@
                   "prefix": "agent_admissions_reservation"
                 },
                 {
+                  "expression": "(kind = 'selection') = (selection_request IS NOT NULL)",
+                  "name": "agent_admissions_selection_input_b6697af9",
+                  "prefix": "agent_admissions_selection_input"
+                },
+                {
                   "expression": "state IN ('pending', 'accepted', 'settled', 'void')",
                   "name": "agent_admissions_state_68032317",
                   "prefix": "agent_admissions_state"
@@ -716,6 +731,11 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "selection_request": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
                 },
                 "session_id": {
                   "codecId": "pg/text@1",
@@ -1151,7 +1171,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a"
+    "storageHash": "43e6a56069f5c68b78e9a97be86e8a3ec011c87f1d94be3f40892e2b1929dce9"
   },
   "capabilities": {
     "postgres": {

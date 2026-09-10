@@ -1,0 +1,105 @@
+import { seedSelectionOffer } from "./seed-selection.ts";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { once } from "node:events";
+import { pool, IDENTITY, SESSION } from "./postgres.ts";
+import { defaultWorker, chatHeaders, chatBody } from "./default-worker.ts";
+
+void test("production chat tier boots the default SessionAgent, executes its native respond tool and settles from real Neon usage", async (context) => {
+  const { worker, requests } = await defaultWorker(context);
+  const observer = await pool.connect();
+  context.after(async () => { try { await observer.query("UNLISTEN *"); } finally { observer.release(); } });
+  await observer.query("UNLISTEN *");
+  await observer.query("LISTEN host_test_settled");
+  const settled = once(observer, "notification", { signal: AbortSignal.timeout(30_000) }).then(() => true, () => false);
+  const response = await worker.dispatchFetch("https://host.test/v1/chat", { method: "POST", headers: chatHeaders, body: chatBody });
+  assert.equal(response.status, 200);
+  const operationId = response.headers.get("x-operation-id");
+  const wire = await response.text();
+  assert.match(wire, /"type":"data-response"/);
+  assert.match(wire, /"intent":"greet_user"/);
+  assert.equal(wire.match(/\[DONE\]/g)?.length, 1);
+  assert.doesNotMatch(wire, /server-private-key/);
+  assert.equal(await settled, true, "Default Env resources must run and settle without a bootstrap subclass");
+  const diagnostic = await pool.query("SELECT payload->'message' AS payload FROM pi_records WHERE kind='entry' AND session_id=$1", [SESSION]);
+  assert.equal(requests.length, 1, JSON.stringify(diagnostic.rows));
+  assert.equal(requests[0]?.headers.get("authorization"), "Bearer server-private-key");
+  assert.equal(new URL(requests[0].url).hostname, "api.xiaomimimo.com");
+  const admission = await pool.query<{ state: string; last_usage_seq: number; settled_at: Date }>("SELECT a.state,s.last_usage_seq,s.settled_at FROM agent_admissions a JOIN agent_settlements s USING(operation_id) WHERE operation_id=$1", [operationId]);
+  assert.equal(admission.rows[0]?.state, "settled");
+  assert.ok(admission.rows[0].last_usage_seq > 0);
+  const quota = await pool.query<{ message_count: number }>("SELECT message_count FROM anon_daily_message_count WHERE anon_id=$1", [IDENTITY]);
+  assert.equal(Number(quota.rows[0]?.message_count), 1);
+  const output = await pool.query<{ payload: { role?: string; toolName?: string; isError?: boolean } }>("SELECT payload->'message' AS payload FROM pi_records WHERE kind='entry' AND session_id=$1", [SESSION]);
+  assert.ok(output.rows.some((row) => row.payload.toolName === "respond" && row.payload.isError === false));
+  assert.doesNotMatch(JSON.stringify(output.rows), /server-private-key|Authorization|Bearer/);
+  const usage = await pool.query<{ cost_usd: string }>("SELECT cost_usd FROM daily_usage WHERE scope='anon'");
+  assert.ok(Number(usage.rows[0]?.cost_usd) > 0);
+  const historyResponse = await worker.dispatchFetch(`https://host.test/v1/conversations/${SESSION}/messages`);
+  assert.equal(historyResponse.status, 200);
+  const history = await historyResponse.json() as { messages: { content: string }[]; run: { status: string }; steps: { params: string }[] };
+  assert.equal(history.run.status, "succeeded");
+  assert.ok(history.messages.some((message) => message.content === "Hello from the native host"));
+  assert.equal(history.steps.length, 1);
+  const effective: unknown = JSON.parse(history.steps[0]?.params ?? "null");
+  assert.deepEqual(effective, { kind: "greeting", message: "Hello from the native host" });
+  assert.equal(requests.length, 1, "History browsing must not execute a model");
+  await pool.query("UPDATE sessions SET user_id='another-owner' WHERE id=$1", [SESSION]);
+  const hidden = await worker.dispatchFetch(`https://host.test/v1/conversations/${SESSION}/messages`);
+  assert.equal(hidden.status, 404, await hidden.text());
+});
+
+void test("default bootstrap refuses anonymous budget exhaustion before native accept or provider traffic", async (context) => {
+  const { worker, requests } = await defaultWorker(context, { ANON_DAILY_COST_BUDGET_USD: "0" });
+  const response = await worker.dispatchFetch("https://host.test/v1/chat", { method: "POST", headers: chatHeaders, body: chatBody });
+  assert.equal(response.status, 403, await response.text());
+  const rows = await pool.query<{ count: string }>("SELECT count(*) FROM pi_scalar_values WHERE namespace='pi.op.meta'");
+  assert.equal(Number(rows.rows[0]?.count), 0);
+  assert.equal(requests.length, 0);
+});
+
+void test("a default host cold restart durably refuses lost BYOK credentials and settles cancellation without platform traffic", async (context) => {
+  const resources = await defaultWorker(context, { TEST_IDENTITY: "member-native", TEST_USER_TYPE: "user" });
+  const observer = await pool.connect();
+  context.after(async () => { try { await observer.query("UNLISTEN *"); } finally { observer.release(); } });
+  await observer.query("UNLISTEN *");
+  await observer.query("LISTEN host_test_settled");
+  const settled = once(observer, "notification", { signal: AbortSignal.timeout(45_000) }).then(() => true, () => false);
+  await pool.query("ALTER TABLE agent_open_operations ADD CONSTRAINT host_test_lost_reply CHECK(false)");
+  context.after(async () => { await pool.query("ALTER TABLE agent_open_operations DROP CONSTRAINT IF EXISTS host_test_lost_reply"); });
+  const response = await resources.worker.dispatchFetch("https://host.test/v1/chat", { method: "POST", body: chatBody,
+    headers: { ...chatHeaders, "x-byok-provider": "openai-compatible", "x-byok-base-url": "https://api.openai.com/v1", "x-byok-model": "gpt-4.1", "x-byok-key": "private-ephemeral-key" } });
+  assert.equal(response.status, 500, await response.text());
+  await pool.query("ALTER TABLE agent_open_operations DROP CONSTRAINT host_test_lost_reply");
+  await resources.restart();
+  assert.equal(await settled, true);
+  const rows = await pool.query<{ state: string; rejection_reason: string }>("SELECT state,rejection_reason FROM agent_admissions WHERE client_message_id='native-first'");
+  assert.deepEqual(rows.rows, [{ state: "settled", rejection_reason: "byok_credentials_lost" }]);
+  assert.equal(resources.requests.length, 0);
+  const values = await pool.query("SELECT namespace,key,value FROM pi_scalar_values");
+  assert.doesNotMatch(JSON.stringify(values.rows), /private-ephemeral-key|server-private-key/);
+});
+
+void test("production selection commits one native server result without accepting a model operation or spending quota", async (context) => {
+  await seedSelectionOffer();
+  const { worker, requests, catalogRequests } = await defaultWorker(context);
+  const options = { method: "POST", headers: { ...chatHeaders, "x-turn-id": "selection-first" }, body: JSON.stringify({ selected_point_ids: ["point-native"] }) };
+  const response = await worker.dispatchFetch("https://host.test/v1/chat", options);
+  assert.equal(response.status, 200);
+  const wire = await response.text();
+  assert.match(wire, /"origin":"server"/);
+  assert.match(wire, /"intent":"plan_selected"/);
+  assert.equal(requests.length, 0);
+  assert.equal(catalogRequests.length, 1);
+  assert.deepEqual(await catalogRequests[0]?.json(), { point_ids: ["point-native"] });
+  const replay = await worker.dispatchFetch("https://host.test/v1/chat", options);
+  assert.equal(replay.status, 200);
+  assert.equal(await replay.text(), wire);
+  assert.equal(catalogRequests.length, 1);
+  const intent = await pool.query("SELECT kind,state,operation_id,selection_request FROM agent_admissions WHERE client_message_id='selection-first'");
+  assert.deepEqual(intent.rows, [{ kind: "selection", state: "settled", operation_id: null, selection_request: { of: "points", pointIds: ["point-native"], origin: null, locale: "ja" } }]);
+  const quota = await pool.query<{ count: string }>("SELECT count(*) FROM anon_daily_message_count");
+  assert.equal(quota.rows[0]?.count, "0");
+  const results = await pool.query<{ count: string }>("SELECT count(*) FROM pi_records WHERE payload->>'customType'='animichi.selection'");
+  assert.equal(results.rows[0]?.count, "1");
+});
