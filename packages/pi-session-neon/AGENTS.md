@@ -1,6 +1,6 @@
 # pi-session-neon — AGENTS.md
 
-Native Pi storage schema and agent business obligations. Root guide: `../../AGENTS.md`.
+Native Pi Storage/SessionRepo and agent business obligations. Root guide: `../../AGENTS.md`.
 Prisma 8 owns the seven new agent tables through `src/contract.prisma` and native
 `migrations/`. Atlas SQL in `../../migrations/neon/` owns all pre-existing objects.
 No object has two migration owners; preserve all applied Atlas SQL byte for byte.
@@ -20,12 +20,17 @@ application code remain checked; TypeScript keeps `skipLibCheck: false`.
 
 The contract stores published Pi 0.85.1 `Entry`, `UsageRow` and `SessionMetadata` directly.
 Do not create a custom Session, transcript converter, TurnStore or operation state machine.
-The complete Storage/SessionRepo implementation and upstream conformance belong to #1541.
+The public entry exports `NeonStorage` and `NeonSessionRepo`, accepting native
+`PostgresClient<Contract>`; the caller owns its lifecycle. All ten public conformance factories
+run as `agent_svc`. Repositories return upstream `StorageBackedSession`; native commit validation
+and fork snapshots remain authoritative. Admitted commits/snapshots queue per handle, while
+PostgreSQL transactions and a session row lock own durable sequencing.
 The business SQL examples under `test/` prove schema constraints and PostgreSQL transactions;
 production admission, recovery and settlement must test their actual writers in their own cards.
 
-`@animichi/test-postgres`, `pg` and Node APIs are test-only. Future production code must use
-Neon's supported Worker transport and return upstream `StorageBackedSession`.
+`@animichi/test-postgres`, `pg` and Node APIs are test-only. Production callers provide
+Prisma's supported Worker connection lifecycle. The browser bundle test rejects Node-only
+conformance/test imports. Deployed APAC latency and real-tool measurements remain pending.
 
 Author contract changes in Prisma's PSL, run `contract:emit`, then use native `migration plan`
 with an explicit origin when no development ref exists. Regenerate edited native migrations

@@ -18,6 +18,18 @@ exactly `PR Verification` and `Security`. The first aggregates every selected CI
 gate, `Security` directly aggregates changed-secret scans and affected security tools, and the last
 plus native review-thread resolution; the merge gate is documented in [`review-gate.md`](./review-gate.md).
 
+### Native Agent release acceptance
+
+The owner-approved 2026-09-10 delivery amendment separates complete code Stories from observations
+that require a deployed native host. Storage #1541 and the atomic service cutover #1582 may merge
+once their complete code/PR gates pass. [#1583](https://github.com/lifeodyssey/animichi/issues/1583)
+preserves the original deployed duration, real-tool, recovery, APAC, resource/cost and applicable
+native evaluation evidence. Missing evidence must block native production promotion; code merge
+alone is not acceptance. Use main CD staging, the existing production approval and the same tested
+artifact. The production dependency on this evidence is still an implementation requirement of
+#1583, not a claim that today's workflow already enforces it. Revalidate affected evidence when the
+artifact changes. [The canonical target](../specs/2026-09-09-agent-on-pi-harness-spec.md) owns the ACs.
+
 ### Affected-only PR CI
 
 The affected set is pnpm's, not ours. `plan` runs

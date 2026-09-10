@@ -6,6 +6,12 @@
 - 当前核对基线：仓库 `fd73fbd532ef4d151a027ab8c93e9f2ea9304dab`；pi 已发布 **0.85.1**，npm gitHead/tag **`d981de1229ef899957bbe968bc8dcda02a21f477`**。最新判断以该 tarball、对应官方源码和原生 API probe 为准；早先浮动 checkout 的研究记录归历史，不能覆盖实际已发布行为。
 - 取代：`docs/specs/2026-09-01-agent-ts-rewrite-spec.md` 的 §五 W3、§十 与**它的第 16 行非目标**；以及 `docs/archive/specs/2026-09-08-eval-suite-redesign-spec.md` 全文（见 §十一）。
 
+### 交付与验收（owner 批准，2026-09-10）
+
+[#1541](https://github.com/lifeodyssey/animichi/issues/1541) 的 AC1–5 是独立存储代码 Story；原 AC6 原文保留在 [#1583 发布验收](https://github.com/lifeodyssey/animichi/issues/1583)。[#1582](https://github.com/lifeodyssey/animichi/issues/1582) 明确承接 #1543–#1556 的原子服务/消费链切换及删除旧导出所必需的 Eval 消费者，作为一个完整 Story PR；独立 Eval CLI、语料、统计、真实评估和基线仍归 #1557–#1560。原卡逐 AC 追踪，不批量关闭。
+代码合并要求全部本地/PR 功能门通过；真实部署后的 ≥130 秒/≥3 工具、APAC、断连/重启/replay/BYOK/资源成本证据进入 #1583，继续阻止 native production promotion。#1541 的延迟数字保持原对照期望及超出后立优化卡的判定。main CD、生产人工批准与同产物 promotion 不变；发布证据门的实际接线尚待实现。流程见 [workflow](../workflow.md)。
+E-1 的 33 条是独立 held-out 子集，不替代 662 条主集或其它保留语料。数据格式迁移、生产任务/断言绑定、真实模型运行必须分别统计；全部源 ID 继续保留，最终三档 suite 覆盖按 §七及 #1559 的明确淘汰规则评审，不能因旧 mock 预期失效就删 case。
+
 ## 一、动机
 
 **我们把上游已经写成规范的那一层，自己写了一遍。** 核对基线的 `workers/edge/src/agent/` 有 **13,449 行**，其中会话树、operation 状态机、崩溃恢复、压缩、事件——都是 `packages/agent/docs/harness.md` 那份**自称 normative specification**（`harness.md:21`）的 1468 行所定义的东西，上游还配了实现与 2105 行 conformance 用例（`/tmp/pi-repo-research.md:166-169`）。

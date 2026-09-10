@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./contract": "./src/contract.json",
     "./migrations": "./migrations",
     "./migrations/*": "./migrations/*",
@@ -12,9 +13,10 @@
   "scripts": {
     "lint": "oxlint --type-aware --deny-warnings .",
     "typecheck": "tsc --noEmit",
-    "test:integration": "mkdir -p coverage && cd ../.. && node --test --test-isolation=none --experimental-test-coverage --test-coverage-include='packages/pi-session-neon/src/**/*.ts' --test-coverage-lines=95 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=packages/pi-session-neon/coverage/lcov.info \"packages/pi-session-neon/test/*.db.test.ts\"",
+    "test:integration": "mkdir -p coverage && cd ../.. && node --test --test-isolation=none --experimental-test-coverage --test-coverage-include='packages/pi-session-neon/src/**/*.ts' --test-coverage-lines=95 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=packages/pi-session-neon/coverage/lcov.info \"packages/pi-session-neon/test/*.db.test.ts\" \"packages/pi-session-neon/test/*.unit.test.ts\"",
     "contract:emit": "prisma contract emit",
-    "test": "node --test test/contract-types.test.ts"
+    "test": "node --test test/contract-types.test.ts",
+    "test:unit": "node --test test/*.unit.test.ts test/contract-types.test.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.85.1",
@@ -29,6 +31,7 @@
     "pg": "^8.22.0",
     "typescript": "^7.0.2",
     "prisma": "8.0.0-rc.13",
-    "@prisma/cli-engine": "0.3.0"
+    "@prisma/cli-engine": "0.3.0",
+    "esbuild": "0.28.1"
   }
 }
