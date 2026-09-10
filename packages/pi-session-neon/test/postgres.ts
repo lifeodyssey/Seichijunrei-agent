@@ -10,8 +10,10 @@ import { migrate } from "./prisma-migration.ts";
 export let postgres: TestPostgres;
 export let pool: pg.Pool;
 export let database: PostgresClient<Contract>;
+export let servicePool: pg.Pool;
+export let serviceDatabase: PostgresClient<Contract>;
 export let oldTables: TableShape[];
-const resources: { postgres?: TestPostgres; pool?: pg.Pool; database?: PostgresClient<Contract> } = {};
+const resources: { postgres?: TestPostgres; pool?: pg.Pool; database?: PostgresClient<Contract>; servicePool?: pg.Pool; serviceDatabase?: PostgresClient<Contract> } = {};
 export const SESSION_ID = "schema-test";
 export const METADATA = { id: SESSION_ID, createdAt: 123, storageVersion: 1, parentSessionId: "deleted-parent" };
 
@@ -22,6 +24,10 @@ before(async () => {
   await pool.query("INSERT INTO daily_usage (usage_date, scope, requests, cost_usd) VALUES ('2026-09-08', 'user', 7, 9.12)");
   await migrate(postgres.dsn);
   database = resources.database = postgresClient<Contract>({ contractJson, url: postgres.dsn });
+  servicePool = resources.servicePool = new pg.Pool({ connectionString: postgres.dsn, options: "-c role=agent_svc" });
+  const serviceUrl = new URL(postgres.dsn);
+  serviceUrl.searchParams.set("options", "-c role=agent_svc");
+  serviceDatabase = resources.serviceDatabase = postgresClient<Contract>({ contractJson, url: serviceUrl.href });
 });
 
 beforeEach(async () => {
@@ -30,6 +36,6 @@ beforeEach(async () => {
 });
 
 after(async () => {
-  try { await Promise.all([resources.database?.close(), resources.pool?.end()]); }
+  try { await Promise.all([resources.database?.close(), resources.pool?.end(), resources.serviceDatabase?.close(), resources.servicePool?.end()]); }
   finally { await resources.postgres?.stop(); }
 });

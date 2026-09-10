@@ -313,6 +313,9 @@ importers:
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
+      esbuild:
+        specifier: '>=0.28.1'
+        version: 0.28.1
       pg:
         specifier: ^8.22.0
         version: 8.22.0

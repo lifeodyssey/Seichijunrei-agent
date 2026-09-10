@@ -1,8 +1,9 @@
-# Pi session schema
+# Native Pi session storage
 
-Issue #1539 adds the database foundation for Pi 0.85.1. It does not implement `Storage`,
-`SessionRepo`, runtime admission or billing. Those implementations must use this schema directly
-and pass the upstream conformance and application recovery suites in their own stories.
+Issue #1541 implements Pi 0.85.1 `Storage` and `SessionRepo` directly on the seven-table Prisma 8
+contract from #1539. `NeonStorage` and `NeonSessionRepo` accept a native `PostgresClient<Contract>`;
+the caller owns its connection lifecycle. The repository returns upstream `StorageBackedSession`.
+Runtime admission, recovery and billing remain separate production writers.
 
 The schema follows the [published SDK types](https://github.com/earendil-works/pi/blob/d981de1229ef899957bbe968bc8dcda02a21f477/packages/agent/src/harness/session/types.ts)
 and [official SQLite backend](https://github.com/earendil-works/pi/blob/d981de1229ef899957bbe968bc8dcda02a21f477/packages/session-backends/sqlite-node/src/sqlite/migrations/001_initial.sql).
@@ -24,10 +25,10 @@ Prisma's native migration owns these seven new tables; the existing Atlas chain 
 objects. No applied migration or old table is altered. The integration suite compares every old table's
 columns, constraints, indexes, triggers and grants with an independently migrated baseline.
 
-A `Storage.commit` implementation must hold the session row lock for the entire SQL transaction,
-use public `prepareStorageCommit` and `validateCommittedWrites`, advance `next_seq` for **every**
-Write (including deletions), and return the SDK result/read shapes. The same native validation
-must cover fork writers. A shared record table enforces entry/usage identity and sequence
+`Storage.commit` holds the session row lock for the entire SQL transaction,
+uses public `prepareStorageCommit` and `validateCommittedWrites`, advances `next_seq` for **every**
+Write (including deletions), and returns the SDK result/read shapes. The same native validation
+covers fork writers. A shared record table enforces entry/usage identity and sequence
 uniqueness; ordinary checks prevent indexed fields diverging from the native JSON payload.
 Native Pi validation owns visible parent references. Usage's optional `entryId` is not a foreign
 key, matching upstream.
@@ -63,3 +64,9 @@ replay, backward refusal and conflicting pre-existing table refusal.
 
 Run `pnpm --filter @animichi/pi-session-neon test:integration` from the repository root. The existing
 workspace discovery selects this package in the local affected gate and CI matrix automatically.
+
+Each Storage handle queues admitted commits and fork snapshots. Fork reads use one native
+repeatable-read transaction; destination publication is a separate atomic transaction. All ten
+public conformance factories run against disposable PostgreSQL as `agent_svc`. The browser bundle
+check excludes Node-only conformance and database-test infrastructure. Local conformance does not
+measure a deployed APAC DO-to-Neon turn; that hosted latency gate remains outstanding.

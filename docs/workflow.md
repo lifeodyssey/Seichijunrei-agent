@@ -18,6 +18,16 @@
 | 6. 合并 | 状态机 TRIAGE→MERGE | 行级线程必须 resolve(native ruleset)+ 顶层 bot 发现逐条 ack(全局 hook 强制);有 findings 落 HUMAN 态归人 |
 | 日常保养 | `/improve-codebase-architecture` | 隔几天跑,产出想法回到阶段 1 |
 
+## Native Agent 交付修订（owner 批准，2026-09-10）
+
+代码交付与真实发布验收分别记录。#1541 先交付完整原生存储代码；不可拆开的服务、领域、
+宿主与消费链切换由 [#1582](https://github.com/lifeodyssey/animichi/issues/1582) 作为一个完整 Story、一个 PR 交付。
+原卡保留逐 AC 来源；不靠兼容层拼出中间版本，也不批量关闭原卡。独立 Eval CLI、语料、统计和基线仍归原 Eval 卡。
+代码 PR 必须具备全部可在本地/PR 执行的功能测试、相关变异证明、类型、覆盖率、独立评审和合并门禁。
+仅必须部署后测量的原 AC 移入 [#1583](https://github.com/lifeodyssey/animichi/issues/1583)，保留原文、测试类型及阈值。
+代码合并不等于这些 AC 通过。仍只由 main CD 部署 staging；native 生产 promotion 须具备所有适用发布证据、
+原有 production 人工批准并复用同一不可变产物。缺失发布门接线本身也是 #1583 的未完成项，不宣称已有机器门禁。
+
 ## 匝道(遇到就显式进)
 
 - 外来 bug/请求堆积 → `/triage`(自产卡不 triage)
