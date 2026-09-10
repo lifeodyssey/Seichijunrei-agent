@@ -25,9 +25,10 @@
 # the directory wrangler is invoked in — the build context must stay the repo
 # root so the Dockerfile's `COPY apps/agent/...` lines resolve (#853).
 #
-# Required GitHub Secrets:
-#   CLOUDFLARE_API_TOKEN       — Wrangler deploy auth
-#   CLOUDFLARE_ACCOUNT_ID      — Cloudflare account target
+# Deploy auth: CLOUDFLARE_API_TOKEN comes from stage-scoped Pulumi ESC;
+# CLOUDFLARE_ACCOUNT_ID is a public repository variable. No GitHub secrets are read.
+# Runtime credentials: per-environment Secrets Store bindings below, provisioned
+# by infra/database-access/runtime-secrets.ts; see docs/ops/secrets.md for cutover gates.
 #
 # Edge runtime configuration:
 #   NEON_AUTH_JWKS_URL        — branch JWKS (AUTH-2 #950): the edge's ONLY
@@ -43,14 +44,10 @@
 # Production keeps
 # the settings default (no fallback) while its chat surface is disabled; the
 # DeepSeek and generic OpenAI-compat fallbacks stay wired but disabled:
-#   SUPABASE_DB_URL            — postgres://... for asyncpg (legacy plane;
-#                                retired from the prod container once the #855
-#                                cutover's later steps remove it)
 #   AGENT_SVC_DATABASE_URL     — Neon agent_svc role DSN, bound from the Secrets
 #                                Store in BOTH deployed environments (staging
 #                                #912 follow-up, production W4-1 #1314);
-#                                forwarded into the container and preferred over
-#                                SUPABASE_DB_URL by apps/agent settings
+#                                the only DSN read by apps/agent settings
 #   ZEN_GO_API_KEY             — live primary model key (zen/go gateway)
 #   MIMO_API_KEY               — staging fallback key for direct MiMo routing
 #   DEEPSEEK_API_KEY           — wired-but-disabled fallback model key (DeepSeek)
@@ -68,7 +65,7 @@
 # Anonymous access (issue #274 / S1.8) — anonymous chat is OPT-IN and stays off
 # until BOTH of these are present:
 #   ANON_ACCESS_ENABLED        — "true" to open /v1/chat to anonymous callers ([vars] below)
-#   ANON_ID_SECRET             — HMAC key for the signed anonymous-id cookie (CD bulk sync)
+#   ANON_ID_SECRET             — HMAC key from Secrets Store when anonymous access is enabled
 #   TURNSTILE_SECRET           — REQUIRED once ANON_ACCESS_ENABLED="true" (issue #447): every
 #                                anonymous /v1/chat turn is verified at siteverify before it can
 #                                reach the limiter or the container, so an environment with
@@ -276,11 +273,35 @@ AUTH_RATE_LIMIT_WINDOW_SECONDS = "60"
 # Pulumi program itself.
 #
 # Both native service and gateway resources use this binding; the
-# binding changes where the CONTAINER's DSN comes from and nothing else. The
-# transitional SUPABASE_DB_URL worker secret stays set on the Worker until the
-# cutover's later step retires it (docs/ops/prod-dsn-cutover.md). CD stopped
-# uploading it, and the other seven runtime secrets, with #1364; #1370 moves all
-# eight into this same Secrets Store.
+# binding changes where the CONTAINER's DSN comes from and nothing else.
+# Runtime credentials come from Secrets Store. Anonymous access remains off,
+# so production declares neither identity nor Turnstile bindings. Existing legacy Worker
+# copies are left for an explicitly reviewed cleanup after cutover.
+[[env.production.secrets_store_secrets]]
+binding = "DEEPSEEK_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "DEEPSEEK_API_KEY_PROD"
+
+[[env.production.secrets_store_secrets]]
+binding = "MIMO_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "MIMO_API_KEY_PROD"
+
+[[env.production.secrets_store_secrets]]
+binding = "ZEN_GO_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "ZEN_GO_API_KEY_PROD"
+
+[[env.production.secrets_store_secrets]]
+binding = "GOOGLE_MAPS_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "GOOGLE_MAPS_API_KEY_PROD"
+
+[[env.production.secrets_store_secrets]]
+binding = "LOGFIRE_TOKEN"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "LOGFIRE_TOKEN_PROD"
+
 [[env.production.secrets_store_secrets]]
 binding = "AGENT_SVC_DATABASE_URL"
 store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
@@ -476,8 +497,43 @@ AUTH_RATE_LIMIT_WINDOW_SECONDS = "60"
 # production jobs Worker's upload chain name: they are different planes
 # (Cloudflare store vs Worker secret) and store secret names are unique per
 # store. Production's own entry in this one shared store is the "_PROD"-suffixed
-# name bound in [env.production] above (W4-1, #1314); the SUPABASE_DB_URL worker
-# secret stays in the production bulk payload until the cutover retires it.
+# name bound in [env.production] above (W4-1, #1314). Staging also requires
+# its existing anonymous identity seed; enabling access must preserve it.
+[[env.staging.secrets_store_secrets]]
+binding = "DEEPSEEK_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "DEEPSEEK_API_KEY"
+
+[[env.staging.secrets_store_secrets]]
+binding = "MIMO_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "MIMO_API_KEY"
+
+[[env.staging.secrets_store_secrets]]
+binding = "ZEN_GO_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "ZEN_GO_API_KEY"
+
+[[env.staging.secrets_store_secrets]]
+binding = "GOOGLE_MAPS_API_KEY"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "GOOGLE_MAPS_API_KEY"
+
+[[env.staging.secrets_store_secrets]]
+binding = "LOGFIRE_TOKEN"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "LOGFIRE_TOKEN"
+
+[[env.staging.secrets_store_secrets]]
+binding = "TURNSTILE_SECRET"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "TURNSTILE_SECRET"
+
+[[env.staging.secrets_store_secrets]]
+binding = "ANON_ID_SECRET"
+store_id = "66c9bb0faef644b4a0671bb7d90d98bd"
+secret_name = "ANON_ID_SECRET"
+
 [[env.staging.secrets_store_secrets]]
 binding = "AGENT_SVC_DATABASE_URL"
 store_id = "66c9bb0faef644b4a0671bb7d90d98bd"

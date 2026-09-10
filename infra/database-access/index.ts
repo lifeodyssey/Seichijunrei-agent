@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as cloudflare from "@pulumi/cloudflare";
 import * as neon from "@pulumi/neon";
 import * as random from "@pulumi/random";
+export { edgeRuntimeSecretNames } from "./runtime-secrets.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Database access provisioning — ADR 0003 / #912 PR1.
@@ -96,7 +97,7 @@ const roleDefs: { name: string; secretName?: string; comment: string }[] = [
     name: "agent_svc",
     secretName: "AGENT_SVC_DATABASE_URL",
     comment:
-      "agent container data-plane role DSN (edge Worker binding, forwarded to the container via CONTAINER_ENV_KEYS — replaces SUPABASE_DB_URL once deployed)",
+      "agent container data-plane role DSN (edge Worker binding, forwarded to the container via CONTAINER_ENV_KEYS)",
   },
   // #1050 — dedicated migrator role (Migration Executor, spec §"Database identity").
   //

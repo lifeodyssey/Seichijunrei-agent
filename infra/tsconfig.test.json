@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "esnext",
+    "target": "es2022",
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
@@ -9,6 +10,11 @@
   },
   "files": [
     "testing/harness.ts",
+    "testing/runtime-secrets.ts",
+    "topology-runtime-secrets-staging.test.ts",
+    "topology-runtime-secrets-prod.test.ts",
+    "topology-runtime-secrets-missing.test.ts",
+    "topology-runtime-secret-bindings.test.ts",
     "topology-disabled.test.ts",
     "topology-legacy-redirect.test.ts",
     "topology-prod.test.ts",

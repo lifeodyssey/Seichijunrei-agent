@@ -5,11 +5,11 @@ import { ANON_ID_PREFIX, anonymousEnabled, resolveAnonymous } from "../src/ident
 const SECRET = "fixed-test-hmac-key-0000000000000000";
 const ANON_ENV = { ANON_ACCESS_ENABLED: "true", ANON_ID_SECRET: SECRET };
 
-void test("anonymous access stays off unless both the flag and the secret are set", () => {
-  assert.equal(anonymousEnabled({}), false);
-  assert.equal(anonymousEnabled({ ANON_ACCESS_ENABLED: "true" }), false);
-  assert.equal(anonymousEnabled({ ANON_ID_SECRET: SECRET }), false);
-  assert.equal(anonymousEnabled(ANON_ENV), true);
+void test("anonymous access stays off unless both the flag and the secret are set", async () => {
+  assert.equal(await anonymousEnabled({}), false);
+  assert.equal(await anonymousEnabled({ ANON_ACCESS_ENABLED: "true" }), false);
+  assert.equal(await anonymousEnabled({ ANON_ID_SECRET: SECRET }), false);
+  assert.equal(await anonymousEnabled(ANON_ENV), true);
 });
 
 void test("a brand-new visitor with zero history is issued an identity at once", async () => {

@@ -83,6 +83,9 @@ retired run engine and envelope paths have no forwarding modules.
 - `src/container/container-env.ts` owns the container env allowlist/required keys and the
   `DENIED_EGRESS_HOSTS` glob list — it is read verbatim by docs/security guards (see
   `docs/ops/secrets.md`, `docs/ops/cloudflare-hardening.md`); keep paths and key names in lockstep.
+  Its `readStoreOrString` resolves native `SecretsStoreSecret.get()` bindings or local strings.
+  Resolve before use; do not cache values across container starts or TS turns. Store rotation
+  reaches a container process only when that process restarts.
 - The agent tier reads `AGENT_SVC_DATABASE_URL` via direct Prisma 8 `postgres<Contract>`
   and native `NeonSessionRepo`, with the database lifetime owned by the DO incarnation.
   Secret Store/string bindings are resolved in default startup, never from `process.env`.

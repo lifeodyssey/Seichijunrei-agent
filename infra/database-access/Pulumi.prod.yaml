@@ -23,7 +23,10 @@
 # file, so the production apply can only run with the ciphertext committed.
 # The plaintext never lives in the repo or in GitHub - only Pulumi Cloud can
 # decrypt this value, and only for this stack.
+environment:
+  - animichi/prod
 config:
+  animichi-neon-secrets:anonymousAccessEnabled: false
   animichi-neon-secrets:neonProjectId: billowing-fire-22850320
   animichi-neon-secrets:neonBranchId: br-cold-term-aor1v6gl
   animichi-neon-secrets:cloudflareAccountId: 021233c1880a43aa68565496100e1f8c

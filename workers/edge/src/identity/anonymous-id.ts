@@ -7,14 +7,14 @@
 // PII is derived or stored. Anonymous access is opt-in: without both
 // ANON_ACCESS_ENABLED and ANON_ID_SECRET the edge keeps its existing 401.
 
+import { readStoreOrString } from "../container/container-env.ts";
+import type { Env } from "../env.ts";
+
 const ANON_COOKIE = "aid";
 const ANON_COOKIE_MAX_AGE_SECONDS = 31_536_000;
 const ANON_ID_PATTERN = /^[0-9a-f]{32}$/;
 
-export interface AnonymousEnv {
-  ANON_ACCESS_ENABLED?: string;
-  ANON_ID_SECRET?: string;
-}
+export type AnonymousEnv = Pick<Env, "ANON_ACCESS_ENABLED" | "ANON_ID_SECRET">;
 
 /** Container-visible prefix of every anonymous `X-User-Id`. */
 export const ANON_ID_PREFIX = "anon_";
@@ -25,12 +25,13 @@ export interface AnonymousIdentity {
   readonly setCookie: string | null;
 }
 
-export function anonymousEnabled(env: AnonymousEnv): boolean {
-  return (
-    env.ANON_ACCESS_ENABLED === "true" &&
-    typeof env.ANON_ID_SECRET === "string" &&
-    env.ANON_ID_SECRET.length > 0
-  );
+async function anonymousSecret(env: AnonymousEnv): Promise<string | undefined> {
+  if (env.ANON_ACCESS_ENABLED !== "true") return undefined;
+  return readStoreOrString(env.ANON_ID_SECRET);
+}
+
+export async function anonymousEnabled(env: AnonymousEnv): Promise<boolean> {
+  return await anonymousSecret(env) !== undefined;
 }
 
 function readCookie(request: Request, name: string): string | null {
@@ -89,8 +90,8 @@ async function verifiedCookie(request: Request, secret: string): Promise<string 
 export async function resolveAnonymous(
   request: Request, env: AnonymousEnv,
 ): Promise<AnonymousIdentity | null> {
-  const secret = env.ANON_ID_SECRET;
-  if (!anonymousEnabled(env) || secret === undefined) return null;
+  const secret = await anonymousSecret(env);
+  if (secret === undefined) return null;
   const verified = await verifiedCookie(request, secret);
   if (verified === null) return mintAnonymousIdentity(secret);
   return { userId: `${ANON_ID_PREFIX}${verified}`, setCookie: null };
@@ -108,8 +109,8 @@ export async function resolveAnonymous(
 export async function resolveAnonymousReadOnly(
   request: Request, env: AnonymousEnv,
 ): Promise<AnonymousIdentity | null> {
-  const secret = env.ANON_ID_SECRET;
-  if (!anonymousEnabled(env) || secret === undefined) return null;
+  const secret = await anonymousSecret(env);
+  if (secret === undefined) return null;
   const verified = await verifiedCookie(request, secret);
   if (verified === null) return null;
   return { userId: `${ANON_ID_PREFIX}${verified}`, setCookie: null };

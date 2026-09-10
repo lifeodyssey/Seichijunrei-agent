@@ -2,6 +2,8 @@
 
 import { TURNSTILE_HEADER, TURNSTILE_WINDOW_MS } from "@animichi/contract/constants";
 
+import { readStoreOrString } from "../container/container-env.ts";
+
 export { TURNSTILE_HEADER, TURNSTILE_WINDOW_MS };
 
 /**
@@ -9,7 +11,7 @@ export { TURNSTILE_HEADER, TURNSTILE_WINDOW_MS };
  *
  * Verification is ALWAYS server-side: the browser only collects a token, the
  * Worker exchanges it at siteverify with the secret binding. The secret lives
- * in `env.TURNSTILE_SECRET` (a Worker secret binding) — there is no
+ * in `env.TURNSTILE_SECRET` (a Secrets Store binding in deployed environments) — there is no
  * `process.env` in Workers, so never reach for it here.
  */
 
@@ -36,7 +38,7 @@ export interface TurnstileResult {
 }
 
 export interface TurnstileEnv {
-  readonly TURNSTILE_SECRET: string;
+  readonly TURNSTILE_SECRET: SecretsStoreSecret | string;
 }
 
 export interface TurnstileGate {
@@ -207,12 +209,8 @@ function logMissingSecret(): void {
   console.error(JSON.stringify({ event: "edge_turnstile_secret_missing" }));
 }
 
-function usableSecret(secret: unknown): string | null {
-  return typeof secret === "string" && secret !== "" ? secret : null;
-}
-
-function turnstileSecret(env: TurnstileEnv): string | null {
-  const secret = usableSecret(env.TURNSTILE_SECRET);
+async function turnstileSecret(env: TurnstileEnv): Promise<string | null> {
+  const secret = await readStoreOrString(env.TURNSTILE_SECRET) ?? null;
   if (secret === null) logMissingSecret();
   return secret;
 }
@@ -225,7 +223,7 @@ function turnstileSecret(env: TurnstileEnv): string | null {
 export async function guardTurnstile(
   request: Request, env: TurnstileEnv, gate: TurnstileGate, identity: string,
 ): Promise<Response | null> {
-  const secret = turnstileSecret(env);
+  const secret = await turnstileSecret(env);
   if (secret === null) return rejection();
   const token = request.headers.get(TURNSTILE_HEADER);
   const clientIp = request.headers.get("CF-Connecting-IP") ?? "";

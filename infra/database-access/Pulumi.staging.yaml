@@ -1,4 +1,7 @@
+environment:
+  - animichi/staging
 config:
+  animichi-neon-secrets:anonymousAccessEnabled: true
   animichi-neon-secrets:neonProjectId: billowing-fire-22850320
   animichi-neon-secrets:neonBranchId: br-gentle-king-aowjem8v
   animichi-neon-secrets:cloudflareAccountId: 021233c1880a43aa68565496100e1f8c
