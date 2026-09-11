@@ -11,7 +11,7 @@ class CdStageSmokeTest < Minitest::Test
   SMOKE_ESCAPES = ["|| true", "set +e", %w[continue on error].join("-")].freeze
   DEFAULT_SUCCESS = ["${{ success() }}", "success()"].freeze
   STAGING_JOB = "stage"
-  SMOKE_STEP = "staging smoke"
+  SMOKE_STEP = "Smoke the release"
 
   def setup
     @cd = Psych.safe_load(File.read(CD_FILE), aliases: true)

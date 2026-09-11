@@ -14,8 +14,8 @@ export const FIXED_NOW = new Date("2026-08-21T00:00:00.000Z");
 
 export const FILE_A = "20260811000001_turn_outcome.sql";
 export const FILE_B = "20260814191301_turn_idempotency_outbox.sql";
-export const HASH_A = "h1:hash-turn-outcome-aaaaaaaaaaaaaaaaaaaaaaa=";
-export const HASH_B = "h1:hash-turn-outbox-bbbbbbbbbbbbbbbbbbbbbbbb=";
+export const HASH_A = "h1:kDkRLCxK9e7se3NrHdn0RSlV4npGr8xO++D3MwUX03I=";
+export const HASH_B = "h1:u/xj/M3EYcEEYEo+F0WyZr7Cq2vX7ZAzDNNi3jhnQCo=";
 export const BODY_A = "CREATE TABLE public.turn_outcome (id int);";
 export const BODY_B = "CREATE TABLE public.turn_outbox_events (id int);";
 export const HEAD_A = "20260811000001_turn_outcome";
@@ -30,7 +30,7 @@ export const CONCURRENT_VERSION = "20260821000001";
 export const CHAIN_HASH = "h1:hash-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=";
 
 const BODIES: Record<string, string> = { [FILE_A]: BODY_A, [FILE_B]: BODY_B };
-const FIXTURE_SUM = ["h1:fixture-directory-sum", `${FILE_A} ${HASH_A}`, `${FILE_B} ${HASH_B}`, ""].join("\n");
+const FIXTURE_SUM = ["h1:sD7wdMPBU9i0G+NYhoHRpiMQCR2Y4vfm1rML3ETnqL0=", `${FILE_A} ${HASH_A}`, `${FILE_B} ${HASH_B}`, ""].join("\n");
 
 export const fixtureChain: ChainSource = {
   atlasSum: (): string => FIXTURE_SUM,

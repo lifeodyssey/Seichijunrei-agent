@@ -1,3 +1,5 @@
+import type { MiddlewareHandler } from "hono";
+import type { Env, MigratorDeps } from "./create-app";
 import { createRemoteJWKSet, type JWTVerifyGetKey } from "jose";
 import {
   createGitHubOidcVerifier,
@@ -31,4 +33,14 @@ export async function authenticateRequest(
   if (token === null) return null;
   const verifier = deps.verifier ?? createGitHubOidcVerifier(policyFor(selector), deps.jwks ?? REMOTE_JWKS);
   return verifier.verify(token);
+}
+
+export function mainController(deps: MigratorDeps): MiddlewareHandler<{ Bindings: Env }> {
+  return async (c, next) => {
+    c.header("Cache-Control", "no-store");
+    const verified = await authenticateRequest(c.req.raw, c.env.MIGRATOR_OIDC_POLICY, deps);
+    if (verified === null) return c.json({ error: "unauthorized" }, 401);
+    if (!verified.ok || verified.claims.ref !== "refs/heads/main") return c.json({ error: "forbidden" }, 403);
+    await next();
+  };
 }

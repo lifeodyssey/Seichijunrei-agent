@@ -6,7 +6,10 @@ class WorkflowWorkspaceTest < Minitest::Test
   ROOT = ENV.fetch("TEST_REPOSITORY_ROOT", File.expand_path("../..", __dir__))
   SETUP = "$/.github/actions/setup-workspace"
   WORKSPACE_SCRIPTS = %w[
-    .github/scripts/bundle-release-worker.sh .github/scripts/bundle-release-worker.test.sh
+    .github/scripts/bundle-release-worker.test.sh
+    .github/scripts/release/build-worker.mjs .github/scripts/release/verify-config.mjs
+    .github/scripts/release/seal-foundation.sh .github/scripts/release/registry-login.sh
+    .github/scripts/release/record-receipt.mjs .github/scripts/release/publish-services.sh
     scripts/local-gates/oxlint-changed.sh scripts/local-gates/pre-push-affected.sh
   ].freeze
 

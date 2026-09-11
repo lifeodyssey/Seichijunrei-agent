@@ -1,25 +1,15 @@
 import { NeonDbError } from "@neondatabase/serverless";
-import type { Context, Hono, MiddlewareHandler } from "hono";
+import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Env, MigratorDeps } from "./create-app";
 import { resolveDsn } from "./database-url";
-import { authenticateRequest } from "./request-auth";
+import { mainController } from "./request-auth";
 import { MAX_PREFLIGHT_BYTES, parsePreflightMetadata } from "./preflight-metadata";
 import { compareMigrationPrefix } from "./preflight-compatibility";
 import { readRevisionSnapshot } from "./preflight-ledger";
 import { hasPrismaSnapshot, PRISMA_TARGET } from "./prisma-target";
 import { selectedExecutor } from "./selected-executor";
 import type { PreflightMetadata } from "./preflight-metadata";
-
-function authenticated(deps: MigratorDeps): MiddlewareHandler<{ Bindings: Env }> {
-  return async (c, next) => {
-    c.header("Cache-Control", "no-store");
-    const verified = await authenticateRequest(c.req.raw, c.env.MIGRATOR_OIDC_POLICY, deps);
-    if (verified === null) return c.json({ error: "unauthorized" }, 401);
-    if (!verified.ok || verified.claims.ref !== "refs/heads/main") return c.json({ error: "forbidden" }, 403);
-    await next();
-  };
-}
 
 function unavailable(c: Context<{ Bindings: Env }>, error: unknown): Response {
   if (error instanceof NeonDbError && error.code === "42P01") {
@@ -55,7 +45,7 @@ function preview(env: Env, deps: MigratorDeps, dsn: string, metadata: PreflightM
 }
 
 export function registerPreflight(app: Hono<{ Bindings: Env }>, deps: MigratorDeps): void {
-  app.post("/preflight", authenticated(deps), bodyLimit({
+  app.post("/preflight", mainController(deps), bodyLimit({
     maxSize: MAX_PREFLIGHT_BYTES,
     onError: (c) => c.json({ error: "invalid_preflight" }, 413),
   }), (c) => preflight(c, deps));

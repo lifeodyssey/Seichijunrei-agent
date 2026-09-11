@@ -1,5 +1,6 @@
 import type { JWTVerifyGetKey } from "jose";
 import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import {
   type GitHubOidcVerifier,
 } from "@animichi/contract/oidc-github";
@@ -7,12 +8,12 @@ import { productionChain } from "./bundled-chain";
 import { headsOf, type ChainSource } from "./chain";
 import { NeonMigrationsLedger } from "./ledger";
 import { runMigration, type ContainerOutcome, type MigrationRunResult } from "./migration";
-import { authenticateRequest } from "./request-auth";
+import { mainController } from "./request-auth";
 import { registerPreflight } from "./preflight";
 import { resolveDsn } from "./database-url";
 import { hasPrismaSnapshot, PRISMA_TARGET } from "./prisma-target";
-import { parsePreflightMetadata } from "./preflight-metadata";
-import type { SelectedExecutor, SelectedMetadata, SelectedMigration } from "./selected-migration";
+import { MAX_PREFLIGHT_BYTES, parsePreflightMetadata, type PreflightMetadata } from "./preflight-metadata";
+import type { SelectedExecutor, SelectedMigration } from "./selected-migration";
 import { selectedExecutor } from "./selected-executor";
 
 /**
@@ -81,38 +82,6 @@ function healthz(c: Context<{ Bindings: Env }>, bundle: BundleHandshake): Respon
   });
 }
 
-/** JSON.parse returns `any`; narrow to `unknown` at the only parse site. */
-function parseJson(raw: string): unknown {
-  return JSON.parse(raw) as unknown;
-}
-
-type ParsedBody = { ok: true; expectedHead: string | undefined; selected?: SelectedMetadata } | { ok: false };
-
-function selectedBody(raw: string): ParsedBody {
-  const metadata = parsePreflightMetadata(raw);
-  if (metadata?.expectedPrismaRef === undefined) return { ok: false };
-  return { ok: true, expectedHead: metadata.expectedHead,
-    selected: { ...metadata, expectedPrismaRef: metadata.expectedPrismaRef } };
-}
-
-function expectedHeadOf(parsed: object): string | undefined {
-  if (!("expectedHead" in parsed)) return undefined;
-  return typeof parsed.expectedHead === "string" ? parsed.expectedHead : undefined;
-}
-
-/** Parse the optional JSON body into an object; a non-object body is a 400. */
-async function parseBody(request: Request): Promise<ParsedBody> {
-  try {
-    const raw = await request.text();
-    const parsed = parseJson(raw.length === 0 ? "{}" : raw);
-    if (typeof parsed !== "object" || parsed === null) return { ok: false };
-    if ("expectedPrismaRef" in parsed) return selectedBody(raw);
-    return { ok: true, expectedHead: expectedHeadOf(parsed) };
-  } catch {
-    return { ok: false };
-  }
-}
-
 function timeoutResponse(result: Extract<MigrationRunResult, { kind: "timeout" }>): Response {
   const body =
     result.exitCode === undefined
@@ -150,11 +119,11 @@ interface FailureJson {
   error?: string;
 }
 
-function failureBody(result: Extract<MigrationRunResult, { kind: "failure" }>): FailureJson {
+function failureBody(result: Extract<SelectedMigration, { kind: "failure" }>): FailureJson {
   if (result.error === undefined) {
     return { success: false, exitCode: result.exitCode, appliedHead: null };
   }
-  return { success: false, exitCode: result.exitCode, appliedHead: null, error: result.error };
+  return { success: false, exitCode: result.exitCode, appliedHead: null, error: result.failureCode ?? "migration_failed" };
 }
 
 /**
@@ -186,22 +155,25 @@ type MigrationApply = (dsn: string, expectedHead?: string) => Promise<ContainerO
 async function runContainerFor(
   env: Env,
   deps: MigratorDeps,
+  metadata: PreflightMetadata,
 ): Promise<MigrationApply> {
   if (deps.runContainer !== undefined) return deps.runContainer;
   const { productionApply } = await import("./lock");
-  return httpApplyBound(env, productionApply);
+  return httpApplyBound(env, productionApply, metadata);
 }
 
 function httpApplyBound(
   env: Env,
-  bind: (ns: DurableObjectNamespace) => MigrationApply,
+  bind: (ns: DurableObjectNamespace) => (dsn: string, metadata: PreflightMetadata) => Promise<ContainerOutcome>,
+  metadata: PreflightMetadata,
 ): MigrationApply {
   if (env.MIGRATOR_APPLY_LOCK === undefined) throw new Error("migrator apply lock not configured");
-  return bind(env.MIGRATOR_APPLY_LOCK);
+  const apply = bind(env.MIGRATOR_APPLY_LOCK);
+  return (dsn) => apply(dsn, metadata);
 }
 
 type Guarded =
-  | { ok: true; expectedHead: string | undefined; selected?: SelectedMetadata }
+  | { ok: true; metadata: PreflightMetadata }
   | { ok: false; response: Response };
 
 /** Identity, then body shape, then the bundle handshake — all before any DSN. */
@@ -210,23 +182,18 @@ async function guardRequest(
   deps: MigratorDeps,
   bundle: BundleHandshake,
 ): Promise<Guarded> {
-  const verified = await authenticateRequest(c.req.raw, c.env.MIGRATOR_OIDC_POLICY, deps);
-  if (verified === null) return { ok: false, response: c.json({ error: "unauthorized" }, 401) };
-  if (!verified.ok) {
-    return { ok: false, response: c.json({ error: "forbidden", message: verified.reason }, 403) };
-  }
-  const body = await parseBody(c.req.raw);
-  if (!body.ok) return { ok: false, response: c.json({ error: "invalid request body" }, 400) };
-  if (body.selected !== undefined && !await hasPrismaSnapshot(body.selected.expectedPrismaRef, deps.migrationsDir)) {
-    return { ok: false, response: c.json({ error: "stale_prisma_bundle", prismaTarget: PRISMA_TARGET }, 409) };
-  }
-  if (body.selected?.stagingOnlyBaseline && c.env.MIGRATOR_OIDC_POLICY === "production") {
+  const body = parsePreflightMetadata(await c.req.text());
+  if (!body) return { ok: false, response: c.json({ error: "invalid_migration" }, 400) };
+  if (body.stagingOnlyBaseline && c.env.MIGRATOR_OIDC_POLICY === "production") {
     return { ok: false, response: c.json({ error: "staging_only_baseline" }, 422) };
+  }
+  if (body.expectedPrismaRef !== undefined && !await hasPrismaSnapshot(body.expectedPrismaRef, deps.migrationsDir)) {
+    return { ok: false, response: c.json({ error: "stale_prisma_bundle", prismaTarget: PRISMA_TARGET }, 409) };
   }
   if (bundle.stale(body.expectedHead)) {
     return { ok: false, response: c.json({ error: "stale_bundle", bundleHead: bundle.head }, 409) };
   }
-  return body;
+  return { ok: true, metadata: body };
 }
 
 async function handleMigrate(
@@ -236,23 +203,21 @@ async function handleMigrate(
 ): Promise<Response> {
   const guard = await guardRequest(c, deps, bundle);
   if (!guard.ok) return guard.response;
-  const dsn = await resolveDsn(c.env);
-  if (dsn === undefined) return c.json({ error: "migrator database not configured" }, 503);
   try {
-    if (guard.selected !== undefined) {
-      return outcomeResponse(await selectedExecutor(c.env, deps).migrate(dsn, guard.selected));
+    const dsn = await resolveDsn(c.env);
+    if (dsn === undefined) return c.json({ error: "migrator database not configured" }, 503);
+    if (guard.metadata.expectedPrismaRef !== undefined) {
+      return outcomeResponse(await selectedExecutor(c.env, deps).migrate(dsn, {
+        ...guard.metadata, expectedPrismaRef: guard.metadata.expectedPrismaRef,
+      }));
     }
-    const runContainer = await runContainerFor(c.env, deps);
+    const runContainer = await runContainerFor(c.env, deps, guard.metadata);
     const readAppliedHead = deps.readAppliedHead ??
       ((value: string) => new NeonMigrationsLedger().readAppliedHead(value));
-    const result = await runMigration(dsn, { runContainer, readAppliedHead }, guard.expectedHead);
+    const result = await runMigration(dsn, { runContainer, readAppliedHead }, guard.metadata.expectedHead);
     return outcomeResponse(result);
-  } catch (error) {
-    // #1091 (US-27): an unexpected orchestration throw must be observable —
-    // the bare Hono 500 hid the failure reason on the first real trigger run.
-    // Surface the exception message only (never a DSN or credential).
-    const message = error instanceof Error ? error.message : String(error);
-    return c.json({ success: false, error: message }, 500);
+  } catch {
+    return c.json({ success: false, error: "migration_unavailable" }, 500);
   }
 }
 
@@ -261,7 +226,9 @@ export function createMigratorApp(deps: MigratorDeps = {}): Hono<{ Bindings: Env
   const app = new Hono<{ Bindings: Env }>();
   const bundle = new BundleHandshake(deps.chain ?? productionChain);
   app.get("/healthz", (c) => healthz(c, bundle));
-  app.post("/migrate", (c) => handleMigrate(c, deps, bundle));
+  app.post("/migrate", mainController(deps), bodyLimit({
+    maxSize: MAX_PREFLIGHT_BYTES, onError: (c) => c.json({ error: "invalid_migration" }, 413),
+  }), (c) => handleMigrate(c, deps, bundle));
   registerPreflight(app, deps);
   return app;
 }

@@ -1,5 +1,8 @@
 # Workflow assertion migration
 
+This is the historical #1563 migration map. Subsequent CD behavior and renamed tests are mapped in
+[Selected-artifact delivery assertions](./SELECTED-ARTIFACT-ASSERTION-MAP.md).
+
 Story #1563. Baseline: `8e8a6577ac98879f7a50dabb19e5cd176fb98fba`.
 
 The old paths below are retired historical identifiers, not runnable guidance. Each row accounts

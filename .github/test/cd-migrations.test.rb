@@ -52,4 +52,39 @@ class CdMigrationsTest < Minitest::Test
     assert(!guard.nil? && !migrate.nil? && guard < migrate,
                      "cd.yml:promote-production: the staging-only guard must refuse before production migrates")
   end
+
+  def test_real_registry_and_ledger_preflight_precede_every_actual_mutation
+    %w[stage promote-production].each do |job|
+      steps = @cd.dig("jobs", job, "steps")
+      registry = steps.index { |step| step["run"] == "ruby .github/scripts/release/inspect-images.rb" }
+      schema = steps.index { |step| step["name"] == "Read applied migration compatibility" }
+      refute_nil registry
+      refute_nil schema
+      mutations = steps.each_index.select { |i| mutates?(steps[i]) }
+      assert_equal 5, mutations.length
+      mutations.each { |i| assert_operator i, :>, registry; assert_operator i, :>, schema }
+    end
+  end
+
+  def mutates?(step)
+    step.dig("with", "command") == "up" || step["run"].to_s.match?(/wrangler deploy|publish-services\.sh|migrate-through-worker\.sh|reset-staging/)
+  end
+
+  def test_production_baseline_guard_precedes_every_mutation
+    steps = @cd.dig("jobs", "promote-production", "steps")
+    guard = steps.index { |step| step["run"].to_s.match?(BASELINE_GUARD_RUN) }
+    refute_nil guard
+    steps.each_index.select { |i| mutates?(steps[i]) }.each { |i| assert_operator guard, :<, i }
+  end
+
+  def test_native_graph_is_published_before_preview_and_application_changes
+    %w[stage promote-production].each do |job|
+      steps = @cd.dig('jobs', job, 'steps')
+      publish = steps.index { |step| step['name'] == 'Publish the selected migrator' }
+      preview = steps.index { |step| step['name'] == 'Preview the selected native migration graph' }
+      refute_nil preview
+      assert_operator publish, :<, preview
+      steps.each_index.select { |i| mutates?(steps[i]) && i != publish }.each { |i| assert_operator preview, :<, i }
+    end
+  end
 end

@@ -16,6 +16,9 @@ class PrVerificationPlanTest < Minitest::Test
     filters = Psych.safe_load(paths.dig("with", "filters"), aliases: true)
     assert_includes filters.fetch("workflows"), ".github/workflows/**"
     assert_includes filters.fetch("workflows"), ".github/actions/**"
+    assert_includes filters.fetch("workflows"), ".github/scripts/**"
+    assert_includes filters.fetch("workflows"), ".github/lib/**"
+    assert_includes filters.fetch("workflows"), ".github/test/**"
   end
 
   def test_selects_dependents_but_leaves_owned_lanes_out_of_the_matrix

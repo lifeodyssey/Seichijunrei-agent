@@ -10,7 +10,7 @@ import {
   MIGRATOR_OIDC_AUDIENCE,
   TRUSTED_CD_WORKFLOW,
 } from "../src/policy";
-import { fixtureChain } from "./http-apply.helpers";
+import { fixtureChain, HEAD_A, HEAD_B } from "./http-apply.helpers";
 
 // #1051 — shared HTTP-seam fixtures for the migrator worker tests: faked
 // container binding + injected JWKS (spec §Testing Decisions 1). jose resolves
@@ -92,6 +92,12 @@ export function post(body: Record<string, unknown>, token: string): Request {
   return new Request("https://migrator.test/migrate", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ expectedHead: "20260814191301_turn_idempotency_outbox", ...body }),
+    body: JSON.stringify({ expectedHead: HEAD_B, atlasSum: requestedSum(body.expectedHead), stagingOnlyBaseline: false, ...body }),
   });
+}
+
+/** Native Atlas v0.30.0 fixture checksums, including the cumulative A-only directory. */
+function requestedSum(head: unknown): string {
+  if (head === HEAD_A) return "h1:WggkOYIHPi39gCs0atYwAl9FWP+l8eSKywqBfcVybl4=\n20260811000001_turn_outcome.sql h1:kDkRLCxK9e7se3NrHdn0RSlV4npGr8xO++D3MwUX03I=\n";
+  return fixtureChain.atlasSum().replace(HEAD_B, typeof head === "string" ? head : HEAD_B);
 }

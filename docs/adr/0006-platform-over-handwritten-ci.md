@@ -8,6 +8,10 @@
 > stay in GitHub environment secrets" premises are retired here; its runtime half — Pulumi composes
 > the DSN and writes it into Cloudflare Secrets Store — stands unchanged (decision 12).
 
+Delivery selection and queue semantics are amended by [ADR 0007](0007-selected-release-artifacts.md):
+main pushes build complete snapshots; the sole trusted controller selects an existing artifact ID.
+The original decisions below remain the historical rationale for the platform-native principle.
+
 The delivery lane had grown into a second product. Measured at spec time: `.github/actions` 11
 composite actions / 851 lines, `.github/scripts` 108 files / 10,586 lines, `scripts/local-gates` 39
 files / 4,559 lines, five workflows / 949 lines. Under a hundred of those lines are business rules

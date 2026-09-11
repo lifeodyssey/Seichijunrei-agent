@@ -51,7 +51,7 @@ separate DSN secrets and separate OIDC allowlists. Root guide:
    already-applied — but only for a version the ledger holds no attempt at
    under a different hash — and the re-run finishes the file instead of
    wedging the chain. A `-pooler` DSN is rejected before SQL. SQL is never taken from the
-   request body (OIDC + optional `{expectedHead?}` only). The batch
+   request body (OIDC + required `{expectedHead, atlasSum, stagingOnlyBaseline}` metadata only). The batch
    container classes stay until staging proof; `POST /migrate` no longer
    starts them. Tests may inject `runContainer` (including unknown_exit
    ledger judgment).
@@ -114,6 +114,19 @@ check while the previous migrator bundle is serving. Requests containing
 `expectedPrismaRef` use the same fixed DO as apply, verify the bundled Atlas
 prefix and native snapshot, and call Prisma's public `executeMigrateShowPlan`.
 The native preview reads the live marker without initializing its schema.
+
+#1564 reuses the same bounded metadata parser and main-controller authentication on `/migrate`.
+The fixed apply Durable Object compares the requested checksum prefix with its carried bundle,
+then rereads the complete native ledger and applies the same compatibility predicate while
+holding `blockConcurrencyWhile`. Refusal precedes even ledger creation. Only a compatible
+prefix reaches the existing per-file transactional executor, bounded to the selected head.
+The HTTP response contains stable failure codes instead of SQL/secret exception messages.
+
+`test/selected-*.workerd.test.ts` exercises real Hono/jose, the native DO and Neon HTTP payloads
+through Miniflare. `test/integration/selected-apply.integration.ts` executes those native HTTP
+requests on disposable PostgreSQL, including a ledger change between preflight and apply,
+missing-ledger refusal, failed-file rollback and queued-request revalidation.
+Activation still requires authorized staging and production preflight bootstrap.
 Local tests prove neither deployment nor production approval; see the canonical
 [deployment runbook](../../docs/ops/deployment.md#read-only-migration-preflight-1575).
 

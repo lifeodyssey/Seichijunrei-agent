@@ -3,12 +3,15 @@ paths:
   - ".github/workflows/**"
   - ".github/actions/**"
   - ".github/test/**"
+  - ".github/lib/**"
+  - ".github/scripts/**"
   - "test/repo-config/**"
 ---
 # GitHub Actions authoring rules
 
-The entry workflows are `pr-verification.yml` (`pull_request` + `merge_group`), `cd.yml`
-(push to `main`) and `agent-eval-nightly.yml` (cron). Share genuinely identical step sequences
+The entry workflows are `pr-verification.yml` (`pull_request` + `merge_group`),
+`release-build.yml` (push to `main`), `cd.yml` (artifact-ID dispatch from `main`) and
+`agent-eval-nightly.yml` (cron). Share genuinely identical step sequences
 with native composites backed by official actions. `.github/actions/setup-workspace/action.yml`
 owns Node/pnpm/cache/frozen install for six PR jobs; checkout and lane-specific tools stay in callers.
 The plan reads manifests without installing or caching. Route action changes alongside workflow changes.
@@ -23,16 +26,25 @@ revision rather than mutable checkout state.
   workspace packages with pnpm's dependent-closure filter. `affected` runs their package scripts;
   dedicated jobs own contracts, docs, Python, browser, schema and commits. `security` and `aggregate`
   run `always()` and fail on failed or cancelled dependencies. Add new required lanes to their `needs`.
-- **`cd.yml` builds once and promotes the same artifact.** Its single `stage` job holds the staging
-  lock through foundation, migration, services, web and smoke. Production has its own environment
-  approval and lock. Only a push to `main` deploys; no local, manual or tag-triggered deploy path.
+- **`release-build.yml` builds once; `cd.yml` selects an immutable artifact ID.** Each snapshot
+  includes all deploy units. Trusted main controller code validates provenance, complete source
+  closure, remote image manifests and the migration ledger before mutations. One `stage` job holds
+  the staging lock through foundation, migration, services, web, smoke and receipt. Production has
+  its own approval and lock and promotes the same verified digest. Pending selections may be
+  superseded; pushes never deploy automatically. No local or tag-triggered deploy path.
+- **Build and deploy jobs use uncached native setup steps.** Their environment credentials follow
+  artifact/config verification. The PR-only cached composite and its exact approved actionlint
+  diagnostic exception must not expand to CD or the builder. New builder OIDC identities require
+  exact platform allowlists before activation.
 - **Tests follow the actual SUT and responsibility.** Workflow/action tests live in `.github/test/`;
   repository configuration tests live in `test/repo-config/`. Name each `*.test.rb` for its SUT and
   state that SUT in the opening sentence. Use Minitest/Psych directly, keep files ≤200 lines and
   assertions ≤10 lines, and avoid a custom assertion framework or generic workflow interpreter.
 - **A check no job invokes is a check nothing runs.** `workflow-invocations.test.rb` requires a real
   interpreter invocation for every new Ruby test and every repository `*.test.sh`, verifies invoked
-  paths exist, and rejects orphaned `.github/scripts` files. Add/remove checks and invocations together.
+  paths exist, and rejects orphaned `.github/scripts` files. Pure release libraries live in
+  `.github/lib/release/`; native entries import them and direct native tests exercise their behavior.
+  Route scripts, libraries and tests alongside workflow changes. Add/remove checks and invocations together.
 - **Pin third-party actions to full commit SHAs**, with version comments; pin Docker actions by
   digest. Full-strength zizmor owns action-pinning and permission audits. Its test retains the
   pedantic persona, scanner version and annotation settings. Local action manifests must exist.

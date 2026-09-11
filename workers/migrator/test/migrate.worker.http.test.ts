@@ -3,7 +3,7 @@ import { FIXED_NOW, makeApp, post, testEnv } from "./migrate.worker.helpers";
 import { FakeSql } from "./fake-sql";
 import { BODY_B, HEAD_B, workerHttpDeps } from "./http-apply.helpers";
 
-// #1124 AC5 + extra — HTTP seam is OIDC + empty/object {expectedHead?} only;
+// #1124 AC5 + extra — HTTP seam is OIDC + strict selected artifact metadata only;
 // POST /migrate with expectedHead matching the applied chain returns 200.
 
 const DROP_SQL = "DROP TABLE public.bangumi;";
@@ -16,7 +16,7 @@ afterAll(() => {
 });
 
 describe("POST /migrate HTTP seam (AC5)", () => {
-  it("ignores raw SQL and a down-migration in the request body", async () => {
+  it("rejects raw SQL and down-migration fields before applying", async () => {
     const db = new FakeSql();
     const { app, token } = await makeApp(workerHttpDeps(db));
     const res = await app.request(
@@ -24,12 +24,12 @@ describe("POST /migrate HTTP seam (AC5)", () => {
       {},
       testEnv(),
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
     expect(JSON.stringify(db.units)).not.toContain("DROP TABLE");
     expect(JSON.stringify(db.units)).not.toContain("public.bangumi");
   });
 
-  it("accepts an empty JSON object body", async () => {
+  it("rejects an empty JSON object body", async () => {
     const db = new FakeSql();
     const { app, token } = await makeApp(workerHttpDeps(db));
     const res = await app.request(
@@ -41,8 +41,8 @@ describe("POST /migrate HTTP seam (AC5)", () => {
       {},
       testEnv(),
     );
-    expect(res.status).toBe(200);
-    expect(db.units).toHaveLength(2);
+    expect(res.status).toBe(400);
+    expect(db.units).toHaveLength(0);
   });
 });
 
@@ -51,12 +51,12 @@ describe("POST /migrate HTTP apply default", () => {
     const { app, token } = await makeApp({ runContainer: undefined });
     const res = await app.request(post({}, token), {}, testEnv());
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ success: false, error: "migrator apply lock not configured" });
+    expect(await res.json()).toEqual({ success: false, error: "migration_unavailable" });
   });
 });
 
 describe("POST /migrate HTTP apply SQL error", () => {
-  it("includes the SQL error message on a failed apply", async () => {
+  it("returns a stable code on a failed SQL apply", async () => {
     const db = new FakeSql();
     db.failBody = BODY_B;
     const { app, token } = await makeApp(workerHttpDeps(db));
@@ -66,7 +66,7 @@ describe("POST /migrate HTTP apply SQL error", () => {
       success: false,
       exitCode: 1,
       appliedHead: null,
-      error: "sql failed",
+      error: "migration_failed",
     });
   });
 });

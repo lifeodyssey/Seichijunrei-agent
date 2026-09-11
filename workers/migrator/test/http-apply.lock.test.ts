@@ -3,9 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { APPLY_LOCK_NAME, productionApply, QueueLock } from "../src/lock";
+import type { PreflightMetadata } from "../src/preflight-metadata";
+import { selectedMetadata } from "./selected-apply-fixtures";
 import type { ContainerOutcome } from "../src/migration";
 import { FakeSql } from "./fake-sql";
-import { BODY_A, BODY_B, HEAD_A, applyFixture } from "./http-apply.helpers";
+import { BODY_A, BODY_B, applyFixture } from "./http-apply.helpers";
 
 // #1124 AC4 — second concurrent run waits on a fake lock (no wall clock)
 // and does not double-apply. Production lock name is fixed, not migrator-job-*.
@@ -47,24 +49,24 @@ describe("HTTP apply mutex (AC4)", () => {
 // bound test drives the injected `workerHttpDeps` double, and `stub.run(dsn, null)`
 // type-checks — it would silently apply the whole carried chain again.
 describe("the production apply hop", () => {
-  it("hands the requested head to the lock, never drops it", async () => {
+  it("hands the entire selected chain to the lock", async () => {
     const { namespace, calls } = makeLockNamespace();
     const apply = productionApply(namespace);
-    await apply("dsn", HEAD_A);
-    await apply("dsn");
-    expect(calls.runs).toEqual([["dsn", HEAD_A], ["dsn", null]]);
+    const selection = selectedMetadata();
+    await apply("dsn", selection);
+    expect(calls.runs).toEqual([["dsn", selection]]);
   });
 });
 
 /** What the lock namespace was asked for: the resolved name, then every run RPC. */
 interface LockCalls {
   names: string[];
-  runs: (string | null)[][];
+  runs: [string, PreflightMetadata][];
 }
 
 function makeLockNamespace(): { namespace: DurableObjectNamespace; calls: LockCalls } {
   const calls: LockCalls = { names: [], runs: [] };
-  const run = (...args: (string | null)[]): Promise<ContainerOutcome> => {
+  const run = (...args: [string, PreflightMetadata]): Promise<ContainerOutcome> => {
     calls.runs.push(args);
     return Promise.resolve({ kind: "success", exitCode: 0 });
   };

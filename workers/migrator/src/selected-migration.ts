@@ -15,7 +15,11 @@ export type SelectedMetadata = PreflightMetadata & { expectedPrismaRef: string }
 export type SelectedPreflight =
   | (Extract<MigrationCompatibility, { compatible: true }> & { prisma: PrismaPreview })
   | { compatible: false; error: string };
-export type SelectedMigration = MigrationRunResult & { prisma?: PrismaReceipt };
+export type SelectedMigration = MigrationRunResult & {
+  prisma?: PrismaReceipt;
+  /** Public native code or a local stable code; never an Atlas driver message. */
+  failureCode?: string;
+};
 export interface SelectedExecutor {
   preflight(dsn: string, metadata: SelectedMetadata): Promise<SelectedPreflight>;
   migrate(dsn: string, metadata: SelectedMetadata): Promise<SelectedMigration>;
@@ -58,19 +62,23 @@ async function applyAtlas(dsn: string, expectedHead: string): Promise<MigrationR
   return result;
 }
 
+function nativeFailure(code: string): SelectedMigration {
+  return { kind: "failure", exitCode: 1, error: code, failureCode: code };
+}
+
 async function applySelected(dsn: string, metadata: SelectedMetadata, directory: string): Promise<SelectedMigration> {
   const preview = await checkSelected(dsn, metadata, directory);
   if (!preview.compatible) return { kind: "refused", reason: preview.error };
   const atlas = await applyAtlas(dsn, metadata.expectedHead);
   if (atlas.kind !== "success") return atlas;
   const native = await migratePrisma(dsn, metadata.expectedPrismaRef, directory);
-  if (!native.ok) return { kind: "failure", exitCode: 1, error: native.error };
-  if (native.value.markerHash !== metadata.expectedPrismaRef) return { kind: "failure", exitCode: 1, error: "prisma_marker_mismatch" };
+  if (!native.ok) return nativeFailure(native.error);
+  if (native.value.markerHash !== metadata.expectedPrismaRef) return nativeFailure("prisma_marker_mismatch");
   return { ...atlas, prisma: native.value };
 }
 
 /** Recheck both owners after acquiring the lock; a prior preview is no authority. */
 export async function migrateSelected(dsn: string, metadata: SelectedMetadata, directory = PRISMA_MIGRATIONS_DIR): Promise<SelectedMigration> {
   try { return await applySelected(dsn, metadata, directory); }
-  catch { return { kind: "failure", exitCode: 1, error: "migration_unavailable" }; }
+  catch { return nativeFailure("migration_unavailable"); }
 }

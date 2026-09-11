@@ -14,15 +14,17 @@
 # `409 stale_bundle` — the same fact from the other side — is retried rather
 # than failing the release.
 #
-# Usage: MIGRATOR_URL=… migrate-through-worker.sh <environment> [migrations-dir]
+# Usage: MIGRATOR_URL=… migrate-through-worker.sh <environment> [migrations-dir] [contract-file]
 set -euo pipefail
 
 TARGET_ENVIRONMENT="${1:?target environment required}"
 MIGRATIONS_DIR="${2:-release/migrations}"
+CONTRACT_FILE="${3:-release/migrator/bundle/contract.json}"
+# shellcheck source=scripts/delivery/migrator-bundle.sh
+source "$(dirname "${BASH_SOURCE[0]}")/migrator-bundle.sh"
 RESPONSE="${RUNNER_TEMP:-/tmp}/migrate-$TARGET_ENVIRONMENT.json"
 # The propagation window: 12 × 5s covers the observed Cloudflare rollout, and
 # the tests shrink both so they assert the behaviour, not the wall clock.
-BUNDLE_ATTEMPTS="${BUNDLE_POLL_ATTEMPTS:-12}"
 BUNDLE_SLEEP="${BUNDLE_POLL_SECONDS:-5}"
 STALE_ATTEMPTS="${STALE_BUNDLE_ATTEMPTS:-3}"
 
@@ -49,43 +51,27 @@ oidc_token() {
     "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=animichi:github-actions:migrator" | jq -r .value
 }
 
-# The head of the chain the live bundle carries. A Worker mid-rollout, or one
-# that has not been redeployed at all, reports the previous head here.
-served_head() {
-  https_only -sS --max-time 15 "$MIGRATOR_URL/healthz" | jq -r '.bundleHead // empty'
-}
-
-await_bundle() {
-  local expected="$1" attempt=1 head
-  while :; do
-    head="$(served_head || true)"
-    [ "$head" = "$expected" ] && return 0
-    [ "$attempt" -ge "$BUNDLE_ATTEMPTS" ] && return 1
-    echo "migrator serves bundle ${head:-unknown}, waiting for $expected ($attempt/$BUNDLE_ATTEMPTS)"
-    attempt=$((attempt + 1))
-    sleep "$BUNDLE_SLEEP"
-  done
-}
-
 post_migrate() {
-  local expected="$1" token="$2" body
-  body="$(jq -cn --arg expectedHead "$expected" '{expectedHead:$expectedHead}')"
+  local token="$1" body="$2"
   https_only -sS -o "$RESPONSE" -w '%{http_code}' -X POST \
     "$MIGRATOR_URL/migrate" -H "Authorization: Bearer $token" \
     -H 'content-type: application/json' --max-time 900 -d "$body"
 }
 
-# Wait for the head, then POST. A 409 means the Worker answered from a bundle
-# that cannot reach this head after all — the poll raced the rollout — so wait
-# again and re-POST, bounded.
+# Only an explicit stale-bundle response permits another mutation request.
+stale_bundle_response() {
+  [ "$1" = 409 ] && jq -e '.error == "stale_bundle" or .error == "stale_prisma_bundle"' "$RESPONSE" > /dev/null
+}
+
+# A bundle can change between the health check and POST; re-poll that race only.
 trigger() {
-  local expected="$1" token="$2" attempt=1 code
+  local expected="$1" token="$2" body="$3" attempt=1 code
   while [ "$attempt" -le "$STALE_ATTEMPTS" ]; do
-    await_bundle "$expected" || fail "migrator never served bundle head $expected"
-    code="$(post_migrate "$expected" "$token")"
+    await_migrator_bundle "$expected" "$PRISMA_REF" || fail "migrator never served bundle head $expected"
+    code="$(post_migrate "$token" "$body")"
     [ "$code" = 200 ] && return 0
-    [ "$code" = 409 ] || report_failure "migrator returned HTTP $code"
-    echo "migrator answered 409 stale_bundle; re-polling ($attempt/$STALE_ATTEMPTS)"
+    stale_bundle_response "$code" || report_failure "migrator returned HTTP $code"
+    echo "migrator answered 409 $(jq -r .error "$RESPONSE"); re-polling ($attempt/$STALE_ATTEMPTS)"
     attempt=$((attempt + 1))
     sleep "$BUNDLE_SLEEP"
   done
@@ -94,7 +80,9 @@ trigger() {
 
 verify() {
   local expected="$1"
-  jq -e --arg head "$expected" '.success == true and .appliedHead == $head' "$RESPONSE" >/dev/null \
+  jq -e --arg head "$expected" --arg prisma "$PRISMA_REF" '.success == true and .appliedHead == $head
+    and .prisma.markerHash == $prisma
+    and (.prisma.migrationsApplied | type == "number" and . >= 0 and . == floor)' "$RESPONSE" >/dev/null \
     || report_failure "migrator did not apply sealed head $expected"
 }
 
@@ -125,14 +113,25 @@ redact_dsn_passwords() {
 
 main() {
   required MIGRATOR_URL
-  local expected token
+  local expected token body
   expected="$(sealed_head)"
   [ -n "$expected" ] || fail "$MIGRATIONS_DIR carries no migration to apply"
+  PRISMA_REF="$(jq -er '.storage.storageHash | select(type == "string" and test("^[a-f0-9]{64}$"))' "$CONTRACT_FILE")"
+  body="$(selected_metadata "$expected")"
   token="$(oidc_token)"
   echo "migrating $TARGET_ENVIRONMENT to sealed head $expected"
-  trigger "$expected" "$token"
+  trigger "$expected" "$token" "$body"
   verify "$expected"
   echo "migrator applied $expected"
+}
+
+selected_metadata() {
+  local baseline=false
+  [ -s "$MIGRATIONS_DIR/atlas.sum" ] || fail "$MIGRATIONS_DIR carries no checksum metadata"
+  [ ! -f "$MIGRATIONS_DIR/STAGING_ONLY_BASELINE" ] || baseline=true
+  jq -cn --arg expectedHead "$1" --rawfile atlasSum "$MIGRATIONS_DIR/atlas.sum" \
+    --argjson stagingOnlyBaseline "$baseline" --arg expectedPrismaRef "$PRISMA_REF" \
+    '{expectedHead:$expectedHead,atlasSum:$atlasSum,stagingOnlyBaseline:$stagingOnlyBaseline,expectedPrismaRef:$expectedPrismaRef}'
 }
 
 main

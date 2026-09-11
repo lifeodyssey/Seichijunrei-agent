@@ -8,15 +8,15 @@ and rotation impact, see [`secrets.md`](./secrets.md).
 
 ## Delivery architecture
 
-There are exactly two automatic delivery entry points:
+There are three workflow responsibilities:
 
-- `.github/workflows/pr-verification.yml` (`CI`) validates pull requests and merge-queue heads.
-- `.github/workflows/cd.yml` (`CD`) deploys only a push to `main`.
+- `pr-verification.yml` verifies pull requests and merge groups.
+- `release-build.yml` builds a complete immutable snapshot on every main push.
+- The main-only `cd.yml` dispatch deploys an explicitly selected existing artifact ID, then promotes
+  that same release after the actual production job's environment approval.
 
-There is no tag-triggered or manually dispatched deployment path. The protected branch requires
-exactly `PR Verification` and `Security`. The first aggregates every selected CI
-gate, `Security` directly aggregates changed-secret scans and affected security tools, and the last
-plus native review-thread resolution; the merge gate is documented in [`review-gate.md`](./review-gate.md).
+There is no tag-triggered or local deploy path. The protected branch still requires `PR Verification`
+and `Security`, resolved review threads and the repository's review discipline.
 
 ### Native Agent release acceptance
 
@@ -48,88 +48,56 @@ means "every package" because pnpm answers a root-lockfile change with the root 
 The six security jobs are never path-gated. `PR Verification` and `Security` each aggregate their
 dependencies with `always()` and fail on any failed or cancelled one.
 
-### Build once, promote the same artifact
+### Build once, select an immutable artifact
 
-On a `main` push, `CD` selects the affected set with the same pnpm filter, over the range from the
-last tree CD actually put on staging to `github.sha`. The previous push is the wrong base: a failed
-run's cohort is never deployed and then falls outside the next push's range, while the head guard
-forbids re-running that run — the diff is stranded (#1506).
+A → B → C on main does not require three deployments. Select B's artifact ID to deploy B's full
+snapshot, including A's catalog/schema/foundation prerequisites; C remains undeployed until selected.
+The trusted controller checks out its dispatch SHA. B's release SHA must be in that main history,
+but it need not equal the controller SHA or the latest remote main commit.
 
-`plan` finds the base by walking the **completed** `cd.yml` runs on `main`, newest `created_at`
-first, and taking the first whose `CD / staging` job has a `staging smoke` step that concluded
-`success` (`plan` holds `actions: read` for those two API reads). Smoke is the last step of the
-staging job, so its success means that head is live on staging. The walk is paged — five pages of 30, a hard cap of 150 runs, stopping at
-the first qualifying run — because a single page is not a window: a stretch of red CI longer than
-one page would find no green smoke and send the base back to `github.event.before`, stranding the
-cohorts this mechanism exists to rescue.
+GitHub's official artifact API and pinned `actions/download-artifact` validate the explicit ID,
+repository, producer run and attempt, successful main-push builder workflow, expiry and digest.
+Consumers re-resolve these properties before credentials, including after production approval.
+The action downloads by ID/run/repository and treats a digest mismatch as an error. An unavailable
+artifact causes refusal; the controller never rebuilds it or substitutes another release.
 
-The run's own conclusion is deliberately not the test, because on this repository it is an inverted
-signal. A CD run ends `success` exactly when it deployed nothing — `plan` selected no package and
-every later job skipped, and skipped jobs make a green run. A run that *did* deploy ends `failure`,
-because the repository policy auto-rejects the `production` approval and `promote production` fails
-after staging has already been published. Over the 15 newest completed runs on `main` (measured
-2026-09-08, while the chain was still six jobs) six ended `success` and all six had a skipped
-staging smoke, while six of the nine that ended `failure` had it `success` — the signal is not
-merely weak, it is inverted. A `status=success&per_page=1` filter therefore does not come back
-empty; it comes back with a head nothing was ever published from, which is worse than the
-`github.event.before` it replaced. The staging job's name, the smoke step's name and `plan`'s
-two-hop jq selector are pinned to each other by `cd-plan-smoke.test.rb`, since a rename or a
-typo would empty the lookup rather than fail it.
+The immutable tar contains all five Worker deployments: web output/assets, catalog, users, edge
+and migrator bundles/configurations; the two already-pushed image digests; the complete native Atlas
+chain and baseline marker; the native Prisma contract and complete migration graph; and all tracked
+Pulumi sources with the generated pinned Neon SDK.
+The controller validates the archive boundary, required components, file digests and exact migration
+and infrastructure source closure. Wrangler's pinned native parser seals and verifies configurations.
+Artifact files cannot replace controller scripts or actions, and publication runs with `--no-bundle`.
 
-A candidate is used only when this push's history still descends from it, and the same test applies
-to the `github.event.before` fallback: `git cat-file -e` alone asks only whether the clone can
-resolve the object, and after a force push it still can — the old tip stays alive through another
-fetched ref while sitting outside `main`'s history, which would base the range on a diff that never
-happened. Both go through one `head_descends_from` (`cat-file` **and**
-`git merge-base --is-ancestor`), and `HEAD~1` is used only when `before` fails it or is zero. The
-step prints the chosen run id, the base, the reason and how many completed runs it inspected into
-the job summary, and an Actions API outage degrades to the `before` fallback rather than failing the
-push.
+One `stage` job holds `cd-staging` from preflight through foundation, migration, Worker publication,
+smoke and receipt. One `promote-production` job holds `cd-production` and owns `environment:
+production`. Its approval does not hold staging's lock. Both set `cancel-in-progress: false`; GitHub
+retains its native single pending selection, so a pending selection may be replaced. Active chains
+finish coherently. There is no workflow-wide lock, commit-order queue or `queue: max` exception.
 
-The head guard is unchanged: `github.sha` must still be the head of `origin/main`, so re-running a
-run that a newer push has overtaken deploys nothing.
+Before any Pulumi apply or Worker publication, both jobs inspect real remote registry manifests
+and linux/amd64 image configurations with Docker, then read actual migration compatibility from
+the existing migrator's authenticated `/preflight`. Production refuses a staging-only baseline
+before any mutation. After the Atlas check, CD publishes only the selected migrator, waits for its
+Atlas and Prisma bundle identities, and runs native Prisma read-only preview. Application foundation,
+DDL and service publication remain gated behind that preview. Missing, empty, partially applied,
+divergent or newer database history fails closed. A Wrangler dry run or `/healthz` response does not
+prove the applied database state or registry availability.
 
-One `build` job produces ONE artifact, `release-<sha>`, a tar of everything this push deploys: the
-web output, the four Worker bundles with their deploy-time configs, the migration chain, and the
-sealed Pulumi programs. Container images are built with `docker/build-push-action` and pushed to
-`registry.cloudflare.com` under the single tag `sha-<sha>`; the image reference is written into the
-shipped Wrangler config once, at build time, and never re-tagged. Its `artifact-digest` is recorded
-in the job summary. Staging and production both download that one artifact —
-`promote-production` has no build step at all.
+The immutable staging receipt records artifact ID/digest, release/controller SHAs, actual per-script
+Worker deployment/version IDs, container application/namespace/image identities, applied schema and
+successful smoke. It proves B was tested. Later C staging can proceed while B waits for approval;
+production must still pass fresh baseline/ledger/registry checks before promoting B. Version IDs
+are script-scoped and are not expected to match between staging and production.
 
-One `stage` job runs the ordered units — foundation, migration, services, edge, web — each
-publishing with `cloudflare/wrangler-action` and `deploy … --tag sha-<sha>` so
-`wrangler versions list` names the commit a running version came from. A unit whose deploy target
-was not affected is a skipped step, which weakens neither the order nor the failure path: a red step
-fails the job, and the job's own `!failure() && !cancelled()` guard is what keeps that out of
-production. Its last step, `staging smoke`, probes the two staging surfaces (#1198), and one
-`production` environment approval releases the same artifact.
-
-The chain is one job rather than six because a job-level concurrency group is held only while its
-own job runs. Spread over five stages and a smoke job, `cd-staging` was six queues wearing one name:
-between run A's foundation finishing and its migration starting, run B's foundation could take the
-group and put an older tree under a newer one. One job holds the group from the foundation apply
-through the smoke probe (#1468); `cd-delivery-jobs.test.rb` fails if a stage is split back out.
-
-Native Minitest tests under `.github/test/` follow the pipeline's responsibilities:
-`cd-plan.test.rb` and `cd-plan-smoke.test.rb` own selection and the deployed-run selector;
-`cd-build.test.rb` and `cd-artifact.test.rb` own tool provisioning and immutable artifact reuse;
-`cd-delivery-jobs.test.rb` owns job dependencies, pairing, environments and locks;
-`cd-stage.test.rb` and `cd-stage-smoke.test.rb` own the one-job chain and decisive smoke probe;
-`cd-migrations.test.rb` owns authenticated migration and the staging-baseline refusal;
-`cd-publish.test.rb` owns pinned Wrangler, version tags and sealed bundles, through actions and shell;
-`cd-credentials.test.rb` owns stage-specific credential exposure. `workflow-credentials.test.rb`
-checks the cross-workflow ESC/OIDC boundary. The unconditional `contracts` job invokes each directly.
-
-The PR workflow shares identical workspace setup through
-`.github/actions/setup-workspace/action.yml`; CD's sealed-tree installs and deployment jobs remain
-in place. A future reusable deployment workflow must prove its caller/callee identity and lock
-behavior. The setup composite does not authorize changing those delivery boundaries.
-
-Concurrency is per job, not per workflow: `cd-staging` covers the one `stage` job,
-`cd-production` covers the promotion. A run parked at the production approval gate no longer holds
-the staging lane (#1204, #1325). Both groups set `cancel-in-progress: false` and `queue: max`, so up
-to 100 pending jobs queue in order instead of cancelling the one already waiting.
+Native Minitest tests under `.github/test/` cover admission, source closure, archives, configurations,
+remote identity validation, receipt validation and workflow order. The real Wrangler bundling test
+also executes in CI's unconditional contracts job. The
+[assertion map](../iterations/production-readiness-2026-08/SELECTED-ARTIFACT-ASSERTION-MAP.md)
+traces every replaced CD contract. See [ADR 0007](../adr/0007-selected-release-artifacts.md) for the
+activation prerequisites: deployed ledger preflight, same-lock revalidation, exact builder identity,
+registry access, runtime secrets, baseline cutover and production routing must be established
+before this controller can deliver successfully. Local tests do not prove those platform gates.
 
 ## Edge Topology
 
@@ -378,8 +346,8 @@ proxy only (`/v1/*`, `/healthz`, `/img/*`, `/tiles/*`, one public catalog read).
 
 ## Deploy Sequence
 
-There is one workflow-backed deploy path: the main-only `CD` workflow. It is not tag-triggered or
-manually dispatched.
+There is one workflow-backed deploy path: an explicit artifact ID dispatch to `CD` on main.
+The builder never deploys and tags never trigger deployment.
 
 ### Schema change policy
 
@@ -394,55 +362,54 @@ construction. The full authoring/apply boundary is [`migrations.md`](./migration
 
 ### Migration promotion
 
-The artifact carries the committed `migrations/neon/` chain and `atlas.sum` under
-`release/migrations/`. Staging applies it through the **migrator Worker**: the `CD / staging` job's
-migration unit runs `scripts/delivery/migrate-through-worker.sh staging`, which reads the sealed head, exchanges the
-job's GitHub OIDC identity for a token scoped to `animichi:github-actions:migrator`, and POSTs
-`/migrate` with that head. CI holds no database credential on this path, not even a short-lived one.
+The selected artifact carries the complete committed `migrations/neon/` chain, `atlas.sum` and any
+`STAGING_ONLY_BASELINE` marker. It also carries Prisma's unchanged `contract.json` and complete native
+migration directory beside the migrator bundle. The controller checks every source byte against the
+selected release commit; newer graph files cannot enter an older selected artifact.
 
-Immediately before that POST, the same job runs `infra/database-access/reset-staging-baseline.sh`
-— the one step on the lane that can destroy data. It is idempotent: it returns without touching
-anything once the baseline revision is in staging's `atlas_schema_revisions`, and it only drops and
-recreates `public` when staging has fallen below that baseline. It reaches Neon's control plane
-through `neonctl` on `NEON_API_KEY`, and takes the project and branch ids from the checkout's
-`infra/database-access/Pulumi.staging.yaml` rather than the sealed release, because they are stack
-config rather than built bytes. Both the step and the job around it are selected by the same
-`migrations` output — the step's `if:`, and the union the job's own `if` is built from — so a push
-carrying no schema change can never reach it (#1216) and a migrations-only push can never skip it
-(#1469); `cd-stage.test.rb` fails if either half
-drifts. Production has no counterpart — the reset is staging-only by construction.
+The first authenticated `POST /preflight` sends `{expectedHead, atlasSum, stagingOnlyBaseline}` to the
+already deployed #1575 endpoint. This Atlas-only read precedes every deployment mutation and rejects
+an unknown or incompatible ledger. A missing endpoint requires authorized bootstrap CD.
 
-Production goes the same way (#1365): `promote-production` refuses a sealed chain carrying a
-`STAGING_ONLY_BASELINE` marker (`infra/database-access/production-baseline-guard.sh`, which the
-step hands the marker's path in the payload), deploys the migrator Worker with `--env production`, then runs
-`scripts/delivery/migrate-through-worker.sh production` against `vars.MIGRATOR_PRODUCTION_URL`.
-That Worker is a separate deployment with a separate DSN (`MIGRATOR_DATABASE_URL_PROD` in the
-shared Secrets Store) and a separate OIDC allowlist selected by its `MIGRATOR_OIDC_POLICY` var, so
-a token minted by the staging job cannot open it. The transitional Atlas step and
-`secrets.NEON_DATABASE_URL` are gone with it: CI now holds no database credential at all.
+After that check, CD publishes the selected migration executor only. An older executor cannot preview
+native migration files it does not carry. Both `/healthz` identities must match: `bundleHead` for
+Atlas and `prismaTarget` for the native contract. Then CD calls `/preflight` with `expectedPrismaRef`
+read from the selected contract's `storageHash`. Public Prisma `executeMigrateShowPlan` reads the
+actual marker and graph without applying DDL. Its configured `contractHash` is not proof of the
+selected or installed target; the receipt uses the requested target, native path and live marker.
+Application foundation changes and service publication occur only after this preview succeeds.
 
-Both environments run the same handshake first, because `wrangler deploy` returning is not the new
-bundle serving (#1332): the script polls `GET /healthz` until the `bundleHead` the Worker reports
-is the sealed head (12 attempts, 5s apart), and retries a bounded number of times if the Worker
-answers `409 stale_bundle` anyway.
+`scripts/delivery/migrate-through-worker.sh <environment>` sends the same sealed Atlas metadata and
+Prisma ref to `/migrate` using the existing `animichi:github-actions:migrator` OIDC audience. Under the
+fixed apply Durable Object lock, the endpoint revalidates both owners before DDL. Atlas applies only
+its selected original chain; Prisma's public control client applies its selected snapshot and native
+graph. Neither owner may alter the other's objects. Existing Atlas SQL remains immutable; Prisma owns
+only the new agent contract tables. There is no cross-owner transaction: a later Prisma failure can
+leave an already committed compatible Atlas prefix, and retry must revalidate that state.
 
-The sealed head is also the ceiling of the apply: the Worker applies the carried chain only through
-the head the script asked for, so a run can never leave the database further ahead than the chain it
-sealed. A database already standing past that head is answered `422` with nothing applied — unlike
-the `409`, that refusal is terminal and the script does not re-poll it.
+The final read-only observation must show the exact selected Atlas head, Prisma target and installed
+marker, with no pending migrations for either owner. Staging receipt verification compares that
+native marker with the contract in the same selected artifact. A matching Atlas head alone cannot
+approve promotion. SQL and secret failures return stable codes, never internal exception messages.
 
-Expand/contract compatibility remains mandatory because schema promotion precedes consumers and a
-Worker rollback does not reverse an applied migration. For provisioning or recovery checks, follow
-[`migrations.md`](./migrations.md) and [`neon-backup-rpo.md`](./neon-backup-rpo.md); do not infer
-database state from a green build.
+CD performs no staging baseline reset. Missing/empty/native-baseline state requires an explicit
+bootstrap or recovery decision. Production's baseline marker guard runs before Pulumi and every
+other mutation. The migrator binding, role and existing topology must be bootstrapped before selected
+executor publication; selected-artifact deployment does not provision its own access prerequisites.
+Staging and production retain separate DSN bindings and exact main-controller OIDC
+policies. CI receives no database credential and does not run direct database migrations.
+
+Expand/contract remains necessary: schema is applied before its consumers, and a Worker rollback
+does not reverse migrations. Follow [migrations.md](migrations.md) and
+[neon-backup-rpo.md](neon-backup-rpo.md) for provisioning or recovery.
 
 ### Read-only migration preflight (#1575)
 
-The migrator candidate adds authenticated `POST /preflight` for the later #1564
-controller. A caller sends only `{expectedHead, atlasSum, stagingOnlyBaseline}`
+The migrator exposes authenticated `POST /preflight` for the selected-artifact
+controller. Its Atlas-only phase sends `{expectedHead, atlasSum, stagingOnlyBaseline}`
 from its verified artifact, with a main-ref GitHub OIDC token for the existing
 environment-selected migrator policy. `expectedHead` is the final filename without
-`.sql`. The endpoint accepts a selected chain newer than its own bundle, reads the
+`.sql`. That phase accepts a selected Atlas chain newer than its own bundle, reads the
 complete revision ledger using native Neon `readOnly: true` / `RepeatableRead`, and
 returns `200 {compatible:true, expectedHead, appliedHead, pendingCount}` only for a
 completed matching prefix. Unknown metadata or database history fails closed.
@@ -454,7 +421,7 @@ is 401, disallowed identity 403, malformed metadata 400 (oversized input 413), a
 secret/driver unavailability 503. Responses are `Cache-Control: no-store` and contain
 no database credentials or driver messages. `/healthz` still describes the bundle.
 
-Bootstrap uses the existing authorized main-push CD path. Record the deployed
+Bootstrap must use the previous authorized main-push CD path before activating selected-artifact CD. Record the deployed
 version, artifact identity, environment, request metadata digest and sanitized
 HTTP status/body for a signed read-only call plus unauthenticated and wrong-environment
 refusals. A state refusal is evidence of the endpoint and that state, not permission
@@ -462,53 +429,50 @@ to reset or apply. Record production observations separately after its environme
 approval. These platform observations remain pending until actually performed.
 #1564 must not activate while either target returns 404/unavailable; it must repeat
 the comparison inside the existing apply lock before mutation. Preflight alone does
-not protect against a later apply racing this snapshot, and #1575 leaves `/migrate`
-semantics and the current controller unchanged.
+not protect against a later apply racing this snapshot. #1575 delivered that read-only endpoint;
+#1564 adds the bounded apply metadata and actual lock-held revalidation described above.
+Local code and database tests do not replace the pending live bootstrap observations.
 
-### Main-only affected promotion (`.github/workflows/cd.yml`)
 
-A push to `main` is the only deployment trigger. `plan` resolves the range and the affected package
-set (see "Build once, promote the same artifact" above); `build` produces the single
-`release-<sha>` artifact; the one `stage` job publishes it to staging unit by unit and then probes
-it; `promote-production` publishes the same artifact after the approval.
+### Select and promote (`.github/workflows/cd.yml`)
 
-Which unit runs is three pairing rules and nothing else. Each is a step-level `if:` inside `stage`,
-and the job's own `if` is their union — any unit selected:
+1. Inspect a successful `Release build` run on main and its final `release-snapshot-<sha>-<attempt>`
+   artifact. Use the artifact ID and digest shown in its summary. Intermediate or old cohort artifacts
+   are not eligible.
+2. Dispatch `CD` with `--ref main` and that `artifact_id`, for example
+   `gh workflow run cd.yml --ref main -f artifact_id=<existing-id>`. The workflow verifies provenance
+   and the complete snapshot before opening environment credentials.
+3. Staging publishes the complete selected snapshot, smokes the edge and web workers.dev surfaces,
+   and uploads an immutable receipt. Failure stops promotion.
+4. Inspect that release's receipt before approving the actual `production` environment job. After
+   approval the job re-downloads the same ID/digest, verifies the receipt, and checks production's
+   current baseline, registry and ledger before any mutation. Production observes its own script-scoped
+   version/deployment IDs and smokes `https://animichi.com` after publication.
 
-| unit | its steps run when |
-|---|---|
-| foundation | `infra/**` changed |
-| migration | the `migrator` package is affected, **or** `migrations/neon/**` changed — the migrator image bakes the chain (`workers/migrator/Dockerfile`), so a migrations-only push rebuilds and redeploys the Worker rather than POSTing a new head to one carrying the old chain |
-| services | the `catalog` or `users` package is affected |
-| edge | the `edge-worker` package is affected, **or** `apps/agent/**` changed — the edge Worker carries the agent container image, so the two ship together until W4 removes the image |
-| web | the `web` package is affected |
+Rejecting production affects that run only. It does not block another staging selection. Rerunning
+uses the same selected artifact; if its artifact or receipt expired, select an available eligible
+release explicitly. A new main push alone does not deploy a correction.
 
-A push that deploys nothing (documentation, a library package with no deployable dependent) skips
-`build` and the whole `stage` job, so it never reaches the production approval.
+### Activation evidence required for #1564
 
-The two `**or**` rows above are the pipeline's only pairing rules, and they exist because those
-units take an input from outside their own pnpm project. Every step that publishes one carries both
-halves of its condition — a migrator image built without the migrations half would be the old chain
-under a new tag. `cd-delivery-jobs.test.rb` fails if either half goes missing.
+The repository candidate is not platform readiness. Before enabling the new builder/controller:
 
-The `staging smoke` step probes `https://animichi-staging.zhenjiazhou0127.workers.dev/healthz` and the SSR shell at
-`https://animichi-web-staging.zhenjiazhou0127.workers.dev/`, retrying 8 times at 15s. It probes
-workers.dev rather than the zone hostname because GitHub-runner IPs get a managed challenge at the
-zone front door and Bot Fight Mode cannot be skipped on the Free plan. The container cold-starts on
-roughly every deploy (measured at 24.5s), so the retry window has to outlast cold start plus agent
-boot, not just route propagation. A red smoke blocks `promote-production` (#1198).
+- Bootstrap #1575's read-only migrator endpoint through authorized CD on each target environment;
+  observe a signed read-only response and wrong-environment refusal. Verify apply-lock revalidation.
+- Provision a main-only GitHub `release-build` environment and its exact native Pulumi issuer claim
+  for `lifeodyssey/animichi/.github/workflows/release-build.yml@refs/heads/main`. Keep deployment
+  identities on the existing exact `cd.yml` path; never add a wildcard or reuse staging's subject.
+- Provision the build registry configuration and credential; demonstrate real pushed manifest
+  digests and read access from both deployment environments. #1565 owns provider-enforced principal
+  separation and sibling-ESC denial; export filtering does not establish that boundary.
+- Complete runtime-secret/foundation provisioning, approved production baseline cutover and
+  production hostname/routing readiness. The current committed production topology leaves apex
+  activation off, so the production smoke URL is an explicit readiness prerequisite.
+- Run real harmless cross-run artifact/digest substitution probes, concurrent environment lock
+  and approval probes, and record per-environment Worker/container/schema/smoke identities.
 
-`promote-production` requests the single GitHub `production` environment approval, then deploys the
-same artifact. It does not check out another revision, rebuild a unit, or re-tag an image; the
-bytes production starts are the bytes staging was smoke-checked on. Rejecting the approval fails
-that run and nothing else. There is no manual or tag-triggered alternative.
-
-**CF Worker routing** (`workers/edge/src/app.ts`):
-- `/v1/*` and `/healthz` → `CONTAINER` (Durable Object → FastAPI service on port 8080)
-- `/v1/users/*` → `USERS` service binding
-- `/catalog/public/anime-overview/:id` → allowlisted anonymous catalog read
-- `/img/*` → image proxy + cache
-- Everything else → JSON `404 not_found` (no asset/page fallback since #537)
+No local test or dry run substitutes for these observations, and none authorizes local deployment,
+production approval, secret mutation or baseline reset.
 
 ### Pulumi state, encryption, and CI identity (#1077, #1078, #1367)
 
@@ -516,86 +480,35 @@ Both Pulumi projects — `seichijunrei-infra` (`infra/`) and `animichi-neon-secr
 (`infra/database-access/`) — keep their state and their `secure:` encryption in **Pulumi Cloud**,
 organization `lifeodyssey`. `backend.url` in each `Pulumi.yaml` is the source of truth for that.
 
-**CI holds no credential at all.** Since #1367 there is no `${{ secrets.X }}` anywhere under
-`.github/workflows/`. The three GitHub secret stores (repository, `staging`, `production`) still
-hold their values and nothing reads them; emptying them is the owner's last step in that card, taken
-after one green staging deploy and one green nightly on the ESC path (`secrets.md` says the same).
-Every job that needs a credential proves who it is instead, in the same three steps:
+CI obtains short-lived Pulumi credentials through native GitHub OIDC, then opens ESC configuration.
+It does not read repository/environment GitHub secrets. The selected controller uses these mappings:
 
-1. `environment:` — `staging` for `build`, `stage` and the nightly eval;
-   `production` for `promote-production`. This is not decoration: GitHub sets the OIDC subject to
-   `repo:lifeodyssey/animichi:environment:<name>` only when the job declares one, and to
-   `repo:lifeodyssey/animichi:ref:refs/heads/<branch>` otherwise. The issuer policy lists only the
-   two environment subjects, so a job without an `environment:` cannot get a token at all.
-2. `pulumi/auth-actions` — exchanges that OIDC token for a short-lived Pulumi Cloud **personal**
-   token scoped to user `lifeodyssey` (`scope: user:lifeodyssey`), exported as `PULUMI_ACCESS_TOKEN`
-   for the rest of that job only. `lifeodyssey` is an individual-edition organization and Pulumi
-   Cloud rejects organization tokens for non-enterprise organizations (`Org tokens are not supported
-   for non enterprise organizations`), so the issuer policy has to carry a **personal** token-type
-   policy authorizing that user. Every such job carries `id-token: write`.
-3. `pulumi/esc-action` — opens that stage's ESC environment (`lifeodyssey/animichi/staging` or
-   `lifeodyssey/animichi/prod`) and exports the names that stage publishes with.
+| Responsibility | GitHub environment | ESC environment | Pulumi stacks |
+| --- | --- | --- | --- |
+| Build | `release-build` | `lifeodyssey/animichi/release-build` | none |
+| Staging chain | `staging` | `lifeodyssey/animichi/staging` | `lifeodyssey/staging` in both projects |
+| Production chain | `production` | `lifeodyssey/animichi/prod` | `lifeodyssey/prod` in both projects |
 
-Applies stay organization-qualified (`pulumi up --stack lifeodyssey/<stack>`, the action's
-`stack-name` input) so a token that defaults elsewhere cannot land the apply in another
-organization. `PULUMI_BACKEND_URL`, `PULUMI_CONFIG_PASSPHRASE`, and the two R2 state keys are no
-longer read anywhere on the delivery lane.
+`pulumi/auth-actions` retains the existing personal token type and `scope: user:lifeodyssey`.
+That account model does not prove per-role authorization. #1565 requires provider-side boundaries
+and actual sibling-environment denial; neither an ESC export list nor a shell wrapper supplies them.
+The new build environment/issuer permission is a platform activation prerequisite, not an existing
+staging credential reused under a different label.
 
-| ESC key | Exported into | What reads it |
-|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | every job that publishes: `build` (the container-registry push), `stage`, `promote-production` | the Cloudflare provider in both Pulumi programs, and `cloudflare/wrangler-action` for every Worker deploy. The key already carries the Pulumi-scoped token, so `CLOUDFLARE_PULUMI_API_TOKEN` has no reader on the delivery lane |
-| `NEON_API_KEY` | `stage` and `promote-production` only | `neonctl` in the staging baseline reset, which is the only step of `stage` allowed to reach for it. Not the Neon provider in `infra/database-access`: it is constructed from the `neonApiKey` stack config, which is why the foundation unit has no reader for the key since the reset left it (#1469) |
-| `ZEN_GO_API_KEY` | `agent-eval-nightly.yml` | the nightly L1 eval's model gateway |
+Build exports `CLOUDFLARE_API_TOKEN` for registry publication. Deployment exports the Cloudflare
+credential for native Wrangler and Pulumi. Staging additionally exports its Access service-token
+pair for smoke. CD no longer exports `NEON_API_KEY` or resets staging; the Neon provider reads its
+encrypted stack configuration. Runtime values belong in Secrets Store through Pulumi, subject to
+#1370's required provisioning, and must not be copied into artifact or job outputs.
 
-`CLOUDFLARE_ACCOUNT_ID` is not in that table and is not a secret: it is an account identifier. The
-repository variable `vars.CLOUDFLARE_ACCOUNT_ID` was created 2026-09-08 and is what the steps that
-need it read. Five properties are worth stating:
+Each ESC opening is followed by a nonempty-value check because the action otherwise only warns.
+Its Pulumi CLI version is explicitly pinned. `CLOUDFLARE_ACCOUNT_ID` is a repository variable, not
+a secret. Registry login uses a private runner directory and short-lived native Wrangler credentials;
+consumers request pull permission and validate real Docker manifest/configuration responses.
 
-- **The export list is an allowlist, and only over the job's environment.** `pulumi/esc-action`
-  takes `export-environment-variables` as a comma-separated mapping list, so a stage that names one
-  key gets one key. But the action publishes *every* `environmentVariables` entry as a step output
-  regardless of that list — so the allowlist is not the trust boundary. ADR 0003 ("no runtime DSN or
-  model key in ESC") holds because the eight edge runtime secrets live under `pulumiConfig` as
-  `fn::secret` instead, read by Pulumi and never by a publishing job (card #1370).
-- **Wrangler is handed the token explicitly.** `cloudflare/wrangler-action` v4 assigns
-  `process.env.CLOUDFLARE_API_TOKEN = getInput("apiToken")` unconditionally, so omitting the input
-  overwrites the value ESC exported with the empty string. Every deploy step therefore passes
-  `apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}` — the ESC-opened value, named explicitly.
-- **A missing ESC value is a warning, not a failure.** When a name in the export list has no value
-  in the environment, `pulumi/esc-action` logs `No value found for …` and exits 0 (v3.2.0,
-  `src/index.ts:327`). The job would then run Wrangler with an empty token and fail somewhere less
-  legible. Every ESC step is therefore followed by a one-line guard that checks each name it asked
-  for is non-empty and fails the job with `::error::` if not.
-- **The ESC step installs the `.pulumi.version` CLI.** `pulumi/esc-action` installs a Pulumi CLI and
-  prepends it to `PATH`; left unpinned it fetches the latest release and would silently shadow the
-  version `pulumi/actions` just installed. Given the same version it detects the existing install
-  and downloads nothing, so a small step resolves `.pulumi.version` into the action's `version`
-  input rather than duplicating the number.
-- **The staging job opens the union its units spend, and the boundary is per step.** One job runs
-  every unit (#1468), so it opens `CLOUDFLARE_API_TOKEN`, `NEON_API_KEY` and the
-  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` pair staging's Cloudflare Access door needs
-  (#1369) in a single ESC step. Since the export list was never the trust boundary — see the first
-  property above — widening it costs nothing; what replaces the old per-job list is a per-step rule
-  in `cd-credentials.test.rb`: the publish token belongs to the five deploy steps,
-  `NEON_API_KEY` to the baseline reset, the Access pair to `staging smoke`, and a step reaching for
-  a key outside its own unit fails the contract. The other direction is still a job rule: no job but
-  `stage` may so much as mention the Access pair.
-
-**Provisioning state, and what is still owed.** `CLOUDFLARE_API_TOKEN` and `NEON_API_KEY` are in
-both ESC environments under `environmentVariables`, and staging's have been in use by the
-foundation job since 2026-09-07. `ZEN_GO_API_KEY` is being added for the nightly. A value has to be
-projected under `environmentVariables` to be reachable: that is the section
-`pulumi env open --format detailed` reads and the action injects from, and `pulumi env set --secret`
-alone puts a value under `values` only. Still owed, all outside the repository: the Pulumi Cloud
-issuer policy pinned to the two environment subjects (no `repo:lifeodyssey/animichi:*`); deployment
-branch policies of `main` on both GitHub environments — an `environment:` subject only means "from
-main" once that rule exists; and, after the two green runs, deleting the GitHub secrets. Check with
-`pulumi env open lifeodyssey/animichi/staging --format detailed` (and `…/prod`); never paste the
-values anywhere.
-
-The pre-apply `pulumi stack export` copied into the R2 state bucket is retired: Pulumi Cloud's own
-update history is the rollback record, and it does not require writing a state snapshot into the
-bucket that used to hold live state.
+Applies stay organization-qualified and use the sealed foundation sources/dependencies.
+`PULUMI_BACKEND_URL`, passphrase and R2 state keys are absent from the delivery lane. The old state
+migration below is historical owner work and is not a step of selected-artifact deployment.
 
 #### One-time migration (owner, once per stack)
 
@@ -921,10 +834,10 @@ catalog has no public host, which is why this runbook names the edge and web URL
 
 ### After any recovery
 
-Release artifacts are retained for 14 days, so a `CD` run older than that cannot be re-run to
-redeploy; land a reviewed revert on `main` and let `CD` build a new artifact instead. Revert the bad
-change on `main` so the next release restores trunk state — a rolled-back Worker is behind `main`
-until you do.
+Release artifacts are retained for 14 days. If the selected artifact has expired, land a reviewed
+revert on `main` and let `release-build.yml` publish a new immutable artifact, then explicitly select
+its artifact ID in `CD`. Revert the bad change on `main` so the next release restores trunk state —
+a rolled-back Worker is behind `main` until you do.
 
 For Pulumi, inspect the failed update in Pulumi Cloud's stack history and roll back from there: read
 the last-good version number out of `pulumi stack history`, then `pulumi stack export --version
@@ -933,7 +846,7 @@ export` writes the *latest* checkpoint, which after a failed update is the broke
 is not optional. Follow the import with a reviewed reconciliation — the pre-apply R2 export is
 retired (#1077). Never place a state export in a public GitHub artifact.
 
-`CD`'s own `staging smoke` step does not run on a recovery, so the owner must manually check health and the
+`CD`'s own `Smoke the release` step does not run on a recovery, so the owner must manually check health and the
 affected user journey after one.
 
 ## Known Limitations
@@ -941,10 +854,11 @@ affected user journey after one.
 - default session storage is in-memory unless a distributed backend is introduced later
 - OpenTelemetry exporters are opt-in and disabled by default
 - AI Gateway is documented but not yet wired in backend provider configuration
-- Release identity is the artifact name `release-<sha>` plus the `artifact-digest` that
-  `actions/upload-artifact` reports; artifacts are immutable, so staging and production download
-  the same bytes by construction rather than by re-verifying a manifest. Runtime health metadata is
-  useful diagnosis but is not the artifact authority.
+- Release identity is the selected native artifact ID and `artifact-digest`, bound to its repository,
+  build run and source SHA; the artifact name is a label. Before deployment credentials, the current
+  accepted-main controller verifies the official download digest, sealed manifest, file hashes and
+  complete source closure. Staging and production consume that same ID/digest and record their own
+  script-scoped runtime identities. Health metadata supports diagnosis; it does not replace these checks.
 
 ## HISTORICAL (pre-2026-07): feat/ssr-cloudflare Post-deploy Notes
 

@@ -1,5 +1,6 @@
 import type { ContainerOutcome } from "./migration";
 import type { SelectedExecutor, SelectedMetadata, SelectedMigration, SelectedPreflight } from "./selected-migration";
+import type { PreflightMetadata } from "./preflight-metadata";
 
 /** Fixed-name Durable Object mutex (not per-run `migrator-job-*`). */
 export const APPLY_LOCK_NAME = "migrator-apply-lock";
@@ -24,20 +25,18 @@ function swallow(): undefined {
 }
 
 interface ApplyStub {
-  run(dsn: string, expectedHead: string | null): Promise<ContainerOutcome>;
+  run(dsn: string, metadata: PreflightMetadata): Promise<ContainerOutcome>;
 }
 
 /**
- * The head the caller asked for crosses the Durable Object boundary as an
- * explicit `null` rather than a trailing `undefined`, so the RPC always carries
- * the same arity and the lock cannot read "no bound" as "apply everything" by
- * accident.
+ * The selected chain's complete metadata crosses the fixed Durable Object RPC;
+ * there is no unbounded apply request on the production path.
  */
 export function productionApply(
   namespace: DurableObjectNamespace,
-): (dsn: string, expectedHead?: string) => Promise<ContainerOutcome> {
+): (dsn: string, metadata: PreflightMetadata) => Promise<ContainerOutcome> {
   const stub = namespace.get(namespace.idFromName(APPLY_LOCK_NAME)) as unknown as ApplyStub;
-  return (dsn, expectedHead) => stub.run(dsn, expectedHead ?? null);
+  return (dsn, metadata) => stub.run(dsn, metadata);
 }
 
 interface SelectedStub {

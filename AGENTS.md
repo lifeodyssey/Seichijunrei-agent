@@ -55,10 +55,11 @@ edge-forwarded identity. **Do not add Supabase-auth or self-verification code**.
 - **Coverage floors ratchet UP only** — `apps/agent` ≥87 (`pyproject.toml` `--cov-fail-under`); `apps/web` floors live in `apps/web/vitest.config.ts` (mirrored in `apps/web/AGENTS.md`).
 - **Test quality**: mock the clock (no timing-dependent asserts); no conditional logic in tests
   (split them); ≤200 lines per test file; ≤5 mocks per test.
-- **No local deploy** (`block-local-deploy`, an owner-local rule — see Harness) — CD only: a push to `main` builds the affected
-  release cohort once, deploys those immutable artifacts to staging, then promotes the same
-  digests after one GitHub `production` environment approval. There is no manual or tag-triggered
-  deploy path. Details → `docs/ops/deployment.md`.
+- **No local deploy** (`block-local-deploy`, an owner-local rule — see Harness) — CD only: a push to
+  `main` builds a complete immutable release snapshot. The main-only CD dispatch selects an existing
+  `artifact_id`, deploys it to staging, then promotes the same digests after the actual production
+  job's GitHub environment approval. Main commits may be skipped; there is no tag deployment path.
+  Platform activation prerequisites and operator steps → `docs/ops/deployment.md`.
 
 ## Commit and PR hygiene
 

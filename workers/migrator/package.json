@@ -29,6 +29,7 @@
     "@types/node": "^26.1.1",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-istanbul": "4.1.11",
+    "esbuild": "0.28.1",
     "miniflare": "4.20260722.0",
     "pg": "^8.22.0",
     "typescript": "^7.0.2",
