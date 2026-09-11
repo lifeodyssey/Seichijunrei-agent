@@ -27,14 +27,15 @@ _COVERAGE_KEYS = frozenset(
         "Frontend lines",
     }
 )
-_AGENT_RUNTIME_HEADING = "## Agent runtime today — two tiers, one flag"
+_AGENT_RUNTIME_HEADING = "## Request and execution"
 _AGENT_RUNTIME_FACTS = (
-    "AGENT_TURN_ROUTE",
-    "Container tier (the default)",
-    "Edge tier (staging today)",
-    "first-token SLO",
-    "Pyodide: still rejected",
-    "docs/specs/2026-09-01-agent-ts-rewrite-spec.md",
+    "AgentHarness",
+    "AgentLane",
+    "registers durable recovery before",
+    "inspectExecution/getResult",
+    "Native Pi owns",
+    "Shared production/Eval composition",
+    "There is no compatibility converter",
 )
 
 

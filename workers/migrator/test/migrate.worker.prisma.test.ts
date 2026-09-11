@@ -3,8 +3,7 @@ import { FIXED_NOW, issuedToken, joseEnv, makeApp, post, testEnv } from "./migra
 import { metadata, preflightRequest, signedApp } from "./preflight-fixtures";
 import { MIGRATIONS, requestMetadata } from "./integration/prisma-fixture";
 import { createMigratorApp } from "../src/create-app";
-
-export const PRISMA_TARGET = "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a";
+import { PRISMA_TARGET } from "../src/prisma-target";
 
 beforeEach(() => vi.useFakeTimers({ toFake: ["Date"], now: FIXED_NOW }));
 afterEach(() => vi.useRealTimers());

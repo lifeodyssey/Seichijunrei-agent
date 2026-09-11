@@ -7,6 +7,7 @@ import {
   type ContainerOutcome,
 } from "./migrate.worker.helpers";
 import { HEAD_A, HEAD_B } from "./http-apply.helpers";
+import { PRISMA_TARGET } from "../src/prisma-target";
 
 // #1365 (closes #1332) — `wrangler deploy` returning is not the new bundle
 // serving. The caller learns which chain is actually live from `/healthz`, and
@@ -32,7 +33,7 @@ describe("GET /healthz publishes the carried bundle", () => {
       service: "migrator",
       env: "staging",
       bundleHead: HEAD_B,
-      prismaTarget: "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a",
+      prismaTarget: PRISMA_TARGET,
     });
   });
 });

@@ -76,15 +76,9 @@
 #                                to everyone. Local/dev may use Cloudflare's always-passing test
 #                                pair (site 1x00000000000000000000AA / secret 1x0000000000000000000000000000000AA).
 
-compatibility_date = "2025-03-01"
-# `enable_ctx_exports` is required for the `ctx.exports` loopback-binding API
-# (docs: workers/runtime-apis/context#exports — "you must use the
-# enable_ctx_exports compatibility flag", on by default only in future).
-# @cloudflare/containers reaches ctx.exports.ContainerProxy when starting the
-# RuntimeContainer; without the flag the export exists but the API does not,
-# and every container start fails with "ctx.exports is undefined" — staging
-# /healthz 500 on the first real edge deploy (run 30795617682).
-compatibility_flags = ["nodejs_compat", "enable_ctx_exports"]
+compatibility_date = "2026-07-22"
+# ctx.exports is enabled by this compatibility date.
+compatibility_flags = ["nodejs_compat"]
 main = "src/entry.ts"
 
 # Plain (non-secret) vars forwarded into the RuntimeContainer (Python agent).
@@ -110,42 +104,13 @@ ANON_ACCESS_ENABLED = "true"
 # landing's own surface (/healthz, /img/*, /tiles/*). Consumed by the edge
 # worker itself, so it is deliberately NOT in CONTAINER_ENV_KEYS.
 EDGE_SHOWCASE_MODE = "false"
-# W1-7 (#1256), extended by #1289: which tier serves POST /v1/chat,
-# POST /v1/byok/probe and GET /v1/conversations/{id}/messages — "container" (the
-# Python container that has always served them) or "edge" (this Worker's own
-# AgentSession DO + Neon, spec docs/specs/2026-09-01-agent-ts-rewrite-spec.md
-# §三; the table is edgeTierRoute in src/gateway/routing-policy.ts). This is the
-# FALLBACK switch for the agent rewrite: only the literal "edge" moves them,
-# and every other value — including a typo — keeps the container, because the
-# safe side of this flag is the surface that has been serving all along. Read by
-# the edge worker itself, so deliberately NOT in CONTAINER_ENV_KEYS. Local dev
-# has no Neon agent_svc DSN bound, so it stays on the container.
-AGENT_TURN_ROUTE = "container"
 # Per-identity burst limit (abuse control). The per-identity DAILY message
 # quota is issue #282 and is configured separately.
 ANON_RATE_LIMIT = "20"
 ANON_RATE_LIMIT_WINDOW_SECONDS = "60"
-# How often the singleton RunSweeper's alarm scans `runs` for turns nobody is
-# running (#1251). Seconds; 0/unset/malformed falls back to the 60s default in
-# src/agent/sweeper/run-sweep.ts, because an alarm scheduled zero milliseconds
-# out is not a faster sweep, it is no sweep at all.
-RUN_SWEEP_INTERVAL_SECONDS = "60"
-# Global anonymous daily spend ceiling (X4). Enforced by the container ingress
-# against the daily_usage table; 0 disables the breaker. NOT enforced on the
-# edge tier: under AGENT_TURN_ROUTE = "edge" the turn never reaches the
-# container, nothing in src/agent reads this value, and src/protect/
-# cost-breaker.ts only latches a container verdict that never arrives —
-# #1343 / EG-01 (docs/specs/2026-09-05-repo-smell-audit.md §1.2) pending.
+# Shared anonymous spend ceiling. Native admission, drive and tools read daily_usage.
 ANON_DAILY_COST_BUDGET_USD = "5.0"
-# Per-identity daily message quota (issue #282, S1.10) — a fairness/UX
-# mechanism, not a security defense line: it keeps one visitor's free usage
-# reasonable while the shared budget above stays open for everyone else.
-# Enforced against anon_daily_message_count by whichever tier serves the turn —
-# the container ingress, or the edge intake's own reservation upsert
-# (src/agent/intake/anonymous-message-allowance.ts); 0 or
-# unset disables it, the same "0 disables" convention as the budget ceiling
-# above. Default is an owner-set operations decision (20 here is a starting
-# point, not a locked-in value).
+# Anonymous per-identity message reservations; zero disables this message-count ceiling.
 ANON_DAILY_MESSAGE_QUOTA = "20"
 # Per-identity limit on the two cost-bearing AUTHENTICATED endpoints (issue
 # #284 / Task 9): POST /v1/chat and POST /v1/byok/probe ONLY — authenticated
@@ -218,10 +183,6 @@ class_name = "EdgeGuard"
 # `alarm()` handler. The binding is safe to declare now because `src/entry.ts`
 # exports the class wrangler resolves `class_name` against.
 [[durable_objects.bindings]]
-name = "RUN_SWEEPER"
-class_name = "RunSweeper"
-
-[[durable_objects.bindings]]
 name = "AGENT_SESSION"
 class_name = "AgentSession"
 
@@ -240,6 +201,10 @@ new_sqlite_classes = ["RunSweeper"]
 [[migrations]]
 tag = "v4"
 new_sqlite_classes = ["AgentSession"]
+
+[[migrations]]
+tag = "v5"
+deleted_classes = ["RunSweeper"]
 
 [observability]
 enabled = true
@@ -273,37 +238,13 @@ ANON_ACCESS_ENABLED = "false"
 # boolean: anything other than the literal "false" denies, so a missing var
 # can never silently re-open the backend.
 EDGE_SHOWCASE_MODE = "true"
-# W1-7 (#1256) agent-tier switch — see the [vars] block above for the contract.
-# Production stays on the container. W4-1 (#1314) provisioned the production
-# AGENT_SVC_DATABASE_URL binding below, which is the PRECONDITION for flipping
-# this to "edge" — not the flip itself. Moving it is a separate card, with its
-# own staging-proven evidence.
-AGENT_TURN_ROUTE = "container"
 # Per-identity burst limit (abuse control). The per-identity DAILY message
 # quota is issue #282 and is configured separately.
 ANON_RATE_LIMIT = "20"
 ANON_RATE_LIMIT_WINDOW_SECONDS = "60"
-# How often the singleton RunSweeper's alarm scans `runs` for turns nobody is
-# running (#1251). Seconds; 0/unset/malformed falls back to the 60s default in
-# src/agent/sweeper/run-sweep.ts, because an alarm scheduled zero milliseconds
-# out is not a faster sweep, it is no sweep at all.
-RUN_SWEEP_INTERVAL_SECONDS = "60"
-# Global anonymous daily spend ceiling (X4). Enforced by the container ingress
-# against the daily_usage table; 0 disables the breaker. NOT enforced on the
-# edge tier: under AGENT_TURN_ROUTE = "edge" the turn never reaches the
-# container, nothing in src/agent reads this value, and src/protect/
-# cost-breaker.ts only latches a container verdict that never arrives —
-# #1343 / EG-01 (docs/specs/2026-09-05-repo-smell-audit.md §1.2) pending.
+# Shared anonymous spend ceiling. Native admission, drive and tools read daily_usage.
 ANON_DAILY_COST_BUDGET_USD = "5.0"
-# Per-identity daily message quota (issue #282, S1.10) — a fairness/UX
-# mechanism, not a security defense line: it keeps one visitor's free usage
-# reasonable while the shared budget above stays open for everyone else.
-# Enforced against anon_daily_message_count by whichever tier serves the turn —
-# the container ingress, or the edge intake's own reservation upsert
-# (src/agent/intake/anonymous-message-allowance.ts); 0 or
-# unset disables it, the same "0 disables" convention as the budget ceiling
-# above. Default is an owner-set operations decision (20 here is a starting
-# point, not a locked-in value).
+# Anonymous per-identity message reservations; zero disables this message-count ceiling.
 ANON_DAILY_MESSAGE_QUOTA = "20"
 # Per-identity limit on the two cost-bearing AUTHENTICATED endpoints (issue
 # #284 / Task 9): POST /v1/chat and POST /v1/byok/probe ONLY — authenticated
@@ -334,7 +275,7 @@ AUTH_RATE_LIMIT_WINDOW_SECONDS = "60"
 # infra/topology-prod-database-access.test.ts, which reads the name off the
 # Pulumi program itself.
 #
-# This is provisioning only: AGENT_TURN_ROUTE above stays "container", so the
+# Both native service and gateway resources use this binding; the
 # binding changes where the CONTAINER's DSN comes from and nothing else. The
 # transitional SUPABASE_DB_URL worker secret stays set on the Worker until the
 # cutover's later step retires it (docs/ops/prod-dsn-cutover.md). CD stopped
@@ -393,10 +334,6 @@ class_name = "EdgeGuard"
 # `alarm()` handler. The binding is safe to declare now because `src/entry.ts`
 # exports the class wrangler resolves `class_name` against.
 [[env.production.durable_objects.bindings]]
-name = "RUN_SWEEPER"
-class_name = "RunSweeper"
-
-[[env.production.durable_objects.bindings]]
 name = "AGENT_SESSION"
 class_name = "AgentSession"
 
@@ -423,6 +360,10 @@ new_sqlite_classes = ["RunSweeper"]
 [[env.production.migrations]]
 tag = "v4"
 new_sqlite_classes = ["AgentSession"]
+
+[[env.production.migrations]]
+tag = "v5"
+deleted_classes = ["RunSweeper"]
 
 [env.staging]
 name = "animichi-staging"
@@ -465,13 +406,6 @@ FALLBACK_AGENT_MODEL = "openai:mimo-v2.5@https://opencode.ai/zen/go/v1"
 # Showcase-mode gate (S0-v2 GOAL C / C9): staging stays fully functional
 # (showcase off). Strict boolean — only the literal "false" means that.
 EDGE_SHOWCASE_MODE = "false"
-# W1-7 (#1256) agent-tier switch — see the [vars] block for the contract.
-# Staging is where the rewrite runs: POST /v1/chat and the transcript GET are
-# served by this Worker's AgentSession DO over the staging Neon branch (the
-# AGENT_SVC_DATABASE_URL secrets-store binding below). Setting this back to
-# "container" is the rollback, and it needs no code change or redeploy of
-# anything but this file.
-AGENT_TURN_ROUTE = "edge"
 # #527/#528 (P1-A): CORS_ALLOWED_ORIGIN was never provisioned for staging as
 # either a repo-level or a staging-environment GH secret, and there is no
 # wildcard fallback, so simply dropping it (an earlier revision did) would not
@@ -511,27 +445,9 @@ NEON_AUTH_JWKS_URL = "https://ep-broad-frost-aopp3uqq.neonauth.c-2.ap-southeast-
 # quota is issue #282 and is configured separately.
 ANON_RATE_LIMIT = "20"
 ANON_RATE_LIMIT_WINDOW_SECONDS = "60"
-# How often the singleton RunSweeper's alarm scans `runs` for turns nobody is
-# running (#1251). Seconds; 0/unset/malformed falls back to the 60s default in
-# src/agent/sweeper/run-sweep.ts, because an alarm scheduled zero milliseconds
-# out is not a faster sweep, it is no sweep at all.
-RUN_SWEEP_INTERVAL_SECONDS = "60"
-# Global anonymous daily spend ceiling (X4). Enforced by the container ingress
-# against the daily_usage table; 0 disables the breaker. NOT enforced on the
-# edge tier: under AGENT_TURN_ROUTE = "edge" the turn never reaches the
-# container, nothing in src/agent reads this value, and src/protect/
-# cost-breaker.ts only latches a container verdict that never arrives —
-# #1343 / EG-01 (docs/specs/2026-09-05-repo-smell-audit.md §1.2) pending.
+# Shared anonymous spend ceiling. Native admission, drive and tools read daily_usage.
 ANON_DAILY_COST_BUDGET_USD = "5.0"
-# Per-identity daily message quota (issue #282, S1.10) — a fairness/UX
-# mechanism, not a security defense line: it keeps one visitor's free usage
-# reasonable while the shared budget above stays open for everyone else.
-# Enforced against anon_daily_message_count by whichever tier serves the turn —
-# the container ingress, or the edge intake's own reservation upsert
-# (src/agent/intake/anonymous-message-allowance.ts); 0 or
-# unset disables it, the same "0 disables" convention as the budget ceiling
-# above. Default is an owner-set operations decision (20 here is a starting
-# point, not a locked-in value).
+# Anonymous per-identity message reservations; zero disables this message-count ceiling.
 ANON_DAILY_MESSAGE_QUOTA = "20"
 # Per-identity limit on the two cost-bearing AUTHENTICATED endpoints (issue
 # #284 / Task 9): POST /v1/chat and POST /v1/byok/probe ONLY — authenticated
@@ -616,10 +532,6 @@ class_name = "EdgeGuard"
 # `alarm()` handler. The binding is safe to declare now because `src/entry.ts`
 # exports the class wrangler resolves `class_name` against.
 [[env.staging.durable_objects.bindings]]
-name = "RUN_SWEEPER"
-class_name = "RunSweeper"
-
-[[env.staging.durable_objects.bindings]]
 name = "AGENT_SESSION"
 class_name = "AgentSession"
 
@@ -646,6 +558,10 @@ new_sqlite_classes = ["RunSweeper"]
 [[env.staging.migrations]]
 tag = "v4"
 new_sqlite_classes = ["AgentSession"]
+
+[[env.staging.migrations]]
+tag = "v5"
+deleted_classes = ["RunSweeper"]
 # Cloudflare-native rate-limit binding (issue #680) — the COARSE best-effort
 # burst damper. Worker-side sibling of the zone-level WAF damper in
 # infra/src/hardening.ts; it drives the edge's "native" tier (cacheable public

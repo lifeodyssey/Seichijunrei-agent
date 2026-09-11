@@ -2,15 +2,18 @@
  * The scenario set the committed oracles must carry, written down by hand
  * (#1463).
  *
- * `evaluator-parity.test.ts` and the `gate-*.test.ts` files generate one test
- * per oracle entry. A scenario deleted from its Python producer and re-exported
+ * The retired Python-era gate suite (`evaluator-parity` and the
+ * `gate-*.test.ts` files) generated one test per oracle entry. A scenario
+ * deleted from its Python producer and re-exported
  * therefore takes its own test away with it, and the suite stays green — the
  * one hole in exactly the guard that exists to catch Python/TS divergence.
  *
  * This list is the second witness, and it is deliberately NOT derived from the
- * fixtures: `oracle-scenario-pin.test.ts` compares it against what the fixtures
- * actually carry and names the id that disappeared. A pin exported alongside
- * the scenarios would move with them and prove nothing.
+ * fixtures: the suite's pin test compared it against what the fixtures
+ * actually carry and named the id that disappeared. A pin exported alongside
+ * the scenarios would move with them and prove nothing. The list is preserved
+ * with the gate-run inputs so the native gate suite (#1557–#1559) can re-arm
+ * the same witness against the same fixtures without re-deriving it.
  *
  * **Adding or removing a scenario is a two-file change by design** — the Python
  * producer (`evaluator_oracle_cases.py`, `gate_oracle.py`, `strata_oracle.py`,

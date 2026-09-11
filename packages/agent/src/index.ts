@@ -17,3 +17,4 @@ export {
 } from "./selection-copy.ts";
 export { classifySource, type SourceTier } from "./web-source-tier.ts";
 export { hostAddressOf, type HostAddress, type HostAddressClass } from "./host-address.ts";
+export { NATIVE_AGENT_OPTIONS, NATIVE_SYSTEM_PROMPT } from "./native-configuration.ts";

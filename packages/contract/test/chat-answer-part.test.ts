@@ -1,162 +1,61 @@
-/**
- * The conformance half of the `data-response` seam (#1283).
- *
- * `workers/edge` builds the part and cannot load zod to check it — that is the
- * whole point of the generated module next door. So the check runs HERE, where
- * zod lives, against the edge's own projection: `turn-answer-part.ts` has no
- * runtime import at all, so importing it costs this package nothing and leaves
- * no second copy of the shape to drift.
- */
+/** The public contract validates chunks from the actual native view projection. */
 import { describe, expect, it } from "vitest";
-import type { Point, TimedItinerary } from "../src/models.js";
 import { ChatResponseDataPart } from "../src/chat-data-parts.js";
-import { CHAT_RESPONSE_INTENTS } from "../src/agent-tool-schemas.js";
-import { chatResponsePart } from "../../../workers/edge/src/agent/session/turn-answer-part.ts";
-import type { TurnAnswer } from "../../../workers/edge/src/agent/session/turn-answer.ts";
+import { responseChunks, SAFE_FAILURE } from "../../../workers/edge/src/agent/views/public-content.ts";
+import { SecretScrub } from "../../../workers/edge/src/agent/egress/secret-scrub.ts";
 
-const POINT: Point = {
-  id: "spot-1",
-  name: "鷲宮神社",
-  bangumi_id: "1",
-  episode: 3,
-  screenshot_url: "https://image.anitabi.cn/p1.jpg",
-  latitude: 36.1019,
-  longitude: 139.6586,
-  title: "らき☆すた",
-};
-
-const TIMED: TimedItinerary = { stops: [], legs: [], total_minutes: 120, total_distance_m: 4200 };
-
-const MESSAGE = "聖地巡礼の答え";
-const PROSE: TurnAnswer = { of: "prose", intent: "general_qa", message: MESSAGE };
-
-const searchAnswer = (
-  intent: "search_bangumi" | "search_nearby",
-  kind: "bangumi" | "nearby",
-): TurnAnswer => ({
-  of: "search",
-  intent,
-  message: MESSAGE,
-  search: {
-    kind,
-    rows: [POINT],
-    row_count: 1,
-    metadata: { anime_title: "らき☆すた", data_origin: "catalog", source: "catalog" },
-    anime_id: "1",
-    partial: false,
-  },
-});
-
-const ITINERARY = {
-  ordered_points: [POINT],
-  timed_itinerary: TIMED,
-  summary: {
-    point_count: 1,
-    total_minutes: 120,
-    total_distance_m: 4200,
-    clusters: 1,
-    with_coordinates: 1,
-    without_coordinates: 0,
-  },
-  source_ref: "search:1:1",
-};
-
-const ROUTE: TurnAnswer = { of: "route", intent: "plan_route", message: MESSAGE, itinerary: ITINERARY };
-
-const CLARIFY: TurnAnswer = {
-  of: "clarification",
-  intent: "clarify",
-  message: MESSAGE,
-  clarification: {
-    id: 3,
-    reason: "anime_ambiguity",
-    candidates: [{ id: "1", title: "らき☆すた", effective_radius_m: 5_000 }],
-  },
-};
-
-/** The four deterministic-selection answers (#1288). Each carries its own
- * `status`/`success` rather than deriving them, so the envelope the contract
- * sees on this path is built here and nowhere else. */
-const SELECTED: TurnAnswer = {
-  of: "selected",
-  intent: "plan_selected",
-  message: MESSAGE,
-  itinerary: ITINERARY,
-  status: "ok",
-  success: true,
-};
-
-const MULTI: TurnAnswer = {
-  of: "multi",
-  intent: "plan_multi",
-  message: MESSAGE,
-  search: { kind: "multi", rows: [POINT], row_count: 1, metadata: null, anime_id: null, partial: false },
-  itinerary: ITINERARY,
-  status: "ok",
-  success: true,
-};
-
-const PLACE: TurnAnswer = {
-  of: "place",
-  intent: "search_nearby",
-  message: MESSAGE,
-  search: { kind: "nearby", rows: [], row_count: 0, metadata: null, anime_id: null, partial: false },
-  status: "empty",
-  success: true,
-};
-
-const REFUSED: TurnAnswer = {
-  of: "refused",
-  intent: "clarify",
-  message: "This choice expired; please try again.",
-  status: "invalid_request",
-  success: false,
-};
-
-const ANSWERS: TurnAnswer[] = [
-  searchAnswer("search_bangumi", "bangumi"),
-  searchAnswer("search_nearby", "nearby"),
-  ROUTE,
-  CLARIFY,
-  PROSE,
-  { of: "prose", intent: "greet_user", message: MESSAGE },
-  SELECTED,
-  MULTI,
-  PLACE,
-  REFUSED,
+const MESSAGE = "A pilgrimage answer";
+const POINT = { id: "spot-1", name: "鷲宮神社", latitude: 36.1019, longitude: 139.6586 };
+const ITINERARY = { ordered_points: [POINT], point_count: 1 };
+const ANSWERS = [
+  { intent: "search_bangumi", data: { results: { rows: [POINT], kind: "bangumi" } } },
+  { intent: "search_nearby", data: { results: { rows: [], kind: "nearby" } } },
+  { intent: "plan_route", data: { itinerary: ITINERARY } },
+  { intent: "plan_selected", data: { itinerary: ITINERARY } },
+  { intent: "plan_multi", data: { results: { rows: [POINT] }, itinerary: ITINERARY } },
+  { intent: "clarify", data: { clarification_id: 3, reason: "anime_ambiguity", candidates: [{ id: "1", title: "らき☆すた" }] } },
+  { intent: "general_qa", data: {} },
+  { intent: "greet_user", data: {} },
+  { intent: "blocked", data: {}, status: "invalid_request", success: false },
 ];
 
-describe("the edge's data-response part", () => {
-  it.each(ANSWERS)("validates against the contract for intent $intent", (answer) => {
-    expect(() => ChatResponseDataPart.parse(chatResponsePart(answer))).not.toThrow();
+function projected(details: unknown) {
+  const chunk = responseChunks(details, "session-1", new SecretScrub()).at(-1);
+  expect(chunk?.type).toBe("data-response");
+  if (!chunk || !("data" in chunk)) throw new Error("Missing native response chunk");
+  return ChatResponseDataPart.parse(chunk.data);
+}
+
+describe("native response projection", () => {
+  it.each(ANSWERS)("publishes the declared domain result for $intent", (answer) => {
+    const result = projected({ ...answer, message: MESSAGE });
+    expect(result.intent).toBe(answer.intent);
+    expect(result.message).toBe(MESSAGE);
+    expect(result.session_id).toBe("session-1");
   });
 
-  it("publishes an intent the contract's own union declares", () => {
-    const intents = ANSWERS.map((answer) => chatResponsePart(answer).intent);
-    expect(CHAT_RESPONSE_INTENTS).toEqual(expect.arrayContaining(intents));
+  it("retains both halves of a multi selection", () => {
+    const result = projected({ ...ANSWERS[4], message: MESSAGE });
+    expect(result.data).toEqual({ results: { rows: [POINT] }, itinerary: ITINERARY });
   });
 
-  it("strips the candidate fields only the tools use, and publishes the question's own id", () => {
-    const parsed = ChatResponseDataPart.parse(chatResponsePart(CLARIFY));
-    expect(parsed.data).toEqual({
-      reason: "anime_ambiguity",
-      clarification_id: 3,
-      candidates: [{ id: "1", title: "らき☆すた" }],
-    });
+  it("keeps the native clarification identity and candidate data", () => {
+    expect(projected(ANSWERS[5]).data).toEqual(ANSWERS[5]?.data);
   });
 
-  it("publishes both halves of a merged pick, and neither for a refused one", () => {
-    const merged = ChatResponseDataPart.parse(chatResponsePart(MULTI));
-    expect(Object.keys(merged.data ?? {})).toEqual(["results", "itinerary"]);
-    const refused = ChatResponseDataPart.parse(chatResponsePart(REFUSED));
-    expect(refused.errors).toEqual([
-      { code: "invalid_selection", message: "This choice expired; please try again.", details: {} },
-    ]);
+  it("keeps a refusal's status and success false", () => {
+    expect(projected(ANSWERS[8])).toMatchObject({ status: "invalid_request", success: false });
   });
 
-  it("keeps the itinerary's own members and drops the ref only the model used", () => {
-    const parsed = ChatResponseDataPart.parse(chatResponsePart(ROUTE));
-    expect(Object.keys(parsed.data ?? {})).toEqual(["itinerary"]);
-    expect(chatResponsePart(ROUTE).data).not.toHaveProperty("itinerary.source_ref");
+  it("does not expose native execution or context annotations", () => {
+    const result = projected({ intent: "greet_user", message: MESSAGE, data: {},
+      execution: { operationId: "op", toolCallId: "call", args: { secret: "hidden" } },
+      frozenSummary: "private", executedFacts: { pacing: "slow" } });
+    expect(result).toEqual({ intent: "greet_user", message: MESSAGE, data: {}, session_id: "session-1" });
+  });
+
+  it("fails closed on unknown domain data instead of publishing an invalid result", () => {
+    expect(responseChunks({ intent: "greet_user", data: { invented: true } }, "session-1", new SecretScrub()))
+      .toEqual([{ type: "error", errorText: SAFE_FAILURE }]);
   });
 });

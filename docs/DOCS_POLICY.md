@@ -22,7 +22,7 @@ stable boundaries, current entry points, and active plans only.
 | `apps/web/AGENTS.md` | TanStack Start rebuild conventions |
 | `migrations/AGENTS.md` · `e2e/AGENTS.md` · `infra/AGENTS.md` | Atlas migrations, browser tests, and IaC conventions |
 | `.claude/rules/*.md` | Path-scoped rules loaded only for matching files |
-| `docs/ARCHITECTURE.md` | Live runtime reference — both agent tiers and the flag between them |
+| `docs/ARCHITECTURE.md` | Current runtime source reference and deployment evidence boundary |
 | `docs/ops/deployment.md` | Deployment runbook |
 | `docs/ops/secrets.md` | What each repository secret is for, who consumes it, and rotation impact |
 | `docs/iterations/README.md` | Main task tracker / session log / findings — pointer into the live iteration (no hardcoded `iterN`) |
@@ -73,10 +73,10 @@ the current monorepo layout; `backend/…` and `worker/worker.js` are pre-monore
 |---|---|---|
 | **Why** the architecture is shaped this way | `docs/specs/2026-06-13-architecture-adr.md` | Foundational ADR; its "全 TS on Workers" decision was later refined by the rebuild spec below |
 | **Current target** architecture (agent runtime and eval) | `docs/specs/2026-09-09-agent-on-pi-harness-spec.md` | Native Pi harness and Cloudflare Agents inside `workers/edge`, Neon business authority and native Logfire evals. The 2026-09-01 spec retains its unmodified functional-parity criteria only where not superseded. **Supersedes SD-4 of `docs/specs/2026-07-06-frontend-rebuild-spec.md`**; that spec remains canonical for the web rebuild |
-| Live runtime reference (both agent tiers) | `docs/ARCHITECTURE.md` | Container tier by default (`apps/agent/…/animichi_runner.py`), edge tier behind `AGENT_TURN_ROUTE = "edge"` (`workers/edge/src/agent/`, staging today) |
-| Agent entry | `apps/agent/src/animichi/interfaces/fastapi_service.py` → `public_api.py` → `agents/animichi_runner.py` | was `backend/interfaces/…` |
-| Agent shared types | `apps/agent/src/animichi/agents/models.py`, `…/agent_result.py` | was `backend/agents/…` |
-| Agent tools | `apps/agent/src/animichi/agents/animichi_tools.py` + `web_tools.py` | Typed `TOOLS` lists injected by `build_animichi_agent()` |
+| Current runtime reference | `docs/ARCHITECTURE.md` | Native chat source, remaining services and deployment evidence boundary |
+| Agent entry | `workers/edge/src/gateway/agent-turn.ts` → `workers/edge/src/agent/host/session-agent.ts` | Authenticated native Pi host |
+| Agent shared types | Public Pi Session/AgentLane/results and `packages/agent/src/` domain schemas | No custom execution envelope |
+| Agent tools | `packages/agent/src/harness.ts` + `tools.ts` | Seven native tools shared by serving and Eval |
 | Catalog service (TS) + data platform | `workers/catalog/src/` — `ingest/` · `enrich/` · `publish/` · `api/` · `router.ts` | realizes the ADR's ingest→enrich→publish |
 | Cross-service contract (zod = SoT) | `packages/contract/src/` (`models.ts`, `contract.ts`, `errors.ts`) + `packages/contract/README.md` | error registry + parity guard live here |
 | User-domain service | `workers/users/` + `workers/users/AGENTS.md` | Live Hono/oRPC service over Neon, `/v1/users/*`; no token verification of its own — it trusts the edge-forwarded identity (AUTH-2 #950) |
@@ -86,7 +86,7 @@ the current monorepo layout; `backend/…` and `worker/worker.js` are pre-monore
 | DB — auth | **Neon Auth (Better Auth)** integrated in `apps/web`; the edge verifies Neon JWKS only (AUTH-2 #950) | `docs/ops/auth-migration-neon.md` runbook |
 | Web app (the only browser surface) | `apps/web/` + `apps/web/AGENTS.md` (TanStack Start) | Legacy `frontend/` retired in #537; spec `2026-07-06-frontend-rebuild-spec.md` |
 | Design tokens / system | `apps/web/` (animal-island-ui-tailwind); ref `docs/design/animal-island-ref/` | |
-| Eval | `apps/agent/src/animichi/tests/eval/` (Python) | |
+| Eval | `packages/eval/src/native/` + `packages/eval/AGENTS.md` | Native task/observations; statistical oracles and exported source fixtures remain preserved; native assertions and suite migration are separate work |
 | Testing strategy | `docs/testing-strategy.md` | |
 | Deployment ops | `docs/ops/deployment.md`, `docs/ops/cloudflare-hardening.md` | |
 | Secrets architecture / worker secrets | `docs/adr/0003-secrets-architecture.md` | CF Secrets Store + Neon-hosted role passwords + Pulumi `neon.Role`; supersedes the ESC-first plan of #674 |

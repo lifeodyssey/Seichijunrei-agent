@@ -1,3 +1,5 @@
+import { HIDDEN_TOOL_STEPS } from "./i18n";
+import type { ChatUIMessage } from "./use-chat-session";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { GetSessionHistoryResponse } from "@animichi/contract";
@@ -8,6 +10,7 @@ export interface HistoryEntry {
   readonly role: string;
   readonly content: string;
   readonly intent?: string;
+  readonly operationId?: string;
 }
 
 export interface HistoryPage {
@@ -24,14 +27,19 @@ export interface ConversationHistory {
   readonly retry: () => void;
 }
 
-function toEntry(row: { readonly role: string; readonly content: string; readonly response_data?: { readonly intent?: string | null } | null }): HistoryEntry {
-  return { role: row.role, content: row.content, intent: row.response_data?.intent ?? undefined };
+function toEntry(row: { readonly role: string; readonly content: string; readonly operation_id?: string; readonly response_data?: { readonly intent?: string | null } | null }): HistoryEntry {
+  return { role: row.role, content: row.content, intent: row.response_data?.intent ?? undefined, operationId: row.operation_id };
+}
+
+/** The native snapshot supplies this operation's assistant state; retain its prompt and all other history. */
+export function withoutSnapshotAssistant(history: ConversationHistory, operationId: string | undefined): ConversationHistory {
+  if (!operationId) return history;
+  return { ...history, entries: history.entries.filter((entry) => entry.role !== "assistant" || entry.operationId !== operationId) };
 }
 
 /** Anonymous when signed out (existing behaviour); adds a Bearer token once signed in.
- * Also the D4/D8 recovery read: the client re-fetches the session's final
- * state here instead of resuming a broken stream (P6 semantics). The payload
- * is the Agent's generated GetSessionHistory boundary (SESSION-1 #959). */
+ * Native history restores committed prompts and preceding operations; current
+ * assistant state comes from the separate SDK snapshot/live stream. */
 export async function fetchHistory(baseUrl: string, sessionId: string): Promise<HistoryPage> {
   const headers = await authHeaders();
   const response = await fetch(conversationMessagesUrl(baseUrl, sessionId), { headers });
@@ -79,4 +87,16 @@ export function useConversationHistory(baseUrl: string, sessionId?: string): Con
   const { refetch } = query;
   const retry = useCallback(() => void refetch(), [refetch]);
   return { ...toConversationHistory(query, sessionId), retry };
+}
+
+/** Identity headers are not a replacement: keep history until the SDK has visible assistant content. */
+export function snapshotOperationId(messages: readonly ChatUIMessage[], operationId: string | undefined): string | undefined {
+  const snapshot = messages.find((message) => message.role === "assistant" && message.id === operationId);
+  return snapshot?.parts.some(displayedSnapshotPart) ? operationId : undefined;
+}
+
+function displayedSnapshotPart(part: ChatUIMessage["parts"][number]): boolean {
+  if (part.type === "text") return part.text.length > 0;
+  if (part.type === "data-response") return true;
+  return part.type.startsWith("tool-") && !HIDDEN_TOOL_STEPS.has(part.type.slice(5));
 }

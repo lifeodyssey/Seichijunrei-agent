@@ -203,6 +203,7 @@ describe("agent boundary emitter", () => {
       "GET /v1/conversations",
       "PATCH /v1/conversations/{session_id}",
       "GET /v1/conversations/{session_id}/messages",
+      "GET /v1/conversations/{session_id}/stream",
       "GET /v1/bangumi/{bangumi_id}/guide",
       "GET /v1/bangumi/nearby",
       "GET /v1/search/preview",

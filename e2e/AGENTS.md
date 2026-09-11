@@ -20,6 +20,14 @@ opt-in through `E2E_SERVE_EMITTED_WORKER=1`) and runs the ten specs the lane own
 `web-404`, `web-maplibre-canary`, `web-chat-anonymous`, `web-hero-query`,
 `web-state-ownership`, `web-a11y-axe`, `web-a11y-keyboard`, `web-a11y-states`, `web-cwv`,
 `web-chat-settings-return`.
+After the emitted-Worker specifications, the same `test` command runs the native browser lane
+(`edge-worker test:native-browser`). It starts disposable Postgres, bundles the actual native
+SessionAgent with Wrangler, and serves the real web app through Vite’s same-origin proxy.
+Chromium verifies leaving a running tool and returning through SDK GET resume, one admission /
+one quota reservation, and a real network heartbeat across controlled browser time. Only the
+external provider/catalog and Turnstile boundaries are scripted. This local evidence does not
+replace deployed lifetime or APAC latency acceptance.
+
 It needs nothing running beforehand; every other script targets `:3000` (or whatever
 `E2E_WEB_BASE_URL` names) and does need one.
 

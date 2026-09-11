@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from "node:url";
 import { identityPolicySchema } from "@animichi/contract/identity";
 import { DEFAULT_IDENTITY_POLICY } from "@animichi/contract/identity-policy";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
 import { authRateLimitConfigFrom, rateLimitConfigFrom } from "../src/protect/rate-limiter.ts";
 
@@ -93,11 +94,12 @@ void test("api_keys is absent from the hard-cut baseline", () => {
   assert.ok(files.every((name) => !/public\.api_keys/i.test(sql(name))));
 });
 
-void test("anonymous BYOK is never promoted to authenticated (X-User-Type stays anonymous)", async () => {
-  const captured = { requests: [] as Request[] };
+void test("anonymous BYOK is never promoted to authenticated (the native identity stays anonymous)", async () => {
+  const captured: NativeAgentCall[] = [];
   const app = createWorkerApp({
     authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const),
     turnstileGate: { check: () => Promise.resolve({ ok: true, errorCodes: [] }) },
+    agentTurns: nativeAgentReceiver(captured),
   });
   const env = {
     EDGE_SHOWCASE_MODE: "false",
@@ -110,15 +112,6 @@ void test("anonymous BYOK is never promoted to authenticated (X-User-Type stays 
         fetch: () => Promise.resolve(new Response(JSON.stringify({ allowed: true, retryAfterSeconds: 0 }))),
       }),
     },
-    CONTAINER: {
-      idFromName: () => "id",
-      get: () => ({
-        fetch: (r: Request) => {
-          captured.requests.push(r);
-          return Promise.resolve(new Response("container"));
-        },
-      }),
-    },
   } as never;
   const res = await app.request("/v1/chat", {
     method: "POST",
@@ -129,8 +122,8 @@ void test("anonymous BYOK is never promoted to authenticated (X-User-Type stays 
     },
   }, env, stubCtx);
   assert.equal(res.status, 200, "the anonymous chat flow still serves the request");
-  const forwarded = captured.requests[0];
-  assert.ok(forwarded, "the container must receive the anonymous request");
-  assert.equal(forwarded.headers.get("X-User-Type"), "anonymous");
-  assert.match(String(forwarded.headers.get("X-User-Id")), /^anon_/);
+  const forwarded = captured[0];
+  assert.ok(forwarded, "the native tier must receive the anonymous identity");
+  assert.equal(forwarded.identity.userType, "anonymous");
+  assert.match(forwarded.identity.userId, /^anon_/);
 });

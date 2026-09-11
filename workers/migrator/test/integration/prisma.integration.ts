@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vite
 import { startTestPostgres, SPIKE_SETUP_BUDGET, hookTimeoutMs } from "@animichi/test-postgres";
 import pg from "pg";
 import { FIXED_NOW } from "../migrate.worker.helpers";
-import { nativeApp, TARGET } from "./prisma-fixture";
+import { nativeApp, TARGET, APP_MIGRATION_COUNT } from "./prisma-fixture";
 import { clonePrismaDatabase, servePrismaPostgres } from "./prisma-postgres";
 import { grantDatabaseCreate, migratorRole } from "./prisma-role";
 import { saveEvidence } from "./preflight.postgres";
@@ -31,17 +31,25 @@ it("previews native operations through authenticated HTTP without initializing t
   const body: unknown = await response.json();
   expect({ status: response.status, body }).toMatchObject({ status: 200, body: { compatible: true, prisma: {
     targetHash: TARGET, markerHash: "empty", usedLiveMarker: true,
-    migrations: [{ spaceId: "app", from: "empty", to: TARGET }],
   } } });
+  const chain = (body as { prisma: { migrations: { spaceId: string; from: string; to: string }[] } }).prisma.migrations;
+  expect(chain).toHaveLength(APP_MIGRATION_COUNT);
+  expect(chain[0]).toMatchObject({ spaceId: "app", from: "empty" });
+  expect(chain.at(-1)).toMatchObject({ spaceId: "app", to: TARGET });
   expect((await client.query("SELECT to_regnamespace('prisma_contract') AS marker")).rows).toEqual([{ marker: null }]);
   expect((await client.query("SELECT to_regclass('public.pi_sessions') AS sessions")).rows).toEqual([{ sessions: null }]);
 });
 
 it("applies the sealed native graph and replays with zero migrations while preserving data", async () => {
+  const previewBody = (await (await app.preview()).json()) as { prisma: { migrations: unknown[] } };
+  const sealedCount = previewBody.prisma.migrations.length;
   const first = await app.migrate();
   expect(first.status).toBe(200);
-  expect(await first.json()).toMatchObject({ success: true, prisma: { markerHash: TARGET, migrationsApplied: 1,
-    applied: [{ operationsExecuted: 20 }] } });
+  const appliedBody: unknown = await first.json();
+  expect(appliedBody).toMatchObject({ success: true, prisma: { markerHash: TARGET, migrationsApplied: sealedCount } });
+  const applied = (appliedBody as { prisma: { applied: { operationsExecuted: number }[] } }).prisma.applied;
+  expect(applied).toHaveLength(sealedCount);
+  expect(applied[0]).toMatchObject({ operationsExecuted: 20 });
   await client.query("INSERT INTO pi_sessions (id, metadata) VALUES ('preserved', '{\"id\":\"preserved\",\"value\":\"null\"}')");
   const preview = await app.preview();
   expect(await preview.json()).toMatchObject({ prisma: { markerHash: TARGET, migrations: [], usedLiveMarker: true } });
@@ -74,14 +82,17 @@ it("requires database CREATE for the non-superuser migrator and succeeds with th
   const dsn = await migratorRole(client, databaseDsn);
   servePrismaPostgres(dsn);
   const roleApp = await nativeApp(dsn);
-  expect((await roleApp.preview()).status).toBe(200);
+  const rolePreview = await roleApp.preview();
+  expect(rolePreview.status).toBe(200);
+  const roleBody: unknown = await rolePreview.json();
+  const sealedCount = (roleBody as { prisma: { migrations: unknown[] } }).prisma.migrations.length;
   expect((await roleApp.migrate()).status).toBe(500);
   expect((await client.query("SELECT to_regnamespace('prisma_contract') AS marker")).rows).toEqual([{ marker: null }]);
   await grantDatabaseCreate(client, dsn);
   const result = await roleApp.migrate();
   const body: unknown = await result.json();
   expect({ status: result.status, body }).toMatchObject({ status: 200, body: {
-    success: true, prisma: { markerHash: TARGET, migrationsApplied: 1 },
+    success: true, prisma: { markerHash: TARGET, migrationsApplied: sealedCount },
   } });
   expect((await client.query("SELECT rolsuper FROM pg_roles WHERE rolname = 'migrator'")).rows).toEqual([{ rolsuper: false }]);
   expect((await client.query("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname='prisma_contract'")).rows).toEqual([{ owner: "migrator" }]);

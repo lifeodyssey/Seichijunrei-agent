@@ -1,42 +1,9 @@
-/**
- * The four `X-BYOK-*` headers one request carries, read into a credential
- * (W2-3 #1289) — a semantic port of `parse_byok_credential` /
- * `has_byok_signal` in `apps/agent/src/animichi/agents/byok_models.py`.
- *
- * TWO OUTCOMES THAT ARE NOT THE SAME. `null` means the request carried no BYOK
- * signal at all and must run on the server's own model unchanged. A
- * `ByokRejection` means it carried one and it is unusable — and the caller is
- * told so rather than being quietly served on the server key, which is spec
- * §四 S5's "无 server-key fallback" red line said at the parser: a BYOK request
- * that cannot be honoured never becomes a non-BYOK request.
- *
- * AN ORPHANED `X-BYOK-Model` / `X-BYOK-Base-Url` IS A REJECTION, not a
- * `null` — verbatim from the Python docstring's reasoning: it is far more
- * likely that a caller forgot the other two headers than that they meant
- * nothing by these.
- *
- * THE BASE URL IS NOT VALIDATED HERE. It is handed to `EgressPolicy`, the
- * module W0-S5 measured every red line of (spec Appendix D), so private,
- * metadata, link-local, CGNAT, non-443, non-HTTPS, userinfo-bearing,
- * own-infrastructure and non-allowlisted destinations are refused by the SAME
- * decision the guarded fetch re-runs on every redirect hop. Python's separate
- * "must be https" string check is deliberately NOT ported: it would be a
- * second copy of one line of that policy, free to drift from it.
- *
- * ONE DELIBERATE NARROWING vs the Python tier, and it is the spec's own red
- * line rather than this card's idea: §四 S5's first condition is an ALLOWLIST
- * of provider hosts, and Appendix D says the production path reuses the module
- * that implements it. Python's `openai-compatible` family accepted any https
- * endpoint that passed its address-range checks; here the same family reaches
- * `api.openai.com` and nothing else, because `provider-allowlist.ts` enumerates
- * exact hosts. A caller pointing that family at a third-party gateway is
- * refused with `host_not_allowlisted` — a real behaviour difference between
- * the two positions of `AGENT_TURN_ROUTE`, and the one place the flag is not
- * byte-for-byte a fallback. Widening it is an edit to that allowlist, which is
- * where such a decision belongs.
- */
+/** Validate the request's transient BYOK fields before the native Models store can receive its key.
+ * Missing BYOK means server-owned access; malformed/orphaned headers are a refusal. Exact
+ * provider origins are enforced by the existing egress policy; redirects are refused by the
+ * native provider fetch. Never log these fields, the request, or the credential store. */
 import { BYOK_EGRESS_POLICY, type EgressPolicy } from "../egress/egress-policy.ts";
-import { ByokCredential, ByokRejection, type ByokCredentialParts } from "./byok-credential.ts";
+import { ByokRejection, type ByokCredentialParts } from "./byok-credential.ts";
 import { BYOK_DIALECTS, byokFamilyOf, type ByokDialect, type ByokFamily } from "./byok-family.ts";
 
 const PROVIDER_HEADER = "x-byok-provider";
@@ -147,29 +114,8 @@ function credentialParts(headers: Headers, family: ByokFamily): ByokCredentialPa
 export function byokCredentialIn(
   headers: Headers,
   policy: EgressPolicy = BYOK_EGRESS_POLICY,
-): ByokCredential | null {
+): ByokCredentialParts | null {
   if (!byokSignalIn(headers)) return noSignalOutcome(headers);
   const parts = credentialParts(headers, requiredFamily(headers));
-  return new ByokCredential(allowedBy(policy, parts));
-}
-
-/**
- * The credential written back as the headers it was read from — for the ONE
- * in-process hop it makes: the intake's `POST /arm` on the session's own
- * Durable Object stub (`session-wakeup.ts`).
- *
- * Headers rather than a serialised object, so the far side re-runs THIS
- * parser and THIS egress policy on what it receives instead of trusting a
- * shape someone assembled. A family with a fixed endpoint emits no base-URL
- * header at all, because the parser refuses one — the two halves are each
- * other's inverse by construction.
- */
-export function byokHeadersOf(credential: ByokCredential): Record<string, string> {
-  const fixed = BYOK_DIALECTS[credential.family].baseUrl !== null;
-  return {
-    [PROVIDER_HEADER]: credential.family,
-    [KEY_HEADER]: credential.secret,
-    [MODEL_HEADER]: credential.modelId,
-    ...(fixed ? {} : { [BASE_URL_HEADER]: credential.baseUrl }),
-  };
+  return allowedBy(policy, parts);
 }

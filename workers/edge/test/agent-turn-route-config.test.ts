@@ -1,15 +1,3 @@
-/**
- * W1-7 (#1256): the deployed VALUES of the agent-tier switch, per environment.
- *
- * The env-var three-touchpoint rule (feedback_env_var_three_touchpoints) is why
- * this file exists at all: a flag that only lives in `src/env.ts` is a flag
- * whose staging value nobody can see, and a flag only in `wrangler.toml` is one
- * the Worker never reads. All three touchpoints are asserted here — the config
- * per environment, the Env declaration, and the package guide that tells the
- * next reader which environment is on which tier.
- *
- * test-type: unit (all cases parse checked-in files; no network, no clock).
- */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -29,32 +17,20 @@ function blockForHeader(header: string): string {
   return wranglerToml.slice(headerIndex, nextHeaderIndex === -1 ? undefined : nextHeaderIndex);
 }
 
-function turnRouteIn(header: string): string | undefined {
-  return /^AGENT_TURN_ROUTE = "([^"]+)"/m.exec(blockForHeader(header))?.[1];
+function hasRetiredSwitch(header: string): boolean {
+  return /^AGENT_TURN_ROUTE\s*=/m.test(blockForHeader(header));
 }
 
-void test("staging is the environment the rewritten agent tier actually serves", () => {
-  assert.equal(turnRouteIn("[env.staging.vars]"), "edge");
+void test("staging has no retired runtime switch", () => {
+  assert.equal(hasRetiredSwitch("[env.staging.vars]"), false);
 });
 
-void test("production is untouched by this card — it still forwards to the container", () => {
-  assert.equal(turnRouteIn("[env.production.vars]"), "container");
+void test("production has no retired runtime switch", () => {
+  assert.equal(hasRetiredSwitch("[env.production.vars]"), false);
 });
 
-void test("the default (wrangler dev) block forwards to the container too", () => {
-  assert.equal(turnRouteIn("[vars]"), "container");
-});
-
-void test("the Worker declares the variable it reads, so the flag is not a stringly env lookup", () => {
-  assert.match(repoFile("../src/env.ts"), /AGENT_TURN_ROUTE\?: string;/);
-});
-
-void test("the package guide names the flag, so the next reader is not left to grep", () => {
-  assert.match(repoFile("../AGENTS.md"), /AGENT_TURN_ROUTE/);
-});
-
-void test("the flag is consumed by the edge itself and never forwarded to the container", () => {
-  assert.equal(repoFile("../src/container/container-env.ts").includes("AGENT_TURN_ROUTE"), false);
+void test("local development has no retired runtime switch", () => {
+  assert.equal(hasRetiredSwitch("[vars]"), false);
 });
 
 void test("the anonymous daily allowance the edge tier enforces is set in all three environments", () => {

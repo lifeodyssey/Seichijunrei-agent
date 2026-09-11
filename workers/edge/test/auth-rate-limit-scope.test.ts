@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import type { Env } from "../src/env.ts";
 import { classifyRatePolicy } from "../src/gateway/rate-policy.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
@@ -102,7 +103,7 @@ function env(guard: ReturnType<typeof fakeGuard>["namespace"]): Env {
 }
 
 function authedApp() {
-  return createWorkerApp({
+  return createWorkerApp({ agentTurns: nativeAgentReceiver(),
         authenticate: () => Promise.resolve({ ok: true, userId: "user-a", userType: "human" } as const),
   });
 }

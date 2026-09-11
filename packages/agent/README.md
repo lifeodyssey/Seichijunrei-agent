@@ -1,6 +1,9 @@
 # Agent domain package
 
-`@animichi/agent` supplies platform-independent domain functions to the edge host. Public
+`@animichi/agent` supplies platform-independent domain functions to the edge host. The root
+entrypoint stays free of runtime schemas and SDK imports. Native tools and model composition
+are explicit opt-in subpaths, `@animichi/agent/tools`, `@animichi/agent/models` and
+`@animichi/agent/harness`. Public
 exports run directly in Node and in a bundled Worker; this package has no deploy command,
 bindings or storage. `@animichi/agent-python` names the existing Python workspace at
 `apps/agent`; its Python modules, container and path-based CI lane are unchanged.
@@ -28,6 +31,58 @@ below are relative to `workers/edge/src/agent/`; no forwarding modules remain th
 | `tools/web-source-tier.ts` | `src/web-source-tier.ts` | Domain-based web-source trust |
 | `selection/selection-copy.ts` | `src/selection-copy.ts` | Localized deterministic outcomes |
 
+## Native tools and credentials
+
+`createPilgrimageHarness(options, context)` from `@animichi/agent/harness` registers the seven
+native tools and returns the SDK's own `{ harness, open }` creation result. Models, Session,
+tool context and other options retain their upstream types. Callers acquire `harness.lane`,
+register native hooks and consume native Results directly; there is no execution facade.
+Node tests use the same composition with `MemorySessionRepo`.
+
+The seven domain tools are public `AgentHarnessTool` values, registered directly in
+`AgentHarness.create({ tools, toolContext, session, models, model })`:
+
+```ts
+import { searchNearby, respond, createCatalogClient } from "@animichi/agent/tools";
+import { createOperationModels } from "@animichi/agent/models";
+```
+
+| Export | External work | Replay |
+|---|---|---|
+| `resolveAnime` | Typed catalog title resolution | safe |
+| `searchBangumi` | Typed catalog pilgrimage points | safe |
+| `searchNearby` | Typed catalog geocoding and nearby points | safe |
+| `planRoute` | Typed catalog itinerary calculation; no booking | safe |
+| `webSearch` | Keyless DuckDuckGo HTML search through native fetch | safe |
+| `translateAnimeTitle` | Curated catalog title, then optional native model completion | never |
+| `respond` | Validates public response data; no external effect | safe |
+
+Every execute rechecks authorization and an invocation-keyed quota reservation. The host owns
+the reservation transaction and must make it idempotent. `invocationId` is the native result
+entry ID; full search payloads live in `details`, and `readSearchResult` validates the entry,
+current session and branch ancestry. `projectPilgrimage` derives clarification/current work
+from committed entries. A route preserves offered point IDs and coordinates; `respond` needs
+current-turn search/route evidence and validates before requesting native termination.
+
+`createCatalogClient` returns the existing oRPC contract client with native request/response
+validation, transient retries and bounded deadlines. `webSearch` uses `htmlparser2` for HTML
+and entity parsing, preserves ranked source attribution, and bounds untrusted result text.
+Provider/search failures use native SDK tool-error semantics; empty domain results remain data.
+
+`createOperationModels(model, key, fetch?)` returns native `MutableModels`. It uses
+`InMemoryCredentialStore`, `createModels` and `createProvider`; the public provider callbacks
+enforce exact HTTPS provider hosts and refuse redirects. Ambient credentials and per-call
+key/header/fetch overrides cannot replace the operation credential. Call `models.logout`
+when the owning operation releases its credentials. Translation takes native `Models` and
+`Model` values and returns actual supplemental consumption through `AgentToolResult.usage`,
+with the payer recorded in domain details. No secondary usage accumulator exists.
+
+Translation has one 85-second budget shared by catalog resolution and model fallback. Caller
+cancellation propagates through the same native context. Completed model calls retain native
+usage, including non-cancellation failures. Pi converts a cancelled tool execution to an error
+without a usage result: its partial consumption is unknown, not zero. Cancellation settlement
+and real eval composition remain acceptance work for #1550 and the eval integration stories.
+
 ## Migration boundary
 
 The exhaustive historical source list and delete/rewrite obligations remain in
@@ -36,6 +91,11 @@ Its 47 delete and 43 rewrite-domain rows remain in edge until their owning stori
 their consumers. They are not copied here. #1545 owns SDK composition; #1547 owns native
 tools/credentials; #1548 owns domain memory hooks; #1551 owns deterministic selections;
 #1552 owns legacy history reads; #1553 removes the old engine after cutover.
+
+These native library exports alone do not complete every #1547 acceptance criterion. Direct
+production registration still depends on #1545, fact projections on #1548, and legacy wrapper
+deletion on the consumer migrations and #1553. Those gates need their own implementation and
+runtime evidence before the whole story can be called complete.
 
 The remaining retain-domain rules stay at their existing edge paths with the consumer migrations
 below. The table records each current consumer boundary and its owning card. Several leaves
@@ -75,3 +135,5 @@ dependency, so pnpm's dependent closure selects its tests and the existing CD ed
 
 The boundary test reads TypeScript's resolved graph and pnpm's consumer closure. Edge's
 bundle smoke checks the production artifact graph and runs public domain behavior in workerd.
+Separating package subpaths keeps existing pure-domain consumers free of the tools' Zod and
+SDK modules; this is checked against parsed bundle inputs as well as emitted code.

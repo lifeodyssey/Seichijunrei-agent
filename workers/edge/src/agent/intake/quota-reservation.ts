@@ -1,29 +1,5 @@
-/**
- * Which turns charge the per-identity daily message quota (issue #282 / S1.10),
- * and which `anon_daily_message_count` row they charge.
- *
- * Ported from the Python intake, not copied: `anon_quota_eligible`
- * (`apps/agent/src/animichi/application/admission_limits.py`) says only an
- * `anon_<32 hex>` identity is keyed by that counter — quota correctness never
- * depends on the caller being bug-free — and `utc_today` says the counter is
- * keyed on the UTC calendar day. What changes in the TS intake is WHEN the
- * counter moves: Python incremented at terminal, the run row now carries a
- * reservation taken in the intake transaction.
- *
- * NOT the admission gate. The Python surface also REFUSED a turn once the
- * counter reached `ANON_DAILY_MESSAGE_QUOTA` (`anonymous_quota_verdict` in the
- * same module), and that half has no home in the TS path yet — the container
- * ingress that ran it leaves with `apps/agent`, and the only place that can
- * answer a visitor with a refusal is the route (#1256). This module reserves;
- * nothing here rejects. Losing the ceiling silently is the failure mode, so it
- * is written down here rather than left to be noticed in production.
- *
- * The coordinates travel with the run (`runs.quota_identity_id` /
- * `runs.quota_usage_date`, NULL together when the turn is not metered —
- * `runs_quota_reservation_check`), so a turn that finishes after UTC midnight
- * refunds the day it charged rather than the day it ended.
- */
-import type { RunPayer } from "../../db/schema.ts";
+/** Pure anonymous-quota eligibility and the original UTC reservation day. */
+import type { ModelAdmissionRequest } from "../admission/types.ts";
 
 /** The exact counter row one turn reserves a message in. */
 export interface QuotaReservation {
@@ -46,7 +22,7 @@ export function utcUsageDate(nowMs: number): string {
  * spends the visitor's own key.
  */
 export function quotaReservationFor(
-  payer: RunPayer,
+  payer: ModelAdmissionRequest["payer"],
   identityId: string,
   nowMs: number,
 ): QuotaReservation | null {

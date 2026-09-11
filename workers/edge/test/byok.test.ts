@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver } from "./doubles/native-agent-receiver.ts";
 import type { Env } from "../src/env.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
@@ -49,7 +50,7 @@ function env(guard = fakeGuard(NOW).namespace, extra: Record<string, unknown> = 
 }
 
 function authedApp(userId = "user-a") {
-  return createWorkerApp({
+  return createWorkerApp({ agentTurns: nativeAgentReceiver(),
     authenticate: () => Promise.resolve({ ok: true, userId, userType: "human" } as const),
   });
 }
@@ -101,7 +102,7 @@ void test("an anonymous caller's allowance is unaffected by authenticated traffi
   });
   await authedApp("user-a").request("/v1/chat", req("/v1/chat"), e, stubCtx);
   // The scope under test is the rate limiter, not the #447 Turnstile gate.
-  const anonApp = createWorkerApp({
+  const anonApp = createWorkerApp({ agentTurns: nativeAgentReceiver(),
     authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const),
     turnstileGate: { check: () => Promise.resolve({ ok: true, errorCodes: [] }) },
   });
@@ -163,7 +164,7 @@ void test("varying X-BYOK-* headers or base_url never changes whose allowance is
 void test("an unauthenticated caller cannot spend an authenticated identity's allowance by forging X-BYOK-* headers", async () => {
   const guard = fakeGuard(NOW).namespace;
   const e = env(guard, { AUTH_RATE_LIMIT: "1", ANON_ACCESS_ENABLED: "false" });
-  const anonApp = createWorkerApp({ authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const) });
+  const anonApp = createWorkerApp({ agentTurns: nativeAgentReceiver(), authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const) });
   const forged = await anonApp.request(
     "/v1/chat",
     { method: "POST", headers: { "X-BYOK-Provider": "openai-compatible", "X-BYOK-Key": "sk-forged" } },

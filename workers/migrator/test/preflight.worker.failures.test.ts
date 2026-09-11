@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { FIXED_NOW } from "./migrate.worker.helpers";
 import { metadata, preflightRequest, signedApp } from "./preflight-fixtures";
+import { PRISMA_TARGET } from "../src/prisma-target";
 
 beforeEach(() => vi.useFakeTimers({ toFake: ["Date"], now: FIXED_NOW }));
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -51,6 +52,6 @@ it("keeps healthz as public bundle metadata without reading the ledger", async (
   const get = vi.fn(() => Promise.reject(new Error(privateMessage)));
   const response = await app.request("/healthz", undefined, { ...env, MIGRATOR_DATABASE_URL: { get } });
   expect(await response.json()).toEqual({ status: "ok", service: "migrator", env: "staging", bundleHead: "20251201000000_old",
-    prismaTarget: "da06cd8aaa95cd2a12b6ec7af3ccd003366dcdaa88e3c78dfd5578ecf323459a" });
+    prismaTarget: PRISMA_TARGET });
   expect(get).not.toHaveBeenCalled();
 });

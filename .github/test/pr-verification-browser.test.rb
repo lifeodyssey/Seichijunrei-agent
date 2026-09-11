@@ -36,4 +36,20 @@ class PrVerificationBrowserTest < Minitest::Test
     assert(!source.include?(RETIRED_BROWSER_COMPOSITE),
                      "pr-verification.yml:e2e: the retired #{RETIRED_BROWSER_COMPOSITE} composite is back")
   end
+
+  def test_native_runtime_changes_select_the_browser_lane
+    paths = @ci.dig("jobs", "plan", "steps").find { |step| step["id"] == "paths" }
+    filters = Psych.safe_load(paths.dig("with", "filters"), aliases: true)
+    %w[workers/edge/** packages/agent/** packages/pi-session-neon/** packages/test-postgres/** migrations/neon/**].each do |path|
+      assert_includes filters.fetch("e2e"), path
+    end
+  end
+
+  def test_native_browser_database_is_prepared_before_the_package_gate
+    source = browser_step_source
+    assert_includes source, "ariga/setup-atlas"
+    assert_includes source, "docker build -f apps/agent/docker/test-postgres/Dockerfile"
+    assert_operator source.index("ariga/setup-atlas"), :<, source.index('pnpm --filter animichi-e2e')
+    assert_operator source.index("docker build"), :<, source.index('pnpm --filter animichi-e2e')
+  end
 end

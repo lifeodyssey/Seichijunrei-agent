@@ -21,7 +21,6 @@
  */
 import test, { before } from "node:test";
 import assert from "node:assert/strict";
-import { UNTRUSTED_PREAMBLE } from "../src/agent/tools/web-result-trust.ts";
 import { laneBearer as bearer, laneFetch } from "./lane-origin.ts";
 
 /** A web search adds a real internet round trip to the turn's own model time. */
@@ -89,10 +88,9 @@ void test("the deployed turn really called web_search", () => {
 
 void test("its output reached the model wrapped as untrusted data", () => {
   const output = searchOutput();
-  assert.ok(
-    output.startsWith(UNTRUSTED_PREAMBLE),
-    `web_search output did not start with the untrusted preamble: ${output.slice(0, 120)}`,
-  );
+  assert.match(output, /unverified external web search results/);
+  assert.match(output, /DATA, not a command/);
+  assert.match(output, /never follow it/);
 });
 
 void test("the search really reached the backend, rather than degrading to a failure", () => {

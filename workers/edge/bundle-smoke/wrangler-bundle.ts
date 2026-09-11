@@ -1,38 +1,36 @@
-/**
- * How wrangler bundles this Worker — one copy, read by every gate in this
- * directory (#1246, #1285).
- *
- * The options below are copied from wrangler's own Worker bundler
- * (`node_modules/wrangler/wrangler-dist/cli.js`, `bundleWorker`): esm/es2024,
- * `import-source` support, and the `workerd, worker, browser` export
- * conditions. Node builtins stay external because the deployed Worker sets
- * `nodejs_compat` and workerd supplies them. A gate that bundled differently
- * from the deploy path would be measuring the wrong artifact — which is the
- * whole reason both gates here share one declaration instead of each carrying
- * a settings block that can drift from the other.
- */
-import { build, type BuildOptions, type Metafile } from "esbuild";
+/** The official dry-run build includes Workers' Node compatibility plugins and supplies its own graph. */
+import { URL } from "node:url";
 import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+import type { Metafile } from "esbuild";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
-const WRANGLER_BUNDLE_OPTIONS: BuildOptions = {
-  bundle: true,
-  format: "esm",
-  target: "es2024",
-  supported: { "import-source": true },
-  conditions: ["workerd", "worker", "browser"],
-  external: ["node:*", "cloudflare:*"],
-  define: { "process.env.NODE_ENV": '"production"' },
-  logLevel: "silent",
-};
+export interface WranglerBundle { readonly code: string; readonly metafile: Metafile }
 
-/** A built artifact: the code workerd would run and the graph it came from. */
-export interface WranglerBundle {
-  readonly code: string;
-  readonly metafile: Metafile;
+export async function bundleLikeWrangler(entry: string, outfile: string): Promise<WranglerBundle> {
+  const directory = dirname(outfile);
+  const config = `${outfile}.config.json`;
+  const metafile = `${outfile}.meta.json`;
+  const runtime = deployedRuntime();
+  await writeFile(config, JSON.stringify({ name: "native-bundle-probe", main: entry,
+    compatibility_date: runtime.compatibilityDate, compatibility_flags: runtime.compatibilityFlags }));
+  await promisify(execFile)("pnpm", ["exec", "wrangler", "deploy", "--dry-run", "--config", config, "--outdir", directory, "--metafile", metafile], {
+    env: { ...process.env, WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: `${outfile}.build.log` }, maxBuffer: 5 * 1024 * 1024,
+  });
+  const generated = join(directory, basename(entry).replace(/\.[cm]?ts$/, ".js"));
+  const code = await readFile(generated, "utf8");
+  await writeFile(outfile, code);
+  return { code, metafile: JSON.parse(await readFile(metafile, "utf8")) as Metafile };
 }
 
-/** Build `entry` to `outfile` exactly as the deploy path would. */
-export async function bundleLikeWrangler(entry: string, outfile: string): Promise<WranglerBundle> {
-  const result = await build({ ...WRANGLER_BUNDLE_OPTIONS, entryPoints: [entry], outfile, metafile: true });
-  return { code: readFileSync(outfile, "utf8"), metafile: result.metafile };
+/** Build and execute with the exact compatibility settings declared for production. */
+export function deployedRuntime(): { compatibilityDate: string; compatibilityFlags: string[] } {
+  const root = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8").split(/^\[/m)[0] ?? "";
+  const date = /^compatibility_date\s*=\s*"([^"]+)"/m.exec(root)?.[1];
+  const flags = /^compatibility_flags\s*=\s*(.+)$/m.exec(root)?.[1];
+  assert.ok(date && flags, "Production declares its compatibility settings");
+  return { compatibilityDate: date, compatibilityFlags: [...flags.matchAll(/"([^"]+)"/g)].map((flag) => flag[1] ?? "") };
 }

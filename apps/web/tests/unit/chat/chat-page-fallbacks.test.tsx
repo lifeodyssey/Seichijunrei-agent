@@ -1,8 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
+import { http } from "msw";
+import { completedNativeWatch } from "./_native-watch";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished } from "vitest";
 import { chatDictFor } from "../../../src/features/chat/i18n";
 import { setLanguages } from "../_i18n";
 import {
@@ -28,10 +30,16 @@ function sendText(text: string) {
   fireEvent.click(screen.getByRole("button", { name: ja.send }));
 }
 
-const FINAL_STATE = [
-  { role: "user", content: "ユーフォ" },
-  { role: "assistant", content: "宇治の聖地を2件、徒歩ルートにまとめました。" },
-];
+const FINAL_ANSWER = "宇治の聖地を2件、徒歩ルートにまとめました。";
+
+async function completedSnapshot(seen: string[] = []) {
+  const native = await completedNativeWatch(FINAL_ANSWER, "s-1");
+  onTestFinished(native.close);
+  server.use(http.get("*/v1/conversations/s-1/stream", ({ request }) => {
+    seen.push(request.url);
+    return native.response();
+  }));
+}
 
 describe("D4 mid-stream interruption", () => {
   it("shows the inline retry strip and preserves the already-rendered content", async () => {
@@ -44,17 +52,17 @@ describe("D4 mid-stream interruption", () => {
     expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(false);
   });
 
-  it("recovers by re-reading the session's final state, not by resuming the stream", async () => {
+  it("recovers the native snapshot and preserves the user's prompt", async () => {
     const seen: string[] = [];
     server.use(conversationMessagesHandler("s-1", []), chatStreamDropHandler("search"));
     renderChatPage(chatSearch({ session: "s-1" }));
     await waitFor(() => { expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(false); });
     sendText("ユーフォ");
     await screen.findByText(states.d4Message);
-    server.use(conversationMessagesHandler("s-1", FINAL_STATE, (request) => seen.push(request.url)));
+    await completedSnapshot(seen);
     fireEvent.click(screen.getByRole("button", { name: states.d4Retry }));
     expect(await screen.findByText("宇治の聖地を2件、徒歩ルートにまとめました。")).toBeTruthy();
-    expect(seen[0]).toContain("/v1/conversations/s-1/messages");
+    expect(seen[0]).toContain("/v1/conversations/s-1/stream");
     expect(screen.getByText("ユーフォ")).toBeTruthy();
     expect(screen.queryByText(states.d4Message)).toBeNull();
   });
@@ -96,7 +104,7 @@ describe("D8 session expiry", () => {
     await waitFor(() => { expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(false); });
     sendText("ユーフォ");
     await screen.findByText(states.d8Message);
-    server.use(conversationMessagesHandler("s-1", FINAL_STATE));
+    await completedSnapshot();
     fireEvent.click(screen.getByRole("button", { name: states.d8Resume }));
     expect(await screen.findByText("宇治の聖地を2件、徒歩ルートにまとめました。")).toBeTruthy();
     expect(screen.queryByText(states.d8Message)).toBeNull();

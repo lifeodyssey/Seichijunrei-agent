@@ -12,15 +12,7 @@ import {
 import { withPortReadyBudget } from "./container/port-ready-budget.ts";
 
 export { EdgeGuard } from "./protect/edge-guard.ts";
-// W1-2 (#1251): the singleton at-least-once backstop for agent turns. Exported
-// here because `durable_objects.bindings` resolves class names against the
-// Worker's own exports. Reached whenever `AGENT_TURN_ROUTE = "edge"` admits a
-// turn (#1256) — the intake arms it before every transaction.
-export { RunSweeper } from "./agent/sweeper/run-sweeper.ts";
-// W1-3 (#1252): the per-session Durable Object that runs a turn inside its own
-// `alarm()` handler. Same reason for the export: `class_name = "AgentSession"`
-// is resolved against this file at deploy time.
-export { AgentSession } from "./agent/session/agent-session.ts";
+export { SessionAgent as AgentSession } from "./agent/host/session-agent.ts";
 // Required for `deniedHosts`/outbound interception to actually run (#284 Task 7,
 // PR #478 review): `applyOutboundInterception` hard-throws when
 // `ctx.exports.ContainerProxy` is undefined — see

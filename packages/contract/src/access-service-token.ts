@@ -9,7 +9,7 @@
  * login page where it expected JSON, and reads it as a broken deploy. Refusing
  * the half-set environment by name is what turns that afternoon into one line.
  *
- * Deliberately import-free, for the same reason `staging-prefix-path.ts` is: its
+ * Deliberately import-free: its
  * consumers are a Playwright config, a Node lane door and (through them) the
  * eval runner, none of which should load zod to learn two header names.
  *

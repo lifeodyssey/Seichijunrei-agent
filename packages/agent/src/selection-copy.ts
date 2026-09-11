@@ -1,26 +1,17 @@
 /**
- * The words a deterministic selection answers with (card #1288).
- *
- * A verbatim port of `apps/agent/src/animichi/agents/selection_messages.py`,
- * including its fallback rule (`locale if locale in table else "en"`). Server
- * copy, not model prose: a selection turn never reaches a provider, so nothing
- * else could author the sentence — which is exactly why Python owned it too.
- *
- * The strings are load-bearing beyond taste. `AGENT_TURN_ROUTE` is a FALLBACK
- * flag (`workers/edge/AGENTS.md`), so a visitor must not be able to tell which
- * tier answered their pick; a re-worded sentence here would be observable.
+ * Server-authored answers for deterministic selections. These turns never
+ * reach a model; unsupported locales use the English copy.
  */
 
 /** The three languages the copy is authored in; anything else reads `en`. */
 const COPY_LOCALES = ["en", "ja", "zh"] as const;
 type CopyLocale = (typeof COPY_LOCALES)[number];
 
-/** How a multi-work pick ended, in the vocabulary Python's `_MULTI_MESSAGES`
- * keys: the route was built, no work had spots, some work is still syncing,
+/** How a multi-work pick ended: the route was built, no work had spots, some work is still syncing,
  * too many spots to route, or the catalog could not answer. */
 export type MultiOutcome = "ok" | "empty" | "partial" | "too_large" | "error";
 
-/** How a place pick ended (Python's `PLACE_MESSAGES` keys). */
+/** How a place pick ended. */
 export type PlaceOutcome = "ok" | "empty" | "error";
 
 const SELECTED: Record<CopyLocale, string> = {

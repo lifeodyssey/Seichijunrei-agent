@@ -47,7 +47,6 @@ const WORKER_READ_MODULES = [
   "src/constants.ts",
   "src/identity-policy.ts",
   "src/internal-binding.ts",
-  "src/staging-prefix-path.ts",
 ];
 
 /** `import … from "x"` and `export … from "x"`, `type` forms excluded. The

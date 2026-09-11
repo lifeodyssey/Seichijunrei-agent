@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 import { TURNSTILE_HEADER, createTurnstileGate } from "../src/protect/turnstile.ts";
 import { stubCtx } from "../src/container/entry-env.ts";
@@ -45,27 +46,15 @@ function tokenVerdict(fresh: boolean) {
   return fresh ? { success: true } : { success: false, "error-codes": ["timeout-or-duplicate"] };
 }
 
-function anonEnv(captured: { requests: Request[] }) {
-  return {
-    ...ANON_ENV,
-    EDGE_GUARD: fakeGuard(NOW).namespace,
-    CONTAINER: containerStub(captured),
-  } as never;
-}
-
-function containerStub(captured: { requests: Request[] }) {
-  return {
-    idFromName: () => "id",
-    get: () => ({
-      fetch: (r: Request) => { captured.requests.push(r); return Promise.resolve(new Response("container")); },
-    }),
-  };
+function anonEnv() {
+  return { ...ANON_ENV, EDGE_GUARD: fakeGuard(NOW).namespace } as never;
 }
 
 /** The real gate, wired exactly as `createWorkerApp` builds its default. */
-function realGateApp(calls: string[]) {
+function realGateApp(calls: string[], captured: NativeAgentCall[]) {
   return createWorkerApp({
     authenticate: () => Promise.resolve({ ok: false, reason: "absent" } as const),
+    agentTurns: nativeAgentReceiver(captured),
     turnstileGate: createTurnstileGate({ fetchImpl: singleUseSiteverify(calls) }),
   });
 }
@@ -78,46 +67,46 @@ const solved = { [TURNSTILE_HEADER]: SOLVED, "CF-Connecting-IP": "203.0.113.7" }
 
 void test("a genuinely solved token verifies once and the turn is forwarded", async () => {
   const calls: string[] = [];
-  const captured = { requests: [] as Request[] };
-  const res = await realGateApp(calls).request("/v1/chat", chat(solved), anonEnv(captured), stubCtx);
+  const captured: NativeAgentCall[] = [];
+  const res = await realGateApp(calls, captured).request("/v1/chat", chat(solved), anonEnv(), stubCtx);
   assert.equal(res.status, 200);
   assert.deepEqual(calls, [SOLVED]);
-  assert.equal(captured.requests.length, 1);
+  assert.equal(captured.length, 1);
 });
 
 void test("the same visitor's follow-up turn rides the window without re-verifying", async () => {
   const calls: string[] = [];
-  const captured = { requests: [] as Request[] };
-  const env = anonEnv(captured);
-  const app = realGateApp(calls);
+  const captured: NativeAgentCall[] = [];
+  const env = anonEnv();
+  const app = realGateApp(calls, captured);
   const first = await app.request("/v1/chat", chat(solved), env, stubCtx);
   const cookie = String(first.headers.get("Set-Cookie")).split(";")[0] ?? "";
   const second = await app.request("/v1/chat", chat({ ...solved, Cookie: cookie }), env, stubCtx);
   assert.equal(second.status, 200);
   assert.deepEqual(calls, [SOLVED]);
-  assert.equal(captured.requests.length, 2);
+  assert.equal(captured.length, 2);
 });
 
 void test("replaying the token from a dropped cookie is rejected, not waved through", async () => {
   const calls: string[] = [];
-  const captured = { requests: [] as Request[] };
-  const env = anonEnv(captured);
-  const app = realGateApp(calls);
+  const captured: NativeAgentCall[] = [];
+  const env = anonEnv();
+  const app = realGateApp(calls, captured);
   await app.request("/v1/chat", chat(solved), env, stubCtx);
   const replay = await app.request("/v1/chat", chat(solved), env, stubCtx);
   assert.equal(replay.status, 403);
   assert.deepEqual(calls, [SOLVED, SOLVED], "the replay must reach siteverify, not the local window");
-  assert.equal(captured.requests.length, 1);
+  assert.equal(captured.length, 1);
 });
 
 void test("the cookie-drop replay stays rejected however often it is retried", async () => {
   const calls: string[] = [];
-  const captured = { requests: [] as Request[] };
-  const env = anonEnv(captured);
-  const app = realGateApp(calls);
+  const captured: NativeAgentCall[] = [];
+  const env = anonEnv();
+  const app = realGateApp(calls, captured);
   await app.request("/v1/chat", chat(solved), env, stubCtx);
   await app.request("/v1/chat", chat(solved), env, stubCtx);
   const third = await app.request("/v1/chat", chat(solved), env, stubCtx);
   assert.equal(third.status, 403);
-  assert.equal(captured.requests.length, 1);
+  assert.equal(captured.length, 1);
 });

@@ -1,10 +1,13 @@
 /**
- * The three consumers of the offline image must resolve the SAME tag (#1326).
+ * Every consumer of the offline image must resolve the SAME tag (#1326).
  *
  * They used to carry three copies of it: the catalog spike fixture, the edge
  * agent-db fixture and `scripts/local-gates/db-fresh-schema.sh`. A tag that
  * drifts in one of them does not fail — it silently boots a different (or a
- * missing) image, which is why this is a gate rather than a convention.
+ * missing) image, which is why this is a gate rather than a convention. The
+ * native rewrite (#1582) retired the single edge arm file, so the edge side of
+ * this contract is now the set of lane fixtures, discovered the same way the
+ * setup-budget witness discovers them.
  *
  * Two consumers are TypeScript and one is bash, so the single declaration is
  * `postgres-image.env` and each side reads it its own way. This test resolves
@@ -22,7 +25,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { OFFLINE_POSTGRES_IMAGE } from "../src/postgres-image.ts";
@@ -33,7 +36,20 @@ const read = (path: string): string => readFileSync(new URL(path, ROOT), "utf8")
 const IMAGE_DECLARATION = "packages/test-postgres/postgres-image.env";
 const FRESH_SCHEMA_GATE = "scripts/local-gates/db-fresh-schema.sh";
 const SPIKE_FIXTURE = "workers/catalog/test/spike-db-global.ts";
-const AGENT_DB_FIXTURE = "workers/edge/agent-db-test/postgres-arm.ts";
+const EDGE_DIR = "workers/edge";
+
+/** Every edge lane file that boots the shared postgres recipe, discovered from
+ * the `*-test` lane directories rather than listed by hand. */
+function edgePostgresFixtures(): string[] {
+  return readdirSync(new URL(`${EDGE_DIR}/`, ROOT), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.endsWith("-test"))
+    .flatMap((lane) =>
+      readdirSync(new URL(`${EDGE_DIR}/${lane.name}/`, ROOT))
+        .filter((file) => file.endsWith(".ts"))
+        .map((file) => `${EDGE_DIR}/${lane.name}/${file}`),
+    )
+    .filter((path) => read(path).includes("startTestPostgres"));
+}
 
 /** The repository's image family. A consumer that names one names its own. */
 const IMAGE_LITERAL = /animichi-test-postgres:/;
@@ -67,9 +83,13 @@ void test("the catalog spike fixture names no image and boots no container of it
   assert.match(fixture, /startTestPostgres\(/);
 });
 
-void test("the edge agent-db fixture names no image and boots no container of its own", () => {
-  const fixture = read(AGENT_DB_FIXTURE);
-  assert.doesNotMatch(fixture, IMAGE_LITERAL);
-  assert.doesNotMatch(fixture, CONTAINER_CONSTRUCTION);
-  assert.match(fixture, /startTestPostgres\(/);
+void test("every edge lane fixture names no image and boots no container of its own", () => {
+  const fixtures = edgePostgresFixtures();
+  assert.ok(fixtures.length > 0, `no startTestPostgres fixture found under ${EDGE_DIR}`);
+  for (const fixture of fixtures) {
+    const source = read(fixture);
+    assert.doesNotMatch(source, IMAGE_LITERAL, fixture);
+    assert.doesNotMatch(source, CONTAINER_CONSTRUCTION, fixture);
+    assert.match(source, /startTestPostgres\(/, fixture);
+  }
 });

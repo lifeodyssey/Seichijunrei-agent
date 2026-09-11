@@ -83,6 +83,7 @@ export async function handleAnonymousV1(
   if (challenged !== null) return challenged;
   const limited = await limitedOrNull(env, request, identity.userId);
   if (limited !== null) return limited;
-  const served = await servedAnonymously(env, identity, nowMs, serve);
+  const readOnly = request.method === "GET" && classifyRatePolicy(request.method, new URL(request.url).pathname).cost === "low";
+  const served = readOnly ? await serve(identity) : await servedAnonymously(env, identity, nowMs, serve);
   return withAnonymousCookie(served, identity.setCookie);
 }

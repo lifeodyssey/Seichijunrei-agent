@@ -21,7 +21,6 @@ import {
 import { publicReadKey } from "./read-key.ts";
 import { isAnonymousV1, isPublicV1, turnRoutePolicy } from "./routing-policy.ts";
 import { agentTierResponse, type AgentTierGates } from "./agent-tier-route.ts";
-import { stagingPrefixResponse, stagingPrefixRoute } from "./staging-prefix-route.ts";
 
 // ── EDGE-1 #963: the composed gateway seam ─────────────────────────────────
 //
@@ -204,18 +203,8 @@ async function agentV1Response(
   env: Env, request: Request, ctx: WorkerExecutionContext, pathname: string, deps: GatewayDeps,
 ): Promise<Response> {
   if (pathname === TURNSTILE_VERIFY_PATH) return turnstileVerifyResponse(env, request, ctx, deps);
-  // W1-7 #1256: the fallback flag is read here and nowhere else. It selects at
-  // most the two agent-turn routes; everything else under /v1 — and every route
-  // at all while the flag says `container` — takes the branches below unchanged.
-  const edgeTier = turnRoutePolicy(env.AGENT_TURN_ROUTE).select(request.method, pathname);
+  const edgeTier = turnRoutePolicy().select(request.method, pathname);
   if (edgeTier !== null) return agentTierResponse(env, request, ctx, pathname, edgeTier, deps);
-  // E-1 #1380: the eval's frozen-prefix seeding, mounted only where
-  // `APP_ENV === "staging"`. Read here, beside the flag above, because this is
-  // the one place `/v1` dispatch is decided; on every other deployment the
-  // policy answers null and the request takes the branches below unchanged —
-  // which is a container that has never served this path, i.e. a 404.
-  const seeding = stagingPrefixRoute(env.APP_ENV, request.method, pathname);
-  if (seeding !== null) return stagingPrefixResponse(env, request, ctx, seeding, deps);
   if (isPublicV1(pathname)) return publicAgentV1Response(env, request, pathname, deps.sleep);
   return privateAgentV1Response(env, request, ctx, pathname, deps);
 }

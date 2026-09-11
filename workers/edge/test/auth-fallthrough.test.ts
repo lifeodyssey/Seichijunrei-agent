@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { exportJWK, generateKeyPair, type JWK, SignJWT } from "jose";
 import { authenticate, type AuthResult } from "../src/identity/auth.ts";
 import { createWorkerApp } from "../src/app.ts";
+import { nativeAgentReceiver, type NativeAgentCall } from "./doubles/native-agent-receiver.ts";
 import { fakeGuard } from "./doubles/guard-doubles.ts";
 
 const ENV = { NEON_AUTH_JWKS_URL: "https://neon-441.example.test/.well-known/jwks.json" };
@@ -96,51 +97,37 @@ void test("an sk_ credential reports reason invalid (AUTH-1: api_keys deleted)",
 
 // ── the /v1 branch honours the reason ──────────────────────────────────────
 
-function anonEnv(captured: { requests: Request[] }) {
-  return {
-    ANON_ACCESS_ENABLED: "true",
-    TURNSTILE_SECRET: "fixed-test-turnstile-secret-0000000",
-    ANON_ID_SECRET: SECRET,
-    EDGE_SHOWCASE_MODE: "false",
-    EDGE_GUARD: fakeGuard(NOW).namespace,
-    CONTAINER: containerStub(captured),
-  } as never;
-}
-
-function containerStub(captured: { requests: Request[] }) {
-  return {
-    idFromName: () => "id",
-    get: () => ({
-      fetch: (r: Request) => { captured.requests.push(r); return Promise.resolve(new Response("container")); },
-    }),
-  };
+function anonEnv() {
+  return { ANON_ACCESS_ENABLED: "true", TURNSTILE_SECRET: "fixed-test-turnstile-secret-0000000",
+    ANON_ID_SECRET: SECRET, EDGE_SHOWCASE_MODE: "false", EDGE_GUARD: fakeGuard(NOW).namespace } as never;
 }
 
 /** #441 is about which credential verdict may become anonymous, so the #447
  * Turnstile gate is stubbed to a pass here; `turnstile-arm.test.ts` owns it. */
 const passingGate = { check: () => Promise.resolve({ ok: true, errorCodes: [] }) };
 
-function appWith(result: AuthResult) {
+function appWith(result: AuthResult, calls: NativeAgentCall[] = []) {
   return createWorkerApp({
     authenticate: () => Promise.resolve(result),
     turnstileGate: passingGate,
+    agentTurns: nativeAgentReceiver(calls),
   });
 }
 
 void test("an invalid credential 401s instead of becoming anonymous", async () => {
-  const captured = { requests: [] as Request[] };
-  const response = await appWith({ ok: false, reason: "invalid" }).request(
-    "/v1/chat", { method: "POST" }, anonEnv(captured), stubCtx,
+  const captured: NativeAgentCall[] = [];
+  const response = await appWith({ ok: false, reason: "invalid" }, captured).request(
+    "/v1/chat", { method: "POST" }, anonEnv(), stubCtx,
   );
   assert.equal(response.status, 401);
-  assert.equal(captured.requests.length, 0);
+  assert.equal(captured.length, 0);
   assert.equal(response.headers.get("Set-Cookie"), null);
 });
 
 void test("an invalid credential 401 carries the typed unauthorized code", async () => {
-  const captured = { requests: [] as Request[] };
-  const response = await appWith({ ok: false, reason: "invalid" }).request(
-    "/v1/chat", { method: "POST" }, anonEnv(captured), stubCtx,
+  const captured: NativeAgentCall[] = [];
+  const response = await appWith({ ok: false, reason: "invalid" }, captured).request(
+    "/v1/chat", { method: "POST" }, anonEnv(), stubCtx,
   );
   const body = await response.json() as { error: { code: string } };
   assert.equal(body.error.code, "unauthorized");
@@ -152,7 +139,7 @@ void test("an invalid credential is recorded so a 401 storm is visible", async (
   console.warn = (line: unknown) => { warnings.push(String(line)); };
   try {
     await appWith({ ok: false, reason: "invalid" }).request(
-      "/v1/chat", { method: "POST" }, anonEnv({ requests: [] }), stubCtx,
+      "/v1/chat", { method: "POST" }, anonEnv(), stubCtx,
     );
   } finally {
     console.warn = original;
@@ -162,11 +149,11 @@ void test("an invalid credential is recorded so a 401 storm is visible", async (
   assert.deepEqual(record, { event: "edge_auth_invalid_credential", path: "/v1/chat" });
 });
 
-void test("an absent credential still reaches the container as anonymous", async () => {
-  const captured = { requests: [] as Request[] };
-  const response = await appWith({ ok: false, reason: "absent" }).request(
-    "/v1/chat", { method: "POST" }, anonEnv(captured), stubCtx,
+void test("an absent credential reaches the native tier with anonymous identity", async () => {
+  const captured: NativeAgentCall[] = [];
+  const response = await appWith({ ok: false, reason: "absent" }, captured).request(
+    "/v1/chat", { method: "POST" }, anonEnv(), stubCtx,
   );
   assert.equal(response.status, 200);
-  assert.equal(captured.requests[0]?.headers.get("X-User-Type"), "anonymous");
+  assert.equal(captured[0]?.identity.userType, "anonymous");
 });
