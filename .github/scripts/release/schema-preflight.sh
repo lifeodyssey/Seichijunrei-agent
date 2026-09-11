@@ -35,6 +35,7 @@ while :; do
   code="$(request_preflight)"
   [ "$code" != 200 ] || break
   if [ -z "$prisma_ref" ] || [ "$code" != 409 ] || ! jq -e '.error == "stale_bundle" or .error == "stale_prisma_bundle"' schema-preflight.json > /dev/null; then
+    echo "::notice::preflight response: $(cat schema-preflight.json 2>/dev/null || echo no_response)"
     echo "::error::migration preflight refused or unavailable (HTTP $code)"; exit 1
   fi
   [ "$attempt" -lt "${STALE_BUNDLE_ATTEMPTS:-3}" ] || { echo '::error::native preflight remained on a stale bundle'; exit 1; }
